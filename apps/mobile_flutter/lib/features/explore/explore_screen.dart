@@ -34,7 +34,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: categories.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 8),
+            separatorBuilder: (context, index) => const SizedBox(width: 8),
             itemBuilder: (context, index) => ChoiceChip(
               label: Text(categories[index]),
               selected: category == categories[index],

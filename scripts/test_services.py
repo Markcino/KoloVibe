@@ -1,5 +1,6 @@
-"""Local service tests. Never sets or uses deployment credentials."""
+"""Local service checks. Secrets are generated dynamically and never persisted."""
 import os
+import secrets
 import subprocess
 import sys
 from pathlib import Path
@@ -10,7 +11,7 @@ for name in NAMES:
     env = dict(
         os.environ,
         KOLOVIBE_ENV="local",
-        DJANGO_SECRET_KEY="kolovibe-local-tests-only-secret-key-123456",
+        DJANGO_SECRET_KEY=secrets.token_urlsafe(48),
         DJANGO_DEBUG="0",
     )
     subprocess.run(
