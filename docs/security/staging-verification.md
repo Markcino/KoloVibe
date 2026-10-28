@@ -1,16 +1,45 @@
 # Environment security verification
 
-This repository provides a controlled verification script for an explicitly approved environment. It cannot attest to security without an actual deployed environment, route configuration, network ACL evidence, and authorized review.
+KoloVibe runs its authorized remote checks exclusively through the **GitHub Environment**
+`staging-security-review`. The workflow is manually dispatched, has read-only repository
+permissions, and must be protected by required reviewers and an allowed deployment branch.
 
-## Runbook
-1. Configure the isolated deployment, DNS, TLS, service gateway, and security policies under approved architecture decisions.
-2. Obtain authorization for the exact test hostname and record it.
-3. Set `KOLOVIBE_STAGING_URL=https://<approved-host>` and `KOLOVIBE_STAGING_HOST=<approved-host>` locally or within a protected GitHub environment.
-4. Execute `python scripts/verify_staging.py`. This checks HTTPS/TLS, a public health endpoint if approved, and that reserved internal paths reject anonymous access. These HTTP probes alone do not prove host-level network isolation or prevent origin bypass.
-5. Attach results, reverse proxy configuration, firewall tests, authenticated service-access negative tests, database isolation checks, secret rotation, backup restoration, and rollback evidence.
-6. A security reviewer must sign off on the findings before accepting staging controls.
+## Environment configuration
 
-**Never use a production hostname for this runbook.** This probe is intentionally non-destructive and does not attempt penetration testing or unauthorized scanning.
+In GitHub: **Settings → Environments → staging-security-review**. Create it and configure:
 
-## Blockers
-No deployed environment endpoint, certificate, security-group configuration, access credentials, or SSH permission is currently supplied to the repository. Until they are provided, real network-isolation, mTLS/transport, host hardening, backups, and origin-bypass tests are **not executed**.
+| Type | Name | Purpose |
+| --- | --- | --- |
+| Environment variable | `KOLOVIBE_STAGING_URL` | Approved HTTPS origin; no paths or redirects |
+| Environment variable | `KOLOVIBE_STAGING_HOST` | Same approved DNS hostname |
+| Environment variable | `KOLOVIBE_STAGING_CHECK_PATH` | Explicit, read-only, authenticated health route such as `/ops/verify` |
+| **Environment secret** | `KOLOVIBE_STAGING_CHECK_TOKEN` | Dedicated least-privilege bearer token accepted by that route |
+
+The health endpoint and its token verification must be implemented in the deployed
+application before this workflow will succeed. It must respond `200` with
+`{"status":"ok"}` only to a valid authorized token. Keep the token limited to verification,
+rotate it, and never grant publishing, administration or database permissions.
+
+Do **not** create these credentials as repository secrets, put them in Git, write them
+into workflow artifacts or echo them to logs. GitHub protects stored secret values,
+but an approved workflow can read them, so restrict branch selection, reviewers
+and workflow-edit permissions. Use environment-specific identity/federation instead
+of long-lived deployment SSH keys where possible.
+
+## Execution
+
+1. Confirm DNS, TLS and the destination are authorized for testing.
+2. Restrict environment deployments to reviewed `main` and require independent reviewers
+   in GitHub environment protection settings (if supported by your plan).
+3. Under **Actions → Environment security review → Run workflow**, select reviewed `main`.
+4. Review the output and retain separate evidence for TLS termination, trusted proxy
+   headers, origin bypass, private service networking, database access isolation,
+   mTLS/service identity, restore, rollback, secrets rotation and audit logging.
+
+The workflow refuses to run with any missing environment variable or environment secret.
+Its secret-bearing request does not follow HTTP redirects, preventing forwarding to
+another host. Negative public-route checks do not include the token.
+
+**Limitations:** No live environment, protected environment configuration, approved
+endpoint, or token is currently verified here. The workflow is not evidence that
+deployment security controls have been accepted.

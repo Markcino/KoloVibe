@@ -3,19 +3,36 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: kolovibe-environment-security-review
+  cancel-in-progress: false
 jobs:
   verify:
     runs-on: ubuntu-latest
-    environment: staging-security-review
+    environment:
+      name: staging-security-review
+    permissions:
+      contents: read
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Check out reviewed source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'
-      - name: Check approved environment endpoint
+      - name: Validate approved environment configuration and credentials
         env:
           KOLOVIBE_STAGING_URL: ${{ vars.KOLOVIBE_STAGING_URL }}
           KOLOVIBE_STAGING_HOST: ${{ vars.KOLOVIBE_STAGING_HOST }}
-        run: python scripts/verify_staging.py
+          KOLOVIBE_STAGING_CHECK_PATH: ${{ vars.KOLOVIBE_STAGING_CHECK_PATH }}
+          KOLOVIBE_STAGING_CHECK_TOKEN: ${{ secrets.KOLOVIBE_STAGING_CHECK_TOKEN }}
+        run: |
+          set -euo pipefail
+          # All four values are from the named GitHub Environment, not repo secrets.
+          test -n "$KOLOVIBE_STAGING_URL" || { echo "::error::Missing staging URL environment variable"; exit 1; }
+          test -n "$KOLOVIBE_STAGING_HOST" || { echo "::error::Missing staging host environment variable"; exit 1; }
+          test -n "$KOLOVIBE_STAGING_CHECK_PATH" || { echo "::error::Missing authenticated probe path environment variable"; exit 1; }
+          test -n "$KOLOVIBE_STAGING_CHECK_TOKEN" || { echo "::error::Missing environment-scoped probe token"; exit 1; }
+          python scripts/verify_staging.py
