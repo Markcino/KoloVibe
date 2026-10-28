@@ -70,7 +70,7 @@ jobs:
           image: kolovibe/${{ matrix.service }}:ci
           fail-build: true
           severity-cutoff: high
-          output-format: sarif
+          output-format: table
       - name: Check for unapproved deploy configuration
         env:
           SERVICE: ${{ matrix.service }}
