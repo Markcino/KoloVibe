@@ -34,14 +34,13 @@ Install a compatible Flutter SDK, then run:
 
 ```bash
 cd apps/mobile_flutter
-flutter create --platforms android,ios --project-name kolovibe .
 flutter pub get
 flutter analyze
 flutter test
 flutter run
 ```
 
-Native platform configuration, application identifiers and signing must be reviewed before release. The current app includes the navigation shell and initial feature layouts. Authentication, live data, publishing and video playback integrations are still under development.
+Native platform configuration, application identifiers and signing must be reviewed before release. The app includes native presentation recipes for all 108 designed screens and states, shared widgets and an isolated demo gallery. Run `flutter run --target lib/main_demo.dart` for sample-data previews. Authentication, live data, publishing and video playback integrations remain unavailable pending secure service adapters.
 
 ### Backend services
 
@@ -77,5 +76,7 @@ Code changes are reviewed through pull requests and automated checks. Production
 - [Engineering standards](docs/engineering-standards.md)
 - [Architecture decisions](docs/architecture-decisions.md)
 - [Mobile design reference](docs/mobile-design.md)
+- [Mobile UI implementation and verification](docs/mobile-ui-implementation.md)
+- [108-screen design coverage](docs/mobile-design-coverage.md)
 
 Lone Stars are non-cash recognition points. Paid tickets, withdrawals and other deferred services are not included in the current release.

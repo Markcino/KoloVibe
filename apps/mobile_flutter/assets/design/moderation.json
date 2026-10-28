@@ -1,0 +1,5829 @@
+[
+  {
+    "number": 70,
+    "node": "8:83149",
+    "name": "Report Video Entry",
+    "root": {
+      "kind": "stack",
+      "name": "E · M-070 · Report Video Entry",
+      "id": "8:83149",
+      "style": {
+        "background": 4278195513,
+        "cross": "start"
+      },
+      "children": [
+        {
+          "kind": "stack",
+          "name": "Film footage",
+          "id": "8:83150",
+          "style": {
+            "width": 390.0,
+            "height": 760.0,
+            "positioned": true
+          },
+          "children": [
+            {
+              "kind": "image",
+              "name": "",
+              "id": "8:83150",
+              "style": {
+                "positioned": true
+              },
+              "asset": "assets/images/cf4e0afe1785eddefaf3.png"
+            }
+          ]
+        },
+        {
+          "kind": "box",
+          "name": "Playback contrast overlay",
+          "id": "8:83151",
+          "style": {
+            "width": 390.0,
+            "height": 760.0,
+            "positioned": true
+          }
+        },
+        {
+          "kind": "row",
+          "name": "Feed switcher",
+          "id": "8:83157",
+          "style": {
+            "width": 250.0,
+            "height": 48.0,
+            "gap": 24.0,
+            "x": 70.0,
+            "y": 64.0,
+            "positioned": true,
+            "cross": "center"
+          },
+          "children": [
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83158",
+              "style": {
+                "fontSize": 16.0,
+                "color": 4289247184,
+                "weight": 500,
+                "family": "Inter"
+              },
+              "text": "Following"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83159",
+              "style": {
+                "fontSize": 16.0,
+                "color": 4294967295,
+                "weight": 800,
+                "family": "Inter"
+              },
+              "text": "For You"
+            },
+            {
+              "kind": "stack",
+              "name": "search",
+              "id": "8:87076",
+              "style": {
+                "width": 22.0,
+                "height": 22.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87076",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/205572ce399df7c12355.svg"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "box",
+          "name": "Selected feed indicator",
+          "id": "8:83161",
+          "style": {
+            "width": 40.0,
+            "height": 3.0,
+            "radius": 2.0,
+            "x": 174.0,
+            "y": 106.0,
+            "background": 4292880182,
+            "positioned": true
+          }
+        },
+        {
+          "kind": "column",
+          "name": "Engagement rail",
+          "id": "8:83162",
+          "style": {
+            "width": 48.0,
+            "gap": 20.0,
+            "x": 326.0,
+            "y": 390.0,
+            "positioned": true,
+            "cross": "center"
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "Original artwork",
+              "id": "8:83163",
+              "style": {
+                "radius": 22.0,
+                "width": 44.0,
+                "height": 44.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:83163",
+                  "style": {
+                    "radius": 22.0,
+                    "positioned": true
+                  },
+                  "asset": "assets/images/8235bf1c636a7dd99f33.png"
+                }
+              ]
+            },
+            {
+              "kind": "stack",
+              "name": "circle-plus",
+              "id": "8:87079",
+              "style": {
+                "width": 24.0,
+                "height": 24.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87079",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/38d85b9f431b008a6c94.svg"
+                }
+              ]
+            },
+            {
+              "kind": "column",
+              "name": "Video action",
+              "id": "8:83165",
+              "style": {
+                "gap": 5.0,
+                "width": 48.0,
+                "height": 48.0,
+                "cross": "center"
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "heart",
+                  "id": "8:87082",
+                  "style": {
+                    "width": 28.0,
+                    "height": 28.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:87082",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/55daf78220d50bd13a32.svg"
+                    }
+                  ]
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83167",
+                  "style": {
+                    "fontSize": 11.0,
+                    "color": 4294967295,
+                    "weight": 400,
+                    "family": "Inter"
+                  },
+                  "text": "1,248"
+                }
+              ],
+              "action": "do:like"
+            },
+            {
+              "kind": "column",
+              "name": "Video action",
+              "id": "8:83168",
+              "style": {
+                "gap": 5.0,
+                "width": 48.0,
+                "height": 48.0,
+                "cross": "center"
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "share-2",
+                  "id": "8:87085",
+                  "style": {
+                    "width": 28.0,
+                    "height": 28.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:87085",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/fd05ba0e5715ddc1663b.svg"
+                    }
+                  ]
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83170",
+                  "style": {
+                    "fontSize": 11.0,
+                    "color": 4294967295,
+                    "weight": 400,
+                    "family": "Inter"
+                  },
+                  "text": "Share"
+                }
+              ],
+              "action": "go:30"
+            },
+            {
+              "kind": "column",
+              "name": "Video action",
+              "id": "8:83171",
+              "style": {
+                "gap": 5.0,
+                "width": 48.0,
+                "height": 48.0,
+                "cross": "center"
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "ellipsis",
+                  "id": "8:87088",
+                  "style": {
+                    "width": 28.0,
+                    "height": 28.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:87088",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/b4161a408a5d29411476.svg"
+                    }
+                  ]
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83173",
+                  "style": {
+                    "fontSize": 11.0,
+                    "color": 4294967295,
+                    "weight": 400,
+                    "family": "Inter"
+                  },
+                  "text": "More"
+                }
+              ],
+              "action": "go:70"
+            }
+          ]
+        },
+        {
+          "kind": "column",
+          "name": "Video caption",
+          "id": "8:83174",
+          "style": {
+            "width": 288.0,
+            "gap": 8.0,
+            "x": 20.0,
+            "y": 602.0,
+            "positioned": true,
+            "cross": "start"
+          },
+          "children": [
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83175",
+              "style": {
+                "fontSize": 17.0,
+                "color": 4294967295,
+                "weight": 800,
+                "family": "PlusJakartaSans"
+              },
+              "text": "@amakollie"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83176",
+              "style": {
+                "fontSize": 15.0,
+                "color": 4294967295,
+                "weight": 600,
+                "family": "Inter",
+                "fill": true
+              },
+              "text": "Waterside at dawn"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83177",
+              "style": {
+                "fontSize": 12.0,
+                "color": 4294967295,
+                "weight": 400,
+                "family": "Inter",
+                "lineHeight": 1.5,
+                "fill": true
+              },
+              "text": "A city waking up. A thousand stories. …more"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83178",
+              "style": {
+                "fontSize": 11.0,
+                "color": 4289247184,
+                "weight": 400,
+                "family": "Inter"
+              },
+              "text": "Short film · #Monrovia #OriginalStories"
+            }
+          ],
+          "action": "go:25"
+        },
+        {
+          "kind": "row",
+          "name": "Playback controls",
+          "id": "8:83179",
+          "style": {
+            "width": 350.0,
+            "height": 32.0,
+            "gap": 12.0,
+            "x": 20.0,
+            "y": 718.0,
+            "positioned": true,
+            "cross": "center"
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "pause",
+              "id": "8:87091",
+              "style": {
+                "width": 18.0,
+                "height": 18.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87091",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/59996661dcd6d33fb61f.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83181",
+              "style": {
+                "fontSize": 10.0,
+                "color": 4294967295,
+                "weight": 400,
+                "family": "Inter"
+              },
+              "text": "00:36 / 04:18"
+            },
+            {
+              "kind": "box",
+              "name": "Playback progress track",
+              "id": "8:83182",
+              "style": {
+                "width": 149.0,
+                "height": 3.0,
+                "background": 4289247184
+              }
+            },
+            {
+              "kind": "stack",
+              "name": "volume-2",
+              "id": "8:87094",
+              "style": {
+                "width": 18.0,
+                "height": 18.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87094",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/4f91f0c31659c6e3b68b.svg"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "box",
+          "name": "Playback elapsed",
+          "id": "8:83184",
+          "style": {
+            "width": 21.0,
+            "height": 3.0,
+            "x": 137.0,
+            "y": 732.0,
+            "background": 4292880182,
+            "positioned": true
+          }
+        },
+        {
+          "kind": "stack",
+          "name": "Primary navigation",
+          "id": "8:83185",
+          "style": {
+            "width": 390.0,
+            "height": 84.0,
+            "y": 760.0,
+            "background": 4278195513,
+            "borderColor": 4279512402,
+            "positioned": true,
+            "cross": "start"
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "house",
+              "id": "8:87097",
+              "style": {
+                "x": 27.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87097",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/b92573f2206b67a1727d.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83187",
+              "style": {
+                "width": 78.0,
+                "x": 39.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4289247184,
+                "weight": 500,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Home"
+            },
+            {
+              "kind": "stack",
+              "name": "compass",
+              "id": "8:87100",
+              "style": {
+                "x": 105.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87100",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/3a2e4fecf92a0ea4b551.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83189",
+              "style": {
+                "width": 78.0,
+                "x": 117.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4289247184,
+                "weight": 500,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Explore"
+            },
+            {
+              "kind": "stack",
+              "name": "circle-plus",
+              "id": "8:87103",
+              "style": {
+                "x": 183.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87103",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/5fdc564bb09a06686d4f.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83191",
+              "style": {
+                "width": 78.0,
+                "x": 195.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4289247184,
+                "weight": 500,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Create"
+            },
+            {
+              "kind": "stack",
+              "name": "clapperboard",
+              "id": "8:87106",
+              "style": {
+                "x": 261.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87106",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/7f9aa383e97b0ac0cb04.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83193",
+              "style": {
+                "width": 78.0,
+                "x": 273.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4292880182,
+                "weight": 700,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Videos"
+            },
+            {
+              "kind": "stack",
+              "name": "user-round",
+              "id": "8:87109",
+              "style": {
+                "x": 339.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87109",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/7bd8d935f588a86ea071.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83195",
+              "style": {
+                "width": 78.0,
+                "x": 351.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4289247184,
+                "weight": 500,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Profile"
+            }
+          ]
+        },
+        {
+          "kind": "column",
+          "name": "Modal scrim",
+          "id": "8:83197",
+          "style": {
+            "width": 390.0,
+            "height": 844.0,
+            "background": 3372225849,
+            "positioned": true,
+            "cross": "start",
+            "main": "end"
+          },
+          "children": [
+            {
+              "kind": "column",
+              "name": "Bottom sheet",
+              "id": "8:83198",
+              "style": {
+                "width": 390.0,
+                "gap": 20.0,
+                "background": 4293981183,
+                "cross": "start",
+                "padding": [
+                  24.0,
+                  12.0,
+                  24.0,
+                  32.0
+                ],
+                "topRadius": 28.0
+              },
+              "children": [
+                {
+                  "kind": "box",
+                  "name": "Sheet handle",
+                  "id": "8:83199",
+                  "style": {
+                    "width": 40.0,
+                    "height": 4.0,
+                    "radius": 2.0,
+                    "background": 4292535287
+                  }
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83200",
+                  "style": {
+                    "fontSize": 24.0,
+                    "color": 4279249494,
+                    "weight": 800,
+                    "family": "PlusJakartaSans",
+                    "lineHeight": 1.15,
+                    "fill": true
+                  },
+                  "text": "Video options"
+                },
+                {
+                  "kind": "row",
+                  "name": "Settings row",
+                  "id": "8:83201",
+                  "style": {
+                    "minHeight": 58.0,
+                    "gap": 12.0,
+                    "borderColor": 4292535287,
+                    "fill": true,
+                    "cross": "center",
+                    "padding": [
+                      0,
+                      12.0,
+                      0,
+                      12.0
+                    ]
+                  },
+                  "children": [
+                    {
+                      "kind": "column",
+                      "name": "Row content",
+                      "id": "8:83202",
+                      "style": {
+                        "flex": true,
+                        "cross": "start"
+                      },
+                      "children": [
+                        {
+                          "kind": "text",
+                          "name": "",
+                          "id": "8:83203",
+                          "style": {
+                            "fontSize": 14.0,
+                            "color": 4279249494,
+                            "weight": 600,
+                            "family": "Inter",
+                            "lineHeight": 1.48,
+                            "fill": true
+                          },
+                          "text": "Share public link"
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "stack",
+                      "name": "share-2",
+                      "id": "8:87112",
+                      "style": {
+                        "width": 20.0,
+                        "height": 20.0
+                      },
+                      "children": [
+                        {
+                          "kind": "image",
+                          "name": "",
+                          "id": "8:87112",
+                          "style": {
+                            "positioned": true
+                          },
+                          "asset": "assets/images/810b965a77d02c074bd6.svg"
+                        }
+                      ]
+                    }
+                  ],
+                  "action": "go:30"
+                },
+                {
+                  "kind": "row",
+                  "name": "Settings row",
+                  "id": "8:83205",
+                  "style": {
+                    "minHeight": 58.0,
+                    "gap": 12.0,
+                    "borderColor": 4292535287,
+                    "fill": true,
+                    "cross": "center",
+                    "padding": [
+                      0,
+                      12.0,
+                      0,
+                      12.0
+                    ]
+                  },
+                  "children": [
+                    {
+                      "kind": "column",
+                      "name": "Row content",
+                      "id": "8:83206",
+                      "style": {
+                        "gap": 4.0,
+                        "lineHeight": 1.48,
+                        "flex": true,
+                        "cross": "start"
+                      },
+                      "children": [
+                        {
+                          "kind": "text",
+                          "name": "",
+                          "id": "8:83207",
+                          "style": {
+                            "fontSize": 14.0,
+                            "color": 4292880182,
+                            "weight": 600,
+                            "family": "Inter",
+                            "fill": true
+                          },
+                          "text": "Report this video"
+                        },
+                        {
+                          "kind": "text",
+                          "name": "",
+                          "id": "8:83208",
+                          "style": {
+                            "fontSize": 12.0,
+                            "color": 4285100420,
+                            "weight": 400,
+                            "family": "Inter",
+                            "fill": true
+                          },
+                          "text": "Tell us about a possible guideline concern"
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "stack",
+                      "name": "flag",
+                      "id": "8:87115",
+                      "style": {
+                        "width": 20.0,
+                        "height": 20.0
+                      },
+                      "children": [
+                        {
+                          "kind": "image",
+                          "name": "",
+                          "id": "8:87115",
+                          "style": {
+                            "positioned": true
+                          },
+                          "asset": "assets/images/3a7a0630c08dc23ad309.svg"
+                        }
+                      ]
+                    }
+                  ],
+                  "action": "go:71"
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83210",
+                  "style": {
+                    "fontSize": 12.0,
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "lineHeight": 1.48,
+                    "fill": true
+                  },
+                  "text": "Reporting is private. Submitting a report does not automatically remove this video."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "number": 71,
+    "node": "8:83212",
+    "name": "Report a video",
+    "root": {
+      "kind": "stack",
+      "name": "E · M-071 · Report a video",
+      "id": "8:83212",
+      "style": {
+        "background": 4293981183,
+        "cross": "start"
+      },
+      "children": [
+        {
+          "kind": "row",
+          "name": "App header",
+          "id": "8:83218",
+          "style": {
+            "width": 390.0,
+            "height": 60.0,
+            "gap": 12.0,
+            "cross": "center",
+            "padding": [
+              24.0,
+              0,
+              24.0,
+              0
+            ]
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "arrow-left",
+              "id": "8:87127",
+              "style": {
+                "width": 24.0,
+                "height": 24.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87127",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/add18c048fedbc53b74e.svg"
+                }
+              ],
+              "action": "back"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83220",
+              "style": {
+                "fontSize": 18.0,
+                "color": 4279249494,
+                "weight": 700,
+                "family": "PlusJakartaSans",
+                "flex": true
+              },
+              "text": "Report a video"
+            }
+          ]
+        },
+        {
+          "kind": "column",
+          "name": "Scrollable content",
+          "id": "8:83221",
+          "style": {
+            "width": 390.0,
+            "height": 656.0,
+            "cross": "start",
+            "padding": [
+              24.0,
+              8.0,
+              24.0,
+              20.0
+            ]
+          },
+          "children": [
+            {
+              "kind": "column",
+              "name": "Content group",
+              "id": "8:83222",
+              "style": {
+                "gap": 8.0,
+                "fill": true,
+                "cross": "start"
+              },
+              "children": [
+                {
+                  "kind": "row",
+                  "name": "Video list item",
+                  "id": "8:83223",
+                  "style": {
+                    "gap": 12.0,
+                    "fill": true,
+                    "cross": "center",
+                    "padding": [
+                      0,
+                      6.0,
+                      0,
+                      6.0
+                    ]
+                  },
+                  "children": [
+                    {
+                      "kind": "stack",
+                      "name": "Original artwork",
+                      "id": "8:83224",
+                      "style": {
+                        "width": 104.0,
+                        "height": 76.0,
+                        "radius": 12.0
+                      },
+                      "children": [
+                        {
+                          "kind": "image",
+                          "name": "",
+                          "id": "8:83224",
+                          "style": {
+                            "radius": 12.0,
+                            "positioned": true
+                          },
+                          "asset": "assets/images/cf4e0afe1785eddefaf3.png"
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "column",
+                      "name": "Video information",
+                      "id": "8:83225",
+                      "style": {
+                        "gap": 5.0,
+                        "lineHeight": 1.48,
+                        "flex": true,
+                        "cross": "start"
+                      },
+                      "children": [
+                        {
+                          "kind": "text",
+                          "name": "",
+                          "id": "8:83226",
+                          "style": {
+                            "fontSize": 14.0,
+                            "color": 4279249494,
+                            "weight": 600,
+                            "family": "Inter",
+                            "fill": true
+                          },
+                          "text": "Waterside at dawn"
+                        },
+                        {
+                          "kind": "text",
+                          "name": "",
+                          "id": "8:83227",
+                          "style": {
+                            "fontSize": 11.0,
+                            "color": 4285100420,
+                            "weight": 400,
+                            "family": "Inter",
+                            "fill": true
+                          },
+                          "text": "Ama Kollie · Reporting privately"
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "stack",
+                      "name": "ellipsis-vertical",
+                      "id": "8:87130",
+                      "style": {
+                        "width": 20.0,
+                        "height": 20.0
+                      },
+                      "children": [
+                        {
+                          "kind": "image",
+                          "name": "",
+                          "id": "8:87130",
+                          "style": {
+                            "positioned": true
+                          },
+                          "asset": "assets/images/3a61ae032866db967ec4.svg"
+                        }
+                      ]
+                    }
+                  ],
+                  "action": "go:24"
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83229",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4279249494,
+                    "weight": 600,
+                    "family": "Inter",
+                    "lineHeight": 1.48,
+                    "fill": true
+                  },
+                  "text": "What’s your concern?"
+                },
+                {
+                  "kind": "row",
+                  "name": "Settings row",
+                  "id": "8:83230",
+                  "style": {
+                    "minHeight": 58.0,
+                    "gap": 12.0,
+                    "borderColor": 4292535287,
+                    "fill": true,
+                    "cross": "center",
+                    "padding": [
+                      0,
+                      12.0,
+                      0,
+                      12.0
+                    ]
+                  },
+                  "children": [
+                    {
+                      "kind": "column",
+                      "name": "Row content",
+                      "id": "8:83231",
+                      "style": {
+                        "flex": true,
+                        "cross": "start"
+                      },
+                      "children": [
+                        {
+                          "kind": "text",
+                          "name": "",
+                          "id": "8:83232",
+                          "style": {
+                            "fontSize": 14.0,
+                            "color": 4279249494,
+                            "weight": 600,
+                            "family": "Inter",
+                            "lineHeight": 1.48,
+                            "fill": true
+                          },
+                          "text": "Harassment or hateful content"
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "stack",
+                      "name": "circle",
+                      "id": "8:87133",
+                      "style": {
+                        "width": 20.0,
+                        "height": 20.0
+                      },
+                      "children": [
+                        {
+                          "kind": "image",
+                          "name": "",
+                          "id": "8:87133",
+                          "style": {
+                            "positioned": true
+                          },
+                          "asset": "assets/images/6fa66adea4480524ae1b.svg"
+                        }
+                      ]
+                    }
+                  ],
+                  "action": "reason:Harassment or hateful content"
+                },
+                {
+                  "kind": "row",
+                  "name": "Settings row",
+                  "id": "8:83234",
+                  "style": {
+                    "minHeight": 58.0,
+                    "gap": 12.0,
+                    "borderColor": 4292535287,
+                    "fill": true,
+                    "cross": "center",
+                    "padding": [
+                      0,
+                      12.0,
+                      0,
+                      12.0
+                    ]
+                  },
+                  "children": [
+                    {
+                      "kind": "column",
+                      "name": "Row content",
+                      "id": "8:83235",
+                      "style": {
+                        "flex": true,
+                        "cross": "start"
+                      },
+                      "children": [
+                        {
+                          "kind": "text",
+                          "name": "",
+                          "id": "8:83236",
+                          "style": {
+                            "fontSize": 14.0,
+                            "color": 4279249494,
+                            "weight": 600,
+                            "family": "Inter",
+                            "lineHeight": 1.48,
+                            "fill": true
+                          },
+                          "text": "Violence or harmful activity"
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "stack",
+                      "name": "circle",
+                      "id": "8:87136",
+                      "style": {
+                        "width": 20.0,
+                        "height": 20.0
+                      },
+                      "children": [
+                        {
+                          "kind": "image",
+                          "name": "",
+                          "id": "8:87136",
+                          "style": {
+                            "positioned": true
+                          },
+                          "asset": "assets/images/6fa66adea4480524ae1b.svg"
+                        }
+                      ]
+                    }
+                  ],
+                  "action": "reason:Violence or harmful activity"
+                },
+                {
+                  "kind": "row",
+                  "name": "Settings row",
+                  "id": "8:83238",
+                  "style": {
+                    "minHeight": 58.0,
+                    "gap": 12.0,
+                    "borderColor": 4292535287,
+                    "fill": true,
+                    "cross": "center",
+                    "padding": [
+                      0,
+                      12.0,
+                      0,
+                      12.0
+                    ]
+                  },
+                  "children": [
+                    {
+                      "kind": "column",
+                      "name": "Row content",
+                      "id": "8:83239",
+                      "style": {
+                        "flex": true,
+                        "cross": "start"
+                      },
+                      "children": [
+                        {
+                          "kind": "text",
+                          "name": "",
+                          "id": "8:83240",
+                          "style": {
+                            "fontSize": 14.0,
+                            "color": 4279249494,
+                            "weight": 600,
+                            "family": "Inter",
+                            "lineHeight": 1.48,
+                            "fill": true
+                          },
+                          "text": "Sexual or inappropriate content"
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "stack",
+                      "name": "circle",
+                      "id": "8:87139",
+                      "style": {
+                        "width": 20.0,
+                        "height": 20.0
+                      },
+                      "children": [
+                        {
+                          "kind": "image",
+                          "name": "",
+                          "id": "8:87139",
+                          "style": {
+                            "positioned": true
+                          },
+                          "asset": "assets/images/6fa66adea4480524ae1b.svg"
+                        }
+                      ]
+                    }
+                  ],
+                  "action": "reason:Sexual or inappropriate content"
+                },
+                {
+                  "kind": "row",
+                  "name": "Settings row",
+                  "id": "8:83242",
+                  "style": {
+                    "minHeight": 58.0,
+                    "gap": 12.0,
+                    "borderColor": 4292535287,
+                    "fill": true,
+                    "cross": "center",
+                    "padding": [
+                      0,
+                      12.0,
+                      0,
+                      12.0
+                    ]
+                  },
+                  "children": [
+                    {
+                      "kind": "column",
+                      "name": "Row content",
+                      "id": "8:83243",
+                      "style": {
+                        "flex": true,
+                        "cross": "start"
+                      },
+                      "children": [
+                        {
+                          "kind": "text",
+                          "name": "",
+                          "id": "8:83244",
+                          "style": {
+                            "fontSize": 14.0,
+                            "color": 4279249494,
+                            "weight": 600,
+                            "family": "Inter",
+                            "lineHeight": 1.48,
+                            "fill": true
+                          },
+                          "text": "Rights or ownership concern"
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "stack",
+                      "name": "circle-dot",
+                      "id": "8:87142",
+                      "style": {
+                        "width": 20.0,
+                        "height": 20.0
+                      },
+                      "children": [
+                        {
+                          "kind": "image",
+                          "name": "",
+                          "id": "8:87142",
+                          "style": {
+                            "positioned": true
+                          },
+                          "asset": "assets/images/d53c8bba3e725682cab4.svg"
+                        }
+                      ]
+                    }
+                  ],
+                  "action": "reason:Rights or ownership concern"
+                },
+                {
+                  "kind": "row",
+                  "name": "Settings row",
+                  "id": "8:83246",
+                  "style": {
+                    "minHeight": 58.0,
+                    "gap": 12.0,
+                    "borderColor": 4292535287,
+                    "fill": true,
+                    "cross": "center",
+                    "padding": [
+                      0,
+                      12.0,
+                      0,
+                      12.0
+                    ]
+                  },
+                  "children": [
+                    {
+                      "kind": "column",
+                      "name": "Row content",
+                      "id": "8:83247",
+                      "style": {
+                        "flex": true,
+                        "cross": "start"
+                      },
+                      "children": [
+                        {
+                          "kind": "text",
+                          "name": "",
+                          "id": "8:83248",
+                          "style": {
+                            "fontSize": 14.0,
+                            "color": 4279249494,
+                            "weight": 600,
+                            "family": "Inter",
+                            "lineHeight": 1.48,
+                            "fill": true
+                          },
+                          "text": "Spam or misleading content"
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "stack",
+                      "name": "circle",
+                      "id": "8:87145",
+                      "style": {
+                        "width": 20.0,
+                        "height": 20.0
+                      },
+                      "children": [
+                        {
+                          "kind": "image",
+                          "name": "",
+                          "id": "8:87145",
+                          "style": {
+                            "positioned": true
+                          },
+                          "asset": "assets/images/6fa66adea4480524ae1b.svg"
+                        }
+                      ]
+                    }
+                  ],
+                  "action": "reason:Spam or misleading content"
+                },
+                {
+                  "kind": "row",
+                  "name": "Settings row",
+                  "id": "8:83250",
+                  "style": {
+                    "minHeight": 58.0,
+                    "gap": 12.0,
+                    "borderColor": 4292535287,
+                    "fill": true,
+                    "cross": "center",
+                    "padding": [
+                      0,
+                      12.0,
+                      0,
+                      12.0
+                    ]
+                  },
+                  "children": [
+                    {
+                      "kind": "column",
+                      "name": "Row content",
+                      "id": "8:83251",
+                      "style": {
+                        "flex": true,
+                        "cross": "start"
+                      },
+                      "children": [
+                        {
+                          "kind": "text",
+                          "name": "",
+                          "id": "8:83252",
+                          "style": {
+                            "fontSize": 14.0,
+                            "color": 4279249494,
+                            "weight": 600,
+                            "family": "Inter",
+                            "lineHeight": 1.48,
+                            "fill": true
+                          },
+                          "text": "Something else"
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "stack",
+                      "name": "circle",
+                      "id": "8:87148",
+                      "style": {
+                        "width": 20.0,
+                        "height": 20.0
+                      },
+                      "children": [
+                        {
+                          "kind": "image",
+                          "name": "",
+                          "id": "8:87148",
+                          "style": {
+                            "positioned": true
+                          },
+                          "asset": "assets/images/6fa66adea4480524ae1b.svg"
+                        }
+                      ]
+                    }
+                  ],
+                  "action": "reason:Something else"
+                },
+                {
+                  "kind": "row",
+                  "name": "Action button",
+                  "id": "8:83254",
+                  "style": {
+                    "minHeight": 50.0,
+                    "radius": 12.0,
+                    "background": 4292880182,
+                    "fill": true,
+                    "cross": "center",
+                    "main": "center",
+                    "padding": [
+                      16.0,
+                      13.0,
+                      16.0,
+                      13.0
+                    ]
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:83255",
+                      "style": {
+                        "fontSize": 14.0,
+                        "color": 4294967295,
+                        "weight": 700,
+                        "family": "Inter"
+                      },
+                      "text": "Continue"
+                    }
+                  ],
+                  "action": "go:72"
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83256",
+                  "style": {
+                    "fontSize": 11.0,
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "lineHeight": 1.48,
+                    "fill": true
+                  },
+                  "text": "Choose the closest reason. You can add context next."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "stack",
+          "name": "Primary navigation",
+          "id": "8:83257",
+          "style": {
+            "width": 390.0,
+            "height": 84.0,
+            "y": 760.0,
+            "background": 4294967295,
+            "borderColor": 4292535287,
+            "positioned": true,
+            "cross": "start"
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "house",
+              "id": "8:87151",
+              "style": {
+                "x": 27.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87151",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/b362e9a41581d105ad82.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83259",
+              "style": {
+                "width": 78.0,
+                "x": 39.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4285100420,
+                "weight": 500,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Home"
+            },
+            {
+              "kind": "stack",
+              "name": "compass",
+              "id": "8:87154",
+              "style": {
+                "x": 105.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87154",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/893d2a7748c46ecafb7a.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83261",
+              "style": {
+                "width": 78.0,
+                "x": 117.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4285100420,
+                "weight": 500,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Explore"
+            },
+            {
+              "kind": "stack",
+              "name": "circle-plus",
+              "id": "8:87157",
+              "style": {
+                "x": 183.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87157",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/d55b3ba33e739d7c8a87.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83263",
+              "style": {
+                "width": 78.0,
+                "x": 195.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4285100420,
+                "weight": 500,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Create"
+            },
+            {
+              "kind": "stack",
+              "name": "clapperboard",
+              "id": "8:87160",
+              "style": {
+                "x": 261.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87160",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/7f9aa383e97b0ac0cb04.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83265",
+              "style": {
+                "width": 78.0,
+                "x": 273.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4292880182,
+                "weight": 700,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Videos"
+            },
+            {
+              "kind": "stack",
+              "name": "user-round",
+              "id": "8:87163",
+              "style": {
+                "x": 339.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87163",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/67d0c9426a77c30aef1d.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83267",
+              "style": {
+                "width": 78.0,
+                "x": 351.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4285100420,
+                "weight": 500,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Profile"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "number": 72,
+    "node": "8:83270",
+    "name": "Report details",
+    "root": {
+      "kind": "stack",
+      "name": "E · M-072 · Report details",
+      "id": "8:83270",
+      "style": {
+        "background": 4293981183,
+        "cross": "start"
+      },
+      "children": [
+        {
+          "kind": "row",
+          "name": "App header",
+          "id": "8:83276",
+          "style": {
+            "width": 390.0,
+            "height": 60.0,
+            "gap": 12.0,
+            "cross": "center",
+            "padding": [
+              24.0,
+              0,
+              24.0,
+              0
+            ]
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "arrow-left",
+              "id": "8:87175",
+              "style": {
+                "width": 24.0,
+                "height": 24.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87175",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/add18c048fedbc53b74e.svg"
+                }
+              ],
+              "action": "back"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83278",
+              "style": {
+                "fontSize": 18.0,
+                "color": 4279249494,
+                "weight": 700,
+                "family": "PlusJakartaSans",
+                "flex": true
+              },
+              "text": "Report details"
+            }
+          ]
+        },
+        {
+          "kind": "column",
+          "name": "Scrollable content",
+          "id": "8:83279",
+          "style": {
+            "width": 390.0,
+            "height": 656.0,
+            "gap": 16.0,
+            "cross": "start",
+            "padding": [
+              24.0,
+              8.0,
+              24.0,
+              20.0
+            ]
+          },
+          "children": [
+            {
+              "kind": "row",
+              "name": "Video list item",
+              "id": "8:83280",
+              "style": {
+                "gap": 12.0,
+                "fill": true,
+                "cross": "center",
+                "padding": [
+                  0,
+                  6.0,
+                  0,
+                  6.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "Original artwork",
+                  "id": "8:83281",
+                  "style": {
+                    "width": 104.0,
+                    "height": 76.0,
+                    "radius": 12.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:83281",
+                      "style": {
+                        "radius": 12.0,
+                        "positioned": true
+                      },
+                      "asset": "assets/images/cf4e0afe1785eddefaf3.png"
+                    }
+                  ]
+                },
+                {
+                  "kind": "column",
+                  "name": "Video information",
+                  "id": "8:83282",
+                  "style": {
+                    "gap": 5.0,
+                    "lineHeight": 1.48,
+                    "flex": true,
+                    "cross": "start"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:83283",
+                      "style": {
+                        "fontSize": 14.0,
+                        "color": 4279249494,
+                        "weight": 600,
+                        "family": "Inter",
+                        "fill": true
+                      },
+                      "text": "Waterside at dawn"
+                    },
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:83284",
+                      "style": {
+                        "fontSize": 11.0,
+                        "color": 4285100420,
+                        "weight": 400,
+                        "family": "Inter",
+                        "fill": true
+                      },
+                      "text": "Ama Kollie · Selected video"
+                    }
+                  ]
+                },
+                {
+                  "kind": "stack",
+                  "name": "ellipsis-vertical",
+                  "id": "8:87178",
+                  "style": {
+                    "width": 20.0,
+                    "height": 20.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:87178",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/3a61ae032866db967ec4.svg"
+                    }
+                  ]
+                }
+              ],
+              "action": "go:24"
+            },
+            {
+              "kind": "wrap",
+              "name": "Filter options",
+              "id": "8:83286",
+              "style": {
+                "fill": true,
+                "cross": "start"
+              },
+              "children": [
+                {
+                  "kind": "row",
+                  "name": "Filter chip",
+                  "id": "8:83287",
+                  "style": {
+                    "radius": 100.0,
+                    "background": 4279249494,
+                    "borderColor": 4292535287,
+                    "cross": "start",
+                    "padding": [
+                      14.0,
+                      9.0,
+                      14.0,
+                      9.0
+                    ]
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:83288",
+                      "style": {
+                        "fontSize": 12.0,
+                        "color": 4294967295,
+                        "weight": 600,
+                        "family": "Inter"
+                      },
+                      "text": "Rights or ownership concern"
+                    }
+                  ],
+                  "action": "select:Rights or ownership concern"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83289",
+              "style": {
+                "fontSize": 14.0,
+                "color": 4279249494,
+                "weight": 600,
+                "family": "Inter",
+                "lineHeight": 1.48,
+                "fill": true
+              },
+              "text": "Additional details · Optional"
+            },
+            {
+              "kind": "column",
+              "name": "Report text area",
+              "id": "8:83290",
+              "style": {
+                "height": 144.0,
+                "radius": 12.0,
+                "background": 4294967295,
+                "borderColor": 4292535287,
+                "fill": true,
+                "cross": "start",
+                "padding": [
+                  16.0,
+                  16.0,
+                  16.0,
+                  16.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83291",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "lineHeight": 1.48,
+                    "fill": true
+                  },
+                  "text": "Please review whether the audio is authorised for use in this video."
+                }
+              ]
+            },
+            {
+              "kind": "row",
+              "name": "Inline notice",
+              "id": "8:83292",
+              "style": {
+                "gap": 12.0,
+                "radius": 16.0,
+                "background": 4293390079,
+                "fill": true,
+                "cross": "start",
+                "padding": [
+                  16.0,
+                  16.0,
+                  16.0,
+                  16.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "info",
+                  "id": "8:87181",
+                  "style": {
+                    "width": 20.0,
+                    "height": 20.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:87181",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/cedf7c00cfb3f048df45.svg"
+                    }
+                  ]
+                },
+                {
+                  "kind": "box",
+                  "name": "",
+                  "id": "8:83294",
+                  "style": {
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "flex": true
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 13.0,
+                        "color": 4279249494,
+                        "weight": 600,
+                        "family": "Inter",
+                        "lineHeight": 1.5
+                      },
+                      "text": "Your report is private"
+                    },
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 12.0,
+                        "lineHeight": 1.5
+                      },
+                      "text": "Include only relevant details. Don’t add passwords or sensitive personal information."
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:83295",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4292880182,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83296",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4294967295,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Submit report"
+                }
+              ],
+              "action": "do:report"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83297",
+              "style": {
+                "fontSize": 11.0,
+                "color": 4285100420,
+                "weight": 400,
+                "family": "Inter",
+                "lineHeight": 1.48,
+                "fill": true
+              },
+              "text": "A reason is required. Supporting text is optional. A report does not automatically remove content."
+            }
+          ]
+        },
+        {
+          "kind": "stack",
+          "name": "Primary navigation",
+          "id": "8:83298",
+          "style": {
+            "width": 390.0,
+            "height": 84.0,
+            "y": 760.0,
+            "background": 4294967295,
+            "borderColor": 4292535287,
+            "positioned": true,
+            "cross": "start"
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "house",
+              "id": "8:87184",
+              "style": {
+                "x": 27.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87184",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/b362e9a41581d105ad82.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83300",
+              "style": {
+                "width": 78.0,
+                "x": 39.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4285100420,
+                "weight": 500,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Home"
+            },
+            {
+              "kind": "stack",
+              "name": "compass",
+              "id": "8:87187",
+              "style": {
+                "x": 105.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87187",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/893d2a7748c46ecafb7a.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83302",
+              "style": {
+                "width": 78.0,
+                "x": 117.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4285100420,
+                "weight": 500,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Explore"
+            },
+            {
+              "kind": "stack",
+              "name": "circle-plus",
+              "id": "8:87190",
+              "style": {
+                "x": 183.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87190",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/d55b3ba33e739d7c8a87.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83304",
+              "style": {
+                "width": 78.0,
+                "x": 195.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4285100420,
+                "weight": 500,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Create"
+            },
+            {
+              "kind": "stack",
+              "name": "clapperboard",
+              "id": "8:87193",
+              "style": {
+                "x": 261.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87193",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/7f9aa383e97b0ac0cb04.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83306",
+              "style": {
+                "width": 78.0,
+                "x": 273.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4292880182,
+                "weight": 700,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Videos"
+            },
+            {
+              "kind": "stack",
+              "name": "user-round",
+              "id": "8:87196",
+              "style": {
+                "x": 339.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87196",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/67d0c9426a77c30aef1d.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83308",
+              "style": {
+                "width": 78.0,
+                "x": 351.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4285100420,
+                "weight": 500,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Profile"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "number": 73,
+    "node": "8:83311",
+    "name": "Report submitted",
+    "root": {
+      "kind": "stack",
+      "name": "E · M-073 · Report submitted",
+      "id": "8:83311",
+      "style": {
+        "background": 4293981183,
+        "cross": "start"
+      },
+      "children": [
+        {
+          "kind": "row",
+          "name": "App header",
+          "id": "8:83317",
+          "style": {
+            "width": 390.0,
+            "height": 60.0,
+            "gap": 12.0,
+            "cross": "center",
+            "padding": [
+              24.0,
+              0,
+              24.0,
+              0
+            ]
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "arrow-left",
+              "id": "8:87208",
+              "style": {
+                "width": 24.0,
+                "height": 24.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87208",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/add18c048fedbc53b74e.svg"
+                }
+              ],
+              "action": "back"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83319",
+              "style": {
+                "fontSize": 18.0,
+                "color": 4279249494,
+                "weight": 700,
+                "family": "PlusJakartaSans",
+                "flex": true
+              },
+              "text": "Report submitted"
+            }
+          ]
+        },
+        {
+          "kind": "column",
+          "name": "Scrollable content",
+          "id": "8:83320",
+          "style": {
+            "width": 390.0,
+            "height": 656.0,
+            "gap": 16.0,
+            "cross": "start",
+            "padding": [
+              24.0,
+              8.0,
+              24.0,
+              20.0
+            ]
+          },
+          "children": [
+            {
+              "kind": "column",
+              "name": "State message",
+              "id": "8:83321",
+              "style": {
+                "gap": 16.0,
+                "fill": true,
+                "cross": "center",
+                "padding": [
+                  0,
+                  16.0,
+                  0,
+                  16.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "column",
+                  "name": "State emblem",
+                  "id": "8:83322",
+                  "style": {
+                    "radius": 24.0,
+                    "width": 80.0,
+                    "height": 80.0,
+                    "background": 4293390079,
+                    "cross": "center",
+                    "main": "center"
+                  },
+                  "children": [
+                    {
+                      "kind": "stack",
+                      "name": "shield-check",
+                      "id": "8:87211",
+                      "style": {
+                        "width": 36.0,
+                        "height": 36.0
+                      },
+                      "children": [
+                        {
+                          "kind": "image",
+                          "name": "",
+                          "id": "8:87211",
+                          "style": {
+                            "positioned": true
+                          },
+                          "asset": "assets/images/255bbccb1cbb9e330a19.svg"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83324",
+                  "style": {
+                    "fontSize": 26.0,
+                    "color": 4279249494,
+                    "weight": 800,
+                    "family": "PlusJakartaSans",
+                    "lineHeight": 1.15,
+                    "fill": true
+                  },
+                  "text": "Thank you for speaking up."
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83325",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "lineHeight": 1.48,
+                    "fill": true
+                  },
+                  "text": "Your report about Waterside at dawn has been submitted for review under the applicable guidelines."
+                }
+              ]
+            },
+            {
+              "kind": "row",
+              "name": "Video list item",
+              "id": "8:83326",
+              "style": {
+                "gap": 12.0,
+                "fill": true,
+                "cross": "center",
+                "padding": [
+                  0,
+                  6.0,
+                  0,
+                  6.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "Original artwork",
+                  "id": "8:83327",
+                  "style": {
+                    "width": 104.0,
+                    "height": 76.0,
+                    "radius": 12.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:83327",
+                      "style": {
+                        "radius": 12.0,
+                        "positioned": true
+                      },
+                      "asset": "assets/images/cf4e0afe1785eddefaf3.png"
+                    }
+                  ]
+                },
+                {
+                  "kind": "column",
+                  "name": "Video information",
+                  "id": "8:83328",
+                  "style": {
+                    "gap": 5.0,
+                    "lineHeight": 1.48,
+                    "flex": true,
+                    "cross": "start"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:83329",
+                      "style": {
+                        "fontSize": 14.0,
+                        "color": 4279249494,
+                        "weight": 600,
+                        "family": "Inter",
+                        "fill": true
+                      },
+                      "text": "Waterside at dawn"
+                    },
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:83330",
+                      "style": {
+                        "fontSize": 11.0,
+                        "color": 4285100420,
+                        "weight": 400,
+                        "family": "Inter",
+                        "fill": true
+                      },
+                      "text": "Reported privately · Rights concern"
+                    }
+                  ]
+                },
+                {
+                  "kind": "stack",
+                  "name": "ellipsis-vertical",
+                  "id": "8:87214",
+                  "style": {
+                    "width": 20.0,
+                    "height": 20.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:87214",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/3a61ae032866db967ec4.svg"
+                    }
+                  ]
+                }
+              ],
+              "action": "go:24"
+            },
+            {
+              "kind": "row",
+              "name": "Inline notice",
+              "id": "8:83332",
+              "style": {
+                "gap": 12.0,
+                "radius": 16.0,
+                "background": 4293390079,
+                "fill": true,
+                "cross": "start",
+                "padding": [
+                  16.0,
+                  16.0,
+                  16.0,
+                  16.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "info",
+                  "id": "8:87217",
+                  "style": {
+                    "width": 20.0,
+                    "height": 20.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:87217",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/4ca4f4c5304d5b9dd33d.svg"
+                    }
+                  ]
+                },
+                {
+                  "kind": "box",
+                  "name": "",
+                  "id": "8:83334",
+                  "style": {
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "flex": true
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 13.0,
+                        "color": 4279249494,
+                        "weight": 600,
+                        "family": "Inter",
+                        "lineHeight": 1.5
+                      },
+                      "text": "What happens next"
+                    },
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 12.0,
+                        "lineHeight": 1.5
+                      },
+                      "text": "Reporting doesn’t automatically remove a video. We can share only information permitted by the review policy."
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:83335",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4292880182,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83336",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4294967295,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Return to videos"
+                }
+              ],
+              "action": "go:24"
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:83337",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4293390079,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83338",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4279249494,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Read community guidelines"
+                }
+              ],
+              "action": "go:87"
+            }
+          ]
+        },
+        {
+          "kind": "stack",
+          "name": "Primary navigation",
+          "id": "8:83339",
+          "style": {
+            "width": 390.0,
+            "height": 84.0,
+            "y": 760.0,
+            "background": 4294967295,
+            "borderColor": 4292535287,
+            "positioned": true,
+            "cross": "start"
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "house",
+              "id": "8:87220",
+              "style": {
+                "x": 27.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87220",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/b362e9a41581d105ad82.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83341",
+              "style": {
+                "width": 78.0,
+                "x": 39.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4285100420,
+                "weight": 500,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Home"
+            },
+            {
+              "kind": "stack",
+              "name": "compass",
+              "id": "8:87223",
+              "style": {
+                "x": 105.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87223",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/893d2a7748c46ecafb7a.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83343",
+              "style": {
+                "width": 78.0,
+                "x": 117.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4285100420,
+                "weight": 500,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Explore"
+            },
+            {
+              "kind": "stack",
+              "name": "circle-plus",
+              "id": "8:87226",
+              "style": {
+                "x": 183.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87226",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/d55b3ba33e739d7c8a87.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83345",
+              "style": {
+                "width": 78.0,
+                "x": 195.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4285100420,
+                "weight": 500,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Create"
+            },
+            {
+              "kind": "stack",
+              "name": "clapperboard",
+              "id": "8:87229",
+              "style": {
+                "x": 261.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87229",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/7f9aa383e97b0ac0cb04.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83347",
+              "style": {
+                "width": 78.0,
+                "x": 273.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4292880182,
+                "weight": 700,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Videos"
+            },
+            {
+              "kind": "stack",
+              "name": "user-round",
+              "id": "8:87232",
+              "style": {
+                "x": 339.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87232",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/67d0c9426a77c30aef1d.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83349",
+              "style": {
+                "width": 78.0,
+                "x": 351.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4285100420,
+                "weight": 500,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Profile"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "number": 74,
+    "node": "8:83352",
+    "name": "Report submission error",
+    "root": {
+      "kind": "stack",
+      "name": "E · M-074 · Report submission error",
+      "id": "8:83352",
+      "style": {
+        "background": 4293981183,
+        "cross": "start"
+      },
+      "children": [
+        {
+          "kind": "row",
+          "name": "App header",
+          "id": "8:83358",
+          "style": {
+            "width": 390.0,
+            "height": 60.0,
+            "gap": 12.0,
+            "cross": "center",
+            "padding": [
+              24.0,
+              0,
+              24.0,
+              0
+            ]
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "arrow-left",
+              "id": "8:87244",
+              "style": {
+                "width": 24.0,
+                "height": 24.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87244",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/add18c048fedbc53b74e.svg"
+                }
+              ],
+              "action": "back"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83360",
+              "style": {
+                "fontSize": 18.0,
+                "color": 4279249494,
+                "weight": 700,
+                "family": "PlusJakartaSans",
+                "flex": true
+              },
+              "text": "Report submission error"
+            }
+          ]
+        },
+        {
+          "kind": "column",
+          "name": "Scrollable content",
+          "id": "8:83361",
+          "style": {
+            "width": 390.0,
+            "height": 656.0,
+            "gap": 16.0,
+            "cross": "start",
+            "padding": [
+              24.0,
+              8.0,
+              24.0,
+              20.0
+            ]
+          },
+          "children": [
+            {
+              "kind": "row",
+              "name": "Video list item",
+              "id": "8:83362",
+              "style": {
+                "gap": 12.0,
+                "fill": true,
+                "cross": "center",
+                "padding": [
+                  0,
+                  6.0,
+                  0,
+                  6.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "Original artwork",
+                  "id": "8:83363",
+                  "style": {
+                    "width": 104.0,
+                    "height": 76.0,
+                    "radius": 12.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:83363",
+                      "style": {
+                        "radius": 12.0,
+                        "positioned": true
+                      },
+                      "asset": "assets/images/cf4e0afe1785eddefaf3.png"
+                    }
+                  ]
+                },
+                {
+                  "kind": "column",
+                  "name": "Video information",
+                  "id": "8:83364",
+                  "style": {
+                    "gap": 5.0,
+                    "lineHeight": 1.48,
+                    "flex": true,
+                    "cross": "start"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:83365",
+                      "style": {
+                        "fontSize": 14.0,
+                        "color": 4279249494,
+                        "weight": 600,
+                        "family": "Inter",
+                        "fill": true
+                      },
+                      "text": "Waterside at dawn"
+                    },
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:83366",
+                      "style": {
+                        "fontSize": 11.0,
+                        "color": 4285100420,
+                        "weight": 400,
+                        "family": "Inter",
+                        "fill": true
+                      },
+                      "text": "Report not confirmed"
+                    }
+                  ]
+                },
+                {
+                  "kind": "stack",
+                  "name": "ellipsis-vertical",
+                  "id": "8:87247",
+                  "style": {
+                    "width": 20.0,
+                    "height": 20.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:87247",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/3a61ae032866db967ec4.svg"
+                    }
+                  ]
+                }
+              ],
+              "action": "go:24"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83368",
+              "style": {
+                "fontSize": 28.0,
+                "color": 4279249494,
+                "weight": 800,
+                "family": "PlusJakartaSans",
+                "lineHeight": 1.15,
+                "fill": true
+              },
+              "text": "We couldn’t send your report."
+            },
+            {
+              "kind": "row",
+              "name": "Inline notice",
+              "id": "8:83369",
+              "style": {
+                "gap": 12.0,
+                "radius": 16.0,
+                "background": 4294765807,
+                "fill": true,
+                "cross": "start",
+                "padding": [
+                  16.0,
+                  16.0,
+                  16.0,
+                  16.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "circle-alert",
+                  "id": "8:87250",
+                  "style": {
+                    "width": 20.0,
+                    "height": 20.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:87250",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/4315076093dee8e06dd0.svg"
+                    }
+                  ]
+                },
+                {
+                  "kind": "box",
+                  "name": "",
+                  "id": "8:83371",
+                  "style": {
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "flex": true
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 13.0,
+                        "color": 4292880182,
+                        "weight": 600,
+                        "family": "Inter",
+                        "lineHeight": 1.5
+                      },
+                      "text": "Submission interrupted"
+                    },
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 12.0,
+                        "lineHeight": 1.5
+                      },
+                      "text": "The service did not confirm your report. Check your connection and try again."
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "column",
+              "name": "Content card",
+              "id": "8:83372",
+              "style": {
+                "gap": 16.0,
+                "radius": 20.0,
+                "background": 4294967295,
+                "lineHeight": 1.48,
+                "fill": true,
+                "cross": "start",
+                "padding": [
+                  20.0,
+                  20.0,
+                  20.0,
+                  20.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83373",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4279249494,
+                    "weight": 600,
+                    "family": "Inter",
+                    "fill": true
+                  },
+                  "text": "Your selected reason"
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83374",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "fill": true
+                  },
+                  "text": "Rights or ownership concern"
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83375",
+                  "style": {
+                    "fontSize": 12.0,
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "fill": true
+                  },
+                  "text": "Your text remains on this screen while you retry. Leaving may discard it."
+                }
+              ]
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:83376",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4292880182,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83377",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4294967295,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Try submitting again"
+                }
+              ],
+              "action": "do:report"
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:83378",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4293390079,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83379",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4279249494,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Return to report details"
+                }
+              ],
+              "action": "go:72"
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:83380",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 16777215,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83381",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4279249494,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Cancel report"
+                }
+              ],
+              "action": "go:24"
+            }
+          ]
+        },
+        {
+          "kind": "stack",
+          "name": "Primary navigation",
+          "id": "8:83382",
+          "style": {
+            "width": 390.0,
+            "height": 84.0,
+            "y": 760.0,
+            "background": 4294967295,
+            "borderColor": 4292535287,
+            "positioned": true,
+            "cross": "start"
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "house",
+              "id": "8:87253",
+              "style": {
+                "x": 27.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87253",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/b362e9a41581d105ad82.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83384",
+              "style": {
+                "width": 78.0,
+                "x": 39.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4285100420,
+                "weight": 500,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Home"
+            },
+            {
+              "kind": "stack",
+              "name": "compass",
+              "id": "8:87256",
+              "style": {
+                "x": 105.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87256",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/893d2a7748c46ecafb7a.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83386",
+              "style": {
+                "width": 78.0,
+                "x": 117.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4285100420,
+                "weight": 500,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Explore"
+            },
+            {
+              "kind": "stack",
+              "name": "circle-plus",
+              "id": "8:87259",
+              "style": {
+                "x": 183.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87259",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/d55b3ba33e739d7c8a87.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83388",
+              "style": {
+                "width": 78.0,
+                "x": 195.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4285100420,
+                "weight": 500,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Create"
+            },
+            {
+              "kind": "stack",
+              "name": "clapperboard",
+              "id": "8:87262",
+              "style": {
+                "x": 261.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87262",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/7f9aa383e97b0ac0cb04.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83390",
+              "style": {
+                "width": 78.0,
+                "x": 273.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4292880182,
+                "weight": 700,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Videos"
+            },
+            {
+              "kind": "stack",
+              "name": "user-round",
+              "id": "8:87265",
+              "style": {
+                "x": 339.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87265",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/67d0c9426a77c30aef1d.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83392",
+              "style": {
+                "width": 78.0,
+                "x": 351.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4285100420,
+                "weight": 500,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Profile"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "number": 75,
+    "node": "8:83395",
+    "name": "Already reported",
+    "root": {
+      "kind": "stack",
+      "name": "E · M-075 · Already reported",
+      "id": "8:83395",
+      "style": {
+        "background": 4293981183,
+        "cross": "start"
+      },
+      "children": [
+        {
+          "kind": "row",
+          "name": "App header",
+          "id": "8:83401",
+          "style": {
+            "width": 390.0,
+            "height": 60.0,
+            "gap": 12.0,
+            "cross": "center",
+            "padding": [
+              24.0,
+              0,
+              24.0,
+              0
+            ]
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "arrow-left",
+              "id": "8:87277",
+              "style": {
+                "width": 24.0,
+                "height": 24.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87277",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/add18c048fedbc53b74e.svg"
+                }
+              ],
+              "action": "back"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83403",
+              "style": {
+                "fontSize": 18.0,
+                "color": 4279249494,
+                "weight": 700,
+                "family": "PlusJakartaSans",
+                "flex": true
+              },
+              "text": "Already reported"
+            }
+          ]
+        },
+        {
+          "kind": "column",
+          "name": "Scrollable content",
+          "id": "8:83404",
+          "style": {
+            "width": 390.0,
+            "height": 656.0,
+            "gap": 16.0,
+            "cross": "start",
+            "padding": [
+              24.0,
+              8.0,
+              24.0,
+              20.0
+            ]
+          },
+          "children": [
+            {
+              "kind": "column",
+              "name": "State message",
+              "id": "8:83405",
+              "style": {
+                "gap": 16.0,
+                "fill": true,
+                "cross": "center",
+                "padding": [
+                  0,
+                  16.0,
+                  0,
+                  16.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "column",
+                  "name": "State emblem",
+                  "id": "8:83406",
+                  "style": {
+                    "radius": 24.0,
+                    "width": 80.0,
+                    "height": 80.0,
+                    "background": 4293390079,
+                    "cross": "center",
+                    "main": "center"
+                  },
+                  "children": [
+                    {
+                      "kind": "stack",
+                      "name": "clipboard-check",
+                      "id": "8:87280",
+                      "style": {
+                        "width": 36.0,
+                        "height": 36.0
+                      },
+                      "children": [
+                        {
+                          "kind": "image",
+                          "name": "",
+                          "id": "8:87280",
+                          "style": {
+                            "positioned": true
+                          },
+                          "asset": "assets/images/fd18c882d12a2a9d4106.svg"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83408",
+                  "style": {
+                    "fontSize": 26.0,
+                    "color": 4279249494,
+                    "weight": 800,
+                    "family": "PlusJakartaSans",
+                    "lineHeight": 1.15,
+                    "fill": true
+                  },
+                  "text": "Your concern is already recorded."
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83409",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "lineHeight": 1.48,
+                    "fill": true
+                  },
+                  "text": "You’ve already submitted a report about this video. You don’t need to submit the same concern again."
+                }
+              ]
+            },
+            {
+              "kind": "row",
+              "name": "Video list item",
+              "id": "8:83410",
+              "style": {
+                "gap": 12.0,
+                "fill": true,
+                "cross": "center",
+                "padding": [
+                  0,
+                  6.0,
+                  0,
+                  6.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "Original artwork",
+                  "id": "8:83411",
+                  "style": {
+                    "width": 104.0,
+                    "height": 76.0,
+                    "radius": 12.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:83411",
+                      "style": {
+                        "radius": 12.0,
+                        "positioned": true
+                      },
+                      "asset": "assets/images/cf4e0afe1785eddefaf3.png"
+                    }
+                  ]
+                },
+                {
+                  "kind": "column",
+                  "name": "Video information",
+                  "id": "8:83412",
+                  "style": {
+                    "gap": 5.0,
+                    "lineHeight": 1.48,
+                    "flex": true,
+                    "cross": "start"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:83413",
+                      "style": {
+                        "fontSize": 14.0,
+                        "color": 4279249494,
+                        "weight": 600,
+                        "family": "Inter",
+                        "fill": true
+                      },
+                      "text": "Waterside at dawn"
+                    },
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:83414",
+                      "style": {
+                        "fontSize": 11.0,
+                        "color": 4285100420,
+                        "weight": 400,
+                        "family": "Inter",
+                        "fill": true
+                      },
+                      "text": "Previously reported · Rights concern"
+                    }
+                  ]
+                },
+                {
+                  "kind": "stack",
+                  "name": "ellipsis-vertical",
+                  "id": "8:87283",
+                  "style": {
+                    "width": 20.0,
+                    "height": 20.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:87283",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/3a61ae032866db967ec4.svg"
+                    }
+                  ]
+                }
+              ],
+              "action": "go:24"
+            },
+            {
+              "kind": "row",
+              "name": "Inline notice",
+              "id": "8:83416",
+              "style": {
+                "gap": 12.0,
+                "radius": 16.0,
+                "background": 4293390079,
+                "fill": true,
+                "cross": "start",
+                "padding": [
+                  16.0,
+                  16.0,
+                  16.0,
+                  16.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "info",
+                  "id": "8:87286",
+                  "style": {
+                    "width": 20.0,
+                    "height": 20.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:87286",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/4ca4f4c5304d5b9dd33d.svg"
+                    }
+                  ]
+                },
+                {
+                  "kind": "box",
+                  "name": "",
+                  "id": "8:83418",
+                  "style": {
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "flex": true
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 13.0,
+                        "color": 4279249494,
+                        "weight": 600,
+                        "family": "Inter",
+                        "lineHeight": 1.5
+                      },
+                      "text": "No duplicate report was created"
+                    },
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 12.0,
+                        "lineHeight": 1.5
+                      },
+                      "text": "The video’s availability is determined separately under the review policy."
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:83419",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4292880182,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83420",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4294967295,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Return to videos"
+                }
+              ],
+              "action": "go:24"
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:83421",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4293390079,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83422",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4279249494,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Community guidelines"
+                }
+              ],
+              "action": "go:87"
+            }
+          ]
+        },
+        {
+          "kind": "stack",
+          "name": "Primary navigation",
+          "id": "8:83423",
+          "style": {
+            "width": 390.0,
+            "height": 84.0,
+            "y": 760.0,
+            "background": 4294967295,
+            "borderColor": 4292535287,
+            "positioned": true,
+            "cross": "start"
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "house",
+              "id": "8:87289",
+              "style": {
+                "x": 27.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87289",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/b362e9a41581d105ad82.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83425",
+              "style": {
+                "width": 78.0,
+                "x": 39.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4285100420,
+                "weight": 500,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Home"
+            },
+            {
+              "kind": "stack",
+              "name": "compass",
+              "id": "8:87292",
+              "style": {
+                "x": 105.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87292",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/893d2a7748c46ecafb7a.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83427",
+              "style": {
+                "width": 78.0,
+                "x": 117.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4285100420,
+                "weight": 500,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Explore"
+            },
+            {
+              "kind": "stack",
+              "name": "circle-plus",
+              "id": "8:87295",
+              "style": {
+                "x": 183.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87295",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/d55b3ba33e739d7c8a87.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83429",
+              "style": {
+                "width": 78.0,
+                "x": 195.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4285100420,
+                "weight": 500,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Create"
+            },
+            {
+              "kind": "stack",
+              "name": "clapperboard",
+              "id": "8:87298",
+              "style": {
+                "x": 261.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87298",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/7f9aa383e97b0ac0cb04.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83431",
+              "style": {
+                "width": 78.0,
+                "x": 273.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4292880182,
+                "weight": 700,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Videos"
+            },
+            {
+              "kind": "stack",
+              "name": "user-round",
+              "id": "8:87301",
+              "style": {
+                "x": 339.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87301",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/67d0c9426a77c30aef1d.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83433",
+              "style": {
+                "width": 78.0,
+                "x": 351.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4285100420,
+                "weight": 500,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Profile"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "number": 76,
+    "node": "8:83436",
+    "name": "Content restriction notice",
+    "root": {
+      "kind": "stack",
+      "name": "E · M-076 · Content restriction notice",
+      "id": "8:83436",
+      "style": {
+        "background": 4293981183,
+        "cross": "start"
+      },
+      "children": [
+        {
+          "kind": "row",
+          "name": "App header",
+          "id": "8:83442",
+          "style": {
+            "width": 390.0,
+            "height": 60.0,
+            "gap": 12.0,
+            "cross": "center",
+            "padding": [
+              24.0,
+              0,
+              24.0,
+              0
+            ]
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "arrow-left",
+              "id": "8:87313",
+              "style": {
+                "width": 24.0,
+                "height": 24.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87313",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/add18c048fedbc53b74e.svg"
+                }
+              ],
+              "action": "back"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83444",
+              "style": {
+                "fontSize": 18.0,
+                "color": 4279249494,
+                "weight": 700,
+                "family": "PlusJakartaSans",
+                "flex": true
+              },
+              "text": "Content restriction notice"
+            }
+          ]
+        },
+        {
+          "kind": "column",
+          "name": "Scrollable content",
+          "id": "8:83445",
+          "style": {
+            "width": 390.0,
+            "height": 656.0,
+            "gap": 16.0,
+            "cross": "start",
+            "padding": [
+              24.0,
+              8.0,
+              24.0,
+              20.0
+            ]
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "shield-alert",
+              "id": "8:87316",
+              "style": {
+                "width": 40.0,
+                "height": 40.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87316",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/d15d7abc93a6e18fb15c.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83447",
+              "style": {
+                "fontSize": 28.0,
+                "color": 4279249494,
+                "weight": 800,
+                "family": "PlusJakartaSans",
+                "lineHeight": 1.15,
+                "fill": true
+              },
+              "text": "Content availability has changed."
+            },
+            {
+              "kind": "row",
+              "name": "Video list item",
+              "id": "8:83448",
+              "style": {
+                "gap": 12.0,
+                "fill": true,
+                "cross": "center",
+                "padding": [
+                  0,
+                  6.0,
+                  0,
+                  6.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "Original artwork",
+                  "id": "8:83449",
+                  "style": {
+                    "width": 104.0,
+                    "height": 76.0,
+                    "radius": 12.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:83449",
+                      "style": {
+                        "radius": 12.0,
+                        "positioned": true
+                      },
+                      "asset": "assets/images/7946319d1619bf9cc1db.png"
+                    }
+                  ]
+                },
+                {
+                  "kind": "column",
+                  "name": "Video information",
+                  "id": "8:83450",
+                  "style": {
+                    "gap": 5.0,
+                    "lineHeight": 1.48,
+                    "flex": true,
+                    "cross": "start"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:83451",
+                      "style": {
+                        "fontSize": 14.0,
+                        "color": 4279249494,
+                        "weight": 600,
+                        "family": "Inter",
+                        "fill": true
+                      },
+                      "text": "Inside the session"
+                    },
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:83452",
+                      "style": {
+                        "fontSize": 11.0,
+                        "color": 4285100420,
+                        "weight": 400,
+                        "family": "Inter",
+                        "fill": true
+                      },
+                      "text": "Content notice · 28 Oct 2026"
+                    },
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:83453",
+                      "style": {
+                        "fontSize": 11.0,
+                        "color": 4279249494,
+                        "weight": 600,
+                        "family": "Inter",
+                        "fill": true
+                      },
+                      "text": "Restricted"
+                    }
+                  ]
+                },
+                {
+                  "kind": "stack",
+                  "name": "ellipsis-vertical",
+                  "id": "8:87319",
+                  "style": {
+                    "width": 20.0,
+                    "height": 20.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:87319",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/3a61ae032866db967ec4.svg"
+                    }
+                  ]
+                }
+              ],
+              "action": "go:24"
+            },
+            {
+              "kind": "row",
+              "name": "Inline notice",
+              "id": "8:83455",
+              "style": {
+                "gap": 12.0,
+                "radius": 16.0,
+                "background": 4293390079,
+                "fill": true,
+                "cross": "start",
+                "padding": [
+                  16.0,
+                  16.0,
+                  16.0,
+                  16.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "info",
+                  "id": "8:87322",
+                  "style": {
+                    "width": 20.0,
+                    "height": 20.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:87322",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/4ca4f4c5304d5b9dd33d.svg"
+                    }
+                  ]
+                },
+                {
+                  "kind": "box",
+                  "name": "",
+                  "id": "8:83457",
+                  "style": {
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "flex": true
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 13.0,
+                        "color": 4279249494,
+                        "weight": 600,
+                        "family": "Inter",
+                        "lineHeight": 1.5
+                      },
+                      "text": "Rights-related restriction"
+                    },
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 12.0,
+                        "lineHeight": 1.5
+                      },
+                      "text": "This content is currently unavailable to viewers. Consult the full notice for information that may be shared with you."
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "column",
+              "name": "Content card",
+              "id": "8:83458",
+              "style": {
+                "radius": 20.0,
+                "background": 4294967295,
+                "fill": true,
+                "cross": "start",
+                "padding": [
+                  20.0,
+                  20.0,
+                  20.0,
+                  20.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83459",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "lineHeight": 1.48,
+                    "fill": true
+                  },
+                  "text": "Next steps depend on the decision and current moderation policy. Review options appear only when permitted."
+                }
+              ]
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:83460",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4292880182,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83461",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4294967295,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "View policy information"
+                }
+              ],
+              "action": "go:87"
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:83462",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4293390079,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83463",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4279249494,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Help & Support"
+                }
+              ],
+              "action": "go:89"
+            }
+          ]
+        },
+        {
+          "kind": "stack",
+          "name": "Primary navigation",
+          "id": "8:83464",
+          "style": {
+            "width": 390.0,
+            "height": 84.0,
+            "y": 760.0,
+            "background": 4294967295,
+            "borderColor": 4292535287,
+            "positioned": true,
+            "cross": "start"
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "house",
+              "id": "8:87325",
+              "style": {
+                "x": 27.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87325",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/b362e9a41581d105ad82.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83466",
+              "style": {
+                "width": 78.0,
+                "x": 39.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4285100420,
+                "weight": 500,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Home"
+            },
+            {
+              "kind": "stack",
+              "name": "compass",
+              "id": "8:87328",
+              "style": {
+                "x": 105.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87328",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/893d2a7748c46ecafb7a.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83468",
+              "style": {
+                "width": 78.0,
+                "x": 117.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4285100420,
+                "weight": 500,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Explore"
+            },
+            {
+              "kind": "stack",
+              "name": "circle-plus",
+              "id": "8:87331",
+              "style": {
+                "x": 183.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87331",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/d55b3ba33e739d7c8a87.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83470",
+              "style": {
+                "width": 78.0,
+                "x": 195.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4285100420,
+                "weight": 500,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Create"
+            },
+            {
+              "kind": "stack",
+              "name": "clapperboard",
+              "id": "8:87334",
+              "style": {
+                "x": 261.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87334",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/8a23864776c407e77afd.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83472",
+              "style": {
+                "width": 78.0,
+                "x": 273.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4285100420,
+                "weight": 500,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Videos"
+            },
+            {
+              "kind": "stack",
+              "name": "user-round",
+              "id": "8:87337",
+              "style": {
+                "x": 339.0,
+                "y": 11.0,
+                "width": 24.0,
+                "height": 24.0,
+                "positioned": true
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87337",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/b2bd88f4ca9c96a77d6b.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83474",
+              "style": {
+                "width": 78.0,
+                "x": 351.0,
+                "y": 40.0,
+                "fontSize": 10.0,
+                "color": 4292880182,
+                "weight": 700,
+                "family": "Inter",
+                "textAlign": "center",
+                "positioned": true,
+                "centerX": true
+              },
+              "text": "Profile"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "number": 77,
+    "node": "8:83477",
+    "name": "Account status",
+    "root": {
+      "kind": "column",
+      "name": "E · M-077 · Account status",
+      "id": "8:83477",
+      "style": {
+        "background": 4293981183,
+        "cross": "start"
+      },
+      "children": [
+        {
+          "kind": "row",
+          "name": "App header",
+          "id": "8:83483",
+          "style": {
+            "width": 390.0,
+            "height": 60.0,
+            "gap": 12.0,
+            "cross": "center",
+            "padding": [
+              24.0,
+              0,
+              24.0,
+              0
+            ]
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "arrow-left",
+              "id": "8:87349",
+              "style": {
+                "width": 24.0,
+                "height": 24.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87349",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/add18c048fedbc53b74e.svg"
+                }
+              ],
+              "action": "back"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83485",
+              "style": {
+                "fontSize": 18.0,
+                "color": 4279249494,
+                "weight": 700,
+                "family": "PlusJakartaSans",
+                "flex": true
+              },
+              "text": "Account status"
+            }
+          ]
+        },
+        {
+          "kind": "column",
+          "name": "Scrollable content",
+          "id": "8:83486",
+          "style": {
+            "width": 390.0,
+            "height": 708.0,
+            "gap": 16.0,
+            "cross": "start",
+            "padding": [
+              24.0,
+              8.0,
+              24.0,
+              20.0
+            ]
+          },
+          "children": [
+            {
+              "kind": "column",
+              "name": "State message",
+              "id": "8:83487",
+              "style": {
+                "gap": 16.0,
+                "fill": true,
+                "cross": "center",
+                "padding": [
+                  0,
+                  16.0,
+                  0,
+                  16.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "column",
+                  "name": "State emblem",
+                  "id": "8:83488",
+                  "style": {
+                    "radius": 24.0,
+                    "width": 80.0,
+                    "height": 80.0,
+                    "background": 4293390079,
+                    "cross": "center",
+                    "main": "center"
+                  },
+                  "children": [
+                    {
+                      "kind": "stack",
+                      "name": "shield-ban",
+                      "id": "8:87352",
+                      "style": {
+                        "width": 36.0,
+                        "height": 36.0
+                      },
+                      "children": [
+                        {
+                          "kind": "image",
+                          "name": "",
+                          "id": "8:87352",
+                          "style": {
+                            "positioned": true
+                          },
+                          "asset": "assets/images/d4291633db8d1b507d90.svg"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83490",
+                  "style": {
+                    "fontSize": 26.0,
+                    "color": 4279249494,
+                    "weight": 800,
+                    "family": "PlusJakartaSans",
+                    "lineHeight": 1.15,
+                    "fill": true
+                  },
+                  "text": "Your account is suspended."
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83491",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "lineHeight": 1.48,
+                    "fill": true
+                  },
+                  "text": "Access to some or all KoloVibe features is currently restricted under the account policy."
+                }
+              ]
+            },
+            {
+              "kind": "row",
+              "name": "Inline notice",
+              "id": "8:83492",
+              "style": {
+                "gap": 12.0,
+                "radius": 16.0,
+                "background": 4294765807,
+                "fill": true,
+                "cross": "start",
+                "padding": [
+                  16.0,
+                  16.0,
+                  16.0,
+                  16.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "circle-alert",
+                  "id": "8:87355",
+                  "style": {
+                    "width": 20.0,
+                    "height": 20.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:87355",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/e84a15e6a9d0e366fa69.svg"
+                    }
+                  ]
+                },
+                {
+                  "kind": "box",
+                  "name": "",
+                  "id": "8:83494",
+                  "style": {
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "flex": true
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 13.0,
+                        "color": 4292880182,
+                        "weight": 600,
+                        "family": "Inter",
+                        "lineHeight": 1.5
+                      },
+                      "text": "Publishing is unavailable"
+                    },
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 12.0,
+                        "lineHeight": 1.5
+                      },
+                      "text": "You cannot upload or publish while this restriction applies."
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "column",
+              "name": "Content card",
+              "id": "8:83495",
+              "style": {
+                "gap": 16.0,
+                "radius": 20.0,
+                "fontSize": 14.0,
+                "background": 4294967295,
+                "lineHeight": 1.48,
+                "fill": true,
+                "cross": "start",
+                "padding": [
+                  20.0,
+                  20.0,
+                  20.0,
+                  20.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83496",
+                  "style": {
+                    "color": 4279249494,
+                    "weight": 600,
+                    "family": "Inter",
+                    "fill": true
+                  },
+                  "text": "Review the account notice"
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83497",
+                  "style": {
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "fill": true
+                  },
+                  "text": "See the permitted reason and any next steps available for your account. No review outcome is guaranteed."
+                }
+              ]
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:83498",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4292880182,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83499",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4294967295,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "View account notice"
+                }
+              ],
+              "action": "go:76"
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:83500",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4293390079,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83501",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4279249494,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Help & Support"
+                }
+              ],
+              "action": "go:89"
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:83502",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 16777215,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83503",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4279249494,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Sign out"
+                }
+              ],
+              "action": "go:90"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "number": 78,
+    "node": "8:83506",
+    "name": "Appeal / Review Request",
+    "root": {
+      "kind": "column",
+      "name": "E · M-078 · Appeal / Review Request",
+      "id": "8:83506",
+      "style": {
+        "background": 4293981183,
+        "cross": "start"
+      },
+      "children": [
+        {
+          "kind": "row",
+          "name": "App header",
+          "id": "8:83512",
+          "style": {
+            "width": 390.0,
+            "height": 60.0,
+            "gap": 12.0,
+            "cross": "center",
+            "padding": [
+              24.0,
+              0,
+              24.0,
+              0
+            ]
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "arrow-left",
+              "id": "8:87367",
+              "style": {
+                "width": 24.0,
+                "height": 24.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:87367",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/add18c048fedbc53b74e.svg"
+                }
+              ],
+              "action": "back"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83514",
+              "style": {
+                "fontSize": 18.0,
+                "color": 4279249494,
+                "weight": 700,
+                "family": "PlusJakartaSans",
+                "flex": true
+              },
+              "text": "Appeal / Review Request"
+            }
+          ]
+        },
+        {
+          "kind": "column",
+          "name": "Scrollable content",
+          "id": "8:83515",
+          "style": {
+            "width": 390.0,
+            "height": 708.0,
+            "gap": 16.0,
+            "cross": "start",
+            "padding": [
+              24.0,
+              8.0,
+              24.0,
+              20.0
+            ]
+          },
+          "children": [
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83516",
+              "style": {
+                "fontSize": 28.0,
+                "color": 4279249494,
+                "weight": 800,
+                "family": "PlusJakartaSans",
+                "lineHeight": 1.15,
+                "fill": true
+              },
+              "text": "Review options depend on policy."
+            },
+            {
+              "kind": "row",
+              "name": "Video list item",
+              "id": "8:83517",
+              "style": {
+                "gap": 12.0,
+                "fill": true,
+                "cross": "center",
+                "padding": [
+                  0,
+                  6.0,
+                  0,
+                  6.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "Original artwork",
+                  "id": "8:83518",
+                  "style": {
+                    "width": 104.0,
+                    "height": 76.0,
+                    "radius": 12.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:83518",
+                      "style": {
+                        "radius": 12.0,
+                        "positioned": true
+                      },
+                      "asset": "assets/images/7946319d1619bf9cc1db.png"
+                    }
+                  ]
+                },
+                {
+                  "kind": "column",
+                  "name": "Video information",
+                  "id": "8:83519",
+                  "style": {
+                    "gap": 5.0,
+                    "lineHeight": 1.48,
+                    "flex": true,
+                    "cross": "start"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:83520",
+                      "style": {
+                        "fontSize": 14.0,
+                        "color": 4279249494,
+                        "weight": 600,
+                        "family": "Inter",
+                        "fill": true
+                      },
+                      "text": "Inside the session"
+                    },
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:83521",
+                      "style": {
+                        "fontSize": 11.0,
+                        "color": 4285100420,
+                        "weight": 400,
+                        "family": "Inter",
+                        "fill": true
+                      },
+                      "text": "Restricted · Rights-related notice"
+                    }
+                  ]
+                },
+                {
+                  "kind": "stack",
+                  "name": "ellipsis-vertical",
+                  "id": "8:87370",
+                  "style": {
+                    "width": 20.0,
+                    "height": 20.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:87370",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/3a61ae032866db967ec4.svg"
+                    }
+                  ]
+                }
+              ],
+              "action": "go:24"
+            },
+            {
+              "kind": "row",
+              "name": "Inline notice",
+              "id": "8:83523",
+              "style": {
+                "gap": 12.0,
+                "radius": 16.0,
+                "background": 4293390079,
+                "fill": true,
+                "cross": "start",
+                "padding": [
+                  16.0,
+                  16.0,
+                  16.0,
+                  16.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "info",
+                  "id": "8:87373",
+                  "style": {
+                    "width": 20.0,
+                    "height": 20.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:87373",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/d8eedea853f449ea1543.svg"
+                    }
+                  ]
+                },
+                {
+                  "kind": "box",
+                  "name": "",
+                  "id": "8:83525",
+                  "style": {
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "flex": true
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 13.0,
+                        "color": 4279249494,
+                        "weight": 600,
+                        "family": "Inter",
+                        "lineHeight": 1.5
+                      },
+                      "text": "Appeal availability not confirmed"
+                    },
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 12.0,
+                        "lineHeight": 1.5
+                      },
+                      "text": "A review request can be sent only when the approved moderation policy and this decision allow it."
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "column",
+              "name": "Form field",
+              "id": "8:83526",
+              "style": {
+                "gap": 7.0,
+                "fill": true,
+                "cross": "start"
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83527",
+                  "style": {
+                    "fontSize": 12.0,
+                    "color": 4279249494,
+                    "weight": 600,
+                    "family": "Inter",
+                    "lineHeight": 1.48,
+                    "fill": true
+                  },
+                  "text": "Review statement · When eligible"
+                },
+                {
+                  "kind": "row",
+                  "name": "Input",
+                  "id": "8:83528",
+                  "style": {
+                    "minHeight": 52.0,
+                    "radius": 12.0,
+                    "background": 4294967295,
+                    "borderColor": 4292535287,
+                    "fill": true,
+                    "cross": "center",
+                    "padding": [
+                      14.0,
+                      14.0,
+                      14.0,
+                      14.0
+                    ]
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:83529",
+                      "style": {
+                        "fontSize": 14.0,
+                        "color": 4285100420,
+                        "weight": 400,
+                        "family": "Inter",
+                        "flex": true
+                      },
+                      "text": "Explain why the decision should be reviewed"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:83530",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4292535287,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83531",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4285100420,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Review request unavailable"
+                }
+              ],
+              "action": "unavailable"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:83532",
+              "style": {
+                "fontSize": 12.0,
+                "color": 4285100420,
+                "weight": 400,
+                "family": "Inter",
+                "lineHeight": 1.48,
+                "fill": true
+              },
+              "text": "This screen does not submit an appeal. Check the decision notice for permitted next steps."
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:83533",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4293390079,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83534",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4279249494,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Return to content notice"
+                }
+              ],
+              "action": "go:76"
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:83535",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 16777215,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:83536",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4279249494,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Read moderation policy"
+                }
+              ],
+              "action": "go:87"
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

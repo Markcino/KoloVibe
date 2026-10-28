@@ -23,7 +23,12 @@ class BrandHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('KoloVibe', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
+              Text(
+                'KoloVibe',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+              ),
               if (subtitle != null)
                 Text(subtitle!, style: Theme.of(context).textTheme.labelSmall),
             ],

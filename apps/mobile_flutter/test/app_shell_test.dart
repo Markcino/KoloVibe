@@ -1,27 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kolovibe/app/app_dependencies.dart';
 import 'package:kolovibe/app/kolovibe_app.dart';
+import 'package:kolovibe/core/presentation/design_node.dart';
+import 'package:kolovibe/demo/demo_repository.dart';
+import 'package:kolovibe/features/shell/main_shell.dart';
 
 void main() {
-  testWidgets('KoloVibe has five primary destinations', (tester) async {
-    await tester.pumpWidget(const KoloVibeApp());
-
-    expect(find.byType(NavigationBar), findsOneWidget);
-    expect(find.byType(NavigationDestination), findsNWidgets(5));
-    expect(find.text('Home'), findsOneWidget);
-    expect(find.text('Explore'), findsOneWidget);
-    expect(find.text('Create'), findsOneWidget);
-    expect(find.text('Videos'), findsOneWidget);
-    expect(find.text('Profile'), findsOneWidget);
+  TestWidgetsFlutterBinding.ensureInitialized();
+  late DesignCatalog catalog;
+  setUpAll(() async {
+    catalog = await DesignCatalog.load();
   });
-
-  testWidgets('Video destination is a separate full-screen experience', (tester) async {
-    await tester.pumpWidget(const KoloVibeApp());
-    await tester.tap(find.byIcon(Icons.smart_display_outlined).first);
-    await tester.pumpAndSettle();
-
+  testWidgets('Five primary destinations navigate to separate feature surfaces',
+      (tester) async {
+    await tester.pumpWidget(KoloVibeApp(
+        catalog: catalog,
+        initialScreen: 17,
+        dependencies: AppDependencies.preview(DemoRepository().services)));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(MainShell), findsOneWidget);
+    final shell = find.byType(MainShell);
+    for (final label in MainShell.labels) {
+      expect(find.descendant(of: shell, matching: find.text(label)),
+          findsOneWidget);
+    }
+    await tester.tap(find.descendant(of: shell, matching: find.text('Videos')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('For You'), findsOneWidget);
     expect(find.text('Following'), findsOneWidget);
-    expect(find.text('Original video lives here.'), findsOneWidget);
+    expect(
+        find.textContaining('Video playback is not connected'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
   });
 }

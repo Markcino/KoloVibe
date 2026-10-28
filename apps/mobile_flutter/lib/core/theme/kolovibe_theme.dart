@@ -25,19 +25,40 @@ abstract final class KoloVibeTheme {
       secondary: KoloVibeColors.red,
       surface: dark ? const Color(0xFF0D1C34) : Colors.white,
     );
-    final base = ThemeData(useMaterial3: true, colorScheme: scheme);
+    final base = ThemeData(
+      useMaterial3: true,
+      colorScheme: scheme,
+      fontFamily: 'Inter',
+    );
     return base.copyWith(
-      scaffoldBackgroundColor: dark ? const Color(0xFF08182B) : KoloVibeColors.lavender,
+      scaffoldBackgroundColor:
+          dark ? const Color(0xFF08182B) : KoloVibeColors.lavender,
       textTheme: base.textTheme.copyWith(
-        headlineLarge: base.textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.8),
-        headlineMedium: base.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.5),
-        titleLarge: base.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+        headlineLarge: base.textTheme.headlineLarge?.copyWith(
+          fontFamily: 'PlusJakartaSans',
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.8,
+        ),
+        headlineMedium: base.textTheme.headlineMedium?.copyWith(
+          fontFamily: 'PlusJakartaSans',
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.5,
+        ),
+        titleLarge: base.textTheme.titleLarge?.copyWith(
+          fontWeight: FontWeight.w700,
+        ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: scheme.surface,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xffdae3f7)),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
       ),
       cardTheme: CardThemeData(
         color: scheme.surface,

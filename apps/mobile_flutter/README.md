@@ -7,7 +7,6 @@ The canonical UI reference is the [approved KoloVibe Figma design](https://www.f
 ## Run
 
 ```bash
-flutter create --platforms android,ios --project-name kolovibe .
 flutter pub get
 flutter analyze
 flutter test
@@ -24,4 +23,12 @@ Use a team-approved Flutter SDK version and verify Android/iOS signing, bundle i
 - `lib/shared/widgets` — reusable interface elements.
 - `test` — automated widget checks.
 
-The UI structure is in place. Account services, live content, streaming and upload workflows require backend integration. Empty-content states are intentional while those integrations are unavailable; sample engagement metrics are not passed off as live data.
+All 108 designed screens/states are available in the isolated development demo:
+
+```sh
+flutter run --target lib/main_demo.dart
+```
+
+Tap the gold DEMO banner for the state gallery. Demo builds simulate local outcomes; live APIs and device/media adapters remain unavailable. Normal mode never presents sample account/content/points data as live data. Demo startup is rejected in release mode.
+
+See [implementation and verification](../../docs/mobile-ui-implementation.md) and [design coverage](../../docs/mobile-design-coverage.md).

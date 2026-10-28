@@ -1,0 +1,6254 @@
+[
+  {
+    "number": 1,
+    "node": "8:79820",
+    "name": "Splash Screen",
+    "root": {
+      "kind": "stack",
+      "name": "A · M-001 · Splash Screen",
+      "id": "8:79820",
+      "style": {
+        "background": 4278195513,
+        "cross": "start"
+      },
+      "children": [
+        {
+          "kind": "column",
+          "name": "Brand focus",
+          "id": "8:79826",
+          "style": {
+            "width": 294.0,
+            "gap": 24.0,
+            "x": 48.0,
+            "y": 330.0,
+            "positioned": true,
+            "cross": "center"
+          },
+          "children": [
+            {
+              "kind": "row",
+              "name": "KoloVibe wordmark",
+              "id": "8:79827",
+              "style": {
+                "gap": 9.0,
+                "cross": "center"
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "Brand emblem",
+                  "id": "8:79828",
+                  "style": {
+                    "width": 48.0,
+                    "height": 48.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:79828",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/1f8b7174a9b11ae6fe9f.svg"
+                    }
+                  ]
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:79830",
+                  "style": {
+                    "fontSize": 30.0,
+                    "color": 4294967295,
+                    "weight": 800,
+                    "family": "PlusJakartaSans"
+                  },
+                  "text": "KoloVibe"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:79831",
+              "style": {
+                "fontSize": 14.0,
+                "color": 4289247184,
+                "weight": 400,
+                "family": "Inter",
+                "lineHeight": 1.48,
+                "textAlign": "center",
+                "fill": true
+              },
+              "text": "Our stories. Our rhythm. Our vibe."
+            }
+          ]
+        },
+        {
+          "kind": "column",
+          "name": "Launch status",
+          "id": "8:79832",
+          "style": {
+            "width": 200.0,
+            "gap": 16.0,
+            "x": 95.0,
+            "y": 696.0,
+            "positioned": true,
+            "cross": "center"
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "loader-circle",
+              "id": "8:84865",
+              "style": {
+                "width": 24.0,
+                "height": 24.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:84865",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/6b733c1b7d82becd4d67.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:79834",
+              "style": {
+                "fontSize": 12.0,
+                "color": 4289247184,
+                "weight": 400,
+                "family": "Inter",
+                "lineHeight": 1.48,
+                "textAlign": "center",
+                "fill": true
+              },
+              "text": "Finding your vibe…"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "number": 2,
+    "node": "8:79837",
+    "name": "Welcome Screen",
+    "root": {
+      "kind": "stack",
+      "name": "A · M-002 · Welcome Screen",
+      "id": "8:79837",
+      "style": {
+        "background": 4278195513,
+        "cross": "start"
+      },
+      "children": [
+        {
+          "kind": "stack",
+          "name": "Welcome photograph",
+          "id": "8:79838",
+          "style": {
+            "width": 390.0,
+            "height": 540.0,
+            "positioned": true
+          },
+          "children": [
+            {
+              "kind": "image",
+              "name": "",
+              "id": "8:79838",
+              "style": {
+                "positioned": true
+              },
+              "asset": "assets/images/7946319d1619bf9cc1db.png"
+            }
+          ]
+        },
+        {
+          "kind": "box",
+          "name": "Cinema fade",
+          "id": "8:79839",
+          "style": {
+            "width": 390.0,
+            "height": 340.0,
+            "y": 260.0,
+            "gradientFrom": 5433,
+            "gradientTo": 4278195513,
+            "positioned": true,
+            "gradient": true
+          }
+        },
+        {
+          "kind": "column",
+          "name": "Brand",
+          "id": "8:79845",
+          "style": {
+            "x": 24.0,
+            "y": 64.0,
+            "positioned": true,
+            "cross": "start"
+          },
+          "children": [
+            {
+              "kind": "row",
+              "name": "KoloVibe wordmark",
+              "id": "8:79846",
+              "style": {
+                "gap": 9.0,
+                "cross": "center"
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "Brand emblem",
+                  "id": "8:79847",
+                  "style": {
+                    "width": 32.0,
+                    "height": 32.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:79847",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/88dfdf7ffa8d70c62080.svg"
+                    }
+                  ]
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:79849",
+                  "style": {
+                    "fontSize": 22.0,
+                    "color": 4294967295,
+                    "weight": 800,
+                    "family": "PlusJakartaSans"
+                  },
+                  "text": "KoloVibe"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "column",
+          "name": "Welcome message",
+          "id": "8:79850",
+          "style": {
+            "width": 342.0,
+            "gap": 16.0,
+            "x": 24.0,
+            "y": 434.0,
+            "positioned": true,
+            "cross": "start"
+          },
+          "children": [
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:79851",
+              "style": {
+                "fontSize": 11.0,
+                "color": 4294556962,
+                "weight": 600,
+                "family": "Inter",
+                "lineHeight": 1.48,
+                "fill": true
+              },
+              "text": "MADE HERE. FELT EVERYWHERE."
+            },
+            {
+              "kind": "box",
+              "name": "",
+              "id": "8:79852",
+              "style": {
+                "fontSize": 34.0,
+                "color": 4294967295,
+                "weight": 800,
+                "family": "PlusJakartaSans",
+                "fill": true
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "",
+                  "style": {
+                    "lineHeight": 1.15
+                  },
+                  "text": "Liberia has a story."
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "",
+                  "style": {
+                    "lineHeight": 1.15
+                  },
+                  "text": "Find your vibe."
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:79853",
+              "style": {
+                "fontSize": 14.0,
+                "color": 4289247184,
+                "weight": 400,
+                "family": "Inter",
+                "lineHeight": 1.48,
+                "fill": true
+              },
+              "text": "Original films, fresh sounds and the creators moving our culture forward."
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:79854",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4292880182,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:79855",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4294967295,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Get started"
+                }
+              ],
+              "action": "go:3"
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:79856",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4293390079,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:79857",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4279249494,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Sign in"
+                }
+              ],
+              "action": "go:4"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "number": 3,
+    "node": "8:79860",
+    "name": "A world of original voices",
+    "root": {
+      "kind": "column",
+      "name": "A · M-003 · A world of original voices",
+      "id": "8:79860",
+      "style": {
+        "background": 4293981183,
+        "cross": "start"
+      },
+      "children": [
+        {
+          "kind": "row",
+          "name": "App header",
+          "id": "8:79866",
+          "style": {
+            "width": 390.0,
+            "height": 60.0,
+            "gap": 12.0,
+            "cross": "center",
+            "padding": [
+              24.0,
+              0,
+              24.0,
+              0
+            ]
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "arrow-left",
+              "id": "8:84886",
+              "style": {
+                "width": 24.0,
+                "height": 24.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:84886",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/add18c048fedbc53b74e.svg"
+                }
+              ],
+              "action": "back"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:79868",
+              "style": {
+                "fontSize": 18.0,
+                "color": 4279249494,
+                "weight": 700,
+                "family": "PlusJakartaSans",
+                "flex": true
+              },
+              "text": "A world of original voices"
+            }
+          ]
+        },
+        {
+          "kind": "column",
+          "name": "Scrollable content",
+          "id": "8:79869",
+          "style": {
+            "width": 390.0,
+            "height": 708.0,
+            "gap": 16.0,
+            "cross": "start",
+            "padding": [
+              24.0,
+              8.0,
+              24.0,
+              20.0
+            ]
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "Editorial feature",
+              "id": "8:79870",
+              "style": {
+                "width": 342.0,
+                "height": 290.0,
+                "radius": 20.0,
+                "cross": "start"
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "Original artwork",
+                  "id": "8:79871",
+                  "style": {
+                    "width": 342.0,
+                    "height": 290.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:79871",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/bc602f519501034df0ce.png"
+                    }
+                  ]
+                },
+                {
+                  "kind": "box",
+                  "name": "Image scrim",
+                  "id": "8:79872",
+                  "style": {
+                    "width": 342.0,
+                    "height": 290.0,
+                    "gradientFrom": 553653561,
+                    "gradientTo": 4110423353,
+                    "positioned": true,
+                    "gradient": true
+                  }
+                },
+                {
+                  "kind": "column",
+                  "name": "Feature caption",
+                  "id": "8:79873",
+                  "style": {
+                    "width": 306.0,
+                    "gap": 8.0,
+                    "x": 18.0,
+                    "y": 184.0,
+                    "positioned": true,
+                    "cross": "start"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:79874",
+                      "style": {
+                        "fontSize": 10.0,
+                        "color": 4294556962,
+                        "weight": 700,
+                        "family": "Inter"
+                      },
+                      "text": "YOUR WORLD, IN FOCUS"
+                    },
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:79875",
+                      "style": {
+                        "fontSize": 27.0,
+                        "color": 4294967295,
+                        "weight": 800,
+                        "family": "PlusJakartaSans",
+                        "lineHeight": 1.15,
+                        "fill": true
+                      },
+                      "text": "Culture in motion"
+                    },
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:79876",
+                      "style": {
+                        "fontSize": 11.0,
+                        "color": 4294967295,
+                        "weight": 400,
+                        "family": "Inter",
+                        "lineHeight": 1.48,
+                        "fill": true
+                      },
+                      "text": "Ducor Collective · Culture · 03:12"
+                    }
+                  ]
+                },
+                {
+                  "kind": "column",
+                  "name": "Play button",
+                  "id": "8:79877",
+                  "style": {
+                    "radius": 21.0,
+                    "x": 282.0,
+                    "y": 16.0,
+                    "width": 42.0,
+                    "height": 42.0,
+                    "background": 4294967295,
+                    "positioned": true,
+                    "cross": "center",
+                    "main": "center"
+                  },
+                  "children": [
+                    {
+                      "kind": "stack",
+                      "name": "play",
+                      "id": "8:84889",
+                      "style": {
+                        "width": 20.0,
+                        "height": 20.0
+                      },
+                      "children": [
+                        {
+                          "kind": "image",
+                          "name": "",
+                          "id": "8:84889",
+                          "style": {
+                            "positioned": true
+                          },
+                          "asset": "assets/images/b06b1e67e50b20d57a13.svg"
+                        }
+                      ]
+                    }
+                  ],
+                  "action": "go:24"
+                }
+              ],
+              "action": "go:24"
+            },
+            {
+              "kind": "box",
+              "name": "",
+              "id": "8:79879",
+              "style": {
+                "fontSize": 28.0,
+                "color": 4279249494,
+                "weight": 800,
+                "family": "PlusJakartaSans",
+                "fill": true
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "",
+                  "style": {
+                    "lineHeight": 1.15
+                  },
+                  "text": "More than watching."
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "",
+                  "style": {
+                    "lineHeight": 1.15
+                  },
+                  "text": "A place to belong."
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:79880",
+              "style": {
+                "fontSize": 14.0,
+                "color": 4285100420,
+                "weight": 400,
+                "family": "Inter",
+                "lineHeight": 1.48,
+                "fill": true
+              },
+              "text": "Discover Liberian entertainment, follow original creators and explore a growing world of stories."
+            },
+            {
+              "kind": "row",
+              "name": "Content row",
+              "id": "8:79881",
+              "style": {
+                "gap": 12.0,
+                "fill": true,
+                "cross": "center"
+              },
+              "children": [
+                {
+                  "kind": "row",
+                  "name": "Filter chip",
+                  "id": "8:79882",
+                  "style": {
+                    "radius": 100.0,
+                    "background": 4279249494,
+                    "borderColor": 4292535287,
+                    "cross": "start",
+                    "padding": [
+                      14.0,
+                      9.0,
+                      14.0,
+                      9.0
+                    ]
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:79883",
+                      "style": {
+                        "fontSize": 12.0,
+                        "color": 4294967295,
+                        "weight": 600,
+                        "family": "Inter"
+                      },
+                      "text": "01 / 02"
+                    }
+                  ]
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:79884",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "lineHeight": 1.48,
+                    "flex": true
+                  },
+                  "text": "Entertainment · Creators · Community"
+                }
+              ]
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:79885",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4292880182,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:79886",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4294967295,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Continue"
+                }
+              ],
+              "action": "go:5"
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:79887",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 16777215,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:79888",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4279249494,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "I already have an account"
+                }
+              ],
+              "action": "go:4"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "number": 4,
+    "node": "8:79891",
+    "name": "Sign in",
+    "root": {
+      "kind": "column",
+      "name": "A · M-004 · Sign in",
+      "id": "8:79891",
+      "style": {
+        "background": 4293981183,
+        "cross": "start"
+      },
+      "children": [
+        {
+          "kind": "row",
+          "name": "App header",
+          "id": "8:79897",
+          "style": {
+            "width": 390.0,
+            "height": 60.0,
+            "gap": 12.0,
+            "cross": "center",
+            "padding": [
+              24.0,
+              0,
+              24.0,
+              0
+            ]
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "arrow-left",
+              "id": "8:84901",
+              "style": {
+                "width": 24.0,
+                "height": 24.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:84901",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/add18c048fedbc53b74e.svg"
+                }
+              ],
+              "action": "back"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:79899",
+              "style": {
+                "fontSize": 18.0,
+                "color": 4279249494,
+                "weight": 700,
+                "family": "PlusJakartaSans",
+                "flex": true
+              },
+              "text": "Sign in"
+            }
+          ]
+        },
+        {
+          "kind": "column",
+          "name": "Scrollable content",
+          "id": "8:79900",
+          "style": {
+            "width": 390.0,
+            "height": 708.0,
+            "gap": 16.0,
+            "cross": "start",
+            "padding": [
+              24.0,
+              8.0,
+              24.0,
+              20.0
+            ]
+          },
+          "children": [
+            {
+              "kind": "row",
+              "name": "KoloVibe wordmark",
+              "id": "8:79901",
+              "style": {
+                "gap": 9.0,
+                "cross": "center"
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "Brand emblem",
+                  "id": "8:79902",
+                  "style": {
+                    "width": 32.0,
+                    "height": 32.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:79902",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/88dfdf7ffa8d70c62080.svg"
+                    }
+                  ]
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:79904",
+                  "style": {
+                    "fontSize": 22.0,
+                    "color": 4279249494,
+                    "weight": 800,
+                    "family": "PlusJakartaSans"
+                  },
+                  "text": "KoloVibe"
+                }
+              ]
+            },
+            {
+              "kind": "box",
+              "name": "",
+              "id": "8:79905",
+              "style": {
+                "fontSize": 28.0,
+                "color": 4279249494,
+                "weight": 800,
+                "family": "PlusJakartaSans",
+                "fill": true
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "",
+                  "style": {
+                    "lineHeight": 1.15
+                  },
+                  "text": "Welcome back."
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "",
+                  "style": {
+                    "lineHeight": 1.15
+                  },
+                  "text": "Your vibe awaits."
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:79906",
+              "style": {
+                "fontSize": 14.0,
+                "color": 4285100420,
+                "weight": 400,
+                "family": "Inter",
+                "lineHeight": 1.48,
+                "fill": true
+              },
+              "text": "Sign in to follow your favourites and discover more original stories."
+            },
+            {
+              "kind": "column",
+              "name": "Form field",
+              "id": "8:88355",
+              "style": {
+                "gap": 7.0,
+                "fill": true,
+                "cross": "start"
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:79908",
+                  "style": {
+                    "fontSize": 12.0,
+                    "color": 4279249494,
+                    "weight": 600,
+                    "family": "Inter",
+                    "lineHeight": 1.48,
+                    "fill": true
+                  },
+                  "text": "Email address"
+                },
+                {
+                  "kind": "row",
+                  "name": "Input",
+                  "id": "8:79909",
+                  "style": {
+                    "minHeight": 52.0,
+                    "radius": 12.0,
+                    "background": 4294967295,
+                    "borderColor": 4292535287,
+                    "fill": true,
+                    "cross": "center",
+                    "padding": [
+                      14.0,
+                      14.0,
+                      14.0,
+                      14.0
+                    ]
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:79910",
+                      "style": {
+                        "fontSize": 14.0,
+                        "color": 4280824128,
+                        "weight": 400,
+                        "family": "Inter",
+                        "flex": true
+                      },
+                      "text": "ama@example.com"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "column",
+              "name": "Form field",
+              "id": "8:79911",
+              "style": {
+                "gap": 7.0,
+                "fill": true,
+                "cross": "start"
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:79912",
+                  "style": {
+                    "fontSize": 12.0,
+                    "color": 4279249494,
+                    "weight": 600,
+                    "family": "Inter",
+                    "lineHeight": 1.48,
+                    "fill": true
+                  },
+                  "text": "Password"
+                },
+                {
+                  "kind": "row",
+                  "name": "Input",
+                  "id": "8:79913",
+                  "style": {
+                    "minHeight": 52.0,
+                    "gap": 8.0,
+                    "radius": 12.0,
+                    "background": 4294967295,
+                    "borderColor": 4292880182,
+                    "fill": true,
+                    "cross": "center",
+                    "padding": [
+                      14.0,
+                      14.0,
+                      14.0,
+                      14.0
+                    ]
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:79914",
+                      "style": {
+                        "fontSize": 14.0,
+                        "color": 4280824128,
+                        "weight": 400,
+                        "family": "Inter",
+                        "flex": true
+                      },
+                      "text": "••••••••"
+                    },
+                    {
+                      "kind": "stack",
+                      "name": "eye-off",
+                      "id": "8:84904",
+                      "style": {
+                        "width": 20.0,
+                        "height": 20.0
+                      },
+                      "children": [
+                        {
+                          "kind": "image",
+                          "name": "",
+                          "id": "8:84904",
+                          "style": {
+                            "positioned": true
+                          },
+                          "asset": "assets/images/7792895974351fe453eb.svg"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:79916",
+                  "style": {
+                    "fontSize": 12.0,
+                    "color": 4292880182,
+                    "weight": 400,
+                    "family": "Inter",
+                    "lineHeight": 1.48,
+                    "fill": true
+                  },
+                  "text": "Check your email and password, then try again."
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:79917",
+              "style": {
+                "fontSize": 13.0,
+                "color": 4292880182,
+                "weight": 600,
+                "family": "Inter",
+                "lineHeight": 1.48,
+                "fill": true
+              },
+              "text": "Forgot password?",
+              "action": "go:9"
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:88356",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4292880182,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:79919",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4294967295,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Sign in"
+                }
+              ],
+              "action": "do:signIn"
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:79920",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4293390079,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:79921",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4279249494,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "New here? Create an account"
+                }
+              ],
+              "action": "go:5"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:79922",
+              "style": {
+                "fontSize": 11.0,
+                "color": 4285100420,
+                "weight": 400,
+                "family": "Inter",
+                "lineHeight": 1.48,
+                "textAlign": "center",
+                "fill": true
+              },
+              "text": "Your account. Your community. Keep it secure."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "number": 5,
+    "node": "8:79925",
+    "name": "Create an account",
+    "root": {
+      "kind": "column",
+      "name": "A · M-005 · Create an account",
+      "id": "8:79925",
+      "style": {
+        "background": 4293981183,
+        "cross": "start"
+      },
+      "children": [
+        {
+          "kind": "row",
+          "name": "App header",
+          "id": "8:79931",
+          "style": {
+            "width": 390.0,
+            "height": 60.0,
+            "gap": 12.0,
+            "cross": "center",
+            "padding": [
+              24.0,
+              0,
+              24.0,
+              0
+            ]
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "arrow-left",
+              "id": "8:84916",
+              "style": {
+                "width": 24.0,
+                "height": 24.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:84916",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/add18c048fedbc53b74e.svg"
+                }
+              ],
+              "action": "back"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:79933",
+              "style": {
+                "fontSize": 18.0,
+                "color": 4279249494,
+                "weight": 700,
+                "family": "PlusJakartaSans",
+                "flex": true
+              },
+              "text": "Create an account"
+            }
+          ]
+        },
+        {
+          "kind": "column",
+          "name": "Scrollable content",
+          "id": "8:79934",
+          "style": {
+            "width": 390.0,
+            "height": 708.0,
+            "gap": 16.0,
+            "cross": "start",
+            "padding": [
+              24.0,
+              8.0,
+              24.0,
+              20.0
+            ]
+          },
+          "children": [
+            {
+              "kind": "box",
+              "name": "",
+              "id": "8:79935",
+              "style": {
+                "fontSize": 28.0,
+                "color": 4279249494,
+                "weight": 800,
+                "family": "PlusJakartaSans",
+                "fill": true
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "",
+                  "style": {
+                    "lineHeight": 1.15
+                  },
+                  "text": "Your next favourite"
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "",
+                  "style": {
+                    "lineHeight": 1.15
+                  },
+                  "text": "story starts here."
+                }
+              ]
+            },
+            {
+              "kind": "column",
+              "name": "Form field",
+              "id": "8:79936",
+              "style": {
+                "gap": 7.0,
+                "fill": true,
+                "cross": "start"
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:79937",
+                  "style": {
+                    "fontSize": 12.0,
+                    "color": 4279249494,
+                    "weight": 600,
+                    "family": "Inter",
+                    "lineHeight": 1.48,
+                    "fill": true
+                  },
+                  "text": "Full name"
+                },
+                {
+                  "kind": "row",
+                  "name": "Input",
+                  "id": "8:79938",
+                  "style": {
+                    "minHeight": 52.0,
+                    "radius": 12.0,
+                    "background": 4294967295,
+                    "borderColor": 4292535287,
+                    "fill": true,
+                    "cross": "center",
+                    "padding": [
+                      14.0,
+                      14.0,
+                      14.0,
+                      14.0
+                    ]
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:79939",
+                      "style": {
+                        "fontSize": 14.0,
+                        "color": 4280824128,
+                        "weight": 400,
+                        "family": "Inter",
+                        "flex": true
+                      },
+                      "text": "Ama Kollie"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "column",
+              "name": "Form field",
+              "id": "8:79940",
+              "style": {
+                "gap": 7.0,
+                "fill": true,
+                "cross": "start"
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:79941",
+                  "style": {
+                    "fontSize": 12.0,
+                    "color": 4279249494,
+                    "weight": 600,
+                    "family": "Inter",
+                    "lineHeight": 1.48,
+                    "fill": true
+                  },
+                  "text": "Email address"
+                },
+                {
+                  "kind": "row",
+                  "name": "Input",
+                  "id": "8:79942",
+                  "style": {
+                    "minHeight": 52.0,
+                    "radius": 12.0,
+                    "background": 4294967295,
+                    "borderColor": 4292535287,
+                    "fill": true,
+                    "cross": "center",
+                    "padding": [
+                      14.0,
+                      14.0,
+                      14.0,
+                      14.0
+                    ]
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:79943",
+                      "style": {
+                        "fontSize": 14.0,
+                        "color": 4280824128,
+                        "weight": 400,
+                        "family": "Inter",
+                        "flex": true
+                      },
+                      "text": "ama@example.com"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "column",
+              "name": "Form field",
+              "id": "8:79944",
+              "style": {
+                "gap": 7.0,
+                "fill": true,
+                "cross": "start"
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:79945",
+                  "style": {
+                    "fontSize": 12.0,
+                    "color": 4279249494,
+                    "weight": 600,
+                    "family": "Inter",
+                    "lineHeight": 1.48,
+                    "fill": true
+                  },
+                  "text": "Password"
+                },
+                {
+                  "kind": "row",
+                  "name": "Input",
+                  "id": "8:79946",
+                  "style": {
+                    "minHeight": 52.0,
+                    "gap": 8.0,
+                    "radius": 12.0,
+                    "background": 4294967295,
+                    "borderColor": 4292535287,
+                    "fill": true,
+                    "cross": "center",
+                    "padding": [
+                      14.0,
+                      14.0,
+                      14.0,
+                      14.0
+                    ]
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:79947",
+                      "style": {
+                        "fontSize": 14.0,
+                        "color": 4280824128,
+                        "weight": 400,
+                        "family": "Inter",
+                        "flex": true
+                      },
+                      "text": "••••••••••"
+                    },
+                    {
+                      "kind": "stack",
+                      "name": "eye-off",
+                      "id": "8:84919",
+                      "style": {
+                        "width": 20.0,
+                        "height": 20.0
+                      },
+                      "children": [
+                        {
+                          "kind": "image",
+                          "name": "",
+                          "id": "8:84919",
+                          "style": {
+                            "positioned": true
+                          },
+                          "asset": "assets/images/b300c6bf8643277c9437.svg"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:79949",
+              "style": {
+                "fontSize": 12.0,
+                "color": 4279666525,
+                "weight": 400,
+                "family": "Inter",
+                "lineHeight": 1.48,
+                "fill": true
+              },
+              "text": "Password meets the current security requirements."
+            },
+            {
+              "kind": "row",
+              "name": "Content row",
+              "id": "8:79950",
+              "style": {
+                "gap": 12.0,
+                "fill": true,
+                "cross": "center"
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "square-check",
+                  "id": "8:84922",
+                  "style": {
+                    "width": 24.0,
+                    "height": 24.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:84922",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/9e2ec3582dc7d582c402.svg"
+                    }
+                  ]
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:79952",
+                  "style": {
+                    "fontSize": 12.0,
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "lineHeight": 1.48,
+                    "flex": true
+                  },
+                  "text": "I acknowledge the Terms and Privacy Policy."
+                }
+              ]
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:79953",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4292880182,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:79954",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4294967295,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Create account"
+                }
+              ],
+              "action": "do:register"
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:79955",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 16777215,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:79956",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4279249494,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Already registered? Sign in"
+                }
+              ],
+              "action": "go:4"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:79957",
+              "style": {
+                "fontSize": 11.0,
+                "color": 4285100420,
+                "weight": 400,
+                "family": "Inter",
+                "lineHeight": 1.48,
+                "fill": true
+              },
+              "text": "We’ll send a verification code to your email."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "number": 6,
+    "node": "8:79960",
+    "name": "Verify your email",
+    "root": {
+      "kind": "column",
+      "name": "A · M-006 · Verify your email",
+      "id": "8:79960",
+      "style": {
+        "background": 4293981183,
+        "cross": "start"
+      },
+      "children": [
+        {
+          "kind": "row",
+          "name": "App header",
+          "id": "8:79966",
+          "style": {
+            "width": 390.0,
+            "height": 60.0,
+            "gap": 12.0,
+            "cross": "center",
+            "padding": [
+              24.0,
+              0,
+              24.0,
+              0
+            ]
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "arrow-left",
+              "id": "8:84934",
+              "style": {
+                "width": 24.0,
+                "height": 24.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:84934",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/add18c048fedbc53b74e.svg"
+                }
+              ],
+              "action": "back"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:79968",
+              "style": {
+                "fontSize": 18.0,
+                "color": 4279249494,
+                "weight": 700,
+                "family": "PlusJakartaSans",
+                "flex": true
+              },
+              "text": "Verify your email"
+            }
+          ]
+        },
+        {
+          "kind": "column",
+          "name": "Scrollable content",
+          "id": "8:79969",
+          "style": {
+            "width": 390.0,
+            "height": 708.0,
+            "gap": 16.0,
+            "cross": "start",
+            "padding": [
+              24.0,
+              8.0,
+              24.0,
+              20.0
+            ]
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "mail-check",
+              "id": "8:84937",
+              "style": {
+                "width": 48.0,
+                "height": 48.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:84937",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/b7f9364a64a0a7ceef2f.svg"
+                }
+              ]
+            },
+            {
+              "kind": "box",
+              "name": "",
+              "id": "8:79971",
+              "style": {
+                "fontSize": 28.0,
+                "color": 4279249494,
+                "weight": 800,
+                "family": "PlusJakartaSans",
+                "fill": true
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "",
+                  "style": {
+                    "lineHeight": 1.15
+                  },
+                  "text": "One small step."
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "",
+                  "style": {
+                    "lineHeight": 1.15
+                  },
+                  "text": "Then you’re in."
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:79972",
+              "style": {
+                "fontSize": 14.0,
+                "color": 4285100420,
+                "weight": 400,
+                "family": "Inter",
+                "lineHeight": 1.48,
+                "fill": true
+              },
+              "text": "Enter the code sent to ama@example.com. Keep this code private."
+            },
+            {
+              "kind": "row",
+              "name": "Verification code",
+              "id": "8:79973",
+              "style": {
+                "gap": 8.0,
+                "fill": true,
+                "cross": "start"
+              },
+              "children": [
+                {
+                  "kind": "column",
+                  "name": "Code digit",
+                  "id": "8:79974",
+                  "style": {
+                    "width": 50.0,
+                    "height": 64.0,
+                    "radius": 12.0,
+                    "background": 4294967295,
+                    "borderColor": 4279249494,
+                    "cross": "center",
+                    "main": "center"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:79975",
+                      "style": {
+                        "fontSize": 24.0,
+                        "color": 4279249494,
+                        "weight": 700,
+                        "family": "Inter"
+                      },
+                      "text": "4"
+                    }
+                  ]
+                },
+                {
+                  "kind": "column",
+                  "name": "Code digit",
+                  "id": "8:79976",
+                  "style": {
+                    "width": 50.0,
+                    "height": 64.0,
+                    "radius": 12.0,
+                    "background": 4294967295,
+                    "borderColor": 4279249494,
+                    "cross": "center",
+                    "main": "center"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:79977",
+                      "style": {
+                        "fontSize": 24.0,
+                        "color": 4279249494,
+                        "weight": 700,
+                        "family": "Inter"
+                      },
+                      "text": "8"
+                    }
+                  ]
+                },
+                {
+                  "kind": "column",
+                  "name": "Code digit",
+                  "id": "8:79978",
+                  "style": {
+                    "width": 50.0,
+                    "height": 64.0,
+                    "radius": 12.0,
+                    "background": 4294967295,
+                    "borderColor": 4279249494,
+                    "cross": "center",
+                    "main": "center"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:79979",
+                      "style": {
+                        "fontSize": 24.0,
+                        "color": 4279249494,
+                        "weight": 700,
+                        "family": "Inter"
+                      },
+                      "text": "2"
+                    }
+                  ]
+                },
+                {
+                  "kind": "column",
+                  "name": "Code digit",
+                  "id": "8:79980",
+                  "style": {
+                    "width": 50.0,
+                    "height": 64.0,
+                    "radius": 12.0,
+                    "background": 4294967295,
+                    "borderColor": 4279249494,
+                    "cross": "center",
+                    "main": "center"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:79981",
+                      "style": {
+                        "fontSize": 24.0,
+                        "color": 4279249494,
+                        "weight": 700,
+                        "family": "Inter"
+                      },
+                      "text": "6"
+                    }
+                  ]
+                },
+                {
+                  "kind": "column",
+                  "name": "Code digit",
+                  "id": "8:79982",
+                  "style": {
+                    "width": 50.0,
+                    "height": 64.0,
+                    "radius": 12.0,
+                    "background": 4294967295,
+                    "borderColor": 4279249494,
+                    "cross": "center",
+                    "main": "center"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:79983",
+                      "style": {
+                        "fontSize": 24.0,
+                        "color": 4279249494,
+                        "weight": 700,
+                        "family": "Inter"
+                      },
+                      "text": "1"
+                    }
+                  ]
+                },
+                {
+                  "kind": "column",
+                  "name": "Code digit",
+                  "id": "8:79984",
+                  "style": {
+                    "width": 50.0,
+                    "height": 64.0,
+                    "radius": 12.0,
+                    "background": 4294967295,
+                    "borderColor": 4279249494,
+                    "cross": "center",
+                    "main": "center"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:79985",
+                      "style": {
+                        "fontSize": 24.0,
+                        "color": 4279249494,
+                        "weight": 700,
+                        "family": "Inter"
+                      },
+                      "text": "9"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:79986",
+              "style": {
+                "minHeight": 50.0,
+                "gap": 8.0,
+                "radius": 12.0,
+                "background": 4292535287,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "loader-circle",
+                  "id": "8:84940",
+                  "style": {
+                    "width": 20.0,
+                    "height": 20.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:84940",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/ca4c1bcc5542a3416b63.svg"
+                    }
+                  ]
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:79988",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4285100420,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Verifying…"
+                }
+              ],
+              "action": "do:verifyEmail"
+            },
+            {
+              "kind": "row",
+              "name": "Inline notice",
+              "id": "8:79989",
+              "style": {
+                "gap": 12.0,
+                "radius": 16.0,
+                "background": 4293390079,
+                "fill": true,
+                "cross": "start",
+                "padding": [
+                  16.0,
+                  16.0,
+                  16.0,
+                  16.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "info",
+                  "id": "8:84943",
+                  "style": {
+                    "width": 20.0,
+                    "height": 20.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:84943",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/d8eedea853f449ea1543.svg"
+                    }
+                  ]
+                },
+                {
+                  "kind": "box",
+                  "name": "",
+                  "id": "8:79991",
+                  "style": {
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "flex": true
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 13.0,
+                        "color": 4279249494,
+                        "weight": 600,
+                        "family": "Inter",
+                        "lineHeight": 1.5
+                      },
+                      "text": "Checking your code"
+                    },
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 12.0,
+                        "lineHeight": 1.5
+                      },
+                      "text": "Please keep this screen open while we confirm your email."
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:79992",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 16777215,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:79993",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4279249494,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Didn’t receive a code?"
+                }
+              ],
+              "action": "go:7"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:79994",
+              "style": {
+                "fontSize": 12.0,
+                "color": 4285100420,
+                "weight": 400,
+                "family": "Inter",
+                "lineHeight": 1.48,
+                "fill": true
+              },
+              "text": "Wrong email? Return to registration."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "number": 7,
+    "node": "8:79997",
+    "name": "Resend verification",
+    "root": {
+      "kind": "column",
+      "name": "A · M-007 · Resend verification",
+      "id": "8:79997",
+      "style": {
+        "background": 4293981183,
+        "cross": "start"
+      },
+      "children": [
+        {
+          "kind": "row",
+          "name": "App header",
+          "id": "8:80003",
+          "style": {
+            "width": 390.0,
+            "height": 60.0,
+            "gap": 12.0,
+            "cross": "center",
+            "padding": [
+              24.0,
+              0,
+              24.0,
+              0
+            ]
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "arrow-left",
+              "id": "8:84955",
+              "style": {
+                "width": 24.0,
+                "height": 24.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:84955",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/add18c048fedbc53b74e.svg"
+                }
+              ],
+              "action": "back"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:80005",
+              "style": {
+                "fontSize": 18.0,
+                "color": 4279249494,
+                "weight": 700,
+                "family": "PlusJakartaSans",
+                "flex": true
+              },
+              "text": "Resend verification"
+            }
+          ]
+        },
+        {
+          "kind": "column",
+          "name": "Scrollable content",
+          "id": "8:80006",
+          "style": {
+            "width": 390.0,
+            "height": 708.0,
+            "gap": 16.0,
+            "cross": "start",
+            "padding": [
+              24.0,
+              8.0,
+              24.0,
+              20.0
+            ]
+          },
+          "children": [
+            {
+              "kind": "column",
+              "name": "State message",
+              "id": "8:80007",
+              "style": {
+                "gap": 16.0,
+                "fill": true,
+                "cross": "center",
+                "padding": [
+                  0,
+                  16.0,
+                  0,
+                  16.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "column",
+                  "name": "State emblem",
+                  "id": "8:80008",
+                  "style": {
+                    "radius": 24.0,
+                    "width": 80.0,
+                    "height": 80.0,
+                    "background": 4293390079,
+                    "cross": "center",
+                    "main": "center"
+                  },
+                  "children": [
+                    {
+                      "kind": "stack",
+                      "name": "mail",
+                      "id": "8:84958",
+                      "style": {
+                        "width": 36.0,
+                        "height": 36.0
+                      },
+                      "children": [
+                        {
+                          "kind": "image",
+                          "name": "",
+                          "id": "8:84958",
+                          "style": {
+                            "positioned": true
+                          },
+                          "asset": "assets/images/9b29adadf19eaf18f946.svg"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80010",
+                  "style": {
+                    "fontSize": 26.0,
+                    "color": 4279249494,
+                    "weight": 800,
+                    "family": "PlusJakartaSans",
+                    "lineHeight": 1.15,
+                    "fill": true
+                  },
+                  "text": "Check your inbox"
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80011",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "lineHeight": 1.48,
+                    "fill": true
+                  },
+                  "text": "A new verification code was requested for ama@example.com."
+                }
+              ]
+            },
+            {
+              "kind": "column",
+              "name": "Content card",
+              "id": "8:80012",
+              "style": {
+                "gap": 16.0,
+                "radius": 20.0,
+                "fontSize": 14.0,
+                "background": 4294967295,
+                "lineHeight": 1.48,
+                "fill": true,
+                "cross": "start",
+                "padding": [
+                  20.0,
+                  20.0,
+                  20.0,
+                  20.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80013",
+                  "style": {
+                    "color": 4279249494,
+                    "weight": 600,
+                    "family": "Inter",
+                    "fill": true
+                  },
+                  "text": "Use the most recent code"
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80014",
+                  "style": {
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "fill": true
+                  },
+                  "text": "Check spam or junk folders too. Never share your code with anyone."
+                }
+              ]
+            },
+            {
+              "kind": "row",
+              "name": "Inline notice",
+              "id": "8:80015",
+              "style": {
+                "gap": 12.0,
+                "radius": 16.0,
+                "background": 4293390079,
+                "fill": true,
+                "cross": "start",
+                "padding": [
+                  16.0,
+                  16.0,
+                  16.0,
+                  16.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "info",
+                  "id": "8:84961",
+                  "style": {
+                    "width": 20.0,
+                    "height": 20.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:84961",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/d8eedea853f449ea1543.svg"
+                    }
+                  ]
+                },
+                {
+                  "kind": "box",
+                  "name": "",
+                  "id": "8:80017",
+                  "style": {
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "flex": true
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 13.0,
+                        "color": 4279249494,
+                        "weight": 600,
+                        "family": "Inter",
+                        "lineHeight": 1.5
+                      },
+                      "text": "Another request isn’t available yet"
+                    },
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 12.0,
+                        "lineHeight": 1.5
+                      },
+                      "text": "Follow the retry guidance shown by the verification service. No need to request repeatedly."
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:80018",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4292535287,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80019",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4285100420,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Resend unavailable"
+                }
+              ],
+              "action": "unavailable"
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:80020",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4293390079,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80021",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4279249494,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Return to code entry"
+                }
+              ],
+              "action": "go:6"
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:80022",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 16777215,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80023",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4279249494,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Use a different email"
+                }
+              ],
+              "action": "go:5"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "number": 8,
+    "node": "8:80026",
+    "name": "Verification expired",
+    "root": {
+      "kind": "column",
+      "name": "A · M-008 · Verification expired",
+      "id": "8:80026",
+      "style": {
+        "background": 4293981183,
+        "cross": "start"
+      },
+      "children": [
+        {
+          "kind": "row",
+          "name": "App header",
+          "id": "8:80032",
+          "style": {
+            "width": 390.0,
+            "height": 60.0,
+            "gap": 12.0,
+            "cross": "center",
+            "padding": [
+              24.0,
+              0,
+              24.0,
+              0
+            ]
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "arrow-left",
+              "id": "8:84973",
+              "style": {
+                "width": 24.0,
+                "height": 24.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:84973",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/add18c048fedbc53b74e.svg"
+                }
+              ],
+              "action": "back"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:80034",
+              "style": {
+                "fontSize": 18.0,
+                "color": 4279249494,
+                "weight": 700,
+                "family": "PlusJakartaSans",
+                "flex": true
+              },
+              "text": "Verification expired"
+            }
+          ]
+        },
+        {
+          "kind": "column",
+          "name": "Scrollable content",
+          "id": "8:80035",
+          "style": {
+            "width": 390.0,
+            "height": 708.0,
+            "gap": 16.0,
+            "cross": "start",
+            "padding": [
+              24.0,
+              8.0,
+              24.0,
+              20.0
+            ]
+          },
+          "children": [
+            {
+              "kind": "column",
+              "name": "State message",
+              "id": "8:80036",
+              "style": {
+                "gap": 16.0,
+                "fill": true,
+                "cross": "center",
+                "padding": [
+                  0,
+                  16.0,
+                  0,
+                  16.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "column",
+                  "name": "State emblem",
+                  "id": "8:80037",
+                  "style": {
+                    "radius": 24.0,
+                    "width": 80.0,
+                    "height": 80.0,
+                    "background": 4293390079,
+                    "cross": "center",
+                    "main": "center"
+                  },
+                  "children": [
+                    {
+                      "kind": "stack",
+                      "name": "clock-alert",
+                      "id": "8:84976",
+                      "style": {
+                        "width": 36.0,
+                        "height": 36.0
+                      },
+                      "children": [
+                        {
+                          "kind": "image",
+                          "name": "",
+                          "id": "8:84976",
+                          "style": {
+                            "positioned": true
+                          },
+                          "asset": "assets/images/a800d93bea91812d30e0.svg"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80039",
+                  "style": {
+                    "fontSize": 26.0,
+                    "color": 4279249494,
+                    "weight": 800,
+                    "family": "PlusJakartaSans",
+                    "lineHeight": 1.15,
+                    "fill": true
+                  },
+                  "text": "Let’s get a fresh code"
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80040",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "lineHeight": 1.48,
+                    "fill": true
+                  },
+                  "text": "This verification code has expired. Request a new code to continue safely."
+                }
+              ]
+            },
+            {
+              "kind": "column",
+              "name": "Form field",
+              "id": "8:80041",
+              "style": {
+                "gap": 7.0,
+                "fill": true,
+                "cross": "start"
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80042",
+                  "style": {
+                    "fontSize": 12.0,
+                    "color": 4279249494,
+                    "weight": 600,
+                    "family": "Inter",
+                    "lineHeight": 1.48,
+                    "fill": true
+                  },
+                  "text": "Email address"
+                },
+                {
+                  "kind": "row",
+                  "name": "Input",
+                  "id": "8:80043",
+                  "style": {
+                    "minHeight": 52.0,
+                    "radius": 12.0,
+                    "background": 4294967295,
+                    "borderColor": 4292535287,
+                    "fill": true,
+                    "cross": "center",
+                    "padding": [
+                      14.0,
+                      14.0,
+                      14.0,
+                      14.0
+                    ]
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:80044",
+                      "style": {
+                        "fontSize": 14.0,
+                        "color": 4280824128,
+                        "weight": 400,
+                        "family": "Inter",
+                        "flex": true
+                      },
+                      "text": "ama@example.com"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "row",
+              "name": "Inline notice",
+              "id": "8:80045",
+              "style": {
+                "gap": 12.0,
+                "radius": 16.0,
+                "background": 4293390079,
+                "fill": true,
+                "cross": "start",
+                "padding": [
+                  16.0,
+                  16.0,
+                  16.0,
+                  16.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "info",
+                  "id": "8:84979",
+                  "style": {
+                    "width": 20.0,
+                    "height": 20.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:84979",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/d8eedea853f449ea1543.svg"
+                    }
+                  ]
+                },
+                {
+                  "kind": "box",
+                  "name": "",
+                  "id": "8:80047",
+                  "style": {
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "flex": true
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 13.0,
+                        "color": 4279249494,
+                        "weight": 600,
+                        "family": "Inter",
+                        "lineHeight": 1.5
+                      },
+                      "text": "Your account is not verified yet"
+                    },
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 12.0,
+                        "lineHeight": 1.5
+                      },
+                      "text": "Use only the latest code sent to your email."
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:80048",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4292880182,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80049",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4294967295,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Request a new code"
+                }
+              ],
+              "action": "do:requestCode"
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:80050",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4293390079,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80051",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4279249494,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Back to sign in"
+                }
+              ],
+              "action": "go:4"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "number": 9,
+    "node": "8:80054",
+    "name": "Forgot password",
+    "root": {
+      "kind": "column",
+      "name": "A · M-009 · Forgot password",
+      "id": "8:80054",
+      "style": {
+        "background": 4293981183,
+        "cross": "start"
+      },
+      "children": [
+        {
+          "kind": "row",
+          "name": "App header",
+          "id": "8:80060",
+          "style": {
+            "width": 390.0,
+            "height": 60.0,
+            "gap": 12.0,
+            "cross": "center",
+            "padding": [
+              24.0,
+              0,
+              24.0,
+              0
+            ]
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "arrow-left",
+              "id": "8:84991",
+              "style": {
+                "width": 24.0,
+                "height": 24.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:84991",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/add18c048fedbc53b74e.svg"
+                }
+              ],
+              "action": "back"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:80062",
+              "style": {
+                "fontSize": 18.0,
+                "color": 4279249494,
+                "weight": 700,
+                "family": "PlusJakartaSans",
+                "flex": true
+              },
+              "text": "Forgot password"
+            }
+          ]
+        },
+        {
+          "kind": "column",
+          "name": "Scrollable content",
+          "id": "8:80063",
+          "style": {
+            "width": 390.0,
+            "height": 708.0,
+            "gap": 16.0,
+            "cross": "start",
+            "padding": [
+              24.0,
+              8.0,
+              24.0,
+              20.0
+            ]
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "key-round",
+              "id": "8:84994",
+              "style": {
+                "width": 48.0,
+                "height": 48.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:84994",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/52977f2de2817e3b55cb.svg"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:80065",
+              "style": {
+                "fontSize": 28.0,
+                "color": 4279249494,
+                "weight": 800,
+                "family": "PlusJakartaSans",
+                "lineHeight": 1.15,
+                "fill": true
+              },
+              "text": "Back to your vibe."
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:80066",
+              "style": {
+                "fontSize": 14.0,
+                "color": 4285100420,
+                "weight": 400,
+                "family": "Inter",
+                "lineHeight": 1.48,
+                "fill": true
+              },
+              "text": "Enter your account email and we’ll help you reset your password."
+            },
+            {
+              "kind": "column",
+              "name": "Form field",
+              "id": "8:80067",
+              "style": {
+                "gap": 7.0,
+                "fill": true,
+                "cross": "start"
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80068",
+                  "style": {
+                    "fontSize": 12.0,
+                    "color": 4279249494,
+                    "weight": 600,
+                    "family": "Inter",
+                    "lineHeight": 1.48,
+                    "fill": true
+                  },
+                  "text": "Email address"
+                },
+                {
+                  "kind": "row",
+                  "name": "Input",
+                  "id": "8:80069",
+                  "style": {
+                    "minHeight": 52.0,
+                    "radius": 12.0,
+                    "background": 4294967295,
+                    "borderColor": 4292535287,
+                    "fill": true,
+                    "cross": "center",
+                    "padding": [
+                      14.0,
+                      14.0,
+                      14.0,
+                      14.0
+                    ]
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:80070",
+                      "style": {
+                        "fontSize": 14.0,
+                        "color": 4280824128,
+                        "weight": 400,
+                        "family": "Inter",
+                        "flex": true
+                      },
+                      "text": "ama@example.com"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "row",
+              "name": "Inline notice",
+              "id": "8:80071",
+              "style": {
+                "gap": 12.0,
+                "radius": 16.0,
+                "background": 4293260526,
+                "fill": true,
+                "cross": "start",
+                "padding": [
+                  16.0,
+                  16.0,
+                  16.0,
+                  16.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "circle-check",
+                  "id": "8:84997",
+                  "style": {
+                    "width": 20.0,
+                    "height": 20.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:84997",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/5ee20178be752bf9479c.svg"
+                    }
+                  ]
+                },
+                {
+                  "kind": "box",
+                  "name": "",
+                  "id": "8:80073",
+                  "style": {
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "flex": true
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 13.0,
+                        "color": 4279666525,
+                        "weight": 600,
+                        "family": "Inter",
+                        "lineHeight": 1.5
+                      },
+                      "text": "Check your email"
+                    },
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 12.0,
+                        "lineHeight": 1.5
+                      },
+                      "text": "If an account matches this email, you’ll receive password reset instructions."
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:80074",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4292880182,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80075",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4294967295,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Send reset instructions"
+                }
+              ],
+              "action": "do:requestReset"
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:80076",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4293390079,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80077",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4279249494,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Return to sign in"
+                }
+              ],
+              "action": "go:4"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:80078",
+              "style": {
+                "fontSize": 12.0,
+                "color": 4285100420,
+                "weight": 400,
+                "family": "Inter",
+                "lineHeight": 1.48,
+                "fill": true
+              },
+              "text": "For your privacy, this message does not confirm whether an account exists."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "number": 10,
+    "node": "8:80081",
+    "name": "Reset password",
+    "root": {
+      "kind": "column",
+      "name": "A · M-010 · Reset password",
+      "id": "8:80081",
+      "style": {
+        "background": 4293981183,
+        "cross": "start"
+      },
+      "children": [
+        {
+          "kind": "row",
+          "name": "App header",
+          "id": "8:80087",
+          "style": {
+            "width": 390.0,
+            "height": 60.0,
+            "gap": 12.0,
+            "cross": "center",
+            "padding": [
+              24.0,
+              0,
+              24.0,
+              0
+            ]
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "arrow-left",
+              "id": "8:85009",
+              "style": {
+                "width": 24.0,
+                "height": 24.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:85009",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/add18c048fedbc53b74e.svg"
+                }
+              ],
+              "action": "back"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:80089",
+              "style": {
+                "fontSize": 18.0,
+                "color": 4279249494,
+                "weight": 700,
+                "family": "PlusJakartaSans",
+                "flex": true
+              },
+              "text": "Reset password"
+            }
+          ]
+        },
+        {
+          "kind": "column",
+          "name": "Scrollable content",
+          "id": "8:80090",
+          "style": {
+            "width": 390.0,
+            "height": 708.0,
+            "gap": 16.0,
+            "cross": "start",
+            "padding": [
+              24.0,
+              8.0,
+              24.0,
+              20.0
+            ]
+          },
+          "children": [
+            {
+              "kind": "box",
+              "name": "",
+              "id": "8:80091",
+              "style": {
+                "fontSize": 28.0,
+                "color": 4279249494,
+                "weight": 800,
+                "family": "PlusJakartaSans",
+                "fill": true
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "",
+                  "style": {
+                    "lineHeight": 1.15
+                  },
+                  "text": "A fresh start."
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "",
+                  "style": {
+                    "lineHeight": 1.15
+                  },
+                  "text": "A stronger password."
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:80092",
+              "style": {
+                "fontSize": 14.0,
+                "color": 4285100420,
+                "weight": 400,
+                "family": "Inter",
+                "lineHeight": 1.48,
+                "fill": true
+              },
+              "text": "Choose a password you don’t use elsewhere."
+            },
+            {
+              "kind": "column",
+              "name": "Form field",
+              "id": "8:80093",
+              "style": {
+                "gap": 7.0,
+                "fill": true,
+                "cross": "start"
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80094",
+                  "style": {
+                    "fontSize": 12.0,
+                    "color": 4279249494,
+                    "weight": 600,
+                    "family": "Inter",
+                    "lineHeight": 1.48,
+                    "fill": true
+                  },
+                  "text": "New password"
+                },
+                {
+                  "kind": "row",
+                  "name": "Input",
+                  "id": "8:80095",
+                  "style": {
+                    "minHeight": 52.0,
+                    "gap": 8.0,
+                    "radius": 12.0,
+                    "background": 4294967295,
+                    "borderColor": 4292535287,
+                    "fill": true,
+                    "cross": "center",
+                    "padding": [
+                      14.0,
+                      14.0,
+                      14.0,
+                      14.0
+                    ]
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:80096",
+                      "style": {
+                        "fontSize": 14.0,
+                        "color": 4280824128,
+                        "weight": 400,
+                        "family": "Inter",
+                        "flex": true
+                      },
+                      "text": "••••••••••"
+                    },
+                    {
+                      "kind": "stack",
+                      "name": "eye-off",
+                      "id": "8:85012",
+                      "style": {
+                        "width": 20.0,
+                        "height": 20.0
+                      },
+                      "children": [
+                        {
+                          "kind": "image",
+                          "name": "",
+                          "id": "8:85012",
+                          "style": {
+                            "positioned": true
+                          },
+                          "asset": "assets/images/b300c6bf8643277c9437.svg"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "column",
+              "name": "Form field",
+              "id": "8:80098",
+              "style": {
+                "gap": 7.0,
+                "fill": true,
+                "cross": "start"
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80099",
+                  "style": {
+                    "fontSize": 12.0,
+                    "color": 4279249494,
+                    "weight": 600,
+                    "family": "Inter",
+                    "lineHeight": 1.48,
+                    "fill": true
+                  },
+                  "text": "Confirm password"
+                },
+                {
+                  "kind": "row",
+                  "name": "Input",
+                  "id": "8:80100",
+                  "style": {
+                    "minHeight": 52.0,
+                    "gap": 8.0,
+                    "radius": 12.0,
+                    "background": 4294967295,
+                    "borderColor": 4292880182,
+                    "fill": true,
+                    "cross": "center",
+                    "padding": [
+                      14.0,
+                      14.0,
+                      14.0,
+                      14.0
+                    ]
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:80101",
+                      "style": {
+                        "fontSize": 14.0,
+                        "color": 4280824128,
+                        "weight": 400,
+                        "family": "Inter",
+                        "flex": true
+                      },
+                      "text": "••••••••"
+                    },
+                    {
+                      "kind": "stack",
+                      "name": "eye-off",
+                      "id": "8:85015",
+                      "style": {
+                        "width": 20.0,
+                        "height": 20.0
+                      },
+                      "children": [
+                        {
+                          "kind": "image",
+                          "name": "",
+                          "id": "8:85015",
+                          "style": {
+                            "positioned": true
+                          },
+                          "asset": "assets/images/b300c6bf8643277c9437.svg"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80103",
+                  "style": {
+                    "fontSize": 12.0,
+                    "color": 4292880182,
+                    "weight": 400,
+                    "family": "Inter",
+                    "lineHeight": 1.48,
+                    "fill": true
+                  },
+                  "text": "The passwords don’t match."
+                }
+              ]
+            },
+            {
+              "kind": "row",
+              "name": "Inline notice",
+              "id": "8:80104",
+              "style": {
+                "gap": 12.0,
+                "radius": 16.0,
+                "background": 4293390079,
+                "fill": true,
+                "cross": "start",
+                "padding": [
+                  16.0,
+                  16.0,
+                  16.0,
+                  16.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "info",
+                  "id": "8:85018",
+                  "style": {
+                    "width": 20.0,
+                    "height": 20.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:85018",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/bbe26c139ac24bde0818.svg"
+                    }
+                  ]
+                },
+                {
+                  "kind": "box",
+                  "name": "",
+                  "id": "8:80106",
+                  "style": {
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "flex": true
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 13.0,
+                        "color": 4279249494,
+                        "weight": 600,
+                        "family": "Inter",
+                        "lineHeight": 1.5
+                      },
+                      "text": "Current password requirements"
+                    },
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 12.0,
+                        "lineHeight": 1.5
+                      },
+                      "text": "Use the requirements supplied by the account service. Your password is checked before saving."
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:80107",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4292880182,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80108",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4294967295,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Reset password"
+                }
+              ],
+              "action": "do:resetPassword"
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:80109",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 16777215,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80110",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4279249494,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Back to sign in"
+                }
+              ],
+              "action": "go:4"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "number": 11,
+    "node": "8:80113",
+    "name": "Password reset",
+    "root": {
+      "kind": "column",
+      "name": "A · M-011 · Password reset",
+      "id": "8:80113",
+      "style": {
+        "background": 4293981183,
+        "cross": "start"
+      },
+      "children": [
+        {
+          "kind": "row",
+          "name": "App header",
+          "id": "8:80119",
+          "style": {
+            "width": 390.0,
+            "height": 60.0,
+            "gap": 12.0,
+            "cross": "center",
+            "padding": [
+              24.0,
+              0,
+              24.0,
+              0
+            ]
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "arrow-left",
+              "id": "8:85030",
+              "style": {
+                "width": 24.0,
+                "height": 24.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:85030",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/add18c048fedbc53b74e.svg"
+                }
+              ],
+              "action": "back"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:80121",
+              "style": {
+                "fontSize": 18.0,
+                "color": 4279249494,
+                "weight": 700,
+                "family": "PlusJakartaSans",
+                "flex": true
+              },
+              "text": "Password reset"
+            }
+          ]
+        },
+        {
+          "kind": "column",
+          "name": "Scrollable content",
+          "id": "8:80122",
+          "style": {
+            "width": 390.0,
+            "height": 708.0,
+            "gap": 16.0,
+            "cross": "start",
+            "padding": [
+              24.0,
+              8.0,
+              24.0,
+              20.0
+            ]
+          },
+          "children": [
+            {
+              "kind": "row",
+              "name": "KoloVibe wordmark",
+              "id": "8:80123",
+              "style": {
+                "gap": 9.0,
+                "cross": "center"
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "Brand emblem",
+                  "id": "8:80124",
+                  "style": {
+                    "width": 32.0,
+                    "height": 32.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:80124",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/88dfdf7ffa8d70c62080.svg"
+                    }
+                  ]
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80126",
+                  "style": {
+                    "fontSize": 22.0,
+                    "color": 4279249494,
+                    "weight": 800,
+                    "family": "PlusJakartaSans"
+                  },
+                  "text": "KoloVibe"
+                }
+              ]
+            },
+            {
+              "kind": "column",
+              "name": "State message",
+              "id": "8:80127",
+              "style": {
+                "gap": 16.0,
+                "fill": true,
+                "cross": "center",
+                "padding": [
+                  0,
+                  16.0,
+                  0,
+                  16.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "column",
+                  "name": "State emblem",
+                  "id": "8:80128",
+                  "style": {
+                    "radius": 24.0,
+                    "width": 80.0,
+                    "height": 80.0,
+                    "background": 4293390079,
+                    "cross": "center",
+                    "main": "center"
+                  },
+                  "children": [
+                    {
+                      "kind": "stack",
+                      "name": "shield-check",
+                      "id": "8:85033",
+                      "style": {
+                        "width": 36.0,
+                        "height": 36.0
+                      },
+                      "children": [
+                        {
+                          "kind": "image",
+                          "name": "",
+                          "id": "8:85033",
+                          "style": {
+                            "positioned": true
+                          },
+                          "asset": "assets/images/255bbccb1cbb9e330a19.svg"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "kind": "box",
+                  "name": "",
+                  "id": "8:80130",
+                  "style": {
+                    "fontSize": 26.0,
+                    "color": 4279249494,
+                    "weight": 800,
+                    "family": "PlusJakartaSans",
+                    "fill": true
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "lineHeight": 1.15
+                      },
+                      "text": "You’re secure."
+                    },
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "lineHeight": 1.15
+                      },
+                      "text": "Let’s get you back."
+                    }
+                  ]
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80131",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "lineHeight": 1.48,
+                    "fill": true
+                  },
+                  "text": "Your new password has been saved. Use it the next time you sign in."
+                }
+              ]
+            },
+            {
+              "kind": "row",
+              "name": "Inline notice",
+              "id": "8:80132",
+              "style": {
+                "gap": 12.0,
+                "radius": 16.0,
+                "background": 4293260526,
+                "fill": true,
+                "cross": "start",
+                "padding": [
+                  16.0,
+                  16.0,
+                  16.0,
+                  16.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "circle-check",
+                  "id": "8:85036",
+                  "style": {
+                    "width": 20.0,
+                    "height": 20.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:85036",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/5ee20178be752bf9479c.svg"
+                    }
+                  ]
+                },
+                {
+                  "kind": "box",
+                  "name": "",
+                  "id": "8:80134",
+                  "style": {
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "flex": true
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 13.0,
+                        "color": 4279666525,
+                        "weight": 600,
+                        "family": "Inter",
+                        "lineHeight": 1.5
+                      },
+                      "text": "Password updated"
+                    },
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 12.0,
+                        "lineHeight": 1.5
+                      },
+                      "text": "Keep your sign-in details private and use a unique password."
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:80135",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4292880182,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80136",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4294967295,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Return to sign in"
+                }
+              ],
+              "action": "go:4"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "number": 12,
+    "node": "8:80139",
+    "name": "Account already exists",
+    "root": {
+      "kind": "column",
+      "name": "A · M-012 · Account already exists",
+      "id": "8:80139",
+      "style": {
+        "background": 4293981183,
+        "cross": "start"
+      },
+      "children": [
+        {
+          "kind": "row",
+          "name": "App header",
+          "id": "8:80145",
+          "style": {
+            "width": 390.0,
+            "height": 60.0,
+            "gap": 12.0,
+            "cross": "center",
+            "padding": [
+              24.0,
+              0,
+              24.0,
+              0
+            ]
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "arrow-left",
+              "id": "8:85048",
+              "style": {
+                "width": 24.0,
+                "height": 24.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:85048",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/add18c048fedbc53b74e.svg"
+                }
+              ],
+              "action": "back"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:80147",
+              "style": {
+                "fontSize": 18.0,
+                "color": 4279249494,
+                "weight": 700,
+                "family": "PlusJakartaSans",
+                "flex": true
+              },
+              "text": "Account already exists"
+            }
+          ]
+        },
+        {
+          "kind": "column",
+          "name": "Scrollable content",
+          "id": "8:80148",
+          "style": {
+            "width": 390.0,
+            "height": 708.0,
+            "gap": 16.0,
+            "cross": "start",
+            "padding": [
+              24.0,
+              8.0,
+              24.0,
+              20.0
+            ]
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "user-round-check",
+              "id": "8:85051",
+              "style": {
+                "width": 44.0,
+                "height": 44.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:85051",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/8e1f590415341fba43d7.svg"
+                }
+              ]
+            },
+            {
+              "kind": "box",
+              "name": "",
+              "id": "8:80150",
+              "style": {
+                "fontSize": 28.0,
+                "color": 4279249494,
+                "weight": 800,
+                "family": "PlusJakartaSans",
+                "fill": true
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "",
+                  "style": {
+                    "lineHeight": 1.15
+                  },
+                  "text": "You may already"
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "",
+                  "style": {
+                    "lineHeight": 1.15
+                  },
+                  "text": "be part of the vibe."
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:80151",
+              "style": {
+                "fontSize": 14.0,
+                "color": 4285100420,
+                "weight": 400,
+                "family": "Inter",
+                "lineHeight": 1.48,
+                "fill": true
+              },
+              "text": "This email can’t be used for a new registration. Try signing in or recovering your account."
+            },
+            {
+              "kind": "column",
+              "name": "Form field",
+              "id": "8:80152",
+              "style": {
+                "gap": 7.0,
+                "fill": true,
+                "cross": "start"
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80153",
+                  "style": {
+                    "fontSize": 12.0,
+                    "color": 4279249494,
+                    "weight": 600,
+                    "family": "Inter",
+                    "lineHeight": 1.48,
+                    "fill": true
+                  },
+                  "text": "Email address"
+                },
+                {
+                  "kind": "row",
+                  "name": "Input",
+                  "id": "8:80154",
+                  "style": {
+                    "minHeight": 52.0,
+                    "radius": 12.0,
+                    "background": 4294967295,
+                    "borderColor": 4292535287,
+                    "fill": true,
+                    "cross": "center",
+                    "padding": [
+                      14.0,
+                      14.0,
+                      14.0,
+                      14.0
+                    ]
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:80155",
+                      "style": {
+                        "fontSize": 14.0,
+                        "color": 4280824128,
+                        "weight": 400,
+                        "family": "Inter",
+                        "flex": true
+                      },
+                      "text": "ama@example.com"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:80156",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4292880182,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80157",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4294967295,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Sign in instead"
+                }
+              ],
+              "action": "go:4"
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:80158",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4293390079,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80159",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4279249494,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Reset my password"
+                }
+              ],
+              "action": "go:9"
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:80160",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 16777215,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80161",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4279249494,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Use another email"
+                }
+              ],
+              "action": "go:5"
+            },
+            {
+              "kind": "row",
+              "name": "Inline notice",
+              "id": "8:80162",
+              "style": {
+                "gap": 12.0,
+                "radius": 16.0,
+                "background": 4293390079,
+                "fill": true,
+                "cross": "start",
+                "padding": [
+                  16.0,
+                  16.0,
+                  16.0,
+                  16.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "info",
+                  "id": "8:85054",
+                  "style": {
+                    "width": 20.0,
+                    "height": 20.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:85054",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/d8eedea853f449ea1543.svg"
+                    }
+                  ]
+                },
+                {
+                  "kind": "box",
+                  "name": "",
+                  "id": "8:80164",
+                  "style": {
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "flex": true
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 13.0,
+                        "color": 4279249494,
+                        "weight": 600,
+                        "family": "Inter",
+                        "lineHeight": 1.5
+                      },
+                      "text": "Keep your account safe"
+                    },
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 12.0,
+                        "lineHeight": 1.5
+                      },
+                      "text": "Only continue with an email you own."
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "number": 13,
+    "node": "8:80167",
+    "name": "Make it yours",
+    "root": {
+      "kind": "column",
+      "name": "A · M-013 · Make it yours",
+      "id": "8:80167",
+      "style": {
+        "background": 4293981183,
+        "cross": "start"
+      },
+      "children": [
+        {
+          "kind": "row",
+          "name": "App header",
+          "id": "8:80173",
+          "style": {
+            "width": 390.0,
+            "height": 60.0,
+            "gap": 12.0,
+            "cross": "center",
+            "padding": [
+              24.0,
+              0,
+              24.0,
+              0
+            ]
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "arrow-left",
+              "id": "8:85066",
+              "style": {
+                "width": 24.0,
+                "height": 24.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:85066",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/add18c048fedbc53b74e.svg"
+                }
+              ],
+              "action": "back"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:80175",
+              "style": {
+                "fontSize": 18.0,
+                "color": 4279249494,
+                "weight": 700,
+                "family": "PlusJakartaSans",
+                "flex": true
+              },
+              "text": "Make it yours"
+            }
+          ]
+        },
+        {
+          "kind": "column",
+          "name": "Scrollable content",
+          "id": "8:80176",
+          "style": {
+            "width": 390.0,
+            "height": 708.0,
+            "gap": 16.0,
+            "cross": "start",
+            "padding": [
+              24.0,
+              8.0,
+              24.0,
+              20.0
+            ]
+          },
+          "children": [
+            {
+              "kind": "box",
+              "name": "",
+              "id": "8:80177",
+              "style": {
+                "fontSize": 28.0,
+                "color": 4279249494,
+                "weight": 800,
+                "family": "PlusJakartaSans",
+                "fill": true
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "",
+                  "style": {
+                    "lineHeight": 1.15
+                  },
+                  "text": "What should"
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "",
+                  "style": {
+                    "lineHeight": 1.15
+                  },
+                  "text": "we call you?"
+                }
+              ]
+            },
+            {
+              "kind": "row",
+              "name": "Content row",
+              "id": "8:80178",
+              "style": {
+                "gap": 12.0,
+                "fill": true,
+                "cross": "center"
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "Original artwork",
+                  "id": "8:80179",
+                  "style": {
+                    "radius": 40.0,
+                    "width": 80.0,
+                    "height": 80.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:80179",
+                      "style": {
+                        "radius": 40.0,
+                        "positioned": true
+                      },
+                      "asset": "assets/images/8235bf1c636a7dd99f33.png"
+                    }
+                  ]
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80180",
+                  "style": {
+                    "fontSize": 13.0,
+                    "color": 4292880182,
+                    "weight": 600,
+                    "family": "Inter",
+                    "lineHeight": 1.48,
+                    "flex": true
+                  },
+                  "text": "Add a photo · Optional"
+                }
+              ]
+            },
+            {
+              "kind": "column",
+              "name": "Form field",
+              "id": "8:80181",
+              "style": {
+                "gap": 7.0,
+                "fill": true,
+                "cross": "start"
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80182",
+                  "style": {
+                    "fontSize": 12.0,
+                    "color": 4279249494,
+                    "weight": 600,
+                    "family": "Inter",
+                    "lineHeight": 1.48,
+                    "fill": true
+                  },
+                  "text": "Display name"
+                },
+                {
+                  "kind": "row",
+                  "name": "Input",
+                  "id": "8:80183",
+                  "style": {
+                    "minHeight": 52.0,
+                    "radius": 12.0,
+                    "background": 4294967295,
+                    "borderColor": 4292535287,
+                    "fill": true,
+                    "cross": "center",
+                    "padding": [
+                      14.0,
+                      14.0,
+                      14.0,
+                      14.0
+                    ]
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:80184",
+                      "style": {
+                        "fontSize": 14.0,
+                        "color": 4280824128,
+                        "weight": 400,
+                        "family": "Inter",
+                        "flex": true
+                      },
+                      "text": "Ama Kollie"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:80185",
+              "style": {
+                "fontSize": 12.0,
+                "color": 4285100420,
+                "weight": 400,
+                "family": "Inter",
+                "lineHeight": 1.48,
+                "fill": true
+              },
+              "text": "This is how your name appears in the community."
+            },
+            {
+              "kind": "wrap",
+              "name": "Filter options",
+              "id": "8:80186",
+              "style": {
+                "gap": 8.0,
+                "fill": true,
+                "cross": "start"
+              },
+              "children": [
+                {
+                  "kind": "row",
+                  "name": "Filter chip",
+                  "id": "8:80187",
+                  "style": {
+                    "radius": 100.0,
+                    "background": 4294967295,
+                    "borderColor": 4292535287,
+                    "cross": "start",
+                    "padding": [
+                      14.0,
+                      9.0,
+                      14.0,
+                      9.0
+                    ]
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:80188",
+                      "style": {
+                        "fontSize": 12.0,
+                        "color": 4279249494,
+                        "weight": 600,
+                        "family": "Inter"
+                      },
+                      "text": "Email verified"
+                    }
+                  ]
+                },
+                {
+                  "kind": "row",
+                  "name": "Filter chip",
+                  "id": "8:80189",
+                  "style": {
+                    "radius": 100.0,
+                    "background": 4279249494,
+                    "borderColor": 4292535287,
+                    "cross": "start",
+                    "padding": [
+                      14.0,
+                      9.0,
+                      14.0,
+                      9.0
+                    ]
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:80190",
+                      "style": {
+                        "fontSize": 12.0,
+                        "color": 4294967295,
+                        "weight": 600,
+                        "family": "Inter"
+                      },
+                      "text": "Name added"
+                    }
+                  ],
+                  "action": "select:Name added"
+                },
+                {
+                  "kind": "row",
+                  "name": "Filter chip",
+                  "id": "8:80191",
+                  "style": {
+                    "radius": 100.0,
+                    "background": 4294967295,
+                    "borderColor": 4292535287,
+                    "cross": "start",
+                    "padding": [
+                      14.0,
+                      9.0,
+                      14.0,
+                      9.0
+                    ]
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:80192",
+                      "style": {
+                        "fontSize": 12.0,
+                        "color": 4279249494,
+                        "weight": 600,
+                        "family": "Inter"
+                      },
+                      "text": "Photo optional"
+                    }
+                  ],
+                  "action": "select:Photo optional"
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:80193",
+              "style": {
+                "fontSize": 14.0,
+                "color": 4285100420,
+                "weight": 400,
+                "family": "Inter",
+                "lineHeight": 1.48,
+                "fill": true
+              },
+              "text": "Start as a viewer. You can explore creator onboarding whenever you’re ready."
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:80194",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4292880182,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80195",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4294967295,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Continue to KoloVibe"
+                }
+              ],
+              "action": "go:17"
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:80196",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 16777215,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80197",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4279249494,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Skip photo for now"
+                }
+              ],
+              "action": "go:17"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "number": 14,
+    "node": "8:80200",
+    "name": "Your voice belongs here",
+    "root": {
+      "kind": "column",
+      "name": "A · M-014 · Your voice belongs here",
+      "id": "8:80200",
+      "style": {
+        "background": 4293981183,
+        "cross": "start"
+      },
+      "children": [
+        {
+          "kind": "row",
+          "name": "App header",
+          "id": "8:80206",
+          "style": {
+            "width": 390.0,
+            "height": 60.0,
+            "gap": 12.0,
+            "cross": "center",
+            "padding": [
+              24.0,
+              0,
+              24.0,
+              0
+            ]
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "arrow-left",
+              "id": "8:85078",
+              "style": {
+                "width": 24.0,
+                "height": 24.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:85078",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/add18c048fedbc53b74e.svg"
+                }
+              ],
+              "action": "back"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:80208",
+              "style": {
+                "fontSize": 18.0,
+                "color": 4279249494,
+                "weight": 700,
+                "family": "PlusJakartaSans",
+                "flex": true
+              },
+              "text": "Your voice belongs here"
+            }
+          ]
+        },
+        {
+          "kind": "column",
+          "name": "Scrollable content",
+          "id": "8:80209",
+          "style": {
+            "width": 390.0,
+            "height": 708.0,
+            "gap": 16.0,
+            "cross": "start",
+            "padding": [
+              24.0,
+              8.0,
+              24.0,
+              20.0
+            ]
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "Editorial feature",
+              "id": "8:80210",
+              "style": {
+                "width": 342.0,
+                "height": 264.0,
+                "radius": 20.0,
+                "cross": "start"
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "Original artwork",
+                  "id": "8:80211",
+                  "style": {
+                    "width": 342.0,
+                    "height": 264.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:80211",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/cf426f68e5d77930975f.png"
+                    }
+                  ]
+                },
+                {
+                  "kind": "box",
+                  "name": "Image scrim",
+                  "id": "8:80212",
+                  "style": {
+                    "width": 342.0,
+                    "height": 264.0,
+                    "gradientFrom": 553653561,
+                    "gradientTo": 4110423353,
+                    "positioned": true,
+                    "gradient": true
+                  }
+                },
+                {
+                  "kind": "column",
+                  "name": "Feature caption",
+                  "id": "8:80213",
+                  "style": {
+                    "width": 306.0,
+                    "gap": 8.0,
+                    "x": 18.0,
+                    "y": 158.0,
+                    "positioned": true,
+                    "cross": "start"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:80214",
+                      "style": {
+                        "fontSize": 10.0,
+                        "color": 4294556962,
+                        "weight": 700,
+                        "family": "Inter"
+                      },
+                      "text": "CREATOR INTRODUCTION"
+                    },
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:80215",
+                      "style": {
+                        "fontSize": 27.0,
+                        "color": 4294967295,
+                        "weight": 800,
+                        "family": "PlusJakartaSans",
+                        "lineHeight": 1.15,
+                        "fill": true
+                      },
+                      "text": "Create something only you can."
+                    },
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:80216",
+                      "style": {
+                        "fontSize": 11.0,
+                        "color": 4294967295,
+                        "weight": 400,
+                        "family": "Inter",
+                        "lineHeight": 1.48,
+                        "fill": true
+                      },
+                      "text": "Ama Kollie · Culture · 02:46"
+                    }
+                  ]
+                },
+                {
+                  "kind": "column",
+                  "name": "Play button",
+                  "id": "8:80217",
+                  "style": {
+                    "radius": 21.0,
+                    "x": 282.0,
+                    "y": 16.0,
+                    "width": 42.0,
+                    "height": 42.0,
+                    "background": 4294967295,
+                    "positioned": true,
+                    "cross": "center",
+                    "main": "center"
+                  },
+                  "children": [
+                    {
+                      "kind": "stack",
+                      "name": "play",
+                      "id": "8:85081",
+                      "style": {
+                        "width": 20.0,
+                        "height": 20.0
+                      },
+                      "children": [
+                        {
+                          "kind": "image",
+                          "name": "",
+                          "id": "8:85081",
+                          "style": {
+                            "positioned": true
+                          },
+                          "asset": "assets/images/b06b1e67e50b20d57a13.svg"
+                        }
+                      ]
+                    }
+                  ],
+                  "action": "go:24"
+                }
+              ],
+              "action": "go:24"
+            },
+            {
+              "kind": "box",
+              "name": "",
+              "id": "8:80219",
+              "style": {
+                "fontSize": 28.0,
+                "color": 4279249494,
+                "weight": 800,
+                "family": "PlusJakartaSans",
+                "fill": true
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "",
+                  "style": {
+                    "lineHeight": 1.15
+                  },
+                  "text": "Original starts"
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "",
+                  "style": {
+                    "lineHeight": 1.15
+                  },
+                  "text": "with you."
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:80220",
+              "style": {
+                "fontSize": 14.0,
+                "color": 4285100420,
+                "weight": 400,
+                "family": "Inter",
+                "lineHeight": 1.48,
+                "fill": true
+              },
+              "text": "Share work you own, respect your community and build an authentic audience."
+            },
+            {
+              "kind": "row",
+              "name": "Inline notice",
+              "id": "8:80221",
+              "style": {
+                "gap": 12.0,
+                "radius": 16.0,
+                "background": 4293390079,
+                "fill": true,
+                "cross": "start",
+                "padding": [
+                  16.0,
+                  16.0,
+                  16.0,
+                  16.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "info",
+                  "id": "8:85084",
+                  "style": {
+                    "width": 20.0,
+                    "height": 20.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:85084",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/d8eedea853f449ea1543.svg"
+                    }
+                  ]
+                },
+                {
+                  "kind": "box",
+                  "name": "",
+                  "id": "8:80223",
+                  "style": {
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "flex": true
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 13.0,
+                        "color": 4279249494,
+                        "weight": 600,
+                        "family": "Inter",
+                        "lineHeight": 1.5
+                      },
+                      "text": "Creator access is role-based"
+                    },
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 12.0,
+                        "lineHeight": 1.5
+                      },
+                      "text": "Complete creator setup. Publishing becomes available when your account is enabled."
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:80224",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4292880182,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80225",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4294967295,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Start creator setup"
+                }
+              ],
+              "action": "go:36"
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:80226",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 16777215,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80227",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4279249494,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Keep exploring"
+                }
+              ],
+              "action": "go:19"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "number": 15,
+    "node": "8:80230",
+    "name": "Sign-in problem",
+    "root": {
+      "kind": "column",
+      "name": "A · M-015 · Sign-in problem",
+      "id": "8:80230",
+      "style": {
+        "background": 4293981183,
+        "cross": "start"
+      },
+      "children": [
+        {
+          "kind": "row",
+          "name": "App header",
+          "id": "8:80236",
+          "style": {
+            "width": 390.0,
+            "height": 60.0,
+            "gap": 12.0,
+            "cross": "center",
+            "padding": [
+              24.0,
+              0,
+              24.0,
+              0
+            ]
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "arrow-left",
+              "id": "8:85096",
+              "style": {
+                "width": 24.0,
+                "height": 24.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:85096",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/add18c048fedbc53b74e.svg"
+                }
+              ],
+              "action": "back"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:80238",
+              "style": {
+                "fontSize": 18.0,
+                "color": 4279249494,
+                "weight": 700,
+                "family": "PlusJakartaSans",
+                "flex": true
+              },
+              "text": "Sign-in problem"
+            }
+          ]
+        },
+        {
+          "kind": "column",
+          "name": "Scrollable content",
+          "id": "8:80239",
+          "style": {
+            "width": 390.0,
+            "height": 708.0,
+            "gap": 16.0,
+            "cross": "start",
+            "padding": [
+              24.0,
+              8.0,
+              24.0,
+              20.0
+            ]
+          },
+          "children": [
+            {
+              "kind": "row",
+              "name": "KoloVibe wordmark",
+              "id": "8:80240",
+              "style": {
+                "gap": 9.0,
+                "cross": "center"
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "Brand emblem",
+                  "id": "8:80241",
+                  "style": {
+                    "width": 32.0,
+                    "height": 32.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:80241",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/88dfdf7ffa8d70c62080.svg"
+                    }
+                  ]
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80243",
+                  "style": {
+                    "fontSize": 22.0,
+                    "color": 4279249494,
+                    "weight": 800,
+                    "family": "PlusJakartaSans"
+                  },
+                  "text": "KoloVibe"
+                }
+              ]
+            },
+            {
+              "kind": "box",
+              "name": "",
+              "id": "8:80244",
+              "style": {
+                "fontSize": 28.0,
+                "color": 4279249494,
+                "weight": 800,
+                "family": "PlusJakartaSans",
+                "fill": true
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "",
+                  "style": {
+                    "lineHeight": 1.15
+                  },
+                  "text": "We couldn’t"
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "",
+                  "style": {
+                    "lineHeight": 1.15
+                  },
+                  "text": "sign you in."
+                }
+              ]
+            },
+            {
+              "kind": "row",
+              "name": "Inline notice",
+              "id": "8:80245",
+              "style": {
+                "gap": 12.0,
+                "radius": 16.0,
+                "background": 4294765807,
+                "fill": true,
+                "cross": "start",
+                "padding": [
+                  16.0,
+                  16.0,
+                  16.0,
+                  16.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "circle-alert",
+                  "id": "8:85099",
+                  "style": {
+                    "width": 20.0,
+                    "height": 20.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:85099",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/11bdd18b376a0534d656.svg"
+                    }
+                  ]
+                },
+                {
+                  "kind": "box",
+                  "name": "",
+                  "id": "8:80247",
+                  "style": {
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "flex": true
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 13.0,
+                        "color": 4292880182,
+                        "weight": 600,
+                        "family": "Inter",
+                        "lineHeight": 1.5
+                      },
+                      "text": "Authentication couldn’t be completed"
+                    },
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 12.0,
+                        "lineHeight": 1.5
+                      },
+                      "text": "Your connection or sign-in service may have interrupted the request. Your password is not shown."
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "column",
+              "name": "Form field",
+              "id": "8:80248",
+              "style": {
+                "gap": 7.0,
+                "fill": true,
+                "cross": "start"
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80249",
+                  "style": {
+                    "fontSize": 12.0,
+                    "color": 4279249494,
+                    "weight": 600,
+                    "family": "Inter",
+                    "lineHeight": 1.48,
+                    "fill": true
+                  },
+                  "text": "Email address"
+                },
+                {
+                  "kind": "row",
+                  "name": "Input",
+                  "id": "8:80250",
+                  "style": {
+                    "minHeight": 52.0,
+                    "radius": 12.0,
+                    "background": 4294967295,
+                    "borderColor": 4292535287,
+                    "fill": true,
+                    "cross": "center",
+                    "padding": [
+                      14.0,
+                      14.0,
+                      14.0,
+                      14.0
+                    ]
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:80251",
+                      "style": {
+                        "fontSize": 14.0,
+                        "color": 4280824128,
+                        "weight": 400,
+                        "family": "Inter",
+                        "flex": true
+                      },
+                      "text": "ama@example.com"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "column",
+              "name": "Form field",
+              "id": "8:80252",
+              "style": {
+                "gap": 7.0,
+                "fill": true,
+                "cross": "start"
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80253",
+                  "style": {
+                    "fontSize": 12.0,
+                    "color": 4279249494,
+                    "weight": 600,
+                    "family": "Inter",
+                    "lineHeight": 1.48,
+                    "fill": true
+                  },
+                  "text": "Password"
+                },
+                {
+                  "kind": "row",
+                  "name": "Input",
+                  "id": "8:80254",
+                  "style": {
+                    "minHeight": 52.0,
+                    "gap": 8.0,
+                    "radius": 12.0,
+                    "background": 4294967295,
+                    "borderColor": 4292535287,
+                    "fill": true,
+                    "cross": "center",
+                    "padding": [
+                      14.0,
+                      14.0,
+                      14.0,
+                      14.0
+                    ]
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:80255",
+                      "style": {
+                        "fontSize": 14.0,
+                        "color": 4285100420,
+                        "weight": 400,
+                        "family": "Inter",
+                        "flex": true
+                      },
+                      "text": "Enter your password again"
+                    },
+                    {
+                      "kind": "stack",
+                      "name": "eye-off",
+                      "id": "8:85102",
+                      "style": {
+                        "width": 20.0,
+                        "height": 20.0
+                      },
+                      "children": [
+                        {
+                          "kind": "image",
+                          "name": "",
+                          "id": "8:85102",
+                          "style": {
+                            "positioned": true
+                          },
+                          "asset": "assets/images/7792895974351fe453eb.svg"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:80257",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4292880182,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80258",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4294967295,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Try signing in again"
+                }
+              ],
+              "action": "do:signIn"
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:80259",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4293390079,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80260",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4279249494,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Recover my account"
+                }
+              ],
+              "action": "go:9"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:80261",
+              "style": {
+                "fontSize": 12.0,
+                "color": 4285100420,
+                "weight": 400,
+                "family": "Inter",
+                "lineHeight": 1.48,
+                "fill": true
+              },
+              "text": "Still having trouble? Visit Help & Support."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "number": 16,
+    "node": "8:80264",
+    "name": "Confirm it’s you",
+    "root": {
+      "kind": "column",
+      "name": "A · M-016 · Confirm it’s you",
+      "id": "8:80264",
+      "style": {
+        "background": 4293981183,
+        "cross": "start"
+      },
+      "children": [
+        {
+          "kind": "row",
+          "name": "App header",
+          "id": "8:80270",
+          "style": {
+            "width": 390.0,
+            "height": 60.0,
+            "gap": 12.0,
+            "cross": "center",
+            "padding": [
+              24.0,
+              0,
+              24.0,
+              0
+            ]
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "arrow-left",
+              "id": "8:85114",
+              "style": {
+                "width": 24.0,
+                "height": 24.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:85114",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/add18c048fedbc53b74e.svg"
+                }
+              ],
+              "action": "back"
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:80272",
+              "style": {
+                "fontSize": 18.0,
+                "color": 4279249494,
+                "weight": 700,
+                "family": "PlusJakartaSans",
+                "flex": true
+              },
+              "text": "Confirm it’s you"
+            }
+          ]
+        },
+        {
+          "kind": "column",
+          "name": "Scrollable content",
+          "id": "8:80273",
+          "style": {
+            "width": 390.0,
+            "height": 708.0,
+            "gap": 16.0,
+            "cross": "start",
+            "padding": [
+              24.0,
+              8.0,
+              24.0,
+              20.0
+            ]
+          },
+          "children": [
+            {
+              "kind": "stack",
+              "name": "shield-check",
+              "id": "8:85117",
+              "style": {
+                "width": 44.0,
+                "height": 44.0
+              },
+              "children": [
+                {
+                  "kind": "image",
+                  "name": "",
+                  "id": "8:85117",
+                  "style": {
+                    "positioned": true
+                  },
+                  "asset": "assets/images/001c06421adf29482403.svg"
+                }
+              ]
+            },
+            {
+              "kind": "box",
+              "name": "",
+              "id": "8:80275",
+              "style": {
+                "fontSize": 28.0,
+                "color": 4279249494,
+                "weight": 800,
+                "family": "PlusJakartaSans",
+                "fill": true
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "",
+                  "style": {
+                    "lineHeight": 1.15
+                  },
+                  "text": "A little extra"
+                },
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "",
+                  "style": {
+                    "lineHeight": 1.15
+                  },
+                  "text": "protection."
+                }
+              ]
+            },
+            {
+              "kind": "text",
+              "name": "",
+              "id": "8:80276",
+              "style": {
+                "fontSize": 14.0,
+                "color": 4285100420,
+                "weight": 400,
+                "family": "Inter",
+                "lineHeight": 1.48,
+                "fill": true
+              },
+              "text": "Verify your identity before continuing with your account deletion request."
+            },
+            {
+              "kind": "column",
+              "name": "Form field",
+              "id": "8:80277",
+              "style": {
+                "gap": 7.0,
+                "fill": true,
+                "cross": "start"
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80278",
+                  "style": {
+                    "fontSize": 12.0,
+                    "color": 4279249494,
+                    "weight": 600,
+                    "family": "Inter",
+                    "lineHeight": 1.48,
+                    "fill": true
+                  },
+                  "text": "Account email"
+                },
+                {
+                  "kind": "row",
+                  "name": "Input",
+                  "id": "8:80279",
+                  "style": {
+                    "minHeight": 52.0,
+                    "radius": 12.0,
+                    "background": 4294967295,
+                    "borderColor": 4292535287,
+                    "fill": true,
+                    "cross": "center",
+                    "padding": [
+                      14.0,
+                      14.0,
+                      14.0,
+                      14.0
+                    ]
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:80280",
+                      "style": {
+                        "fontSize": 14.0,
+                        "color": 4280824128,
+                        "weight": 400,
+                        "family": "Inter",
+                        "flex": true
+                      },
+                      "text": "ama@example.com"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "column",
+              "name": "Form field",
+              "id": "8:80281",
+              "style": {
+                "gap": 7.0,
+                "fill": true,
+                "cross": "start"
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80282",
+                  "style": {
+                    "fontSize": 12.0,
+                    "color": 4279249494,
+                    "weight": 600,
+                    "family": "Inter",
+                    "lineHeight": 1.48,
+                    "fill": true
+                  },
+                  "text": "Current password"
+                },
+                {
+                  "kind": "row",
+                  "name": "Input",
+                  "id": "8:80283",
+                  "style": {
+                    "minHeight": 52.0,
+                    "gap": 8.0,
+                    "radius": 12.0,
+                    "background": 4294967295,
+                    "borderColor": 4292535287,
+                    "fill": true,
+                    "cross": "center",
+                    "padding": [
+                      14.0,
+                      14.0,
+                      14.0,
+                      14.0
+                    ]
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "8:80284",
+                      "style": {
+                        "fontSize": 14.0,
+                        "color": 4285100420,
+                        "weight": 400,
+                        "family": "Inter",
+                        "flex": true
+                      },
+                      "text": "Enter current password"
+                    },
+                    {
+                      "kind": "stack",
+                      "name": "eye-off",
+                      "id": "8:85120",
+                      "style": {
+                        "width": 20.0,
+                        "height": 20.0
+                      },
+                      "children": [
+                        {
+                          "kind": "image",
+                          "name": "",
+                          "id": "8:85120",
+                          "style": {
+                            "positioned": true
+                          },
+                          "asset": "assets/images/67aaaaf270eee1b87f83.svg"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "row",
+              "name": "Inline notice",
+              "id": "8:80286",
+              "style": {
+                "gap": 12.0,
+                "radius": 16.0,
+                "background": 4293390079,
+                "fill": true,
+                "cross": "start",
+                "padding": [
+                  16.0,
+                  16.0,
+                  16.0,
+                  16.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "stack",
+                  "name": "info",
+                  "id": "8:85123",
+                  "style": {
+                    "width": 20.0,
+                    "height": 20.0
+                  },
+                  "children": [
+                    {
+                      "kind": "image",
+                      "name": "",
+                      "id": "8:85123",
+                      "style": {
+                        "positioned": true
+                      },
+                      "asset": "assets/images/d8eedea853f449ea1543.svg"
+                    }
+                  ]
+                },
+                {
+                  "kind": "box",
+                  "name": "",
+                  "id": "8:80288",
+                  "style": {
+                    "color": 4285100420,
+                    "weight": 400,
+                    "family": "Inter",
+                    "flex": true
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 13.0,
+                        "color": 4279249494,
+                        "weight": 600,
+                        "family": "Inter",
+                        "lineHeight": 1.5
+                      },
+                      "text": "Secure return"
+                    },
+                    {
+                      "kind": "text",
+                      "name": "",
+                      "id": "",
+                      "style": {
+                        "fontSize": 12.0,
+                        "lineHeight": 1.5
+                      },
+                      "text": "After verification, you’ll return to the deletion confirmation. Nothing is deleted at this step."
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:80289",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4292880182,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80290",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4294967295,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Verify identity"
+                }
+              ],
+              "action": "do:reauthenticate"
+            },
+            {
+              "kind": "row",
+              "name": "Action button",
+              "id": "8:80291",
+              "style": {
+                "minHeight": 50.0,
+                "radius": 12.0,
+                "background": 4293390079,
+                "fill": true,
+                "cross": "center",
+                "main": "center",
+                "padding": [
+                  16.0,
+                  13.0,
+                  16.0,
+                  13.0
+                ]
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "name": "",
+                  "id": "8:80292",
+                  "style": {
+                    "fontSize": 14.0,
+                    "color": 4279249494,
+                    "weight": 700,
+                    "family": "Inter"
+                  },
+                  "text": "Cancel and return to account"
+                }
+              ],
+              "action": "go:79"
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

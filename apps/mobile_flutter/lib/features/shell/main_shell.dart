@@ -1,42 +1,103 @@
 import 'package:flutter/material.dart';
-import '../home/home_screen.dart';
-import '../explore/explore_screen.dart';
-import '../create/create_screen.dart';
-import '../videos/video_feed_screen.dart';
-import '../profile/profile_screen.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import '../../core/presentation/design_node.dart';
+import '../../core/theme/kolovibe_theme.dart';
 
-class MainShell extends StatefulWidget {
-  const MainShell({super.key});
-
-  @override
-  State<MainShell> createState() => _MainShellState();
-}
-
-class _MainShellState extends State<MainShell> {
-  int index = 0;
-
-  static const pages = <Widget>[
-    HomeScreen(),
-    ExploreScreen(),
-    CreateScreen(),
-    VideoFeedScreen(),
-    ProfileScreen(),
-  ];
-
+class MainShell extends StatelessWidget {
+  const MainShell({
+    super.key,
+    required this.navigation,
+    required this.screen,
+    required this.onSelected,
+  });
+  final DesignNode navigation;
+  final int screen;
+  final ValueChanged<int> onSelected;
+  static const targets = [17, 19, 37, 24, 79];
+  static const labels = ['Home', 'Explore', 'Create', 'Videos', 'Profile'];
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(child: IndexedStack(index: index, children: pages)),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
-        onDestinationSelected: (value) => setState(() => index = value),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
-          NavigationDestination(icon: Icon(Icons.explore_outlined), selectedIcon: Icon(Icons.explore), label: 'Explore'),
-          NavigationDestination(icon: Icon(Icons.add_circle_outline), selectedIcon: Icon(Icons.add_circle), label: 'Create'),
-          NavigationDestination(icon: Icon(Icons.smart_display_outlined), selectedIcon: Icon(Icons.smart_display), label: 'Videos'),
-          NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Profile'),
-        ],
+    final surface = Color(navigation.style['background'] as int? ?? 0xffffffff);
+    final inactive = surface == Colors.white
+        ? KoloVibeColors.muted
+        : const Color(0xffa8b7d0);
+    final icons = navigation.children
+        .where((n) => n.children.any((c) => c.kind == 'image'))
+        .toList();
+    final fallback = screen == 17
+        ? 0
+        : screen >= 37 && screen <= 60
+            ? 2
+            : screen >= 79 && screen <= 94
+                ? 4
+                : {18, 24, 25, 29, 30, 32, 33, 34, 70}.contains(screen)
+                    ? 3
+                    : 1;
+    final designed = navigation.children
+        .where((n) => n.kind == 'text')
+        .toList()
+        .indexWhere((n) => n.style['color'] == 0xffe02736);
+    final selected = designed < 0 ? fallback : designed;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: surface,
+        border: const Border(top: BorderSide(color: Color(0xffdae3f7))),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            for (var i = 0; i < 5; i++)
+              Expanded(
+                child: Semantics(
+                  selected: selected == i,
+                  button: true,
+                  child: InkWell(
+                    onTap: () => onSelected(targets[i]),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (icons.length > i &&
+                              icons[i].children.first.asset != null)
+                            SvgPicture.asset(
+                              icons[i].children.first.asset!,
+                              excludeFromSemantics: true,
+                              colorFilter: ColorFilter.mode(
+                                selected == i ? KoloVibeColors.red : inactive,
+                                BlendMode.srcIn,
+                              ),
+                            )
+                          else
+                            Icon(
+                              [
+                                Icons.home_outlined,
+                                Icons.explore_outlined,
+                                Icons.add_circle_outline,
+                                Icons.smart_display_outlined,
+                                Icons.person_outline,
+                              ][i],
+                              color:
+                                  selected == i ? KoloVibeColors.red : inactive,
+                            ),
+                          const SizedBox(height: 5),
+                          Text(
+                            labels[i],
+                            style: TextStyle(
+                              fontSize: 10,
+                              color:
+                                  selected == i ? KoloVibeColors.red : inactive,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
