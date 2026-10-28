@@ -60,13 +60,13 @@ jobs:
           python scripts/enforce_bandit.py security-reports/bandit.json
       - name: Secret discovery
         run: |
-          detect-secrets scan --all-files --exclude-files '(^docs/|^\.git/|^\.github/)' > security-reports/secret-findings.json
+          detect-secrets scan --all-files --exclude-files '(^\.git/)' > security-reports/secret-findings.json
           python scripts/check_secret_findings.py security-reports/secret-findings.json
       - name: Software bill of materials
         if: always()
         run: |
           mkdir -p security-reports
-          cyclonedx-py requirements requirements-dev.txt --output-format JSON --output-file security-reports/python-sbom.json || true
+          cyclonedx-py requirements requirements-dev.txt --output-format JSON --output-file security-reports/python-sbom.json
       - name: Publish security reports
         if: always()
         uses: actions/upload-artifact@v4
