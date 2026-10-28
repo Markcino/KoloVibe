@@ -56,7 +56,7 @@ jobs:
           pip-audit -r requirements-dev.txt --no-deps --disable-pip --format json --output security-reports/python-vulnerabilities.json
       - name: Python static security review
         run: |
-          bandit -r services scripts -f json -o security-reports/bandit.json
+          bandit -r services scripts -f json -o security-reports/bandit.json || { cat security-reports/bandit.json; exit 1; }
       - name: Secret discovery
         run: |
           detect-secrets scan --all-files --exclude-files '(^docs/|^\.git/|^\.github/)' > security-reports/secret-findings.json
