@@ -1,2 +1,4 @@
-Django>=5.2,<5.3
-PyYAML>=6,<7
+# Generated lockfile will replace this bootstrap file in the lock workflow.
+# All transitive requirements and SHA-256 hashes are required before acceptance.
+Django==5.2.18
+PyYAML==6.0.3

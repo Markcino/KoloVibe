@@ -1,18 +1,97 @@
 name: API quality
 on:
   push:
-    branches: [main, 'feature/**', 'chore/**', 'fix/**']
+    branches: [main, 'feature/**', 'chore/**', 'fix/**', 'security/**']
   pull_request:
 permissions:
   contents: read
 jobs:
-  service-checks:
+  python:
+    name: Django services and reproducibility
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m pip install -r requirements-dev.txt
-      - run: python scripts/check_structure.py
-      - run: python scripts/test_services.py
+      - name: Enforce hashed lockfile
+        run: |
+          python scripts/verify_dependency_locks.py --python
+          python -m pip install --require-hashes -r requirements-dev.txt
+          python -m pip check
+      - name: Service checks
+        run: |
+          python scripts/check_structure.py
+          python scripts/test_services.py
+      - name: Validate OpenAPI
+        run: |
+          python -m pip install "openapi-spec-validator==0.7.2"
+          python - <<'PY'
+          from openapi_spec_validator import validate
+          import yaml
+          from pathlib import Path
+          for p in [Path("contracts/openapi/health.yaml"), Path("docs/architecture/DOC-205_OpenAPI_3_1_DRAFT.yaml")]:
+              with p.open() as f:
+                  spec = yaml.safe_load(f)
+              validate(spec)
+              print("Validated", p)
+          PY
+  security:
+    name: Security scans and SBOM
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install locked application dependencies
+        run: python -m pip install --require-hashes -r requirements-dev.txt
+      - name: Install auditing tools
+        run: python -m pip install "pip-audit==2.9.0" "bandit==1.8.6" "cyclonedx-bom==6.1.0" "detect-secrets==1.5.0"
+      - name: Dependency vulnerability audit
+        run: |
+          mkdir -p security-reports
+          pip-audit -r requirements-dev.txt --no-deps --disable-pip --format json --output security-reports/python-vulnerabilities.json
+      - name: Python static security review
+        run: |
+          bandit -r services scripts -f json -o security-reports/bandit.json
+      - name: Secret discovery
+        run: |
+          detect-secrets scan --all-files --exclude-files '(^docs/|^\.git/|^\.github/)' > security-reports/secret-findings.json
+          python scripts/check_secret_findings.py security-reports/secret-findings.json
+      - name: Software bill of materials
+        if: always()
+        run: |
+          mkdir -p security-reports
+          cyclonedx-py requirements requirements-dev.txt --output-format JSON --output-file security-reports/python-sbom.json || true
+      - name: Publish security reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-security-reports
+          path: security-reports/
+          if-no-files-found: warn
+  flutter:
+    name: Flutter static and widget tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.0'
+          channel: stable
+          cache: true
+      - name: Ensure Flutter lockfile present
+        run: python scripts/verify_dependency_locks.py --flutter
+      - name: Resolve exactly locked packages
+        working-directory: apps/mobile_flutter
+        run: flutter pub get --enforce-lockfile
+      - name: Analyze and test
+        working-directory: apps/mobile_flutter
+        run: |
+          flutter analyze
+          flutter test
+      - name: Check generated package drift
+        run: git diff --exit-code -- apps/mobile_flutter/pubspec.lock
