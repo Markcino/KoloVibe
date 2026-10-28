@@ -25,3 +25,15 @@ In a reviewed PR, update the direct Python dependencies, regenerate hashed locks
 ## Locked baseline
 
 The reviewed lock-generation job produces Python 3.12 SHA-256 package hashes and a Flutter 3.35.0 pubspec.lock. Each proposed dependency change is checked against these committed locks; CI must pass on the updated commit before review.
+
+## CI toolchain lock
+
+`requirements-ci.in` declares security and API-validation tools; `requirements-ci.txt` includes all resolved dependency hashes. The dedicated lock-generation branch refreshes both Python lockfiles together. Runtime and CI tools are installed with `--require-hashes`.
+
+## GitHub Action verification
+
+Third-party actions reference reviewed immutable commits. Moving version tags are not sufficient. Keep a record of the full SHA and update each pinned action only in reviewed pull requests.
+
+## Local service checks
+
+CI uses fixed commands with enumerated service names and a newly generated local-only secret. There is no subprocess-based Python test runner.
