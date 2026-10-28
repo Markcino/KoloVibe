@@ -73,6 +73,8 @@ jobs:
           SERVICE: ${{ matrix.service }}
         run: |
           set -euo pipefail
-          docker run --rm --entrypoint /usr/local/bin/python "kolovibe/$SERVICE:ci" \
-            -c 'import os; os.environ.pop("KOLOVIBE_ENV", None); import service.settings' \
-            && { echo "Non-local settings unexpectedly loaded"; exit 1; } || true
+          if docker run --rm --entrypoint python "kolovibe/$SERVICE:ci" \
+            -c 'import os; os.environ.pop("KOLOVIBE_ENV", None); import service.settings'; then
+            echo "::error::Service settings loaded without explicit local environment"
+            exit 1
+          fi
