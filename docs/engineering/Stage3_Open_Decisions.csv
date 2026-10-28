@@ -1,0 +1,10 @@
+index,Decision,Description,Stage3 impact,Status
+0,OD-01,Workload identity and token provider,Block dependent implementation,Open
+1,OD-02,Nginx-to-Swarm encrypted private transport,Block dependent implementation,Open
+2,OD-03,Swarm topology and hosting,Block dependent implementation,Open
+3,OD-04,PostgreSQL topology and RTO/RPO,Block dependent implementation,Open
+4,OD-05,Creator verification and privacy retention,Block dependent implementation,Open
+5,OD-06,Qualified view thresholds and points formula,Block dependent implementation,Open
+6,OD-07,Video provider and webhook verification,Block dependent implementation,Open
+7,OD-08,Monitoring and audit retention,Block dependent implementation,Open
+8,OD-09,CI platform and deployment credentials,Block dependent implementation,Open
