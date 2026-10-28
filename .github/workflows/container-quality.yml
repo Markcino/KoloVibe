@@ -40,7 +40,7 @@ jobs:
         run: |
           set -euo pipefail
           SECRET="$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')"
-          docker run --rm -d --name "kolovibe-$SERVICE" \
+          docker run -d --name "kolovibe-$SERVICE" \
             -p 127.0.0.1:18080:8000 \
             -e KOLOVIBE_ENV=local \
             -e DJANGO_SECRET_KEY="$SECRET" \
@@ -52,6 +52,9 @@ jobs:
             fi
             sleep 1
           done
+          if ! docker ps --filter "name=kolovibe-$SERVICE" --filter "status=running" --quiet | grep -q .; then
+            echo "::error::Container exited unexpectedly"; docker logs "kolovibe-$SERVICE"; exit 1
+          fi
           python3 - <<'PY'
           import json
           from pathlib import Path
