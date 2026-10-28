@@ -7,6 +7,8 @@ on:
     - cron: '13 5 * * 1'
 permissions:
   contents: read
+  actions: read
+  security-events: write
 jobs:
   osv:
     name: Python and Flutter dependency advisories
@@ -20,3 +22,4 @@ jobs:
     permissions:
       contents: read
       actions: read
+      security-events: write
