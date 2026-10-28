@@ -1,14 +1,15 @@
-# Stage 3 — engineering hold points
+# Decisions pending approval
 
-All open until backed by approved ADRs:
-- OD-01 Workload identity and token provider
-- OD-02 Private Nginx-to-Swarm transport and TLS ownership
-- OD-03 Swarm node count, hosting and sizing
-- OD-04 PostgreSQL tenancy, topology and RTO/RPO
-- OD-05 Creator verification and data retention
-- OD-06 Qualified views, engagement rules and Lone Stars formula
-- OD-07 Managed video upload and webhook signatures
+The mobile application is the active product workstream. This document records architectural decisions, not features intended for the customer UI.
+
+- OD-01 Identity and token issuer, signed service-to-service credentials
+- OD-02 Protected Nginx-to-Swarm transport and TLS ownership
+- OD-03 Cluster topology and sizing
+- OD-04 PostgreSQL service ownership and recovery targets
+- OD-05 Creator verification and retention policy
+- OD-06 Qualified engagement and non-cash Lone Stars rules
+- OD-07 Video provider, uploads and signed webhook contract
 - OD-08 Monitoring and audit retention
-- OD-09 CI provider, privileged deploy credentials and runner trust
+- OD-09 CI/CD credentials, trusted runner and release approval
 
-Non-dependent development scaffolding is allowed. Production release is not.
+No staging or production deploy is permitted until dependent decisions are approved and tested.

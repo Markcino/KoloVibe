@@ -1,29 +1,49 @@
 # KoloVibe
 
+KoloVibe brings Liberian original stories, music, culture and creators together in one mobile-first platform.
 
-Approved 108 mobile screen design: https://www.figma.com/design/ANaV0jnwjZ0LEcByTc98HP/KoloVibe?node-id=0-1
+## Applications
 
-## Current work
-Eight isolated Django process skeletons: gateway, identity, creators, content, engagement, points, moderation, audit. Liveness endpoints only, without business APIs or service identity.
+- **Mobile:** Flutter for Android and iOS — `apps/mobile_flutter`
+- **Backend:** independently deployed Django services — `services`
+- **Contracts:** versioned service interfaces — `contracts`
+- **Infrastructure:** private-edge architecture and deployment configuration — `infra`
 
-## Local development smoke tests
-Prerequisite: Python 3.12+.
-```bash
+The mobile interface follows the [approved Figma source](https://www.figma.com/design/ANaV0jnwjZ0LEcByTc98HP/KoloVibe?node-id=0-1). Home is a multi-service dashboard; Explore is for browsing; Videos is a dedicated immersive feed.
+
+## Local development
+
+### Mobile
+
+Install Flutter using the official SDK, then:
+
+```sh
+cd apps/mobile_flutter
+flutter create --platforms android,ios --project-name kolovibe .
+flutter pub get
+flutter analyze
+flutter test
+flutter run
+```
+
+The platform directories are generated locally by Flutter and should be committed only after verifying the SDK version and platform settings. The application shell is implemented, but business APIs and media playback are **not connected yet**. Unavailable data displays honest empty states rather than fabricated live engagement.
+
+### Services
+
+Use Python 3.12+ and install development dependencies:
+
+```sh
 python -m venv .venv
-source .venv/bin/activate
+. .venv/bin/activate
 python -m pip install -r requirements-dev.txt
 python scripts/check_structure.py
 python scripts/test_services.py
 ```
-To run one service locally:
-```bash
-cd services/gateway
-DJANGO_SECRET_KEY=local-development-key python manage.py runserver 127.0.0.1:8000
-```
-Request `GET /health/live` and expect `{"status":"ok"}`. This does not verify database readiness.
 
-## Holds
-Dependencies are not pinned yet (FND-02). No production images or deployment automation.
-Unresolved provider, private TLS, database topology, event rules, points qualification and video callbacks are hold points in `docs/HOLD_POINTS.md`. No payouts or active future services in Release 1.
+Each service has a liveness endpoint at `/health/live`, not a business API or database-readiness assertion.
 
-Website UI is deferred. Flutter application initialization is next, guided by the approved Figma design.
+## Engineering standards
+
+Changes go through pull requests, automated checks and security review. No production deployment is authorized until the unresolved architecture decisions, credential handling, database permissions, release controls and restore procedures are validated. See `docs/HOLD_POINTS.md` and `docs/STAGE3_ACCEPTANCE.md`.
+
+Release 1 does not include cash-out, withdrawals, paid tickets or advertising-derived Lone Stars. The website UI work is deferred.
