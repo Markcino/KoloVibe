@@ -1,23 +1,38 @@
 # KoloVibe
 
-KoloVibe brings Liberian original stories, music, culture and creators together in one mobile-first platform.
+**Our stories. Our rhythm. Our vibe.**
 
-## Applications
+KoloVibe is a mobile-first platform for Liberian original entertainment and creators. Viewers discover original videos, connect with creators, and explore the culture shaping our community.
 
-- **Mobile:** Flutter for Android and iOS — `apps/mobile_flutter`
-- **Backend:** independently deployed Django services — `services`
-- **Contracts:** versioned service interfaces — `contracts`
-- **Infrastructure:** private-edge architecture and deployment configuration — `infra`
+## Product
 
-The mobile interface follows the [approved Figma source](https://www.figma.com/design/ANaV0jnwjZ0LEcByTc98HP/KoloVibe?node-id=0-1). Home is a multi-service dashboard; Explore is for browsing; Videos is a dedicated immersive feed.
+The mobile application brings together five experiences:
 
-## Local development
+- **Home** — original entertainment and KoloVibe services in one place.
+- **Explore** — browse videos, genres and creators.
+- **Create** — publish original work through the creator experience.
+- **Videos** — immersive short-form playback.
+- **Profile** — manage your account and creator identity.
 
-### Mobile
+The [approved mobile design](https://www.figma.com/design/ANaV0jnwjZ0LEcByTc98HP/KoloVibe?node-id=0-1) is the visual reference for the application.
 
-Install Flutter using the official SDK, then:
+## Codebase
 
-```sh
+| Directory | Responsibility |
+| --- | --- |
+| `apps/mobile_flutter` | Flutter application for Android and iOS |
+| `services` | Django services for identity, creators, content, engagement, points, moderation, audit and gateway |
+| `contracts` | API interface definitions |
+| `infra` | Infrastructure and deployment configuration |
+| `docs` | Architecture, engineering practices and design references |
+
+## Getting started
+
+### Mobile application
+
+Install a compatible Flutter SDK, then run:
+
+```bash
 cd apps/mobile_flutter
 flutter create --platforms android,ios --project-name kolovibe .
 flutter pub get
@@ -26,24 +41,37 @@ flutter test
 flutter run
 ```
 
-The platform directories are generated locally by Flutter and should be committed only after verifying the SDK version and platform settings. The application shell is implemented, but business APIs and media playback are **not connected yet**. Unavailable data displays honest empty states rather than fabricated live engagement.
+Native platform configuration, application identifiers and signing must be reviewed before release. The current app includes the navigation shell and initial feature layouts. Authentication, live data, publishing and video playback integrations are still under development.
 
-### Services
+### Backend services
 
-Use Python 3.12+ and install development dependencies:
+Python 3.12+ is required:
 
-```sh
+```bash
 python -m venv .venv
-. .venv/bin/activate
+source .venv/bin/activate
 python -m pip install -r requirements-dev.txt
 python scripts/check_structure.py
 python scripts/test_services.py
 ```
 
-Each service has a liveness endpoint at `/health/live`, not a business API or database-readiness assertion.
+Run a service locally with an explicit local environment and unique secret:
 
-## Engineering standards
+```bash
+cd services/gateway
+export KOLOVIBE_ENV=local
+export DJANGO_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+python manage.py runserver 127.0.0.1:8000
+```
 
-Changes go through pull requests, automated checks and security review. No production deployment is authorized until the unresolved architecture decisions, credential handling, database permissions, release controls and restore procedures are validated. See `docs/HOLD_POINTS.md` and `docs/STAGE3_ACCEPTANCE.md`.
+Current service endpoints include `GET /health/live`; business APIs and managed deployment configuration are not yet implemented.
 
-Release 1 does not include cash-out, withdrawals, paid tickets or advertising-derived Lone Stars. The website UI work is deferred.
+## Engineering
+
+Code changes are reviewed through pull requests and automated checks. Production environments require separately approved identity, network, database, audit, backup and deployment controls.
+
+- [Engineering standards](docs/engineering-standards.md)
+- [Architecture decisions](docs/architecture-decisions.md)
+- [Mobile design reference](docs/mobile-design.md)
+
+Lone Stars are non-cash recognition points. Paid tickets, withdrawals and other deferred services are not included in the current release.

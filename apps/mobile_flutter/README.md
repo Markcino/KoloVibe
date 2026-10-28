@@ -1,12 +1,12 @@
-# KoloVibe mobile
+# KoloVibe for Android and iOS
 
-Flutter application for Android and iOS, using Material 3 widgets and KoloVibe's brand palette.
+The Flutter application implements KoloVibe's five primary navigation destinations: Home, Explore, Create, Videos and Profile.
 
-Approved visual reference: https://www.figma.com/design/ANaV0jnwjZ0LEcByTc98HP/KoloVibe?node-id=0-1
+The canonical UI reference is the [approved KoloVibe Figma design](https://www.figma.com/design/ANaV0jnwjZ0LEcByTc98HP/KoloVibe?node-id=0-1), comprising 108 mobile screen and state designs.
 
-## Run locally
+## Run
 
-```sh
+```bash
 flutter create --platforms android,ios --project-name kolovibe .
 flutter pub get
 flutter analyze
@@ -14,23 +14,14 @@ flutter test
 flutter run
 ```
 
-The native Android/iOS directories should be generated with the agreed Flutter SDK version and committed after verifying application identifiers and signing practices.
+Use a team-approved Flutter SDK version and verify Android/iOS signing, bundle identifiers and platform configuration before distributing a build.
 
-## Implemented
+## Application structure
 
-- App entry point, theme and five primary destinations.
-- Multi-service Home layout.
-- Explore category selector.
-- Dedicated Videos layout with Following / For You selector.
-- Create and Profile entry points with accurate unavailable-backend messaging.
-- Initial widget tests.
+- `lib/app` — app configuration.
+- `lib/core/theme` — KoloVibe colors and Material 3 theming.
+- `lib/features` — mobile product features.
+- `lib/shared/widgets` — reusable interface elements.
+- `test` — automated widget checks.
 
-## Still needed
-
-- Pixel-accurate implementation of the approved 108-screen Figma inventory.
-- Design imagery and licensed font assets.
-- Authentication, service API integrations, secure token storage.
-- Actual portrait video player, adaptive streaming, creator upload flows and telemetry.
-- Platform-specific configuration, CI SDK pinning and device test execution.
-
-These screens are foundation implementations, not claims that the approved features work end-to-end.
+The UI structure is in place. Account services, live content, streaming and upload workflows require backend integration. Empty-content states are intentional while those integrations are unavailable; sample engagement metrics are not passed off as live data.
