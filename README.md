@@ -1,6 +1,5 @@
-# KoloVibe — Stage 3 Foundation
+# KoloVibe
 
-Mobile-first Release 1; development scaffold only. Not deployed, production-ready, or Stage 3 accepted.
 
 Approved 108 mobile screen design: https://www.figma.com/design/ANaV0jnwjZ0LEcByTc98HP/KoloVibe?node-id=0-1
 
