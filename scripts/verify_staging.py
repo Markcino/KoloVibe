@@ -17,7 +17,14 @@ if parts.hostname != host or parts.username or parts.password or parts.query or 
 if parts.path not in ("", "/"):
     raise SystemExit("Use a staging site origin, not a path-specific URL")
 ctx = ssl.create_default_context()
-opener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=ctx))
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+opener = urllib.request.build_opener(
+    urllib.request.HTTPSHandler(context=ctx),
+    NoRedirect(),
+)
 
 def request(path):
     req = urllib.request.Request(url + path, method="GET", headers={"User-Agent": "KoloVibe-Security-Check/1.0"})

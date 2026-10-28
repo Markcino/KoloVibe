@@ -32,7 +32,7 @@ if args.ci:
     ci = (root / "requirements-ci.txt").read_text()
     if "Placeholder:" in ci:
         raise SystemExit("CI tool lockfile has not been generated")
-    pins = re.findall(r"(?m)^[A-Za-z0-9_.-]+==[0-9][^\\s\\\\]*", ci)
+    pins = re.findall(r"(?m)^[A-Za-z0-9_.-]+==[0-9][^\s\\]*", ci)
     hashes = ci.count("--hash=sha256:")
     if len(pins) < 8 or hashes < len(pins):
         raise SystemExit("CI toolchain must pin transitive dependencies with hashes")
