@@ -1,0 +1,10 @@
+index,Source,Destination,Port,Control
+0,Cloudflare,Nginx VM,443/TCP,Cloudflare source allowlist + origin authentication
+1,Nginx VM,Swarm private gateway,8443/TCP (example),Private route/VPN + upstream TLS/mTLS
+2,Management VPN,Nginx/Swarm hosts,22/TCP,Bastion and admin MFA
+3,Swarm nodes,Managers,2377/TCP,Private cluster only
+4,Swarm nodes,Swarm nodes,7946/TCP+UDP,Private cluster only
+5,Swarm nodes,Swarm nodes,4789/UDP,Private cluster only
+6,App services,PostgreSQL,5432/TCP,Private data tier and service DB roles
+7,Workers/services,Redis,6379/TCP,Private queue/cache
+8,Content service,Video provider,443/TCP,Outbound TLS; signed webhooks

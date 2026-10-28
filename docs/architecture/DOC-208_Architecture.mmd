@@ -1,0 +1,22 @@
+flowchart TB
+  User[Flutter and Browser] --> CF[Cloudflare WAF and TLS]
+  CF --> NGINX[Dedicated Nginx VM - outside Swarm]
+  NGINX --> VPN[Private route or WireGuard - upstream TLS]
+  VPN --> GATE[Private Swarm Gateway]
+  subgraph SWARM[Docker Swarm - 3 Managers plus 2 or more Workers HA option]
+    GATE --> WEB[Django Web]
+    GATE --> ID[Identity Service]
+    GATE --> CT[Content Service]
+    GATE --> EN[Engagement Service]
+    EN --> PT[Points Service - internal only]
+    GATE --> MO[Moderation Service]
+    CT --> W[Celery Workers]
+  end
+  ID --> DB[(Private PostgreSQL - logical service DBs)]
+  CT --> DB
+  EN --> DB
+  PT --> DB
+  W --> REDIS[(Private Redis)]
+  CT --> VID[Managed Video Provider]
+  SWARM --> OBS[Central Monitoring and Audit]
+  DB --> BK[Encrypted Offsite Backups]

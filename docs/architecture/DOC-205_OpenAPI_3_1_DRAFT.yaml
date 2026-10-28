@@ -1,0 +1,1284 @@
+openapi: 3.1.0
+info:
+  title: Liberian Creator Platform — Release 1 API
+  version: 1.0.0-draft
+  description: Design-stage contract. Not deployed. Non-cash points only; no ad-event rewards.
+servers:
+- url: https://api.example.invalid/v1
+  description: Placeholder; never use in production
+tags:
+- name: Identity
+- name: Creators
+- name: Content
+- name: Engagement
+- name: Points
+- name: Moderation
+- name: Operations
+- name: Internal Events
+security:
+- bearerAuth: []
+paths:
+  /auth/register:
+    post:
+      tags:
+      - Identity
+      summary: Register user
+      operationId: post__auth_register
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Invalid request; application/problem+json
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          description: Unexpected server error; no internal details exposed
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      security: []
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+  /auth/login:
+    post:
+      tags:
+      - Identity
+      summary: Authenticate user
+      operationId: post__auth_login
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Invalid request; application/problem+json
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          description: Unexpected server error; no internal details exposed
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      security: []
+  /auth/refresh:
+    post:
+      tags:
+      - Identity
+      summary: Rotate refresh token
+      operationId: post__auth_refresh
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Invalid request; application/problem+json
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          description: Unexpected server error; no internal details exposed
+      security: []
+      description: Refresh token is transported in secure HttpOnly cookie for web; mobile storage uses OS secure
+        store. Exact strategy subject to ADR.
+  /auth/logout:
+    post:
+      tags:
+      - Identity
+      summary: Revoke current session
+      operationId: post__auth_logout
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '204':
+          description: Success; no response body
+        '400':
+          description: Invalid request; application/problem+json
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          description: Unexpected server error; no internal details exposed
+  /me:
+    get:
+      tags:
+      - Identity
+      summary: Get current account
+      operationId: get__me
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Invalid request; application/problem+json
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          description: Unexpected server error; no internal details exposed
+  /creators/{creator_id}:
+    get:
+      tags:
+      - Creators
+      summary: Get public creator profile
+      operationId: get__creators_creator_id
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Creator'
+        '400':
+          description: Invalid request; application/problem+json
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          description: Unexpected server error; no internal details exposed
+      security: []
+      parameters:
+      - name: creator_id
+        in: path
+        required: true
+        schema: &id001
+          type: string
+          format: uuid
+  /creators/me:
+    patch:
+      tags:
+      - Creators
+      summary: Edit own creator profile
+      operationId: patch__creators_me
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Creator'
+        '400':
+          description: Invalid request; application/problem+json
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          description: Unexpected server error; no internal details exposed
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatorUpdate'
+      x-required-roles:
+      - creator
+  /videos:
+    post:
+      tags:
+      - Content
+      summary: Create draft video metadata
+      operationId: post__videos
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Video'
+        '400':
+          description: Invalid request; application/problem+json
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          description: Unexpected server error; no internal details exposed
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VideoCreate'
+      x-required-roles:
+      - creator
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+    get:
+      tags:
+      - Content
+      summary: List published videos
+      operationId: get__videos
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageVideos'
+        '400':
+          description: Invalid request; application/problem+json
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          description: Unexpected server error; no internal details exposed
+      security: []
+      parameters:
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: creator_id
+        in: query
+        required: false
+        schema:
+          type: string
+  /videos/{video_id}:
+    get:
+      tags:
+      - Content
+      summary: Get video details
+      operationId: get__videos_video_id
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Video'
+        '400':
+          description: Invalid request; application/problem+json
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          description: Unexpected server error; no internal details exposed
+      security: []
+      parameters:
+      - name: video_id
+        in: path
+        required: true
+        schema: *id001
+      description: Unpublished content visible only to owner or authorized moderators.
+    patch:
+      tags:
+      - Content
+      summary: Edit own draft video
+      operationId: patch__videos_video_id
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Video'
+        '400':
+          description: Invalid request; application/problem+json
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          description: Unexpected server error; no internal details exposed
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VideoCreate'
+      x-required-roles:
+      - creator
+      parameters:
+      - name: video_id
+        in: path
+        required: true
+        schema: *id001
+  /videos/{video_id}/upload-intents:
+    post:
+      tags:
+      - Content
+      summary: Issue one-time direct upload intent
+      operationId: post__videos_video_id_upload-intents
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadIntent'
+        '400':
+          description: Invalid request; application/problem+json
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          description: Unexpected server error; no internal details exposed
+      x-required-roles:
+      - creator
+      parameters:
+      - name: video_id
+        in: path
+        required: true
+        schema: *id001
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      description: Video bytes upload to provider; backend verifies provider completion via authenticated webhook
+        and provider status check.
+  /videos/{video_id}/publish:
+    post:
+      tags:
+      - Content
+      summary: Request publication after processing/moderation
+      operationId: post__videos_video_id_publish
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Video'
+        '400':
+          description: Invalid request; application/problem+json
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          description: Unexpected server error; no internal details exposed
+      x-required-roles:
+      - creator
+      parameters:
+      - name: video_id
+        in: path
+        required: true
+        schema: *id001
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+  /videos/{video_id}/unpublish:
+    post:
+      tags:
+      - Content
+      summary: Unpublish owned video
+      operationId: post__videos_video_id_unpublish
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Video'
+        '400':
+          description: Invalid request; application/problem+json
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          description: Unexpected server error; no internal details exposed
+      x-required-roles:
+      - creator
+      parameters:
+      - name: video_id
+        in: path
+        required: true
+        schema: *id001
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+  /videos/{video_id}/playback:
+    get:
+      tags:
+      - Content
+      summary: Obtain authorized short-lived playback token
+      operationId: get__videos_video_id_playback
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Playback'
+        '400':
+          description: Invalid request; application/problem+json
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          description: Unexpected server error; no internal details exposed
+      parameters:
+      - name: video_id
+        in: path
+        required: true
+        schema: *id001
+  /engagement/watch-events:
+    post:
+      tags:
+      - Engagement
+      summary: Submit untrusted watch telemetry for server validation
+      operationId: post__engagement_watch-events
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '202':
+          description: Accepted for asynchronous qualification
+        '400':
+          description: Invalid request; application/problem+json
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          description: Unexpected server error; no internal details exposed
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WatchEvent'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      description: 202 Accepted. Telemetry alone never grants points; server checks signed sessions, playback
+        evidence and abuse signals.
+  /videos/{video_id}/like:
+    put:
+      tags:
+      - Engagement
+      summary: Like video once per user
+      operationId: put__videos_video_id_like
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Like'
+        '400':
+          description: Invalid request; application/problem+json
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          description: Unexpected server error; no internal details exposed
+      parameters:
+      - name: video_id
+        in: path
+        required: true
+        schema: *id001
+    delete:
+      tags:
+      - Engagement
+      summary: Remove like
+      operationId: delete__videos_video_id_like
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '204':
+          description: Success; no response body
+        '400':
+          description: Invalid request; application/problem+json
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          description: Unexpected server error; no internal details exposed
+      parameters:
+      - name: video_id
+        in: path
+        required: true
+        schema: *id001
+  /creators/me/points:
+    get:
+      tags:
+      - Points
+      summary: Read own non-cash points balance
+      operationId: get__creators_me_points
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PointsBalance'
+        '400':
+          description: Invalid request; application/problem+json
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          description: Unexpected server error; no internal details exposed
+      x-required-roles:
+      - creator
+  /creators/me/points/entries:
+    get:
+      tags:
+      - Points
+      summary: Read own points history
+      operationId: get__creators_me_points_entries
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PointsEntry'
+        '400':
+          description: Invalid request; application/problem+json
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          description: Unexpected server error; no internal details exposed
+      x-required-roles:
+      - creator
+      parameters:
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+      description: Actual response should be paginated; schema refinement before implementation.
+  /reports:
+    post:
+      tags:
+      - Moderation
+      summary: Report content
+      operationId: post__reports
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '400':
+          description: Invalid request; application/problem+json
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          description: Unexpected server error; no internal details exposed
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportCreate'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+  /moderation/reports:
+    get:
+      tags:
+      - Moderation
+      summary: List moderation cases
+      operationId: get__moderation_reports
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '400':
+          description: Invalid request; application/problem+json
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          description: Unexpected server error; no internal details exposed
+      x-required-roles:
+      - moderator
+      - admin
+      parameters:
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+      description: Paginated response refinement required.
+  /moderation/reports/{report_id}/decisions:
+    post:
+      tags:
+      - Moderation
+      summary: Make audited moderation decision
+      operationId: post__moderation_reports_report_id_decisions
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '400':
+          description: Invalid request; application/problem+json
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          description: Unexpected server error; no internal details exposed
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModerationDecision'
+      x-required-roles:
+      - moderator
+      - admin
+      parameters:
+      - name: report_id
+        in: path
+        required: true
+        schema: *id001
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+  /health/live:
+    get:
+      tags:
+      - Operations
+      summary: Process liveness
+      operationId: get__health_live
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '204':
+          description: Success; no response body
+        '400':
+          description: Invalid request; application/problem+json
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          description: Unexpected server error; no internal details exposed
+      security: []
+  /health/ready:
+    get:
+      tags:
+      - Operations
+      summary: Dependency readiness
+      operationId: get__health_ready
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '204':
+          description: Success; no response body
+        '400':
+          description: Invalid request; application/problem+json
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          description: Unexpected server error; no internal details exposed
+      security: []
+      description: Not exposed publicly through Nginx; only cluster health checks.
+  /internal/points/qualified-events:
+    post:
+      tags:
+      - Internal Events
+      summary: Record qualified award via service identity only
+      operationId: post__internal_points_qualified-events
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '204':
+          description: Success; no response body
+        '400':
+          description: Invalid request; application/problem+json
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          description: Unexpected server error; no internal details exposed
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InternalQualifiedEvent'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      description: Never exposed through public Nginx. mTLS/workload JWT with points:write scope, audience
+        checks, and outbox/inbox deduplication.
+      security:
+      - serviceToken: []
+      x-required-scopes:
+      - points:write
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    serviceToken:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Workload token, audience- and scope-bound; mTLS required for internal APIs.
+  schemas:
+    Problem:
+      type: object
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        code:
+          type: string
+        request_id:
+          type: string
+      required:
+      - type
+      - title
+      - status
+      - code
+      - request_id
+    User:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id001
+        email:
+          type: string
+          format: email
+        display_name:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        created_at: &id002
+          type: string
+          format: date-time
+      required:
+      - id
+      - display_name
+      - roles
+    RegisterRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 12
+          maxLength: 128
+        display_name:
+          type: string
+          minLength: 2
+          maxLength: 80
+      required:
+      - email
+      - password
+      - display_name
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required:
+      - email
+      - password
+    TokenResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        access_token:
+          type: string
+        expires_in:
+          type: integer
+        token_type:
+          type: string
+          enum:
+          - Bearer
+        refresh_token:
+          type: string
+      required:
+      - access_token
+      - expires_in
+      - token_type
+    Creator:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id001
+        user_id: *id001
+        handle:
+          type: string
+        bio:
+          type: string
+        status:
+          type: string
+          enum:
+          - active
+          - restricted
+          - suspended
+      required:
+      - id
+      - user_id
+      - handle
+      - status
+    CreatorUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        bio:
+          type: string
+          maxLength: 500
+        display_name:
+          type: string
+          maxLength: 80
+      required: []
+    Video:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id001
+        creator_id: *id001
+        title:
+          type: string
+        description:
+          type: string
+        state:
+          type: string
+          enum:
+          - draft
+          - uploading
+          - processing
+          - review
+          - published
+          - rejected
+          - removed
+        duration_seconds:
+          type: integer
+          minimum: 0
+        created_at: *id002
+      required:
+      - id
+      - creator_id
+      - title
+      - state
+    VideoCreate:
+      type: object
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 160
+        description:
+          type: string
+          maxLength: 2000
+        visibility:
+          type: string
+          enum:
+          - public
+          - unlisted
+          default: public
+      required:
+      - title
+    UploadIntent:
+      type: object
+      additionalProperties: false
+      properties:
+        upload_id: *id001
+        video_id: *id001
+        upload_url:
+          type: string
+          format: uri
+        expires_at: *id002
+        max_bytes:
+          type: integer
+      required:
+      - upload_id
+      - video_id
+      - upload_url
+      - expires_at
+    Playback:
+      type: object
+      additionalProperties: false
+      properties:
+        playback_url:
+          type: string
+          format: uri
+        expires_at: *id002
+      required:
+      - playback_url
+      - expires_at
+    WatchEvent:
+      type: object
+      additionalProperties: false
+      properties:
+        video_id: *id001
+        session_id: *id001
+        event_id: *id001
+        position_seconds:
+          type: number
+          minimum: 0
+        observed_at: *id002
+      required:
+      - video_id
+      - session_id
+      - event_id
+      - position_seconds
+    Like:
+      type: object
+      additionalProperties: false
+      properties:
+        video_id: *id001
+        liked:
+          type: boolean
+        updated_at: *id002
+      required:
+      - video_id
+      - liked
+    PointsBalance:
+      type: object
+      additionalProperties: false
+      properties:
+        creator_id: *id001
+        balance:
+          type: integer
+        pending:
+          type: integer
+        currency:
+          type: string
+          enum:
+          - POINTS
+        as_of: *id002
+      required:
+      - creator_id
+      - balance
+      - pending
+      - currency
+    PointsEntry:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id001
+        creator_id: *id001
+        amount:
+          type: integer
+        kind:
+          type: string
+          enum:
+          - award
+          - reversal
+          - adjustment
+        rule_version:
+          type: string
+        evidence_ref:
+          type: string
+        created_at: *id002
+      required:
+      - id
+      - creator_id
+      - amount
+      - kind
+      - rule_version
+      - created_at
+    ReportCreate:
+      type: object
+      additionalProperties: false
+      properties:
+        video_id: *id001
+        reason:
+          type: string
+          enum:
+          - spam
+          - harassment
+          - copyright
+          - harmful
+          - other
+        details:
+          type: string
+          maxLength: 2000
+      required:
+      - video_id
+      - reason
+    Report:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id001
+        video_id: *id001
+        status:
+          type: string
+          enum:
+          - open
+          - triaged
+          - resolved
+          - dismissed
+        created_at: *id002
+      required:
+      - id
+      - video_id
+      - status
+    ModerationDecision:
+      type: object
+      additionalProperties: false
+      properties:
+        action:
+          type: string
+          enum:
+          - remove
+          - restore
+          - restrict
+          - dismiss
+        reason:
+          type: string
+          minLength: 10
+          maxLength: 2000
+      required:
+      - action
+      - reason
+    InternalQualifiedEvent:
+      type: object
+      additionalProperties: false
+      properties:
+        event_id: *id001
+        creator_id: *id001
+        video_id: *id001
+        rule_version:
+          type: string
+        evidence_ref:
+          type: string
+        points:
+          type: integer
+          minimum: 0
+      required:
+      - event_id
+      - creator_id
+      - video_id
+      - rule_version
+      - evidence_ref
+      - points
+    PageVideos:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Video'
+        next_cursor:
+          type: string
+          nullable: true
+      required:
+      - items
+  responses:
+    Unauthorized:
+      description: Missing or invalid authentication
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Forbidden:
+      description: Insufficient role, scope, or object ownership
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Conflict:
+      description: State conflict or duplicate operation
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        Retry-After:
+          schema:
+            type: integer

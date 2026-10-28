@@ -1,0 +1,7 @@
+erDiagram
+  ACCOUNTS ||--o| CREATOR_PROFILES : has
+  ACCOUNTS ||--o{ SESSIONS : owns
+  VIDEOS ||--o{ UPLOAD_INTENTS : authorizes
+  ENGAGEMENT_EVENTS ||--o| QUALIFICATION_DECISIONS : evaluated_by
+  REPORTS ||--o{ MODERATION_ACTIONS : resolved_with
+  %% Cross-service UUID references intentionally have NO foreign-key relationships.
