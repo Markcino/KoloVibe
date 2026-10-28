@@ -1,0 +1,6 @@
+# Build and verification tools (pinned directly; transitive hashes generated into requirements-ci.txt).
+openapi-spec-validator==0.7.2
+pip-audit==2.9.0
+bandit==1.8.6
+cyclonedx-bom==6.1.0
+detect-secrets==1.5.0

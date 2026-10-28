@@ -34,3 +34,7 @@ The following are engineering release requirements, **not assertions that they h
 - [ ] Security assessment and authorized deployment approval.
 
 There is no production deployment or security certification implied by the repository layout.
+
+## Repository protection
+
+Enable a GitHub ruleset for `main` requiring pull requests, at least one independent approval, no bypass, and passing checks for `Django services and reproducibility`, `Security scans and SBOM`, `Flutter static and widget tests`, and `Python and Flutter dependency advisories / osv-scan`. Protect against force pushes and deletion. Verify the exact check names in GitHub before enabling. On private repositories, rulesets may require a paid GitHub plan. No branch-protection claim is made until the settings are verified through administrator access.

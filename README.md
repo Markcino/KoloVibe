@@ -52,7 +52,11 @@ python -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements-dev.txt
 python scripts/check_structure.py
-python scripts/test_services.py
+export KOLOVIBE_ENV=local
+export DJANGO_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+for service in gateway identity creators content engagement points moderation audit; do
+  (cd "services/$service" && python manage.py test tests)
+done
 ```
 
 Run a service locally with an explicit local environment and unique secret:

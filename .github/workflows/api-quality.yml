@@ -10,10 +10,14 @@ jobs:
     name: Django services and reproducibility
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'
+      - name: Check committed lockfiles
+        run: |
+          python scripts/verify_dependency_locks.py --python --flutter
+          python scripts/verify_dependency_locks.py --ci
       - name: Enforce hashed lockfile
         run: |
           python scripts/verify_dependency_locks.py --python
@@ -22,10 +26,14 @@ jobs:
       - name: Service checks
         run: |
           python scripts/check_structure.py
-          python scripts/test_services.py
+          export KOLOVIBE_ENV=local
+          export DJANGO_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+          for service in gateway identity creators content engagement points moderation audit; do
+            (cd "services/$service" && python manage.py test tests --verbosity 1)
+          done
       - name: Validate OpenAPI
         run: |
-          python -m pip install "openapi-spec-validator==0.7.2"
+          python -m pip install --require-hashes -r requirements-ci.txt
           python - <<'PY'
           from openapi_spec_validator import validate
           import yaml
@@ -42,14 +50,16 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'
+      - name: Verify CI toolchain lock
+        run: python scripts/verify_dependency_locks.py --ci
       - name: Install locked application dependencies
         run: python -m pip install --require-hashes -r requirements-dev.txt
       - name: Install auditing tools
-        run: python -m pip install "pip-audit==2.9.0" "bandit==1.8.6" "cyclonedx-bom==6.1.0" "detect-secrets==1.5.0"
+        run: python -m pip install --require-hashes -r requirements-ci.txt
       - name: Dependency vulnerability audit
         run: |
           mkdir -p security-reports
@@ -67,9 +77,10 @@ jobs:
         run: |
           mkdir -p security-reports
           cyclonedx-py requirements requirements-dev.txt --output-format JSON --output-file security-reports/python-sbom.json
+          python -m json.tool security-reports/python-sbom.json >/dev/null
       - name: Publish security reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: python-security-reports
           path: security-reports/
@@ -78,8 +89,8 @@ jobs:
     name: Flutter static and widget tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           flutter-version: '3.35.0'
           channel: stable
