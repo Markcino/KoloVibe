@@ -1,0 +1,19 @@
+index,ID,Deliverable,Week,Owner role,Dependencies / blockers,Acceptance evidence,Status
+0,FND-01,"Repo governance, branch protection, CODEOWNERS",W3,Engineering,,PR approval + branch protection screenshot,Not started
+1,FND-02,Pin toolchains and dependency lockfiles,W3,Engineering,Version compatibility,Rebuild on clean runner,Not started
+2,FND-03,Django microservice skeletons and health checks,W3,Backend,DOC-201,Independent image build + smoke tests,Not started
+3,FND-04,Flutter and Django web shells,W3,Frontend,DOC-205,CI builds + navigation smoke,Not started
+4,FND-05,OpenAPI lint and consumer contract tests,W3,API,DOC-205,Contract validation report,Not started
+5,FND-06,Security scanning and SBOM,W3,DevSecOps,CI selection,Scan reports + pinned digest,Not started
+6,FND-07,Per-service PostgreSQL roles and migrations,W4,DBA,DB topology,Cross-service SQL denied,Not started
+7,FND-08,Redis/Celery private queues and retries,W4,Backend,Queue design,Crash/retry tests,Not started
+8,FND-09,Outbox/inbox and idempotency scaffold,W4,Backend,DOC-204,Duplicate delivery test,Not started
+9,FND-10,Service identity enforcement,W4,Security,BLOCK: identity ADR,Unauthorized service call rejected,Not started
+10,FND-11,Append-only noncash ledger scaffold,W4,Backend,DOC-204; no points formula,Reversal and uniqueness tests,Not started
+11,FND-12,Hardened image and Swarm secret handling,W4,DevSecOps,Swarm staging,Secret scan + non-root check,Not started
+12,FND-13,Dedicated Nginx VM configuration,W5,SRE,BLOCK: private TLS/transport,Origin bypass and header tests,Not started
+13,FND-14,Swarm staging stack and network zones,W5,SRE,BLOCK: host sizing,Network isolation and rollout test,Not started
+14,FND-15,"Central logs, metrics and alerts",W5,SRE,Observability choice,Trace ID + redaction tests,Not started
+15,FND-16,Backup/restore and rollback drill,W5,DBA/SRE,BLOCK: RTO/RPO,Timestamped drill evidence,Not started
+16,FND-17,Stage 3 threat-control verification,W5,Security,DOC-203/206,Signed verification matrix,Not started
+17,FND-18,Stage 3 gate and handoff,W5,Sponsor,All blockers dispositioned,Signed acceptance checklist,Not started

@@ -1,0 +1,117 @@
+> Source: platform_documentation_register_and_DEC001.docx (text export; original formatting, formulas and embedded images are not included). Original review status is retained.
+
+<PARSED TEXT FOR PAGE: 1 / 3>
+Project Documentation Register &
+Decision Log
+Liberian creator-content platform | Baseline v1.0 | 28 October 2026
+
+
+Decision DEC-001 — Initial MVP scope approved
+Date: 28 October 2026 | Authority: Product owner | Decision: Approved | Evidence: explicit
+approval in project conversation
+
+Release 1 IN: secure accounts; creator profiles; original video uploads and playback; server-
+verified views and likes; non-cash points dashboard; moderation and reporting. Release 1 OUT:
+business discovery, ticketing, and monetary payouts. All deferred modules remain in product
+roadmap documentation.
+
+Scope approval is not technical, legal, budget or production-release approval. No
+implementation or independent testing is claimed complete.
+
+
+Documentation governance
+   Every document has an ID, version, owner, status, date, reviewer, and change history.
+   Draft → In review → Approved → Superseded is the controlled lifecycle.
+   Approved baseline is versioned; changes require a Change Request (CR) and impact
+    analysis.
+   Every Must requirement maps to design, issue/ticket, test, security control and evidence.
+   Keep all documents in Git under docs/ and review changes through pull requests.
+   Do not publish sensitive threat details, secrets, personal data or internal operational
+    runbooks publicly.
+
+
+Master document register
+ID                 Document            Owner              Status              Target stage
+DOC-001            Product             Product owner      Scope approved;     1
+                   Requirements                           details draft
+                   Document
+DOC-002            Software            Technical lead     Scope approved;     1
+                   Requirements                           details draft
+                   Specification
+DOC-003            Stakeholder and     Product owner      Not started         1
+                   user research
+DOC-004            Role and            Security +         Not started         1–2
+                   permissions         backend
+                   matrix
+DOC-005            User journeys       UX/product         Not started         1–2
+                   and UX flows
+DOC-006            Business rules      Product + fraud    Not started         1–2
+<PARSED TEXT FOR PAGE: 2 / 3>
+                   and points         lead
+                   qualification
+DOC-007            Nonfunctional      Technical lead     Draft in SRS        1
+                   requirements
+                   and KPIs
+DOC-008            Software           Technical lead     Not started         2
+                   architecture and
+                   ADRs
+DOC-009            Trust-boundary     Security lead      Not started         2
+                   DFD and
+                   STRIDE model
+DOC-010            ERD and data       Backend lead       Preliminary in      2
+                   dictionary                            SRS
+DOC-011            OpenAPI            Backend lead       Preliminary in      2–3
+                   contract                              SRS
+DOC-012            ASVS/MASVS         Security + QA      Not started         2–5
+                   traceability
+DOC-013            Privacy,           Product + legal    Not started         1–5
+                   retention and
+                   copyright policy
+DOC-014            Engineering        Technical lead     Not started         3
+                   standards and
+                   CI/CD
+DOC-015            Test plan and      QA lead            Not started         3–5
+                   evidence
+DOC-016            Threat             Security lead      Not started         2–6
+                   remediation and
+                   risk register
+DOC-017            Deployment and     Operations         Not started         3–6
+                   rollback
+                   runbook
+DOC-018            Pilot plan and     Product +          Not started         6
+                   go/no-go           operations
+                   checklist
+DOC-019            Monitoring and     Operations +       Not started         3–7
+                   incident           security
+                   response
+DOC-020            Business module    Product +          Deferred            Post-pilot
+                   R2 specification   technical
+DOC-021            Ticketing R3       Product +          Deferred            Post-pilot
+                   specification      technical
+DOC-022            Revenue/payout     Finance +          Deferred            Post-pilot
+                   R4 specification   security
+DOC-023            Change requests    Product owner      Active              All
+                   and decision log
+
+
+Open decisions
+   DEC-002: Final product name and legal entity.
+   DEC-003: Qualified-view threshold, likes weighting and points formula.
+   DEC-004: Creator eligibility, age policy and verification evidence.
+   DEC-005: Content copyright, takedown and appeals rules.
+<PARSED TEXT FOR PAGE: 3 / 3>
+   DEC-006: Pilot cohort size and Android/iOS release requirement.
+   DEC-007: Monthly cloud cap, moderation capacity and security assessment budget.
+   DEC-008: Data retention, privacy notices and jurisdictional review.
+
+
+Next execution steps
+1. Validate PRD/SRS requirements individually with product owner.
+
+2. Complete the role-permission matrix and creator/viewer user journeys.
+
+3. Specify qualified engagement as a versioned business rule with abuse tests.
+
+4. Complete privacy/copyright rules and acceptance criteria.
+
+5. Conduct Stage 1 sign-off on detailed requirements before Stage 2 architecture sign-off.
