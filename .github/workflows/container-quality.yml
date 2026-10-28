@@ -1,0 +1,78 @@
+name: Container quality
+on:
+  push:
+    branches: [main, 'feature/**', 'security/**']
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  build-and-verify:
+    name: Image build and security / ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [gateway, identity, creators, content, engagement, points, moderation, audit]
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Build service image
+        env:
+          SERVICE: ${{ matrix.service }}
+        run: |
+          docker build --pull \
+            --file infra/docker/Dockerfile.service \
+            --build-arg "SERVICE=$SERVICE" \
+            --tag "kolovibe/$SERVICE:ci" .
+      - name: Inspect image configuration
+        env:
+          SERVICE: ${{ matrix.service }}
+        run: |
+          set -euo pipefail
+          test "$(docker image inspect "kolovibe/$SERVICE:ci" --format '{{.Config.User}}')" = '10001:10001'
+          docker image inspect "kolovibe/$SERVICE:ci" --format '{{.Config.WorkingDir}}' | grep -qx /app
+          test -z "$(docker image inspect "kolovibe/$SERVICE:ci" --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -Ei '(SECRET|TOKEN|PASSWORD|PRIVATE_KEY)=' || true)"
+      - name: Run service HTTP smoke check
+        env:
+          SERVICE: ${{ matrix.service }}
+        run: |
+          set -euo pipefail
+          SECRET="$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')"
+          docker run --rm -d --name "kolovibe-$SERVICE" \
+            -p 127.0.0.1:18080:8000 \
+            -e KOLOVIBE_ENV=local \
+            -e DJANGO_SECRET_KEY="$SECRET" \
+            "kolovibe/$SERVICE:ci"
+          trap 'docker logs "kolovibe-$SERVICE" || true; docker rm -f "kolovibe-$SERVICE" || true' EXIT
+          for attempt in $(seq 1 25); do
+            if curl --fail --silent --show-error --max-time 2 http://127.0.0.1:18080/health/live > /tmp/kolovibe-health.json; then
+              break
+            fi
+            sleep 1
+          done
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          result = json.loads(Path("/tmp/kolovibe-health.json").read_text())
+          if result != {"status": "ok"}:
+              raise SystemExit("Unexpected liveness response")
+          PY
+          code="$(curl --silent --output /dev/null --write-out '%{http_code}' -X POST http://127.0.0.1:18080/health/live)"
+          test "$code" = "405"
+      - name: Scan local image vulnerabilities
+        uses: anchore/scan-action@1638637db639e0ade3258b51db49a9a137574c3e # v6
+        with:
+          image: kolovibe/${{ matrix.service }}:ci
+          fail-build: true
+          severity-cutoff: high
+          output-format: sarif
+      - name: Check for unapproved deploy configuration
+        env:
+          SERVICE: ${{ matrix.service }}
+        run: |
+          set -euo pipefail
+          docker run --rm --entrypoint /usr/local/bin/python "kolovibe/$SERVICE:ci" \
+            -c 'import os; os.environ.pop("KOLOVIBE_ENV", None); import service.settings' \
+            && { echo "Non-local settings unexpectedly loaded"; exit 1; } || true
