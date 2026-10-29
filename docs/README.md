@@ -7,12 +7,12 @@ This directory contains KoloVibe's product requirements, architecture specificat
 | Section | Contents |
 | --- | --- |
 | [Requirements](requirements/) | Approved scope PRD/SRS, role permissions, engagement rules and sign-off documents |
-| [Architecture](architecture/) | DOC-201 through DOC-209, architecture drawings, API contract, database model, risks and security controls |
+| [Architecture](architecture/) | Architecture drawings, OpenAPI draft, database model, risk register, decision log and security control matrix |
 | [Engineering](engineering/) | Technical delivery plan, implementation tracker and open engineering decisions |
 | [Planning](planning/) | Project roadmap and development trackers |
 | [History](history/) | Earlier architecture reviews and change records |
 
-Additional team guidance: [engineering standards](engineering-standards.md), [architecture decision overview](architecture-decisions.md), and [approved mobile design](mobile-design.md).
+Additional team guidance: [engineering standards](engineering-standards.md), [architecture decision overview](architecture-decisions.md), [approved mobile design](mobile-design.md), [mobile UI implementation](mobile-ui-implementation.md), [108-state coverage](mobile-design-coverage.md), and [local asset manifest](mobile-asset-manifest.json).
 
 ## Document status
 
@@ -22,12 +22,12 @@ The approved mobile design is stored in [Figma](https://www.figma.com/design/ANa
 
 ## Source fidelity and provenance
 
-The project archive includes 41 additional documentation items brought from the project file library. The following conventions apply:
+The project archive includes documentation brought from the project file library. The following conventions apply:
 
 - `.md`, `.yaml`, `.sql`, `.mmd` and `.csv` files were imported as retrieved text.
 - Word `.docx` documents are stored as **readable `.md` text editions** with a source-file notice. Their original Word layout, page styling and embedded images are not included.
 - Excel `.xlsx` trackers are also stored as **text editions**; original workbook formatting, formulas, validation and spreadsheet interaction are not preserved.
-- Earlier versions are preserved in separate files rather than overwritten by the latest drafts.
+- Versioned architecture text editions were removed; current unversioned registers, diagrams and contract files remain the working references.
 - Duplicate consolidated decision exports and ZIP bundles are intentionally not added to avoid multiple copies of the same materials.
 - Other unrelated personal and company documents are excluded.
 
