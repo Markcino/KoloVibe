@@ -44,11 +44,13 @@ def build_app():
     # existing hashed dependency lock before the worker can be shipped.
     from celery import Celery
 
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "service.settings")
     app = Celery("kolovibe-points")
     app.conf.update(
         broker_url=broker,
         broker_use_ssl={"cert_reqs": ssl.CERT_REQUIRED},
         broker_connection_retry_on_startup=True,
+        broker_transport_options={"confirm_publish": True},
         broker_heartbeat=30,
         task_default_queue=QUEUE,
         task_serializer="json",
@@ -72,3 +74,15 @@ def build_app():
 # Explicit worker entrypoint: celery -A service.celery_app:app worker -Q kolovibe.points
 # HTTP service startup does not import this module.
 app = build_app()
+
+@app.task(name="kolovibe.points.event", ignore_result=True)
+def receive_event(event_id, event_type, payload):
+    """Persist an idempotent receive marker, not unapproved engagement/point awards."""
+    if not isinstance(payload, dict) or not isinstance(event_type, str):
+        raise ValueError("Invalid event payload")
+    import django
+    django.setup()
+    from django.db import transaction
+    from .events import accept_once
+    with transaction.atomic():
+        return accept_once(event_id, event_type)

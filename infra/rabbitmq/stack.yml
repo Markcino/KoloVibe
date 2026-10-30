@@ -1,0 +1,47 @@
+# Deploy only after DHI digest, secrets, provisioning and failover review.
+services:
+  rabbitmq:
+    image: ${RABBITMQ_DHI_IMAGE:?Reviewed dhi.io/rabbitmq@sha256 digest required}
+    hostname: kolovibe-rabbitmq-1
+    networks:
+      - broker_private
+    configs:
+      - source: rabbitmq_conf
+        target: /etc/rabbitmq/rabbitmq.conf
+    secrets:
+      - kolovibe_rmq_ca
+      - kolovibe_rmq_cert
+      - kolovibe_rmq_key
+      - kolovibe_rmq_definitions
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.kolovibe.rabbitmq == true
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          memory: 1024M
+          cpus: "1.0"
+# No published ports and no management UI.
+networks:
+  broker_private:
+    external: true
+    name: kolovibe_broker_private
+configs:
+  rabbitmq_conf:
+    file: ./rabbitmq.conf
+secrets:
+  kolovibe_rmq_ca:
+    external: true
+  kolovibe_rmq_cert:
+    external: true
+  kolovibe_rmq_key:
+    external: true
+  kolovibe_rmq_definitions:
+    external: true
+volumes:
+  rabbitmq_data:
