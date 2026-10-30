@@ -583,7 +583,7 @@ class _MobileScreenState extends State<MobileScreen> {
                               child: view(screen.named('Playback error')!))))),
           ]));
   Widget unavailable() => Center(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -595,25 +595,19 @@ class _MobileScreenState extends State<MobileScreen> {
               ),
               const SizedBox(height: 20),
               Text(
-                demo
-                    ? 'Creator access required'
-                    : 'This service is not connected yet.',
+                'This service is not connected yet.',
                 style: Theme.of(context).textTheme.titleLarge,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
-              Text(
-                demo
-                    ? 'A viewer cannot publish or manage creator content.'
-                    : 'Account access, content and actions become available when their secure services are connected.',
+              const Text(
+                'Account access, content and actions become available when their secure services are connected.',
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
               FilledButton(
-                onPressed: () => navigate(demo ? 36 : 2),
-                child: Text(
-                  demo ? 'Explore creator onboarding' : 'Return to welcome',
-                ),
+                onPressed: () => navigate(2),
+                child: const Text('Return to welcome'),
               ),
             ],
           ),
