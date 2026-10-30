@@ -1,5 +1,5 @@
 index,ID,Deliverable,Week,Owner role,Dependencies / blockers,Acceptance evidence,Status
-0,FND-01,"Repo governance, branch protection, CODEOWNERS",W3,Engineering,,PR approval + branch protection screenshot,Not started
+0,FND-01,"Repo governance, branch protection, CODEOWNERS",W3,Engineering,"Eligible private-repository plan; selected independent reviewer with write access; administrator activation","Governance policy and PR template prepared; pending protection readback and reviewed acceptance PR; see FND-01_repository_governance.md",Partial - user intervention required
 1,FND-02,Pin toolchains and dependency lockfiles,W3,Engineering,Version compatibility,Rebuild on clean runner,Not started
 2,FND-03,Django microservice skeletons and health checks,W3,Backend,DOC-201,Independent image build + smoke tests,Not started
 3,FND-04,Flutter and Django web shells,W3,Frontend,DOC-205,CI builds + navigation smoke,Not started
