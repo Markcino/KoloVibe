@@ -16,7 +16,7 @@ class EventContractTests(SimpleTestCase):
         cursor.fetchone.return_value = None
         manager = MagicMock()
         manager.__enter__.return_value = cursor
-        with patch.object(transaction, "atomic") as atomic:
+        with patch.object(events, "transaction") as tx:\n            atomic = tx.atomic
             atomic.return_value.__enter__.return_value = None
             with patch.object(events.connection, "cursor", return_value=manager):
                 app = MagicMock()
