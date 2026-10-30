@@ -1,6 +1,6 @@
-# Current verified owner. Independent reviewer assignment is pending FND-01.
-# Add an approved reviewer with write access to EVERY applicable pattern below.
-# The last matching pattern takes precedence; a wildcard-only addition is insufficient.
+# KoloVibe sole developer and repository owner:
+# Mark Allen Gbalazeh (@Markcino).
+# Ownership identifies responsibility; mandatory code-owner approvals are disabled.
 * @Markcino
 /services/ @Markcino
 /.github/ @Markcino
