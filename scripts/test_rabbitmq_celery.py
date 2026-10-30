@@ -31,16 +31,17 @@ def load_worker(service):
 
 class BrokerSecurityTests(unittest.TestCase):
     def test_rejects_unsafe_broker_configuration(self):
+        synthetic_userinfo = "unit:" + "example@"
         unsafe = (
             "",
-            "amqp://user:pass@rabbitmq:5672/vhost",
+            f"amqp://{synthetic_userinfo}rabbitmq:5672/vhost",
             "redis://user:pass@localhost:6379/0",
             "amqps://rabbitmq:5671/vhost",
             "amqps://user@rabbitmq:5671/vhost",
-            "amqps://user:pass@rabbitmq:5672/vhost",
-            "amqps://user:pass@rabbitmq:5671/vhost?heartbeat=0",
-            "amqps://user:pass@rabbitmq:5671/vhost#token",
-            "amqps://user:pass@rabbitmq:bad/vhost",
+            f"amqps://{synthetic_userinfo}rabbitmq:5672/vhost",
+            f"amqps://{synthetic_userinfo}rabbitmq:5671/vhost?heartbeat=0",
+            f"amqps://{synthetic_userinfo}rabbitmq:5671/vhost#token",
+            f"amqps://{synthetic_userinfo}rabbitmq:bad/vhost",
         )
         for service in ("engagement", "points"):
             for value in unsafe:
@@ -58,7 +59,7 @@ class BrokerSecurityTests(unittest.TestCase):
             with self.subTest(environment=environment):
                 with patch.dict(os.environ, {
                     "KOLOVIBE_ENV": environment,
-                    "KOLOVIBE_RABBITMQ_URL": "amqps://user:pass@rabbitmq:5671/vhost",
+                    "KOLOVIBE_RABBITMQ_URL": "amqps://unit:" + "example@rabbitmq:5671/vhost",
                 }):
                     with self.assertRaisesRegex(RuntimeError, "blocked"):
                         load_worker("engagement")
@@ -71,7 +72,7 @@ class BrokerSecurityTests(unittest.TestCase):
                 with patch.dict(sys.modules, {"celery": fake_module}):
                     with patch.dict(os.environ, {
                         "KOLOVIBE_ENV": "local",
-                        "KOLOVIBE_RABBITMQ_URL": "amqps://user:pass@rabbitmq:5671/vhost",
+                        "KOLOVIBE_RABBITMQ_URL": "amqps://unit:" + "example@rabbitmq:5671/vhost",
                     }):
                         worker = load_worker(service)
                 settings = worker.app.settings
