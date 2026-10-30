@@ -8,7 +8,6 @@ import 'package:kolovibe/app/app_dependencies.dart';
 import 'package:kolovibe/app/kolovibe_app.dart';
 import 'package:kolovibe/core/presentation/design_node.dart';
 import 'package:kolovibe/core/presentation/feature_repository.dart';
-import 'package:kolovibe/demo/demo_repository.dart';
 import 'package:kolovibe/features/shell/screen_controller.dart';
 
 void main() {
@@ -70,7 +69,7 @@ void main() {
             child: KoloVibeApp(
               catalog: catalog,
               initialScreen: id,
-              dependencies: AppDependencies.preview(DemoRepository().services),
+              dependencies: const AppDependencies.unavailable(),
             ),
           ),
         );
@@ -109,7 +108,7 @@ void main() {
   }
 
   testWidgets(
-    'Normal entry has no demo controls and sign-in cannot fabricate a session',
+    'Normal entry has no simulation controls and sign-in cannot fabricate a session',
     (tester) async {
       await tester.pumpWidget(KoloVibeApp(catalog: catalog, initialScreen: 4));
       await tester.pump();
