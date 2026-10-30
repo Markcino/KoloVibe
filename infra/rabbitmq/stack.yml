@@ -12,6 +12,7 @@ services:
       - kolovibe_rmq_ca
       - kolovibe_rmq_cert
       - kolovibe_rmq_key
+      - kolovibe_rmq_definitions
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     deploy:
@@ -39,6 +40,8 @@ secrets:
   kolovibe_rmq_cert:
     external: true
   kolovibe_rmq_key:
+    external: true
+  kolovibe_rmq_definitions:
     external: true
 volumes:
   rabbitmq_data:

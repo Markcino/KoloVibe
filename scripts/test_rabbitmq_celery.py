@@ -17,6 +17,9 @@ class FakeCelery:
         self.conf = types.SimpleNamespace(update=self.update)
         self.settings = {}
 
+    def task(self, **kwargs):
+        return lambda function: function
+
     def update(self, **kwargs):
         self.settings.update(kwargs)
 
