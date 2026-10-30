@@ -35,7 +35,7 @@ class BrokerSecurityTests(unittest.TestCase):
         unsafe = (
             "",
             f"amqp://{synthetic_userinfo}rabbitmq:5672/vhost",
-            "redis://user:pass@localhost:6379/0",
+            f"redis://{synthetic_userinfo}localhost:6379/0",
             "amqps://rabbitmq:5671/vhost",
             "amqps://user@rabbitmq:5671/vhost",
             f"amqps://{synthetic_userinfo}rabbitmq:5672/vhost",
