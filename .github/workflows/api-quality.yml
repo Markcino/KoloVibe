@@ -23,6 +23,8 @@ jobs:
           python scripts/verify_dependency_locks.py --python
           python -m pip install --require-hashes -r requirements-dev.txt
           python -m pip check
+      - name: RabbitMQ/Celery worker configuration regression tests
+        run: python -m unittest -v scripts/test_rabbitmq_celery.py
       - name: Service checks
         run: |
           python scripts/check_structure.py
