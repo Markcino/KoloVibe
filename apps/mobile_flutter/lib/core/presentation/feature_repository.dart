@@ -32,7 +32,7 @@ class UiRequest {
 }
 
 class UiResult {
-  const UiResult.success({this.message = 'Preview updated.'})
+  const UiResult.success({this.message = 'Request completed.'})
       : available = true;
   const UiResult.unavailable()
       : available = false,

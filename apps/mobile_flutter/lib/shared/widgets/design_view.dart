@@ -16,20 +16,18 @@ class DesignView extends StatelessWidget {
     required this.node,
     required this.controller,
     required this.onAction,
-    required this.demo,
     this.inRow = false,
   });
   final DesignNode node;
   final ScreenController controller;
   final DesignAction onAction;
-  final bool demo, inRow;
+  final bool inRow;
 
   Widget child(DesignNode n, {bool row = false}) => DesignView(
         key: n.id.isEmpty ? null : ValueKey(n.id),
         node: n,
         controller: controller,
         onAction: onAction,
-        demo: demo,
         inRow: row,
       );
 
@@ -487,12 +485,7 @@ class DesignView extends StatelessWidget {
           style: const TextStyle(fontSize: 14),
         ),
         value: controller.fields[node.id] == 'true',
-        onChanged: demo
-            ? (v) {
-                controller.update(node.id, '$v');
-                controller.choose(node.id);
-              }
-            : null,
+        onChanged: null,
       ));
 
   Widget _search() {
@@ -525,8 +518,6 @@ class DesignView extends StatelessWidget {
   Widget _field(BuildContext context) {
     final texts = node.descendants.where((n) => n.kind == 'text').toList();
     final label = texts.isEmpty ? 'Details' : texts.first.text;
-    final input = node.children.where((n) => n.name == 'Input').firstOrNull;
-    final hint = input?.label ?? '';
     final sensitive = label.toLowerCase().contains('password');
     final email = label.toLowerCase().contains('email');
     final multiline = label == 'Bio' || label == 'Description';
@@ -555,15 +546,7 @@ class DesignView extends StatelessWidget {
     return DesignFormField(
       key: ValueKey(node.id),
       label: label,
-      initialValue: demo &&
-              !sensitive &&
-              !email &&
-              !hint.startsWith('Enter ') &&
-              !hint.startsWith('Your ') &&
-              !hint.startsWith('Choose ') &&
-              hint != 'DELETE'
-          ? hint
-          : '',
+      initialValue: '',
       sensitive: sensitive,
       email: email,
       multiline: multiline,

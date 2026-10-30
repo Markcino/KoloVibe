@@ -13,6 +13,14 @@ flutter test
 flutter run
 ```
 
+Run these commands from `apps/mobile_flutter`. The application uses `lib/main.dart`; `flutter run` selects it by default. The explicit equivalent is:
+
+```bash
+flutter run --target lib/main.dart
+```
+
+IDE launch configurations must also target `lib/main.dart`.
+
 Use a team-approved Flutter SDK version and verify Android/iOS signing, bundle identifiers and platform configuration before distributing a build.
 
 ## Run on a physical iPhone
@@ -34,14 +42,6 @@ Signing certificates, private keys, Apple Account credentials and provisioning p
 - `lib/shared/widgets` — reusable interface elements.
 - `test` — automated widget checks.
 
-All 108 designed screens/states are available in the isolated development demo:
-
-```sh
-flutter run --target lib/main_demo.dart
-```
-
-Tap the gold DEMO banner for the state gallery. Demo builds simulate local outcomes; live APIs and device/media adapters remain unavailable. Normal mode never presents sample account/content/points data as live data. Demo startup is rejected in release mode.
-
-There is no fixed test account. In the demo sign-in form, any valid email and nonempty password pass local validation (for example, `demo@example.com` and `DemoPass123!`); no account is created or authenticated. The normal `lib/main.dart` entry point has no connected sign-in service, so it cannot accept test credentials.
+The application starts with splash and welcome. Account, content and points screens remain unavailable until their secure service adapters are connected. There is no built-in test account; sign-in requires a connected identity service.
 
 See [implementation and verification](../../docs/mobile-ui-implementation.md) and [design coverage](../../docs/mobile-design-coverage.md).
