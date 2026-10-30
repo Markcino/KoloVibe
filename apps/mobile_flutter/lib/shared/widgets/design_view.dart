@@ -93,13 +93,15 @@ class DesignView extends StatelessWidget {
         onChanged: (value) {
           if (value != null) controller.choose(value, report: true);
         },
-        child: RadioListTile<String>(
-          contentPadding: EdgeInsets.zero,
-          value: node.label,
-          activeColor: KoloVibeColors.red,
-          title: Text(node.label, style: const TextStyle(fontSize: 14)),
-          selected: selected,
-        ),
+        child: Material(
+            type: MaterialType.transparency,
+            child: RadioListTile<String>(
+              contentPadding: EdgeInsets.zero,
+              value: node.label,
+              activeColor: KoloVibeColors.red,
+              title: Text(node.label, style: const TextStyle(fontSize: 14)),
+              selected: selected,
+            )),
       );
     }
     if (node.name == 'Feed switcher') {
@@ -121,13 +123,15 @@ class DesignView extends StatelessWidget {
       );
     }
     if (node.children.any((n) => n.name == 'square-check')) {
-      return CheckboxListTile(
-        contentPadding: EdgeInsets.zero,
-        controlAffinity: ListTileControlAffinity.leading,
-        value: controller.acknowledged,
-        title: Text(node.label, style: const TextStyle(fontSize: 12)),
-        onChanged: (v) => controller.acknowledge(v ?? false),
-      );
+      return Material(
+          type: MaterialType.transparency,
+          child: CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            value: controller.acknowledged,
+            title: Text(node.label, style: const TextStyle(fontSize: 12)),
+            onChanged: (v) => controller.acknowledge(v ?? false),
+          ));
     }
 
     Widget result;
@@ -145,15 +149,25 @@ class DesignView extends StatelessWidget {
                   fit: BoxFit.cover, excludeFromSemantics: true);
     } else if (node.kind == 'text') {
       final align = node.style['textAlign'];
-      result = Text(
-        node.text,
-        style: textStyle,
-        textAlign: align == 'center'
-            ? TextAlign.center
-            : align == 'right'
-                ? TextAlign.right
-                : TextAlign.start,
-      );
+      final textAlign = align == 'center'
+          ? TextAlign.center
+          : align == 'right'
+              ? TextAlign.right
+              : TextAlign.start;
+      result = node.text.contains('☀')
+          ? Text.rich(
+              TextSpan(children: [
+                TextSpan(text: node.text.split('☀').first),
+                WidgetSpan(
+                    alignment: PlaceholderAlignment.middle,
+                    child: Icon(Icons.wb_sunny_rounded,
+                        color: const Color(0xffffba24),
+                        size: textStyle.fontSize ?? 24)),
+              ]),
+              style: textStyle,
+              textAlign: textAlign,
+            )
+          : Text(node.text, style: textStyle, textAlign: textAlign);
     } else if (node.kind == 'wrap') {
       result = Wrap(
         spacing: node.dimension('gap') ?? 8,
@@ -464,7 +478,9 @@ class DesignView extends StatelessWidget {
     );
   }
 
-  Widget _preference() => SwitchListTile.adaptive(
+  Widget _preference() => Material(
+      type: MaterialType.transparency,
+      child: SwitchListTile.adaptive(
         contentPadding: EdgeInsets.zero,
         title: Text(
           node.children.isEmpty ? node.label : node.children.first.label,
@@ -477,7 +493,7 @@ class DesignView extends StatelessWidget {
                 controller.choose(node.id);
               }
             : null,
-      );
+      ));
 
   Widget _search() {
     final hint = node.children

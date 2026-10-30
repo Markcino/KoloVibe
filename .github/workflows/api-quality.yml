@@ -69,8 +69,9 @@ jobs:
         run: |
           bandit -r services scripts -f json -o security-reports/bandit.json || true
           python scripts/enforce_bandit.py security-reports/bandit.json
-      - name: Secret discovery
+      - name: Secret discovery and regression checks
         run: |
+          PYTHONPATH=scripts python -m unittest -v scripts/test_check_secret_findings.py
           detect-secrets scan --all-files --exclude-files '(^\.git/)' > security-reports/secret-findings.json
           python scripts/check_secret_findings.py security-reports/secret-findings.json
       - name: Software bill of materials
@@ -93,7 +94,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
-          flutter-version: '3.35.0'
+          flutter-version: '3.47.8'
           channel: stable
           cache: true
       - name: Ensure Flutter lockfile present

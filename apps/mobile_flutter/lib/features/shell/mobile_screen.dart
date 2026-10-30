@@ -57,9 +57,10 @@ class _MobileScreenState extends State<MobileScreen> {
   void initState() {
     super.initState();
     controller = ScreenController(widget.dependencies.repository);
-    if (id == 72 || id == 74)
+    if (id == 72 || id == 74) {
       controller.reason =
           widget.session.reportReason ?? 'Rights or ownership concern';
+    }
     if (id == 101) widget.session.expire();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -145,8 +146,9 @@ class _MobileScreenState extends State<MobileScreen> {
         notify('Choose a reason before continuing.');
         return;
       }
-      if (id == 71 && target == 72)
+      if (id == 71 && target == 72) {
         widget.session.reportReason = controller.reason;
+      }
       if (id == 44 &&
           target == 45 &&
           !(form.currentState?.validate() ?? false)) {
@@ -179,7 +181,9 @@ class _MobileScreenState extends State<MobileScreen> {
     if (validates &&
         !((overlayOpen ? overlayForm.currentState : form.currentState)
                 ?.validate() ??
-            true)) return;
+            true)) {
+      return;
+    }
     if ({UiOperation.register, UiOperation.deleteAccount}.contains(operation) &&
         !controller.acknowledged) {
       notify('Please acknowledge the information before continuing.');
@@ -482,7 +486,50 @@ class _MobileScreenState extends State<MobileScreen> {
                 ]))),
             Align(
                 alignment: Alignment.topCenter,
-                child: view(screen.named('Feed switcher')!)),
+                child: SizedBox(
+                    height: 52,
+                    child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text('Following',
+                              style: TextStyle(
+                                  color: Color(0xff8fa6be),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500)),
+                          SizedBox(
+                              width: MediaQuery.textScalerOf(context).scale(1) >
+                                      1.3
+                                  ? 8
+                                  : 24),
+                          const Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text('For You',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w800)),
+                                SizedBox(height: 8),
+                                SizedBox(
+                                    width: 40,
+                                    height: 3,
+                                    child:
+                                        ColoredBox(color: KoloVibeColors.red)),
+                              ]),
+                          SizedBox(
+                              width: MediaQuery.textScalerOf(context).scale(1) >
+                                      1.3
+                                  ? 8
+                                  : 20),
+                          IconButton(
+                              tooltip: 'Search videos',
+                              onPressed: () => navigate(21),
+                              constraints: const BoxConstraints.tightFor(
+                                  width: 36, height: 36),
+                              padding: EdgeInsets.zero,
+                              icon: const Icon(Icons.search,
+                                  color: Colors.white)),
+                        ]))),
             Positioned(
                 left: 0,
                 right: 0,

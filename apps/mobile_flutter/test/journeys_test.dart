@@ -89,6 +89,20 @@ void main() {
     expect(find.text('Deletion request received'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
+  testWidgets('Video deletion dialog requires the exact confirmation',
+      (tester) async {
+    await boot(tester, 56);
+    final confirmation = find.byType(TextFormField).last;
+    await tap(tester, 'Delete video');
+    expect(find.textContaining('Type DELETE'), findsWidgets);
+    await tester.enterText(confirmation, 'delete');
+    await tap(tester, 'Delete video');
+    expect(find.textContaining('Type DELETE'), findsWidgets);
+    await tester.enterText(confirmation, 'DELETE');
+    await tap(tester, 'Delete video');
+    expect(find.text('My video library'), findsWidgets);
+    await tester.pumpWidget(const SizedBox());
+  });
   testWidgets('Expired-session sign-in returns to Creator Studio',
       (tester) async {
     await boot(tester, 101);

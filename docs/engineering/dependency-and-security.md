@@ -2,7 +2,7 @@
 
 Python services target Python 3.12 and Django 5.2 LTS. Direct dependencies are declared in `requirements-dev.in`; `requirements-dev.txt` is compiled with all transitive dependencies and package hashes. Install with `pip install --require-hashes -r requirements-dev.txt`. Do not manually edit the generated lockfile.
 
-Flutter uses Flutter SDK 3.35.0 and commits `apps/mobile_flutter/pubspec.lock`. CI runs `flutter pub get --enforce-lockfile`; dependency changes require reviewing the lockfile diff.
+Flutter uses Flutter SDK 3.47.8 and commits `apps/mobile_flutter/pubspec.lock`. CI runs `flutter pub get --enforce-lockfile`; dependency changes require reviewing the lockfile diff.
 
 ## Continuous verification
 
@@ -24,7 +24,7 @@ In a reviewed PR, update the direct Python dependencies, regenerate hashed locks
 
 ## Locked baseline
 
-The reviewed lock-generation job produces Python 3.12 SHA-256 package hashes and a Flutter 3.35.0 pubspec.lock. Each proposed dependency change is checked against these committed locks; CI must pass on the updated commit before review.
+The reviewed lock-generation job produces Python 3.12 SHA-256 package hashes and a Flutter 3.47.8 pubspec.lock. Each proposed dependency change is checked against these committed locks; CI must pass on the updated commit before review.
 
 ## CI toolchain lock
 
