@@ -37,4 +37,6 @@ There is no production deployment or security certification implied by the repos
 
 ## Repository protection
 
-Enable a GitHub ruleset for `main` requiring pull requests, at least one independent approval, no bypass, and passing checks for `Django services and reproducibility`, `Security scans and SBOM`, `Flutter static and widget tests`, and `Python and Flutter dependency advisories / osv-scan`. Protect against force pushes and deletion. Verify the exact check names in GitHub before enabling. On private repositories, rulesets may require a paid GitHub plan. No branch-protection claim is made until the settings are verified through administrator access.
+Protect `main` with required pull requests, at least one independent code-owner approval, administrator enforcement, resolved conversations and up-to-date CI. Require the API, Flutter, dependency and all eight container checks listed in [the protection policy](../.github/branch-protection/main.json). Disable force pushes and deletion. Apply classic branch protection or an equivalent reviewed ruleset; the committed JSON does not activate server-side enforcement.
+
+Follow [FND-01 activation and acceptance](engineering/FND-01_repository_governance.md). An eligible private-repository plan, an independent reviewer with write access and an administrator action remain pending. No branch-protection claim is made until the effective settings and acceptance evidence are verified.
