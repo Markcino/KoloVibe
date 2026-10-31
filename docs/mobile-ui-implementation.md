@@ -28,7 +28,7 @@ Native safe areas, editable text inputs, semantic controls and system back navig
 
 ## Integration boundaries
 
-Follow the existing DOC-205 draft contracts and open ADRs. The content service has local read-only approved-public video endpoints, but the gateway and mobile app are not yet connected to them. Identity, secure token storage, media selection/provider uploads, playback, native sharing/settings/store launching, privacy requests, real content/search/follow state and backend notification delivery require service/device adapters. No client-side points-award formula or media moderation bypass exists.
+Follow the existing DOC-205 draft contracts and open ADRs. The content service has local read-only approved-public video endpoints and the gateway has a signed internal list route; the mobile app is not yet connected. Identity, secure token storage, media selection/provider uploads, playback, native sharing/settings/store launching, privacy requests, real content/search/follow state and backend notification delivery require service/device adapters. No client-side points-award formula or media moderation bypass exists.
 
 The current boundary-by-boundary status is in `docs/mobile-live-integration-gaps.md`. The intended future production host is `kolovibe.cabetechs.shop`; no deployment or production API is configured in this repository.
 
@@ -65,6 +65,6 @@ This evidence verifies the interface milestone, not live integration, deployment
 
 ## Service foundation update · 31 October 2026
 
-The local identity service stores accounts with normalized unique email and hashed passwords; public sign-in and token issuance remain closed pending ADR-013 details. The local content service exposes read-only approved-public video metadata. Its empty feed contains no fixture records. The gateway and mobile app do not yet consume these endpoints.
+The local identity service stores accounts with normalized unique email and hashed passwords; public sign-in and token issuance remain closed pending ADR-013 details. The local content service exposes read-only approved-public video metadata. Its empty feed contains no fixture records. The gateway list route uses signed internal transport but has no configured TLS peers; the mobile app does not yet consume these endpoints.
 
-The combined branch passed 62 Django service tests, 18 script tests, 133 Flutter widget tests, Flutter analysis, design integrity and migration drift checks. Local `.env` contains distinct generated service secrets with owner-only permissions and is ignored by Git. The intended production host is `kolovibe.cabetechs.shop`; no production deployment was attempted.
+The combined branch passed 68 Django service tests, 18 script tests, 133 Flutter widget tests, Flutter analysis, design integrity and migration drift checks. Local `.env` contains distinct generated service secrets with owner-only permissions and is ignored by Git. The intended production host is `kolovibe.cabetechs.shop`; no production deployment was attempted.

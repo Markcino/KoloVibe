@@ -1,10 +1,11 @@
 """Read-only public video endpoints from DOC-205's candidate interface."""
 
+import json
 import uuid
 
 from django.http import JsonResponse
 from django.db import models
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_POST
 
 from .models import Video
 
@@ -34,14 +35,16 @@ def _item(video):
 
 @require_GET
 def list_videos(request):
+    return _list_videos(request.GET.get("creator_id"), request.GET.get("cursor"))
+
+
+def _list_videos(creator, cursor):
     queryset = _public_videos().order_by("-created_at", "-id")
-    creator = request.GET.get("creator_id")
     if creator is not None:
         try:
             queryset = queryset.filter(creator_id=uuid.UUID(creator))
         except ValueError:
             return JsonResponse({"detail": "Invalid creator_id"}, status=400)
-    cursor = request.GET.get("cursor")
     if cursor is not None:
         try:
             cursor_id = uuid.UUID(cursor)
@@ -60,6 +63,19 @@ def list_videos(request):
         "items": [_item(video) for video in items],
         "next_cursor": str(items[-1].id) if len(page) > 20 else None,
     })
+
+
+@require_POST
+def internal_list_videos(request):
+    try:
+        filters = json.loads(request.body)
+    except (ValueError, UnicodeDecodeError):
+        return JsonResponse({"detail": "Invalid request"}, status=400)
+    if not isinstance(filters, dict) or set(filters) - {"creator_id", "cursor"}:
+        return JsonResponse({"detail": "Invalid request"}, status=400)
+    if any(value is not None and not isinstance(value, str) for value in filters.values()):
+        return JsonResponse({"detail": "Invalid request"}, status=400)
+    return _list_videos(filters.get("creator_id"), filters.get("cursor"))
 
 
 @require_GET

@@ -65,7 +65,7 @@ Run a service locally with an explicit local environment and unique secret:
 python scripts/run_local_service.py gateway runserver 127.0.0.1:8000
 ```
 
-The local launcher reads only the selected service's generated secret from `.env`. It requires owner-only file permissions and never prints secret values. Containers and CI continue to inject secrets through their own controls. Identity has a persistent account model but no public registration or token endpoint while ADR-013 is unresolved. Content exposes `GET /videos` and `GET /videos/{id}` for approved public records; no fixture content is seeded. Other business APIs and managed deployment remain open.
+The local launcher reads only the selected service's generated secret from `.env`. It requires owner-only file permissions and never prints secret values. Containers and CI continue to inject secrets through their own controls. Identity has a persistent account model but no public registration or token endpoint while ADR-013 is unresolved. Content exposes `GET /videos` and `GET /videos/{id}` for approved public records; no fixture content is seeded. The gateway's `GET /videos` route calls content through the signed internal service client and requires separately configured TLS peer credentials. Other business APIs and managed deployment remain open.
 
 ## Engineering
 

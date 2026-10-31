@@ -1,11 +1,14 @@
 import uuid
+import json
 
 from django.db import IntegrityError
 from django.test import TestCase
+from django.test import RequestFactory
 from django.urls import reverse
 from django.utils import timezone
 
 from service.models import Video
+from service.videos import internal_list_videos
 
 
 class PublicVideoTests(TestCase):
@@ -52,6 +55,20 @@ class PublicVideoTests(TestCase):
         )
         self.assertEqual(self.client.get(reverse("videos")).json()["items"], [])
         self.assertEqual(self.client.get(reverse("video_detail", args=[video.id])).status_code, 404)
+
+    def test_internal_read_requires_service_signature(self):
+        response = self.client.post(
+            reverse("internal-videos"),
+            data=json.dumps({}), content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_internal_handler_has_same_empty_result_after_authentication(self):
+        request = RequestFactory().post(
+            "/internal/videos", data=json.dumps({}), content_type="application/json"
+        )
+        response = internal_list_videos(request)
+        self.assertEqual(json.loads(response.content), {"items": [], "next_cursor": None})
 
     def test_invalid_query_inputs_are_rejected(self):
         for query in ("?cursor=invalid", "?creator_id=invalid"):
