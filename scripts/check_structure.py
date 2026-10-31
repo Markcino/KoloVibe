@@ -11,6 +11,12 @@ REPOSITORY_PATHS = (
     "apps/mobile/lib/main.dart",
     "apps/mobile/pubspec.yaml",
     "apps/mobile/pubspec.lock",
+    "apps/mobile/android/gradlew",
+    "apps/mobile/android/gradlew.bat",
+    "apps/mobile/android/gradle/wrapper/gradle-wrapper.jar",
+    "apps/web_django/static/images/logo.svg",
+    "apps/web_django/static/images/landscape_logo_with_name.svg",
+    "apps/web_django/static/images/portrait_logo_with_name.svg",
     "packages/contracts/openapi/health.yaml",
     "infra/docker/Dockerfile.service",
     "infra/postgres/schema_isolation.sql",
@@ -23,7 +29,7 @@ REPOSITORY_PATHS = (
 for path in REPOSITORY_PATHS:
     if not (ROOT / path).is_file():
         raise RuntimeError(f"Missing documented repository path: {path}")
-for legacy in ("apps/mobile_flutter", "contracts"):
+for legacy in ("apps/mobile_flutter", "contracts", "apps/web"):
     if (ROOT / legacy).exists():
         raise RuntimeError(f"Unexpected legacy directory: {legacy}")
 print(f"Structure OK: {len(SERVICES)} services and approved monorepo layout")
