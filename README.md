@@ -53,23 +53,19 @@ python -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements-dev.txt
 python scripts/check_structure.py
-export KOLOVIBE_ENV=local
-export DJANGO_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+python scripts/init_local_env.py  # first setup only; creates ignored .env
 for service in gateway identity creators content engagement points moderation audit; do
-  (cd "services/$service" && python manage.py test tests)
+  python scripts/run_local_service.py "$service" test tests
 done
 ```
 
 Run a service locally with an explicit local environment and unique secret:
 
 ```bash
-cd services/gateway
-export KOLOVIBE_ENV=local
-export DJANGO_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
-python manage.py runserver 127.0.0.1:8000
+python scripts/run_local_service.py gateway runserver 127.0.0.1:8000
 ```
 
-Current service endpoints include `GET /health/live`; business APIs and managed deployment configuration are not yet implemented.
+The local launcher reads only the selected service's generated secret from `.env`. It requires owner-only file permissions and never prints secret values. Containers and CI continue to inject secrets through their own controls. Identity has a persistent account model but no public registration or token endpoint while ADR-013 is unresolved. Content exposes `GET /videos` and `GET /videos/{id}` for approved public records; no fixture content is seeded. The gateway's `GET /videos` route calls content through the signed internal service client and requires separately configured TLS peer credentials. Other business APIs and managed deployment remain open.
 
 ## Engineering
 

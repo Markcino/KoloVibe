@@ -28,7 +28,9 @@ Native safe areas, editable text inputs, semantic controls and system back navig
 
 ## Integration boundaries
 
-Follow the existing DOC-205 draft contracts and open ADRs. No business endpoint is implemented by this milestone. Identity, secure token storage, media selection/provider uploads, playback, native sharing/settings/store launching, privacy requests, real content/search/follow state and backend notification delivery require service/device adapters. No client-side points-award formula or media moderation bypass exists.
+Follow the existing DOC-205 draft contracts and open ADRs. The content service has local read-only approved-public video endpoints and the gateway has a signed internal list route; the mobile app is not yet connected. Identity, secure token storage, media selection/provider uploads, playback, native sharing/settings/store launching, privacy requests, real content/search/follow state and backend notification delivery require service/device adapters. No client-side points-award formula or media moderation bypass exists.
+
+The current boundary-by-boundary status is in `docs/mobile-live-integration-gaps.md`. The intended future production host is `kolovibe.cabetechs.shop`; no deployment or production API is configured in this repository.
 
 Policy summaries are design-reference copy; they are not a complete approved legal policy. Business discovery, tickets, real-money rewards and payouts remain deferred under DEC-001.
 
@@ -60,3 +62,9 @@ This is historical evidence from before the alternate entry point and simulation
 - Android debug APK built with Flutter 3.47.8 at `apps/mobile_flutter/build/app/outputs/flutter-apk/app-debug.apk`; archive integrity passed. iOS simulator Debug `Runner.app` built at `apps/mobile_flutter/build/ios/iphonesimulator/Runner.app`. Both builds were repeated after the final widget fix. Flutter warns that the current Gradle, Android Gradle Plugin and Kotlin versions will need a future upgrade. These are development builds, not signed distribution artifacts.
 
 This evidence verifies the interface milestone, not live integration, deployment approval or security certification.
+
+## Service foundation update · 31 October 2026
+
+The local identity service stores accounts with normalized unique email and hashed passwords; public sign-in and token issuance remain closed pending ADR-013 details. The local content service exposes read-only approved-public video metadata. Its empty feed contains no fixture records. The gateway list route uses signed internal transport but has no configured TLS peers; the mobile app does not yet consume these endpoints.
+
+The combined branch passed 68 Django service tests, 18 script tests, 133 Flutter widget tests, Flutter analysis, design integrity and migration drift checks. Local `.env` contains distinct generated service secrets with owner-only permissions and is ignored by Git. The intended production host is `kolovibe.cabetechs.shop`; no production deployment was attempted.

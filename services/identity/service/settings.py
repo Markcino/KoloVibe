@@ -11,7 +11,7 @@ if not SECRET_KEY or len(SECRET_KEY) < 32:
 DEBUG = os.environ.get("DJANGO_DEBUG", "0") == "1"
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "testserver"]
 ROOT_URLCONF = "service.urls"
-INSTALLED_APPS = []
+INSTALLED_APPS = ["django.contrib.auth", "django.contrib.contenttypes", "service"]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "service.service_auth.ServiceAuthMiddleware",
@@ -47,3 +47,10 @@ else:
 KOLOVIBE_SERVICE_NAME = "identity"
 USE_TZ = True
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+AUTH_USER_MODEL = "service.Account"
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator", "OPTIONS": {"min_length": 12}},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+]
