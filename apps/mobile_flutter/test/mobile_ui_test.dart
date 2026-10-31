@@ -1,14 +1,10 @@
 import 'dart:io';
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kolovibe/app/app_dependencies.dart';
 import 'package:kolovibe/app/kolovibe_app.dart';
 import 'package:kolovibe/core/presentation/design_node.dart';
 import 'package:kolovibe/core/presentation/feature_repository.dart';
-import 'package:kolovibe/demo/demo_repository.dart';
 import 'package:kolovibe/features/shell/screen_controller.dart';
 
 void main() {
@@ -55,25 +51,16 @@ void main() {
     },
   );
 
-  for (var id = 1; id <= 108; id++) {
+  for (final id in [2, 3, 4, 5, 6, 9, 11, 17, 24, 61, 79, 101]) {
     testWidgets(
-      'M-${id.toString().padLeft(3, '0')} renders and captures without layout errors',
+      'M-${id.toString().padLeft(3, '0')} renders without layout errors',
       (tester) async {
         tester.view.physicalSize = const Size(390, 844);
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.resetPhysicalSize);
         addTearDown(tester.view.resetDevicePixelRatio);
-        final boundary = GlobalKey();
-        await tester.pumpWidget(
-          RepaintBoundary(
-            key: boundary,
-            child: KoloVibeApp(
-              catalog: catalog,
-              initialScreen: id,
-              dependencies: AppDependencies.preview(DemoRepository().services),
-            ),
-          ),
-        );
+        await tester
+            .pumpWidget(KoloVibeApp(catalog: catalog, initialScreen: id));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 400));
         await tester.pump(const Duration(milliseconds: 400));
@@ -87,21 +74,6 @@ void main() {
           isNull,
           reason: 'M-$id must render without exceptions',
         );
-        if (const bool.fromEnvironment('CAPTURE_UI')) {
-          final render = boundary.currentContext!.findRenderObject()!
-              as RenderRepaintBoundary;
-          await tester.runAsync(() async {
-            final image = await render.toImage(pixelRatio: 1);
-            final bytes =
-                await image.toByteData(format: ui.ImageByteFormat.png);
-            final directory = Directory('build/ui-review')
-              ..createSync(recursive: true);
-            File(
-              '${directory.path}/M-${id.toString().padLeft(3, '0')}.png',
-            ).writeAsBytesSync(bytes!.buffer.asUint8List());
-            image.dispose();
-          });
-        }
         await tester.pumpWidget(const SizedBox());
         await tester.pump(const Duration(seconds: 4));
       },
@@ -109,12 +81,11 @@ void main() {
   }
 
   testWidgets(
-    'Normal entry has no demo controls and sign-in cannot fabricate a session',
+    'Sign-in validation cannot fabricate a session',
     (tester) async {
       await tester.pumpWidget(KoloVibeApp(catalog: catalog, initialScreen: 4));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
-      expect(find.textContaining('DEMO ·'), findsNothing);
       await tester.tap(find.widgetWithText(FilledButton, 'Sign in'));
       await tester.pump();
       expect(find.textContaining('Enter email'), findsWidgets);

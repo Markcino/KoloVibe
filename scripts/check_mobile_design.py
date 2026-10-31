@@ -34,7 +34,9 @@ for entry in manifest:
     assert all(slot['node'] for slot in entry['slots']), 'Every asset needs a design slot'
 entry = (APP / 'lib/main.dart').read_text()
 assert 'demo/' not in entry and 'main_demo' not in entry
-assert 'kReleaseMode' in (APP / 'lib/main_demo.dart').read_text()
+assert not (APP / 'lib/main_demo.dart').exists(), 'Demo entry point must not ship'
+assert not (APP / 'lib/demo').exists(), 'Demo implementation must not ship'
+assert not any('DemoRepository' in path.read_text() for path in (APP / 'lib').rglob('*.dart'))
 exports = {int(str(path.relative_to(ROOT / 'docs/designed')).split('M-')[1][:3])
            for path in (ROOT / 'docs/designed').rglob('*.png')}
 assert exports == set(range(1, 109)), 'Local screenshot archive incomplete'

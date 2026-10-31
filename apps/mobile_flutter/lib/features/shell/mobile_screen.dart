@@ -30,10 +30,8 @@ class MobileScreen extends StatefulWidget {
 class _MobileScreenState extends State<MobileScreen> {
   late final ScreenController controller;
   final form = GlobalKey<FormState>();
-  final overlayForm = GlobalKey<FormState>();
   Timer? timer;
-  bool overlayOpen = false, discardConfirmed = false;
-  bool get demo => widget.dependencies.demo;
+  bool discardConfirmed = false;
   int get id => widget.route.screen;
   DesignScreen get screen => widget.catalog[id];
   bool get protected => !(id <= 12 ||
@@ -52,7 +50,6 @@ class _MobileScreenState extends State<MobileScreen> {
         103,
         108,
       }.contains(id));
-  bool get creatorOnly => id >= 37 && id <= 69;
   @override
   void initState() {
     super.initState();
@@ -64,19 +61,11 @@ class _MobileScreenState extends State<MobileScreen> {
     if (id == 101) widget.session.expire();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final next = id == 1
-          ? 2
-          : demo && id == 46
-              ? 49
-              : demo && id == 49
-                  ? 50
-                  : null;
-      if (next != null) {
-        timer = Timer(Duration(milliseconds: id == 1 ? 900 : 3000), () {
-          if (mounted) navigate(next, replace: true);
+      if (id == 1) {
+        timer = Timer(const Duration(milliseconds: 900), () {
+          if (mounted) navigate(2, replace: true);
         });
       }
-      if (demo) showDesignedOverlay();
     });
   }
 
@@ -98,10 +87,6 @@ class _MobileScreenState extends State<MobileScreen> {
       entityId: widget.route.entityId,
       returnTo: target == 4 ? widget.session.returnTo : null,
     );
-    if (overlayOpen) {
-      Navigator.of(context).pop();
-      overlayOpen = false;
-    }
     if (reset) {
       Navigator.of(
         context,
@@ -136,8 +121,7 @@ class _MobileScreenState extends State<MobileScreen> {
       return;
     }
     if (action == 'search') {
-      final q = (controller.fields['query'] ?? '').trim().toLowerCase();
-      await navigate(q.isEmpty || q.contains('orchestra') ? 98 : 22);
+      notify('Search is not connected yet. No request was submitted.');
       return;
     }
     if (action.startsWith('go:')) {
@@ -178,10 +162,7 @@ class _MobileScreenState extends State<MobileScreen> {
       UiOperation.verifyEmail,
       UiOperation.deleteVideo,
     }.contains(operation);
-    if (validates &&
-        !((overlayOpen ? overlayForm.currentState : form.currentState)
-                ?.validate() ??
-            true)) {
+    if (validates && !(form.currentState?.validate() ?? true)) {
       return;
     }
     if ({UiOperation.register, UiOperation.deleteAccount}.contains(operation) &&
@@ -192,69 +173,7 @@ class _MobileScreenState extends State<MobileScreen> {
     FocusScope.of(context).unfocus();
     final result = await controller.submit(operation);
     if (!mounted || result == null) return;
-    if (!result.available) {
-      notify(result.message);
-      return;
-    }
-    if (!demo) return;
-    switch (operation) {
-      case UiOperation.signIn:
-        final target = widget.session.returnTo ?? 17;
-        widget.session.returnTo = null;
-        await navigate(target, reset: true);
-      case UiOperation.register:
-        await navigate(6, replace: true);
-      case UiOperation.verifyEmail:
-        await navigate(13, replace: true);
-      case UiOperation.requestCode:
-        await navigate(6, replace: true);
-      case UiOperation.resetPassword:
-        await navigate(id == 82 ? 85 : 11, replace: true);
-      case UiOperation.reauthenticate:
-        await navigate(92, replace: true);
-      case UiOperation.selectMedia:
-        await navigate(44);
-      case UiOperation.upload:
-        await navigate(46, replace: true);
-      case UiOperation.saveProfile:
-        await navigate(
-          id == 54
-              ? 53
-              : id == 80
-                  ? 79
-                  : 107,
-          replace: true,
-        );
-      case UiOperation.unpublish:
-        await navigate(40, replace: true);
-        notify(result.message);
-      case UiOperation.deleteVideo:
-        await navigate(40, replace: true);
-        notify(result.message);
-      case UiOperation.report:
-        await navigate(73, replace: true);
-      case UiOperation.privacyRequest:
-        await navigate(94);
-      case UiOperation.deleteAccount:
-        widget.session.clear();
-        await navigate(93, reset: true);
-      case UiOperation.signOut:
-        widget.session.clear();
-        await navigate(2, reset: true);
-      case UiOperation.follow:
-        widget.session.following = !widget.session.following;
-        notify(
-          widget.session.following
-              ? 'Demo: following Ama Kollie'
-              : 'Demo: unfollowed Ama Kollie',
-        );
-        if (widget.session.following) await navigate(28);
-      case UiOperation.like:
-        widget.session.liked = !widget.session.liked;
-        await navigate(widget.session.liked ? 29 : 24, replace: true);
-      default:
-        notify(result.message);
-    }
+    notify(result.message);
   }
 
   Future<void> category() async {
@@ -335,45 +254,14 @@ class _MobileScreenState extends State<MobileScreen> {
     }
   }
 
-  Future<void> showDesignedOverlay() async {
-    final sheet = screen.named('Bottom sheet'),
-        dialog = screen.named('Confirmation dialog');
-    if (sheet == null && dialog == null) return;
-    overlayOpen = true;
-    if (sheet != null) {
-      await showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        barrierColor: const Color(0xc9001539),
-        backgroundColor: KoloVibeColors.lavender,
-        builder: (context) => SafeArea(
-            child: Form(
-                key: overlayForm,
-                child: SingleChildScrollView(child: view(sheet)))),
-      );
-    } else {
-      await showDialog<void>(
-        context: context,
-        barrierColor: const Color(0xc9001539),
-        builder: (context) => Dialog(
-            child: Form(
-                key: overlayForm,
-                child: SingleChildScrollView(child: view(dialog!)))),
-      );
-    }
-    if (mounted) overlayOpen = false;
-  }
-
   Widget view(DesignNode node) => DesignView(
         node: node,
         controller: controller,
         onAction: action,
-        demo: demo,
       );
 
   Widget body() {
-    if ((!demo && protected) ||
-        (demo && creatorOnly && widget.session.viewerPreview)) {
+    if (protected) {
       return unavailable();
     }
     if (id == 1) {
@@ -561,7 +449,7 @@ class _MobileScreenState extends State<MobileScreen> {
                   if (screen.named('Playback controls') != null)
                     view(screen.named('Playback controls')!),
                   const SizedBox(height: 8),
-                  const Text('Preview only · Video playback is not connected',
+                  const Text('Video playback is not connected',
                       style: TextStyle(fontSize: 11, color: Colors.white)),
                 ])),
             if (id == 32)
@@ -583,7 +471,8 @@ class _MobileScreenState extends State<MobileScreen> {
                               child: view(screen.named('Playback error')!))))),
           ]));
   Widget unavailable() => Center(
-        child: Padding(
+        child: SingleChildScrollView(
+          child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -595,75 +484,25 @@ class _MobileScreenState extends State<MobileScreen> {
               ),
               const SizedBox(height: 20),
               Text(
-                demo
-                    ? 'Creator access required'
-                    : 'This service is not connected yet.',
+                'This service is not connected yet.',
                 style: Theme.of(context).textTheme.titleLarge,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
-              Text(
-                demo
-                    ? 'A viewer cannot publish or manage creator content.'
-                    : 'Account access, content and actions become available when their secure services are connected.',
+              const Text(
+                'Account access, content and actions become available when their secure services are connected.',
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
               FilledButton(
-                onPressed: () => navigate(demo ? 36 : 2),
-                child: Text(
-                  demo ? 'Explore creator onboarding' : 'Return to welcome',
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-  Future<void> gallery() async {
-    final selected = await showModalBottomSheet<int>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (context) => SafeArea(
-        child: SizedBox(
-          height: MediaQuery.sizeOf(context).height * .8,
-          child: Column(
-            children: [
-              const Text(
-                'Design preview · 108 screens and states',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-              SwitchListTile(
-                title: const Text('Preview as viewer (restrict creator tools)'),
-                value: widget.session.viewerPreview,
-                onChanged: (v) {
-                  widget.session.viewerPreview = v;
-                  Navigator.pop(context);
-                  if (mounted) setState(() {});
-                },
-              ),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: 108,
-                  itemBuilder: (context, index) {
-                    final d = widget.catalog[index + 1];
-                    return ListTile(
-                      title: Text(
-                        'M-${d.number.toString().padLeft(3, '0')} · ${d.name}',
-                      ),
-                      onTap: () => Navigator.pop(context, d.number),
-                    );
-                  },
-                ),
+                onPressed: () => navigate(2),
+                child: const Text('Return to welcome'),
               ),
             ],
           ),
         ),
       ),
-    );
-    if (selected != null && mounted) await navigate(selected);
-  }
-
+      );
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
         animation: controller,
@@ -691,35 +530,6 @@ class _MobileScreenState extends State<MobileScreen> {
                   key: form,
                   child: Column(
                     children: [
-                      if (demo)
-                        Material(
-                          color: KoloVibeColors.gold,
-                          child: InkWell(
-                            onTap: gallery,
-                            child: const Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 6,
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.science_outlined, size: 16),
-                                  SizedBox(width: 8),
-                                  Flexible(
-                                    child: Text(
-                                      'DEMO · Sample data · Browse 108 states',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
                       Expanded(child: body()),
                       if (controller.error != null)
                         Padding(

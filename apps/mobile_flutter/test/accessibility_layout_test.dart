@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kolovibe/app/app_dependencies.dart';
 import 'package:kolovibe/app/kolovibe_app.dart';
 import 'package:kolovibe/core/presentation/design_node.dart';
-import 'package:kolovibe/demo/demo_repository.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -45,10 +43,7 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-      await tester.pumpWidget(KoloVibeApp(
-          catalog: catalog,
-          initialScreen: id,
-          dependencies: AppDependencies.preview(DemoRepository().services)));
+      await tester.pumpWidget(KoloVibeApp(catalog: catalog, initialScreen: id));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 350));
       await tester.pump(const Duration(milliseconds: 350));

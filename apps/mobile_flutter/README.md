@@ -34,14 +34,6 @@ Signing certificates, private keys, Apple Account credentials and provisioning p
 - `lib/shared/widgets` — reusable interface elements.
 - `test` — automated widget checks.
 
-All 108 designed screens/states are available in the isolated development demo:
-
-```sh
-flutter run --target lib/main_demo.dart
-```
-
-Tap the gold DEMO banner for the state gallery. Demo builds simulate local outcomes; live APIs and device/media adapters remain unavailable. Normal mode never presents sample account/content/points data as live data. Demo startup is rejected in release mode.
-
-There is no fixed test account. In the demo sign-in form, any valid email and nonempty password pass local validation (for example, `demo@example.com` and `DemoPass123!`); no account is created or authenticated. The normal `lib/main.dart` entry point has no connected sign-in service, so it cannot accept test credentials.
+The app has one entry point, `lib/main.dart`. The 108 design recipes and their original references remain in the repository, but protected screens stay unavailable until their owning services are implemented. No sample accounts, synthetic API outcomes, or test credentials are bundled. The current identity service exposes only a health endpoint, so sign-in cannot authenticate yet.
 
 See [implementation and verification](../../docs/mobile-ui-implementation.md) and [design coverage](../../docs/mobile-design-coverage.md).

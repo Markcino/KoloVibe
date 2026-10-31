@@ -40,7 +40,7 @@ flutter test
 flutter run
 ```
 
-Native platform configuration, application identifiers and signing must be reviewed before release. The app includes native presentation recipes for all 108 designed screens and states, shared widgets and an isolated demo gallery. Run `flutter run --target lib/main_demo.dart` for sample-data previews. Authentication, live data, publishing and video playback integrations remain unavailable pending secure service adapters.
+Native platform configuration, application identifiers and signing must be reviewed before release. The app includes native presentation recipes for all 108 designed screens and states and shared widgets. Authentication, live data, publishing and video playback integrations remain unavailable pending secure service adapters and deployed APIs.
 
 ### Backend services
 
