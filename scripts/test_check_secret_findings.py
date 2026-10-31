@@ -24,11 +24,11 @@ class SecretFindingChecks(unittest.TestCase):
         main(report, self.root)
 
     def test_flutter_revision_allowed(self):
-        self.check("apps/mobile_flutter/.metadata", '  revision: "' + "a" * 40 + '"')
+        self.check("apps/mobile/.metadata", '  revision: "' + "a" * 40 + '"')
 
     def test_xcode_blueprint_allowed(self):
         self.check(
-            "apps/mobile_flutter/ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme",
+            "apps/mobile/ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme",
             '  BlueprintIdentifier = "' + "A" * 24 + '"',
         )
 
@@ -42,7 +42,7 @@ class SecretFindingChecks(unittest.TestCase):
 
     def test_new_detector_type_on_metadata_fails(self):
         with self.assertRaises(SystemExit) as context:
-            self.check("apps/mobile_flutter/.metadata", 'revision: "' + "a" * 40 + '"',
+            self.check("apps/mobile/.metadata", 'revision: "' + "a" * 40 + '"',
                        kind="AWS Access Key")
         self.assertEqual(context.exception.code, 1)
 

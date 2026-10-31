@@ -18,7 +18,7 @@ jobs:
       fail-on-vuln: true
       scan-args: |-
         --lockfile=requirements.txt:requirements-dev.txt
-        --lockfile=apps/mobile_flutter/pubspec.lock
+        --lockfile=apps/mobile/pubspec.lock
     permissions:
       contents: read
       actions: read

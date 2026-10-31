@@ -18,7 +18,7 @@ class FoundationTests(unittest.TestCase):
         self.assertNotIn("ports:",stack)
         self.assertIn("listeners.tcp = none",config)
     def test_no_demo_files(self):
-        self.assertFalse((ROOT/"apps/mobile_flutter/lib/main_demo.dart").exists())
-        self.assertFalse((ROOT/"apps/mobile_flutter/lib/demo/demo_repository.dart").exists())
+        self.assertFalse((ROOT/"apps/mobile/lib/main_demo.dart").exists())
+        self.assertFalse((ROOT/"apps/mobile/lib/demo/demo_repository.dart").exists())
 if __name__=="__main__":
     unittest.main()

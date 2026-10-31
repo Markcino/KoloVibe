@@ -23,7 +23,7 @@ if args.python:
     print(f"Python dependency lock: {len(pins)} packages, {hashes} hashes")
 
 if args.flutter:
-    file = root / "apps/mobile_flutter/pubspec.lock"
+    file = root / "apps/mobile/pubspec.lock"
     if not file.is_file() or "packages:" not in file.read_text():
         raise SystemExit("Flutter pubspec.lock missing; generate with pinned Flutter SDK")
     print("Flutter package lock exists")

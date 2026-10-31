@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-APP = ROOT / 'apps/mobile_flutter'
+APP = ROOT / 'apps/mobile'
 
 def walk(node):
     yield node

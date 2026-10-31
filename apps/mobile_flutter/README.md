@@ -13,7 +13,7 @@ flutter test
 flutter run
 ```
 
-Run these commands from `apps/mobile_flutter`. The application uses `lib/main.dart`; `flutter run` selects it by default. The explicit equivalent is:
+Run these commands from `apps/mobile`. The application uses `lib/main.dart`; `flutter run` selects it by default. The explicit equivalent is:
 
 ```bash
 flutter run --target lib/main.dart

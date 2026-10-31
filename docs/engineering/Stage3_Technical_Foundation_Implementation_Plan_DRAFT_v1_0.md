@@ -67,7 +67,7 @@ database writes.
 
 Repository and service structure
 Recommended initial monorepo for governance, with independent image build/deploy per service:
-apps/mobile_flutter; apps/web_django; services/gateway, identity, creators, content, engagement,
+apps/mobile; apps/web_django; services/gateway, identity, creators, content, engagement,
 points, moderation, audit; packages/contracts (OpenAPI, JSON schemas); infra/swarm, infra/nginx,
 infra/postgres, infra/observability; scripts; docs/adr; tests/security. A monorepo does not change
 microservice deployment independence. Shared libraries may contain observability and auth

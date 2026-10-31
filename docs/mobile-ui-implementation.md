@@ -1,13 +1,13 @@
 # Mobile UI implementation
 
-The mobile milestone uses the approved Figma layouts and preserves the Flutter/Django monorepo. All 108 screen/state recipes are in `apps/mobile_flutter/assets/design`, grouped by account, discovery, studio, points, moderation, settings and cross-cutting states. The recipes contain native presentation data, never executable HTML or CSS. Original artwork and SVG icons are bundled locally; identical content is stored once. Inter and Plus Jakarta Sans are bundled with their SIL Open Font Licenses.
+The mobile milestone uses the approved Figma layouts and preserves the Flutter/Django monorepo. All 108 screen/state recipes are in `apps/mobile/assets/design`, grouped by account, discovery, studio, points, moderation, settings and cross-cutting states. The recipes contain native presentation data, never executable HTML or CSS. Original artwork and SVG icons are bundled locally; identical content is stored once. Inter and Plus Jakarta Sans are bundled with their SIL Open Font Licenses.
 
 ## Run and review
 
 Use Flutter **3.47.8**, matching CI (Dart 3.13.7). Android and iOS projects are now included; do not rerun `flutter create` over the app.
 
 ```sh
-cd apps/mobile_flutter
+cd apps/mobile
 flutter pub get --enforce-lockfile
 flutter run
 ```
@@ -40,7 +40,7 @@ Policy summaries are design-reference copy; they are not a complete approved leg
 python3 scripts/check_structure.py
 python3 scripts/check_mobile_design.py
 python3 scripts/verify_dependency_locks.py --python --flutter --ci
-cd apps/mobile_flutter
+cd apps/mobile
 flutter analyze
 flutter test
 flutter test test/mobile_ui_test.dart --dart-define=CAPTURE_UI=true
@@ -59,7 +59,7 @@ This is historical evidence from before the alternate entry point and simulation
 - Flutter 3.47.8 static analysis: no issues. Full widget suite: 137 of 137 passed, including all 108 render cases, navigation journeys, destructive-action validation, fail-closed normal mode and enlarged-text/narrow-display checks.
 - Existing Django service tests: eight of eight services passed in an isolated Python 3.12 environment with hash-locked dependencies.
 - Render captures: all 108 regenerated with Flutter 3.47.8 at 390 × 844. The welcome, home, player and Creator Studio captures were compared visually with their corresponding Figma exports. Native status/navigation areas and the former preview banner account for deliberate framing differences; no pixel-diff threshold is claimed.
-- Android debug APK built with Flutter 3.47.8 at `apps/mobile_flutter/build/app/outputs/flutter-apk/app-debug.apk`; archive integrity passed. iOS simulator Debug `Runner.app` built at `apps/mobile_flutter/build/ios/iphonesimulator/Runner.app`. Both builds were repeated after the final widget fix. Flutter warns that the current Gradle, Android Gradle Plugin and Kotlin versions will need a future upgrade. These are development builds, not signed distribution artifacts.
+- Android debug APK built with Flutter 3.47.8 at `apps/mobile/build/app/outputs/flutter-apk/app-debug.apk`; archive integrity passed. iOS simulator Debug `Runner.app` built at `apps/mobile/build/ios/iphonesimulator/Runner.app`. Both builds were repeated after the final widget fix. Flutter warns that the current Gradle, Android Gradle Plugin and Kotlin versions will need a future upgrade. These are development builds, not signed distribution artifacts.
 
 This evidence verifies the interface milestone, not live integration, deployment approval or security certification.
 

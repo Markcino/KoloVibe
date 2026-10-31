@@ -2,7 +2,7 @@
 
 Python services target Python 3.12 and Django 5.2 LTS. Direct dependencies are declared in `requirements-dev.in`; `requirements-dev.txt` is compiled with all transitive dependencies and package hashes. Install with `pip install --require-hashes -r requirements-dev.txt`. Do not manually edit the generated lockfile.
 
-Flutter uses Flutter SDK 3.47.8 and commits `apps/mobile_flutter/pubspec.lock`. CI runs `flutter pub get --enforce-lockfile`; dependency changes require reviewing the lockfile diff.
+Flutter uses Flutter SDK 3.47.8 and commits `apps/mobile/pubspec.lock`. CI runs `flutter pub get --enforce-lockfile`; dependency changes require reviewing the lockfile diff.
 
 ## Continuous verification
 

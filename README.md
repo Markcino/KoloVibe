@@ -20,7 +20,7 @@ The [approved mobile design](https://www.figma.com/design/ANaV0jnwjZ0LEcByTc98HP
 
 | Directory | Responsibility |
 | --- | --- |
-| `apps/mobile_flutter` | Flutter application for Android and iOS |
+| `apps/mobile` | Flutter application for Android and iOS |
 | `services` | Django services for identity, creators, content, engagement, points, moderation, audit and gateway |
 | `contracts` | API interface definitions |
 | `infra` | Infrastructure and deployment configuration |
@@ -33,14 +33,14 @@ The [approved mobile design](https://www.figma.com/design/ANaV0jnwjZ0LEcByTc98HP
 Install a compatible Flutter SDK, then run:
 
 ```bash
-cd apps/mobile_flutter
+cd apps/mobile
 flutter pub get
 flutter analyze
 flutter test
 flutter run
 ```
 
-The application entry point is `apps/mobile_flutter/lib/main.dart`. From the mobile directory, `flutter run` launches it by default; use `flutter run --target lib/main.dart` when specifying a target explicitly.
+The application entry point is `apps/mobile/lib/main.dart`. From the mobile directory, `flutter run` launches it by default; use `flutter run --target lib/main.dart` when specifying a target explicitly.
 
 Native platform configuration, application identifiers and signing must be reviewed before release. The app includes native presentation recipes for all 108 designed screens and states and shared widgets. Authentication, live data, publishing and video playback integrations remain unavailable pending secure service adapters.
 

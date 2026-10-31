@@ -105,12 +105,12 @@ jobs:
       - name: Ensure Flutter lockfile present
         run: python scripts/verify_dependency_locks.py --flutter
       - name: Resolve exactly locked packages
-        working-directory: apps/mobile_flutter
+        working-directory: apps/mobile
         run: flutter pub get --enforce-lockfile
       - name: Analyze and test
-        working-directory: apps/mobile_flutter
+        working-directory: apps/mobile
         run: |
           flutter analyze
           flutter test
       - name: Check generated package drift
-        run: git diff --exit-code -- apps/mobile_flutter/pubspec.lock
+        run: git diff --exit-code -- apps/mobile/pubspec.lock

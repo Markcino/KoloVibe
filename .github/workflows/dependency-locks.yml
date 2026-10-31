@@ -26,7 +26,7 @@ jobs:
           channel: stable
           cache: true
       - name: Resolve Flutter packages
-        working-directory: apps/mobile_flutter
+        working-directory: apps/mobile
         run: flutter pub get
       - name: Check locked Python installation
         run: |
@@ -37,7 +37,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add requirements-dev.txt requirements-ci.txt apps/mobile_flutter/pubspec.lock
+          git add requirements-dev.txt requirements-ci.txt apps/mobile/pubspec.lock
           if ! git diff --cached --quiet; then
             git commit -m "build: generate reproducible Python and Flutter dependency locks"
             git push origin HEAD:security/ci-hardening
@@ -49,7 +49,7 @@ jobs:
           path: |
             requirements-dev.txt
             requirements-ci.txt
-            apps/mobile_flutter/pubspec.lock
+            apps/mobile/pubspec.lock
           if-no-files-found: error
 # This workflow is intentionally restricted to the dedicated lock branch.
 # Its push uses GITHUB_TOKEN, so subsequent CI must be manually verified after the generated commit.

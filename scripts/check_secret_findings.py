@@ -15,8 +15,8 @@ BLUEPRINT = re.compile(r'^\s*BlueprintIdentifier\s*=\s*"[a-fA-F0-9]{24}"\s*$')
 
 SAFE_FIELDS = {
     "docs/mobile-asset-manifest.json": HEX64,
-    "apps/mobile_flutter/.metadata": REVISION,
-    "apps/mobile_flutter/ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme": BLUEPRINT,
+    "apps/mobile/.metadata": REVISION,
+    "apps/mobile/ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme": BLUEPRINT,
 }
 
 
