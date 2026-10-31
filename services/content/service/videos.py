@@ -19,15 +19,17 @@ def _public_videos():
 
 
 def _item(video):
-    return {
+    data = {
         "id": str(video.id),
         "creator_id": str(video.creator_id),
         "title": video.title,
         "description": video.description,
         "state": video.state,
-        "duration_seconds": video.duration_seconds,
         "created_at": video.created_at.isoformat(),
     }
+    if video.duration_seconds is not None:
+        data["duration_seconds"] = video.duration_seconds
+    return data
 
 
 @require_GET

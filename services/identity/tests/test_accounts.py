@@ -1,5 +1,6 @@
 import secrets
 
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.test import TestCase
 
@@ -29,9 +30,20 @@ class AccountStorageTests(TestCase):
             )
 
     def test_short_password_is_rejected(self):
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValidationError):
             Account.objects.create_user(
                 email="user@example.com", password="short", display_name="User"
+            )
+        self.assertEqual(Account.objects.count(), 0)
+
+    def test_invalid_email_and_display_name_are_rejected(self):
+        with self.assertRaises(ValidationError):
+            Account.objects.create_user(
+                email="invalid", password=secrets.token_urlsafe(24), display_name="User"
+            )
+        with self.assertRaises(ValueError):
+            Account.objects.create_user(
+                email="user@example.com", password=secrets.token_urlsafe(24), display_name=" "
             )
         self.assertEqual(Account.objects.count(), 0)
 

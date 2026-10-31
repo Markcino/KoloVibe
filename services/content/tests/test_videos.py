@@ -43,6 +43,16 @@ class PublicVideoTests(TestCase):
         with self.assertRaises(IntegrityError):
             self.make_video(state=Video.State.PUBLISHED, visibility=Video.Visibility.PUBLIC)
 
+    def test_unlisted_video_does_not_appear_in_public_reads(self):
+        video = self.make_video(
+            state=Video.State.PUBLISHED,
+            visibility=Video.Visibility.UNLISTED,
+            provider_asset_id=str(uuid.uuid4()),
+            moderation_approved_at=timezone.now(),
+        )
+        self.assertEqual(self.client.get(reverse("videos")).json()["items"], [])
+        self.assertEqual(self.client.get(reverse("video_detail", args=[video.id])).status_code, 404)
+
     def test_invalid_query_inputs_are_rejected(self):
         for query in ("?cursor=invalid", "?creator_id=invalid"):
             self.assertEqual(self.client.get(reverse("videos") + query).status_code, 400)

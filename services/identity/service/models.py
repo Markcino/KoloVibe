@@ -15,6 +15,11 @@ class AccountManager(BaseUserManager):
             raise ValueError("An email address is required")
         if not password:
             raise ValueError("A password is required")
+        if len(password) > 128:
+            raise ValueError("Password exceeds the allowed length")
+        display_name = display_name.strip()
+        if not 2 <= len(display_name) <= 80:
+            raise ValueError("Display name must be between 2 and 80 characters")
         normalized = email.strip().casefold()
         validate_email(normalized)
         account = self.model(email=normalized, display_name=display_name)
