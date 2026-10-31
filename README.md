@@ -40,7 +40,9 @@ flutter test
 flutter run
 ```
 
-Native platform configuration, application identifiers and signing must be reviewed before release. The app includes native presentation recipes for all 108 designed screens and states and shared widgets. Authentication, live data, publishing and video playback integrations remain unavailable pending secure service adapters and deployed APIs.
+The application entry point is `apps/mobile_flutter/lib/main.dart`. From the mobile directory, `flutter run` launches it by default; use `flutter run --target lib/main.dart` when specifying a target explicitly.
+
+Native platform configuration, application identifiers and signing must be reviewed before release. The app includes native presentation recipes for all 108 designed screens and states and shared widgets. Authentication, live data, publishing and video playback integrations remain unavailable pending secure service adapters.
 
 ### Backend services
 
@@ -51,7 +53,7 @@ python -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements-dev.txt
 python scripts/check_structure.py
-python scripts/init_local_env.py  # first setup only; creates ignored .env with private permissions
+python scripts/init_local_env.py  # first setup only; creates ignored .env
 for service in gateway identity creators content engagement points moderation audit; do
   python scripts/run_local_service.py "$service" test tests
 done
@@ -63,7 +65,7 @@ Run a service locally with an explicit local environment and unique secret:
 python scripts/run_local_service.py gateway runserver 127.0.0.1:8000
 ```
 
-The local launcher reads only the selected service's generated secret from the root `.env`; the file is ignored by Git and must have owner-only permissions. It never prints secret values. Container and CI credentials remain injected through their respective secret mechanisms. Current service endpoints include `GET /health/live`; business APIs and managed deployment configuration are not yet implemented.
+The local launcher reads only the selected service's generated secret from `.env`. It requires owner-only file permissions and never prints secret values. Containers and CI continue to inject secrets through their own controls. Identity has a persistent account model but no public registration or token endpoint while ADR-013 is unresolved. Content exposes `GET /videos` and `GET /videos/{id}` for approved public records; no fixture content is seeded. Other business APIs and managed deployment remain open.
 
 ## Engineering
 

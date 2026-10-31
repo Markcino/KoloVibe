@@ -1,10 +1,10 @@
 # Engineering standards
 
-KoloVibe is developed as a maintainable mobile application backed by independently owned services. Work is reviewed against functionality, security and release-readiness criteria.
+KoloVibe is developed by Mark Allen Gbalazeh (@Markcino), the sole developer, with AI assistance. The mobile application is backed by independently owned services. Mark records owner self-review against functionality, security and release-readiness criteria; AI assistance does not constitute independent security assurance.
 
 ## Pull requests and code ownership
 
-- Changes to application behavior and services require review.
+- Changes to application behavior and services require a pull request and documented owner self-review.
 - Protect the default branch and require relevant CI checks before merging.
 - Record architecture-impacting decisions and review changes to API contracts.
 - Keep credentials and personal data out of commits, issue descriptions and logs.
@@ -37,4 +37,6 @@ There is no production deployment or security certification implied by the repos
 
 ## Repository protection
 
-Enable a GitHub ruleset for `main` requiring pull requests, at least one independent approval, no bypass, and passing checks for `Django services and reproducibility`, `Security scans and SBOM`, `Flutter static and widget tests`, and `Python and Flutter dependency advisories / osv-scan`. Protect against force pushes and deletion. Verify the exact check names in GitHub before enabling. On private repositories, rulesets may require a paid GitHub plan. No branch-protection claim is made until the settings are verified through administrator access.
+Protect `main` with required pull requests, documented owner self-review, administrator enforcement, resolved conversations and up-to-date CI. For the sole-developer workflow, require zero approving reviews and disable mandatory code-owner and latest-push approvals. Require the API, Flutter, dependency and all eight container checks listed in [the protection policy](../.github/branch-protection/main.json). Disable force pushes and deletion. Apply classic branch protection or an equivalent reviewed ruleset; the committed JSON does not activate server-side enforcement.
+
+Follow [FND-01 activation and acceptance](engineering/FND-01_repository_governance.md). An eligible private-repository plan, administrator activation and enforcement evidence remain pending. Appointing another developer or reviewer is not required for this development workflow. No branch-protection claim is made until the effective settings and acceptance evidence are verified.

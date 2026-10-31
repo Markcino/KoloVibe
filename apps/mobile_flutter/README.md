@@ -13,6 +13,14 @@ flutter test
 flutter run
 ```
 
+Run these commands from `apps/mobile_flutter`. The application uses `lib/main.dart`; `flutter run` selects it by default. The explicit equivalent is:
+
+```bash
+flutter run --target lib/main.dart
+```
+
+IDE launch configurations must also target `lib/main.dart`.
+
 Use a team-approved Flutter SDK version and verify Android/iOS signing, bundle identifiers and platform configuration before distributing a build.
 
 ## Run on a physical iPhone
@@ -34,6 +42,6 @@ Signing certificates, private keys, Apple Account credentials and provisioning p
 - `lib/shared/widgets` — reusable interface elements.
 - `test` — automated widget checks.
 
-The app has one entry point, `lib/main.dart`. The 108 design recipes and their original references remain in the repository, but protected screens stay unavailable until their owning services are implemented. No sample accounts, synthetic API outcomes, or test credentials are bundled. The current identity service exposes only a health endpoint, so sign-in cannot authenticate yet.
+The application starts with splash and welcome. Account, content and points screens remain unavailable until their secure service adapters are connected. There is no built-in test account; sign-in requires a connected identity service.
 
 See [implementation and verification](../../docs/mobile-ui-implementation.md) and [design coverage](../../docs/mobile-design-coverage.md).

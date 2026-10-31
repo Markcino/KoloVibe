@@ -23,6 +23,10 @@ jobs:
           python scripts/verify_dependency_locks.py --python
           python -m pip install --require-hashes -r requirements-dev.txt
           python -m pip check
+      - name: RabbitMQ/Celery worker configuration regression tests
+        run: python -m unittest -v scripts/test_rabbitmq_celery.py
+      - name: Foundation security and isolation checks
+        run: python -m unittest -v scripts/test_stage3_foundations.py
       - name: Service checks
         run: |
           python scripts/check_structure.py
@@ -31,7 +35,7 @@ jobs:
           export KOLOVIBE_ENV=local
           export DJANGO_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
           for service in gateway identity creators content engagement points moderation audit; do
-            (cd "services/$service" && python manage.py test tests --verbosity 1)
+            (cd "services/$service" && python manage.py makemigrations --check --dry-run && python manage.py test tests --verbosity 1)
           done
       - name: Validate OpenAPI
         run: |
@@ -70,8 +74,9 @@ jobs:
         run: |
           bandit -r services scripts -f json -o security-reports/bandit.json || true
           python scripts/enforce_bandit.py security-reports/bandit.json
-      - name: Secret discovery
+      - name: Secret discovery and regression checks
         run: |
+          PYTHONPATH=scripts python -m unittest -v scripts/test_check_secret_findings.py
           detect-secrets scan --all-files --exclude-files '(^\.git/)' > security-reports/secret-findings.json
           python scripts/check_secret_findings.py security-reports/secret-findings.json
       - name: Software bill of materials

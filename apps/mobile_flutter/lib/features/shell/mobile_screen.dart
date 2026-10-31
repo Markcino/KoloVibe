@@ -121,7 +121,8 @@ class _MobileScreenState extends State<MobileScreen> {
       return;
     }
     if (action == 'search') {
-      notify('Search is not connected yet. No request was submitted.');
+      final q = (controller.fields['query'] ?? '').trim().toLowerCase();
+      await navigate(q.isEmpty || q.contains('orchestra') ? 98 : 22);
       return;
     }
     if (action.startsWith('go:')) {
@@ -173,7 +174,10 @@ class _MobileScreenState extends State<MobileScreen> {
     FocusScope.of(context).unfocus();
     final result = await controller.submit(operation);
     if (!mounted || result == null) return;
-    notify(result.message);
+    if (!result.available) {
+      notify(result.message);
+      return;
+    }
   }
 
   Future<void> category() async {
@@ -449,7 +453,7 @@ class _MobileScreenState extends State<MobileScreen> {
                   if (screen.named('Playback controls') != null)
                     view(screen.named('Playback controls')!),
                   const SizedBox(height: 8),
-                  const Text('Video playback is not connected',
+                  const Text('Preview only · Video playback is not connected',
                       style: TextStyle(fontSize: 11, color: Colors.white)),
                 ])),
             if (id == 32)
@@ -472,7 +476,6 @@ class _MobileScreenState extends State<MobileScreen> {
           ]));
   Widget unavailable() => Center(
         child: SingleChildScrollView(
-          child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -501,7 +504,6 @@ class _MobileScreenState extends State<MobileScreen> {
             ],
           ),
         ),
-      ),
       );
   @override
   Widget build(BuildContext context) => AnimatedBuilder(

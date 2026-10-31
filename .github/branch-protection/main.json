@@ -1,0 +1,70 @@
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": [],
+    "checks": [
+      {
+        "context": "Django services and reproducibility",
+        "app_id": 15368
+      },
+      {
+        "context": "Flutter static and widget tests",
+        "app_id": 15368
+      },
+      {
+        "context": "Image build and security / audit",
+        "app_id": 15368
+      },
+      {
+        "context": "Image build and security / content",
+        "app_id": 15368
+      },
+      {
+        "context": "Image build and security / creators",
+        "app_id": 15368
+      },
+      {
+        "context": "Image build and security / engagement",
+        "app_id": 15368
+      },
+      {
+        "context": "Image build and security / gateway",
+        "app_id": 15368
+      },
+      {
+        "context": "Image build and security / identity",
+        "app_id": 15368
+      },
+      {
+        "context": "Image build and security / moderation",
+        "app_id": 15368
+      },
+      {
+        "context": "Image build and security / points",
+        "app_id": 15368
+      },
+      {
+        "context": "Python and Flutter dependency advisories / osv-scan",
+        "app_id": 15368
+      },
+      {
+        "context": "Security scans and SBOM",
+        "app_id": 15368
+      }
+    ]
+  },
+  "enforce_admins": true,
+  "required_pull_request_reviews": {
+    "dismiss_stale_reviews": false,
+    "require_code_owner_reviews": false,
+    "required_approving_review_count": 0,
+    "require_last_push_approval": false
+  },
+  "restrictions": null,
+  "required_linear_history": false,
+  "allow_force_pushes": false,
+  "allow_deletions": false,
+  "required_conversation_resolution": true,
+  "lock_branch": false,
+  "allow_fork_syncing": false
+}
