@@ -11,6 +11,7 @@ This directory contains KoloVibe's product requirements, architecture specificat
 | [Engineering](engineering/) | Technical delivery plan, implementation tracker and open engineering decisions |
 | [Planning](planning/) | Project roadmap and development trackers |
 | [History](history/) | Earlier architecture reviews and change records |
+| [Directory layout](engineering/repository-layout.md) | Approved monorepo path mapping, historical cleanup and location invariants |
 
 Current delivery status: [Stage 3 execution status](engineering/Stage3_Current_Status.md), [implementation tracker](engineering/Stage3_Implementation_Tracker.csv), and [FND-01 solo-developer governance](engineering/FND-01_repository_governance.md).
 
