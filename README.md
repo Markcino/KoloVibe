@@ -51,23 +51,19 @@ python -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements-dev.txt
 python scripts/check_structure.py
-export KOLOVIBE_ENV=local
-export DJANGO_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+python scripts/init_local_env.py  # first setup only; creates ignored .env with private permissions
 for service in gateway identity creators content engagement points moderation audit; do
-  (cd "services/$service" && python manage.py test tests)
+  python scripts/run_local_service.py "$service" test tests
 done
 ```
 
 Run a service locally with an explicit local environment and unique secret:
 
 ```bash
-cd services/gateway
-export KOLOVIBE_ENV=local
-export DJANGO_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
-python manage.py runserver 127.0.0.1:8000
+python scripts/run_local_service.py gateway runserver 127.0.0.1:8000
 ```
 
-Current service endpoints include `GET /health/live`; business APIs and managed deployment configuration are not yet implemented.
+The local launcher reads only the selected service's generated secret from the root `.env`; the file is ignored by Git and must have owner-only permissions. It never prints secret values. Container and CI credentials remain injected through their respective secret mechanisms. Current service endpoints include `GET /health/live`; business APIs and managed deployment configuration are not yet implemented.
 
 ## Engineering
 

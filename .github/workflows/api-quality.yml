@@ -27,6 +27,7 @@ jobs:
         run: |
           python scripts/check_structure.py
           python scripts/check_mobile_design.py
+          python -m unittest discover -s scripts -p 'test_run_local_service.py'
           export KOLOVIBE_ENV=local
           export DJANGO_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
           for service in gateway identity creators content engagement points moderation audit; do

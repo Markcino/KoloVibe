@@ -28,6 +28,8 @@ Native safe areas, editable text inputs, semantic controls and system back navig
 
 Follow the existing DOC-205 draft contracts and open ADRs. No business endpoint is implemented by this milestone. Identity, secure token storage, media selection/provider uploads, playback, native sharing/settings/store launching, privacy requests, real content/search/follow state and backend notification delivery require service/device adapters. No client-side points-award formula or media moderation bypass exists.
 
+The current boundary-by-boundary status is in `docs/mobile-live-integration-gaps.md`. Do not treat the gateway's health check as a live account or content integration.
+
 Policy summaries are design-reference copy; they are not a complete approved legal policy. Business discovery, tickets, real-money rewards and payouts remain deferred under DEC-001.
 
 ## Verification commands
@@ -45,11 +47,18 @@ flutter build ios --simulator --debug
 
 See `docs/mobile-design-coverage.md` for per-design traceability and `docs/mobile-asset-manifest.json` for asset hashes and Figma slots.
 
-## Verification record · 29 October 2026
+## Verification record · 31 October 2026
+
+- The single app entry point has no simulation repository, gallery, fixtures, generated captures or sample credentials. Protected account, content and points screens remain unavailable.
+- Flutter 3.47.8 analysis: no issues. Widget suite: 37 of 37 passed, including fail-closed sign-in, sensitive-field clearing, registration validation and narrow-display text scaling.
+- Design integrity and repository structure checks passed: 108 recipes, 150 assets, eight Django service skeletons.
+- Android debug APK built at `apps/mobile_flutter/build/app/outputs/flutter-apk/app-debug.apk`; iOS simulator Debug app built at `apps/mobile_flutter/build/ios/iphonesimulator/Runner.app`. A physical iPhone build still requires the developer's signing certificate and provisioning profile.
+
+### Earlier interface milestone evidence · 29 October 2026
 
 - Figma detailed context and screenshots: 108 of 108 retrieved. Original user exports remain in `docs/designed/`; 150 unique downloaded image assets and two licensed font families are bundled.
 - Design integrity: passed (108 entries, 150 local assets, valid route targets and source image slots). Structure and Python/Flutter/CI dependency lock checks passed; `flutter pub get --enforce-lockfile` resolved successfully without changing the lockfile.
-- Flutter 3.47.8 static analysis and widget tests passed for the earlier UI milestone. The test suite is being updated for the single live-data entry point; current results must be recorded after rerunning it.
+- Flutter 3.47.8 static analysis and the earlier 137-test widget suite passed before removal of the simulation path. Those render tests are historical evidence only.
 - Existing Django service tests: eight of eight services passed in an isolated Python 3.12 environment with hash-locked dependencies.
 - Historical design comparisons used all 108 reference captures at 390 × 844. Those generated captures are removed with the simulation path and are not current runtime evidence.
 - Android debug APK built with Flutter 3.47.8 at `apps/mobile_flutter/build/app/outputs/flutter-apk/app-debug.apk`; archive integrity passed. iOS simulator Debug `Runner.app` built at `apps/mobile_flutter/build/ios/iphonesimulator/Runner.app`. Both builds were repeated after the final widget fix. Flutter warns that the current Gradle, Android Gradle Plugin and Kotlin versions will need a future upgrade. These are development builds, not signed distribution artifacts.

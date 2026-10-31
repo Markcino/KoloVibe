@@ -12,7 +12,7 @@ This directory contains KoloVibe's product requirements, architecture specificat
 | [Planning](planning/) | Project roadmap and development trackers |
 | [History](history/) | Earlier architecture reviews and change records |
 
-Additional team guidance: [engineering standards](engineering-standards.md), [architecture decision overview](architecture-decisions.md), [approved mobile design](mobile-design.md), [mobile UI implementation](mobile-ui-implementation.md), [108-state coverage](mobile-design-coverage.md), and [local asset manifest](mobile-asset-manifest.json).
+Additional team guidance: [engineering standards](engineering-standards.md), [architecture decision overview](architecture-decisions.md), [approved mobile design](mobile-design.md), [mobile UI implementation](mobile-ui-implementation.md), [108-state coverage](mobile-design-coverage.md), [live integration gaps](mobile-live-integration-gaps.md), and [local asset manifest](mobile-asset-manifest.json).
 
 ## Document status
 
