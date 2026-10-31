@@ -22,7 +22,7 @@ The [approved mobile design](https://www.figma.com/design/ANaV0jnwjZ0LEcByTc98HP
 | --- | --- |
 | `apps/mobile` | Flutter application for Android and iOS |
 | `services` | Django services for identity, creators, content, engagement, points, moderation, audit and gateway |
-| `contracts` | API interface definitions |
+| `packages/contracts` | API interface definitions |
 | `infra` | Infrastructure and deployment configuration |
 | `docs` | Architecture, engineering practices and design references |
 
