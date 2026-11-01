@@ -12,10 +12,8 @@ def main(args):
     secret = values.get("KOLOVIBE_WEB_DJANGO_SECRET_KEY", "")
     if len(secret) < 32:
         raise ValueError("Initialize a private local web secret")
-    env = os.environ.copy()
-    for name in list(env):
-        if name.startswith("KOLOVIBE_") and ("SECRET" in name or "KEY" in name or "PASSWORD" in name):
-            env.pop(name)
+    env = {name: value for name, value in os.environ.items()
+           if not name.startswith("KOLOVIBE_")}
     env["KOLOVIBE_ENV"] = "local"
     env["DJANGO_SECRET_KEY"] = secret
     env["KOLOVIBE_GATEWAY_URL"] = values.get("KOLOVIBE_GATEWAY_URL", "")

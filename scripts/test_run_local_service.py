@@ -4,12 +4,30 @@ import tempfile
 import unittest
 import secrets
 from pathlib import Path
+from unittest.mock import patch
 
 from init_local_env import create_local_env
 from run_local_service import environment_for, read_local_env
 
 
 class LocalEnvironmentTests(unittest.TestCase):
+    def test_database_configuration_is_scoped_and_complete(self):
+        values = {"KOLOVIBE_IDENTITY_DJANGO_SECRET_KEY": secrets.token_urlsafe(48)}
+        values["KOLOVIBE_IDENTITY_DB_PORT"] = "5432"
+        with self.assertRaisesRegex(ValueError, "Incomplete PostgreSQL"):
+            environment_for("identity", values)
+        for key, value in {
+            "DB_NAME": "local_test", "DB_USER": "identity_test",
+            "DB_HOST": "127.0.0.1", "DB_PASSWORD_FILE": "/test/private",
+            "DB_SSLROOTCERT": "/test/ca.crt",
+        }.items():
+            values["KOLOVIBE_IDENTITY_" + key] = value
+        with patch.dict("os.environ", {"KOLOVIBE_DB_USER": "wrong-service",
+                                      "KOLOVIBE_RABBITMQ_URL": "must-not-inherit"}):
+            environment = environment_for("identity", values)
+        self.assertEqual(environment["KOLOVIBE_DB_USER"], "identity_test")
+        self.assertNotIn("KOLOVIBE_RABBITMQ_URL", environment)
+
     def test_rejects_world_readable_file(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / ".env"

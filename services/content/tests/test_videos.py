@@ -81,7 +81,9 @@ class PublicVideoTests(TestCase):
             content_type="application/json").status_code, 403)
 
     def test_invalid_query_inputs_are_rejected(self):
-        for query in ("?cursor=invalid", "?creator_id=invalid"):
+        for query in ("?cursor=invalid", "?creator_id=invalid", "?unknown=1",
+                      "?cursor=" + str(uuid.uuid4()),
+                      "?creator_id=" + str(uuid.uuid4()) + "&creator_id=" + str(uuid.uuid4())):
             self.assertEqual(self.client.get(reverse("videos") + query).status_code, 400)
 
     def test_post_cannot_create_content(self):
@@ -100,3 +102,10 @@ class PublicVideoTests(TestCase):
         second = self.client.get(reverse("videos") + "?cursor=" + first["next_cursor"]).json()
         self.assertEqual(len(second["items"]), 1)
         self.assertNotIn(second["items"][0]["id"], {item["id"] for item in first["items"]})
+
+    def test_cursor_must_belong_to_requested_creator(self):
+        video = self.make_video(
+            state=Video.State.PUBLISHED, visibility=Video.Visibility.PUBLIC,
+            provider_asset_id=str(uuid.uuid4()), moderation_approved_at=timezone.now())
+        self.assertEqual(self.client.get(reverse("videos"), {
+            "creator_id": str(uuid.uuid4()), "cursor": str(video.id)}).status_code, 400)

@@ -1,16 +1,38 @@
 import json
 import secrets
+import smtplib
+import time
+from datetime import timedelta
+from unittest.mock import patch
 
 from django.core import mail
 from django.test import RequestFactory, TestCase, override_settings
+from django.utils import timezone
 
 from service import accounts
-from service.models import Account, LoginSession, UsedRefreshToken
+from service.models import Account, EmailVerification, LoginSession, UsedRefreshToken
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
                    EMAIL_HOST="smtp.example.test", DEFAULT_FROM_EMAIL="noreply@example.test")
 class AccountApiTests(TestCase):
+    def test_mail_failure_rolls_back_registration(self):
+        with patch("service.accounts.send_mail", side_effect=smtplib.SMTPException), \
+                self.assertLogs("service.accounts", level="ERROR"):
+            response = self.post(accounts.register, {"email": "user@example.test",
+                "password": self.password, "display_name": "Viewer"})
+        self.assertEqual(response.status_code, 503)
+        self.assertFalse(Account.objects.exists())
+        self.assertFalse(EmailVerification.objects.exists())
+
+    def test_expired_verification_cannot_activate_account(self):
+        self.post(accounts.register, {"email": "user@example.test",
+            "password": self.password, "display_name": "Viewer"})
+        EmailVerification.objects.update(expires_at=timezone.now() - timedelta(seconds=1))
+        code = mail.outbox[0].body.split(": ", 1)[1]
+        self.assertEqual(self.post(accounts.verify_email, {"code": code}).status_code, 400)
+        self.assertFalse(Account.objects.get().is_active)
+
     def setUp(self):
         self.factory = RequestFactory()
         self.password = secrets.token_urlsafe(24)
@@ -84,6 +106,27 @@ class AccountApiTests(TestCase):
         account.save(update_fields=["role"])
         self.assertEqual(self.post(accounts.login, {"email": account.email,
                                                    "password": self.password}).status_code, 403)
+
+    def test_role_promotion_cannot_reuse_existing_unprivileged_session(self):
+        account = self.register_and_verify()
+        tokens = json.loads(self.post(accounts.login, {
+            "email": account.email, "password": self.password}).content)
+        account.role = Account.Role.MODERATOR
+        account.save(update_fields=["role"])
+        self.assertEqual(self.post(accounts.validate_access, {
+            "access_token": tokens["access_token"]}).status_code, 401)
+        self.assertEqual(self.post(accounts.refresh, {
+            "refresh_token": tokens["refresh_token"]}).status_code, 403)
+
+    def test_access_expiry_does_not_expire_refresh_session(self):
+        account = self.register_and_verify()
+        tokens = json.loads(self.post(accounts.login, {
+            "email": account.email, "password": self.password}).content)
+        with patch("django.core.signing.time.time", return_value=time.time() + accounts.ACCESS_SECONDS + 1):
+            self.assertEqual(self.post(accounts.validate_access, {
+                "access_token": tokens["access_token"]}).status_code, 401)
+        self.assertEqual(self.post(accounts.refresh, {
+            "refresh_token": tokens["refresh_token"]}).status_code, 200)
 
     @override_settings(EMAIL_HOST="")
     def test_registration_fails_closed_without_delivery(self):

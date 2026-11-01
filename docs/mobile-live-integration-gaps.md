@@ -24,4 +24,6 @@ The identity service has internal account/session operations; the gateway contai
 
 Connect each feature repository only after the owning service has an implemented, tested contract and a deployment base URL. A successful response must be parsed into feature-owned models; widgets must not render bundled design copy as live account, content, or points data. The backend remains authoritative for roles, creator eligibility, publication, moderation and points. Passwords and codes stay transient; the opt-in local account adapter stores refresh credentials in the OS secure store, with production behavior still subject to ADR-013.
 
+The local continuation adds serialized account refresh, explicit unconfirmed-logout feedback, 20-item feed pagination with retry preservation, and distinct public-not-found versus outage states for creator/video details. Local contract, widget and PostgreSQL/HTTP evidence is recorded in the [API test roadmap](engineering/API_Test_Deployment_Roadmap.md); it does not authorize production. All points APIs and UI, including read-only history, remain gated at the owner's direction.
+
 Before enabling a feature, add contract tests against its service, negative authorization tests, error and expiry handling, and widget tests using controlled test doubles. A fixed test credential is not part of the app.

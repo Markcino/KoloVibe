@@ -2,9 +2,15 @@ openapi: 3.1.0
 info:
   title: Liberian Creator Platform — Release 1 API
   version: 1.0.0-draft
-  description: Design-stage contract. Not deployed. Non-cash points only; no ad-event rewards.
+  description: >-
+    Candidate R1 contract, not deployed. Only operations marked x-implementation
+    local are implemented for isolated local testing. All other operations remain
+    gated draft requirements. Local errors use application/json with a detail
+    field, not the candidate Problem schema. Production identity remains subject
+    to ADR-013. All points operations remain disabled.
+x-default-implementation: gated
 servers:
-- url: https://api.example.invalid/v1
+- url: https://api.example.invalid/api/v1
   description: Placeholder; never use in production
 tags:
 - name: Identity
@@ -24,7 +30,10 @@ paths:
       - Identity
       summary: Register user
       operationId: post__auth_register
+      x-implementation: local
       responses:
+        '503':
+          $ref: '#/components/responses/LocalUnavailable'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -36,7 +45,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
+                $ref: '#/components/schemas/RegistrationResponse'
         '400':
           description: Invalid request; application/problem+json
         '409':
@@ -50,21 +59,41 @@ paths:
             schema:
               $ref: '#/components/schemas/RegisterRequest'
       security: []
-      parameters:
-      - name: Idempotency-Key
-        in: header
+      description: Creates an inactive local account and sends a single-use verification code. Requires configured mail delivery.
+  /auth/verify:
+    post:
+      tags: [Identity]
+      operationId: post__auth_verify
+      x-implementation: local
+      summary: Verify local account email
+      security: []
+      requestBody:
         required: true
-        schema:
-          type: string
-          minLength: 16
-          maxLength: 128
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificationRequest'
+      responses:
+        '200':
+          description: Email verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationResponse'
+        '400':
+          description: Invalid, expired or reused code
+        '503':
+          description: Identity unavailable
   /auth/login:
     post:
       tags:
       - Identity
       summary: Authenticate user
       operationId: post__auth_login
+      x-implementation: local
       responses:
+        '503':
+          $ref: '#/components/responses/LocalUnavailable'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -96,7 +125,10 @@ paths:
       - Identity
       summary: Rotate refresh token
       operationId: post__auth_refresh
+      x-implementation: local
       responses:
+        '503':
+          $ref: '#/components/responses/LocalUnavailable'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -116,14 +148,31 @@ paths:
         '500':
           description: Unexpected server error; no internal details exposed
       security: []
-      description: Refresh token is transported in secure HttpOnly cookie for web; mobile storage uses OS secure
-        store. Exact strategy subject to ADR.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      description: >-
+        Local gateway accepts a JSON refresh token. The web server reads it from
+        an HttpOnly browser cookie; mobile uses OS secure storage. Single-use
+        rotation and reuse-family revocation apply. Production remains gated.
   /auth/logout:
     post:
       tags:
       - Identity
       summary: Revoke current session
       operationId: post__auth_logout
+      x-implementation: local
+      security: []
+      description: Revokes by bearer access token or JSON refresh token. No response body.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
       responses:
         '401':
           $ref: '#/components/responses/Unauthorized'
@@ -145,7 +194,10 @@ paths:
       - Identity
       summary: Get current account
       operationId: get__me
+      x-implementation: local
       responses:
+        '503':
+          $ref: '#/components/responses/LocalUnavailable'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -170,7 +222,12 @@ paths:
       - Creators
       summary: Get public creator profile
       operationId: get__creators_creator_id
+      x-implementation: local
       responses:
+        '404':
+          description: No approved public creator
+        '503':
+          $ref: '#/components/responses/LocalUnavailable'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -276,7 +333,10 @@ paths:
       - Content
       summary: List published videos
       operationId: get__videos
+      x-implementation: local
       responses:
+        '503':
+          $ref: '#/components/responses/LocalUnavailable'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -302,18 +362,25 @@ paths:
         required: false
         schema:
           type: string
+          format: uuid
       - name: creator_id
         in: query
         required: false
         schema:
           type: string
+          format: uuid
   /videos/{video_id}:
     get:
       tags:
       - Content
       summary: Get video details
       operationId: get__videos_video_id
+      x-implementation: local
       responses:
+        '404':
+          description: No approved public video
+        '503':
+          $ref: '#/components/responses/LocalUnavailable'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -338,7 +405,7 @@ paths:
         in: path
         required: true
         schema: *id001
-      description: Unpublished content visible only to owner or authorized moderators.
+      description: Only approved public published metadata is readable locally. All other records return 404. No playback credentials are returned.
     patch:
       tags:
       - Content
@@ -918,6 +985,41 @@ components:
       - status
       - code
       - request_id
+    RegistrationResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        verification_required:
+          const: true
+      required: [id, verification_required]
+    VerificationRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        code:
+          type: string
+          minLength: 32
+          maxLength: 128
+      required: [code]
+    VerificationResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        verified:
+          const: true
+      required: [verified]
+    RefreshRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        refresh_token:
+          type: string
+          minLength: 32
+          maxLength: 128
+      required: [refresh_token]
     User:
       type: object
       additionalProperties: false
@@ -937,8 +1039,10 @@ components:
           format: date-time
       required:
       - id
+      - email
       - display_name
       - roles
+      - created_at
     RegisterRequest:
       type: object
       additionalProperties: false
@@ -974,6 +1078,8 @@ components:
       type: object
       additionalProperties: false
       properties:
+        user:
+          $ref: '#/components/schemas/User'
         access_token:
           type: string
         expires_in:
@@ -988,6 +1094,8 @@ components:
       - access_token
       - expires_in
       - token_type
+      - refresh_token
+      - user
     Creator:
       type: object
       additionalProperties: false
@@ -996,8 +1104,10 @@ components:
         user_id: *id001
         handle:
           type: string
+          pattern: '^[a-zA-Z0-9_-]{1,40}$'
         bio:
           type: string
+          maxLength: 500
         status:
           type: string
           enum:
@@ -1008,6 +1118,7 @@ components:
       - id
       - user_id
       - handle
+      - bio
       - status
     CreatorUpdate:
       type: object
@@ -1028,8 +1139,11 @@ components:
         creator_id: *id001
         title:
           type: string
+          minLength: 1
+          maxLength: 160
         description:
           type: string
+          maxLength: 2000
         state:
           type: string
           enum:
@@ -1048,7 +1162,9 @@ components:
       - id
       - creator_id
       - title
+      - description
       - state
+      - created_at
     VideoCreate:
       type: object
       additionalProperties: false
@@ -1250,14 +1366,27 @@ components:
       properties:
         items:
           type: array
+          maxItems: 20
           items:
             $ref: '#/components/schemas/Video'
         next_cursor:
-          type: string
-          nullable: true
+          type: [string, 'null']
+          format: uuid
       required:
       - items
+      - next_cursor
   responses:
+    LocalUnavailable:
+      description: Local dependency unavailable; no internal details exposed
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            properties:
+              detail:
+                type: string
+            required: [detail]
     Unauthorized:
       description: Missing or invalid authentication
       content:

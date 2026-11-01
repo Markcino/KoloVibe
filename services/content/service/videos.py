@@ -35,6 +35,9 @@ def _item(video):
 
 @require_GET
 def list_videos(request):
+    if (set(request.GET) - {"creator_id", "cursor"}
+            or any(len(request.GET.getlist(key)) != 1 for key in request.GET)):
+        return JsonResponse({"detail": "Invalid query"}, status=400)
     return _list_videos(request.GET.get("creator_id"), request.GET.get("cursor"))
 
 
@@ -50,7 +53,7 @@ def _list_videos(creator, cursor):
             cursor_id = uuid.UUID(cursor)
         except ValueError:
             return JsonResponse({"detail": "Invalid cursor"}, status=400)
-        anchor = _public_videos().filter(pk=cursor_id).first()
+        anchor = queryset.filter(pk=cursor_id).first()
         if anchor is None:
             return JsonResponse({"detail": "Invalid cursor"}, status=400)
         queryset = queryset.filter(
@@ -67,6 +70,8 @@ def _list_videos(creator, cursor):
 
 @require_POST
 def internal_list_videos(request):
+    if len(request.body) > 512:
+        return JsonResponse({"detail": "Invalid request"}, status=400)
     try:
         filters = json.loads(request.body)
     except (ValueError, UnicodeDecodeError):
@@ -88,6 +93,8 @@ def video_detail(request, video_id):
 
 @require_POST
 def internal_video_detail(request):
+    if len(request.body) > 512:
+        return JsonResponse({"detail": "Invalid request"}, status=400)
     try:
         data = json.loads(request.body)
         if not isinstance(data, dict) or set(data) != {"video_id"}:

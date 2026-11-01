@@ -22,29 +22,32 @@ jobs:
         run: |
           python scripts/verify_dependency_locks.py --python
           python -m pip install --require-hashes -r requirements-dev.txt
+          python -m pip install --require-hashes -r requirements-ci.txt
           python -m pip check
-      - name: RabbitMQ/Celery worker configuration regression tests
-        run: python -m unittest -v scripts/test_rabbitmq_celery.py
-      - name: Foundation security and isolation checks
-        run: python -m unittest -v scripts/test_stage3_foundations.py scripts/test_ghcr_gate.py scripts/test_image_artifact.py scripts/test_staging_verification.py
       - name: TLS PostgreSQL migrations, isolation, ledger and event integration
         run: |
           set -euo pipefail
           export PATH="$(pg_config --bindir):$PATH"
           python scripts/test_postgres_foundations.py
+      - name: Isolated gateway, mail and web contract journeys
+        run: |
+          set -euo pipefail
+          export PATH="$(pg_config --bindir):$PATH"
+          python scripts/verify_local_journeys.py
       - name: Service checks
         run: |
           python scripts/check_structure.py
           python scripts/check_mobile_design.py
-          python -m unittest discover -s scripts -p 'test_run_local_service.py'
+          python -m unittest discover -s scripts -p 'test_*.py'
           export KOLOVIBE_ENV=local
           export DJANGO_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
           for service in gateway identity creators content engagement points moderation audit; do
             (cd "services/$service" && python manage.py makemigrations --check --dry-run && python manage.py test tests --verbosity 1)
           done
+          export KOLOVIBE_GATEWAY_URL=http://127.0.0.1:8000
+          (cd apps/web_django && python manage.py check && python manage.py test tests --verbosity 1)
       - name: Validate OpenAPI
         run: |
-          python -m pip install --require-hashes -r requirements-ci.txt
           python - <<'PY'
           from openapi_spec_validator import validate
           import yaml
@@ -77,7 +80,7 @@ jobs:
           pip-audit -r requirements-dev.txt --no-deps --disable-pip --format json --output security-reports/python-vulnerabilities.json
       - name: Python static security review
         run: |
-          bandit -r services scripts -f json -o security-reports/bandit.json || true
+          bandit -r services scripts apps/web_django -f json -o security-reports/bandit.json || true
           python scripts/enforce_bandit.py security-reports/bandit.json
       - name: Secret discovery and regression checks
         run: |

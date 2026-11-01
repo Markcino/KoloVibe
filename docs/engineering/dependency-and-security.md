@@ -6,10 +6,10 @@ Flutter uses Flutter SDK 3.47.8 and commits `apps/mobile/pubspec.lock`. CI runs 
 
 ## Continuous verification
 
-- Django liveness and repository structure checks.
-- OpenAPI schema validation.
+- Django service and web tests, liveness and repository structure checks.
+- OpenAPI schema validation and real local gateway/web contract journeys using isolated TLS PostgreSQL and test-only mail capture.
 - `pip-audit` for published Python dependency vulnerabilities.
-- `bandit` static Python security analysis.
+- `bandit` static Python security analysis across services, scripts and the Django web client.
 - `detect-secrets` findings checked as a failing gate.
 - CycloneDX SBOM as a downloadable workflow artifact.
 - Flutter static analysis, widget tests and dependency lock enforcement.

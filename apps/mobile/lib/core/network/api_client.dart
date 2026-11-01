@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -8,15 +9,24 @@ class ApiFailure implements Exception {
   final String message;
 }
 
+bool isApiId(Object? value) =>
+    value is String &&
+    RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
+        .hasMatch(value);
+
 /// Accepts only the configured gateway; credentials never appear in a URL.
 class ApiClient {
   ApiClient(String baseUrl, {http.Client? client})
       : base = Uri.parse(baseUrl),
         _client = client ?? http.Client() {
-    if (base.userInfo.isNotEmpty || base.hasFragment || base.hasQuery ||
+    if (base.userInfo.isNotEmpty ||
+        base.hasFragment ||
+        base.hasQuery ||
         !base.path.endsWith('/api/v1') ||
         !(base.scheme == 'https' ||
-            (kDebugMode && base.scheme == 'http' && base.host == '127.0.0.1'))) {
+            (kDebugMode &&
+                base.scheme == 'http' &&
+                base.host == '127.0.0.1'))) {
       throw ArgumentError('The gateway URL must be HTTPS or debug loopback');
     }
   }
@@ -25,11 +35,14 @@ class ApiClient {
   final http.Client _client;
 
   Future<Map<String, dynamic>> request(String path,
-      {String method = 'GET', Map<String, Object?>? body, String? accessToken}) async {
+      {String method = 'GET',
+      Map<String, Object?>? body,
+      String? accessToken,
+      Map<String, String>? query}) async {
     if (!path.startsWith('/') || path.contains('..') || path.contains('?')) {
       throw ArgumentError('Invalid API path');
     }
-    final url = base.replace(path: '${base.path}$path');
+    final url = base.replace(path: '${base.path}$path', queryParameters: query);
     final request = http.Request(method, url)
       ..followRedirects = false
       ..headers['Accept'] = 'application/json';
@@ -37,29 +50,44 @@ class ApiClient {
       request.headers['Content-Type'] = 'application/json';
       request.body = jsonEncode(body);
     }
-    if (accessToken != null) request.headers['Authorization'] = 'Bearer $accessToken';
+    if (accessToken != null) {
+      request.headers['Authorization'] = 'Bearer $accessToken';
+    }
     try {
-      final streamed = await _client.send(request).timeout(const Duration(seconds: 8));
+      final streamed =
+          await _client.send(request).timeout(const Duration(seconds: 8));
       if (streamed.contentLength != null && streamed.contentLength! > 65536) {
         throw const ApiFailure(503, 'The service response was too large.');
       }
       final bytes = <int>[];
-      await for (final chunk in streamed.stream.timeout(const Duration(seconds: 8))) {
+      await for (final chunk
+          in streamed.stream.timeout(const Duration(seconds: 8))) {
         bytes.addAll(chunk);
         if (bytes.length > 65536) {
           throw const ApiFailure(503, 'The service response was too large.');
         }
       }
-      final decoded = bytes.isEmpty ? <String, dynamic>{} : jsonDecode(utf8.decode(bytes));
+      final decoded =
+          bytes.isEmpty ? <String, dynamic>{} : jsonDecode(utf8.decode(bytes));
       if (decoded is! Map<String, dynamic>) throw const FormatException();
-      if (streamed.statusCode >= 200 && streamed.statusCode < 300) return decoded;
+      if (streamed.statusCode >= 200 && streamed.statusCode < 300) {
+        return decoded;
+      }
       final detail = decoded['detail'];
-      throw ApiFailure(streamed.statusCode,
-          detail is String && detail.length <= 160 ? detail : 'The request could not be completed.');
+      throw ApiFailure(
+          streamed.statusCode,
+          detail is String && detail.length <= 160
+              ? detail
+              : 'The request could not be completed.');
     } on ApiFailure {
       rethrow;
-    } catch (_) {
-      throw const ApiFailure(503, 'The service is unavailable. Please try again.');
+    } on TimeoutException {
+      throw const ApiFailure(503, 'The service timed out. Please try again.');
+    } on http.ClientException {
+      throw const ApiFailure(
+          503, 'The service is unavailable. Please try again.');
+    } on FormatException {
+      throw const ApiFailure(503, 'The service returned an invalid response.');
     }
   }
 }

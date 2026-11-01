@@ -44,18 +44,23 @@ def environment_for(service: str, values: dict[str, str]) -> dict[str, str]:
     secret = values.get(key, "")
     if len(secret) < 32:
         raise ValueError(f"Set a unique {key} of at least 32 characters in .env")
-    env = os.environ.copy()
-    for name in list(env):
-        if (name.startswith("KOLOVIBE_") and name.endswith("_DJANGO_SECRET_KEY")) or name in {
-            "KOLOVIBE_GATEWAY_OUTBOUND_KEY", "KOLOVIBE_CALLER_GATEWAY_KEY",
-            "KOLOVIBE_SMTP_PASSWORD", "KOLOVIBE_IDENTITY_URL", "KOLOVIBE_CONTENT_URL",
-            "KOLOVIBE_CREATORS_URL",
-        }:
-            del env[name]
+    env = {name: value for name, value in os.environ.items()
+           if not name.startswith("KOLOVIBE_")}
     env["KOLOVIBE_ENV"] = "local"
     env["DJANGO_SECRET_KEY"] = secret
     env["DJANGO_DEBUG"] = values.get("DJANGO_DEBUG", "0")
     env["KOLOVIBE_SERVICE_NAME"] = service
+    prefix = f"KOLOVIBE_{service.upper()}_"
+    required_db = ("DB_NAME", "DB_USER", "DB_HOST", "DB_PASSWORD_FILE", "DB_SSLROOTCERT")
+    database = {name: values.get(prefix + name) for name in (*required_db, "DB_PORT")}
+    if any(database.values()):
+        if not all(database[name] for name in required_db):
+            raise ValueError(f"Incomplete PostgreSQL configuration for {service}")
+        for name, value in database.items():
+            if value:
+                env["KOLOVIBE_" + name] = value
+    if service in ("engagement", "points") and values.get(prefix + "RABBITMQ_URL"):
+        env["KOLOVIBE_RABBITMQ_URL"] = values[prefix + "RABBITMQ_URL"]
     gateway_key = values.get("KOLOVIBE_GATEWAY_OUTBOUND_KEY", "")
     if service == "gateway":
         if len(gateway_key) >= 32:

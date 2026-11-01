@@ -12,5 +12,6 @@
   <li><a class="card" href="{% url 'video' item.id %}"><h2>{{ item.title }}</h2><p>{{ item.description }}</p></a></li>
 {% endfor %}
 </ul>
+{% if next_query %}<nav aria-label="Video pages"><a href="?{{ next_query }}">Next page</a></nav>{% endif %}
 {% endif %}
 {% endblock %}

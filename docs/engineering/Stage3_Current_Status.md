@@ -22,7 +22,7 @@ These counts describe task evidence, not overall percentage completion or formal
 | FND-02 | Pin toolchains and dependency lockfiles | Complete - CI scope | Continue toolchain/dependency maintenance |
 | FND-03 | Django microservice skeletons and health checks | Complete - CI scope | Production runtime/deployment tracked under FND-12 and FND-14 |
 | FND-04 | Flutter and Django web shells | Partial - mobile and local web shells | Live R1 service contracts and staging security profile remain open |
-| FND-05 | OpenAPI lint and consumer contract tests | Partial - schema validation implemented | DOC-205; consumer/provider contract tests |
+| FND-05 | OpenAPI lint and consumer contract tests | Partial - local contract journeys verified | Remaining gated business contracts and deployed transport evidence |
 | FND-06 | Security scanning and SBOM | Partial - publication verification pending | Pinned base digest and verified-artifact publication workflow implemented; new Actions/image/registry evidence pending |
 | FND-07 | Per-service PostgreSQL roles and migrations | Partial - local integration verified | Disposable TLS PostgreSQL isolation/migration tests pass; deployed topology and login evidence pending |
 | FND-08 | RabbitMQ/Celery private queues and retries | Partial - integration evidence pending | RabbitMQ DHI TLS deployment; approved queue/workload identity |
@@ -30,7 +30,7 @@ These counts describe task evidence, not overall percentage completion or formal
 | FND-10 | Service identity enforcement | Partial - identity approval and evidence pending | OD-01 final identity/token contract; credential rotation |
 | FND-11 | Append-only noncash ledger scaffold | Partial - PostgreSQL tests verified; CI acceptance pending | SQLite/PostgreSQL ledger tests pass locally; run new CI acceptance. Award formula/public APIs are separate later work |
 | FND-12 | Hardened image and Swarm secret handling | Partial - runtime verification pending | Swarm deployment; image digests; secret lifecycle |
-| FND-13 | Dedicated Nginx VM configuration | Pending - transport decision blocked | OD-02 private TLS/transport; certificate ownership |
+| FND-13 | VM1 host Nginx configuration | Pending - transport decision blocked | OD-02 private TLS/transport; certificate ownership |
 | FND-14 | Swarm staging stack and network zones | Pending - infrastructure blocked | OD-03 hosting/cluster sizing; private network access |
 | FND-15 | Central logs, metrics and alerts | Pending - monitoring implementation | OD-08 monitoring and audit retention |
 | FND-16 | Backup/restore and rollback drill | Pending - recovery targets blocked | OD-04 approved RTO/RPO; deployed database/infrastructure |
@@ -42,7 +42,7 @@ These counts describe task evidence, not overall percentage completion or formal
 - FND-02: CI pins the Flutter SDK and Python runtime; application and CI dependency lockfiles include hash checks. CI resolves locked packages and checks Flutter lockfile drift.
 - FND-03: eight Django service skeletons have independently built CI images, non-root runtime smoke checks and health checks. Production settings remain gated.
 - Flutter application entry is `lib/main.dart`. The alternate entry point, fixture and inactive simulation controls were removed through [PR #12](https://github.com/Markcino/KoloVibe/pull/12) and [PR #13](https://github.com/Markcino/KoloVibe/pull/13). The 108 design recipes remain; their presence is not proof of live business functionality.
-- The previously recorded merged Flutter CI suite reported 133 passing tests and clean static analysis. [API quality evidence](https://github.com/Markcino/KoloVibe/actions/runs/41050289508). The current 1 November local run passed 137 tests and clean analysis; details follow below.
+- The previously recorded merged Flutter CI suite reported 133 passing tests and clean static analysis. [API quality evidence](https://github.com/Markcino/KoloVibe/actions/runs/41050289508). Current local continuation evidence is separate and linked below; it does not establish new remote CI results.
 - Dependency and source security scans, container checks and SBOM generation are implemented. [Container evidence](https://github.com/Markcino/KoloVibe/actions/runs/41050331889) and [dependency review evidence](https://github.com/Markcino/KoloVibe/actions/runs/41050332526).
 - PostgreSQL schema/role SQL, service HMAC middleware, RabbitMQ/Celery configuration and transactional event primitives are present. Current tests include rejection of unsigned/spoofed calls and event operations outside transactions. Live database/broker integration acceptance remains pending.
 - FND-11: SQLite and PostgreSQL guards, reversal, source-decision uniqueness and ORM/SQL mutation-rejection tests pass locally. A PostgreSQL-only transaction-boundary issue in the test was corrected. The Stage 3 scaffold does not require an award formula or public points API; those remain separate gated product work.
@@ -59,7 +59,9 @@ Initial review evidence (before the delivery changes):
 - `python3 scripts/check_mobile_design.py`, Python/Flutter dependency-lock checks and CI-toolchain lock check: passed.
 - `python3 scripts/check_structure.py`: passed after removing the ignored legacy `apps/mobile_flutter` generated build and IDE directory. No source files were present in that obsolete directory.
 
-Delivery-change verification: all service suites now pass 94 tests with no migration drift; the local web suite passes 7 tests. The disposable PostgreSQL integration suite passes 24 tests, and all 34 script regression tests pass. Plaintext and wrong-host PostgreSQL connections are rejected. The tracked-source secret scan passes after replacing test-only password literals; it excludes ignored local `.env` and generated Flutter environment files, as a clean CI checkout does. See [container verification](container-verification.md) for pipeline behavior and the outstanding image/registry evidence.
+The subsequent mobile/web continuation verifies account rotation/revocation, paginated discovery and real signed gateway contracts against disposable PostgreSQL, with test-only mail capture. Current commands and results are centralized in the [API test roadmap](API_Test_Deployment_Roadmap.md#current-continuation-evidence), including the passing unsigned iOS build and the blocked simulator hot-reload/broker checks. The [R1 tracker](R1_Application_Tracker.md) distinguishes local journeys from gated product features. All points APIs/UI remain gated. The example SMTP credential was cleared; provider revocation/rotation remains required.
+
+Web tests, local HTTP contract journeys and web Python scanning are now wired into API quality. These changes remain uncommitted and have no remote Actions evidence. See [container verification](container-verification.md) for the unchanged publication boundary. Full Stage 3 and R1 acceptance remain pending.
 
 Evidence links refer to executed CI on merged changes; the solo-governance/status follow-up requires its own CI results.
 

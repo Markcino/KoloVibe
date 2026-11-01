@@ -7,7 +7,9 @@ gated on ADR-013, transport approval, and deployment review.
 import hashlib
 import hmac
 import json
+import logging
 import secrets
+import smtplib
 import uuid
 from datetime import timedelta
 
@@ -29,6 +31,7 @@ VERIFY_HOURS = 24
 LOGIN_LIMIT = 5
 LOGIN_WINDOW = timedelta(minutes=15)
 ACCESS_SALT = "kolovibe.identity.access.v1"
+logger = logging.getLogger(__name__)
 
 
 def _body(request, allowed):
@@ -76,6 +79,7 @@ def _session_for_access(token):
     return LoginSession.objects.select_related("account").filter(
         pk=session_id, account_id=account_id, revoked_at__isnull=True,
         expires_at__gt=now, account__is_active=True,
+        account__role__in=(Account.Role.VIEWER, Account.Role.CREATOR),
     ).first()
 
 
@@ -108,7 +112,8 @@ def register(request):
         return _error("Invalid registration")
     except IntegrityError:
         return _error("Account already exists", 409)
-    except Exception:
+    except (smtplib.SMTPException, OSError):
+        logger.error("Account verification email delivery failed")
         return _error("Email delivery unavailable", 503)
     return JsonResponse({"id": str(account.id), "verification_required": True}, status=201)
 
@@ -188,6 +193,8 @@ def refresh(request):
         session = LoginSession.objects.select_for_update().select_related("account").filter(pk=session_id).first()
         if session is None or session.revoked_at is not None or session.expires_at <= now or not session.account.is_active:
             return _error("Invalid session", 401)
+        if session.account.role not in (Account.Role.VIEWER, Account.Role.CREATOR):
+            return _error("Privileged access unavailable", 403)
         if not hmac.compare_digest(session.refresh_digest, digest):
             if UsedRefreshToken.objects.filter(digest=digest, family_id=session.family_id,
                                                expires_at__gt=now).exists():

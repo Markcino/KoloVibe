@@ -28,6 +28,38 @@ The first externally reachable staging cut should be read-only. It may return an
 
 Do not label the API fully deployed while the current application gaps remain in [R1 application tracker](R1_Application_Tracker.md). `kolovibe.cabetechs.shop` remains reserved for a later production release; DNS ownership and final hostname routing need explicit verification.
 
+## Reproducible isolated local acceptance
+
+Use Python 3.12 with the existing hash-locked development and CI requirements. Native `initdb`, `pg_ctl` and `openssl` must be on PATH. From the repository root:
+
+```bash
+PYTHONPATH=scripts .venv/bin/python -m verify_local_journeys
+PYTHONPATH=scripts .venv/bin/python -m test_postgres_foundations
+```
+
+The first command creates a fresh TLS PostgreSQL cluster and service-owned logins, migrates only those temporary databases, starts loopback identity/content/creators/gateway/web processes, and captures verification mail privately. It tests real account forms and signed API calls against the existing OpenAPI schema, concurrent refresh reuse, and 21-record pagination. Synthetic records exist only in the disposable fixture. No root `.env`, existing database or external SMTP service is used; task-owned processes and data are removed at exit. The second command checks service isolation, nonce storage, ledger and transactional event foundations. Its publisher remains a double, not live RabbitMQ evidence.
+
+For manual local service use, the existing launcher accepts service-prefixed PostgreSQL settings: `KOLOVIBE_<SERVICE>_DB_NAME`, `DB_USER`, `DB_HOST`, `DB_PORT`, `DB_PASSWORD_FILE` and `DB_SSLROOTCERT` (each suffix uses the same prefix). Supplying any requires the complete set except optional port. The selected service alone receives the corresponding generic settings; inherited service credentials are removed. Engagement/points workers use their own `KOLOVIBE_<SERVICE>_RABBITMQ_URL`. Passwords remain in private local files; persistent CI/deployment values come from Actions/Swarm secrets. SQLite remains a unit-test/local fallback only when no PostgreSQL configuration is supplied.
+
+### Current continuation evidence
+
+| Check | Result |
+| --- | --- |
+| `python scripts/run_local_service.py SERVICE test tests` for all eight services; corresponding `makemigrations --check --dry-run` | Passed: 101 tests; no migration drift |
+| `python scripts/run_local_web.py test tests` | Passed: 14 tests |
+| `python -m unittest discover -s scripts -p 'test_*.py'` | Passed: 35 tests |
+| `PYTHONPATH=scripts .venv/bin/python -m verify_local_journeys` | Passed: six real PostgreSQL/HTTP/mail/web/contract journeys |
+| Disposable PostgreSQL foundation fixture | Passed: 24 tests; plaintext and wrong-host TLS rejected |
+| `flutter analyze`; `flutter test` in `apps/mobile` | Passed: clean analysis; 143 tests |
+| `flutter build ios --simulator --debug` | Passed: unsigned simulator application; not an App Store or Android release build |
+| Structure/design and dependency-lock checks; OpenAPI validation; `actionlint -shellcheck='' .github/workflows/api-quality.yml` | Passed |
+| `bandit -r services scripts apps/web_django` with repository enforcement | Passed gate: 23 low findings, zero medium/high |
+| `pip-audit -r requirements-dev.txt --no-deps --disable-pip`; non-ignored source secret scan | Passed: no known dependency advisories or unreviewed secret findings |
+
+An isolated iOS simulator could not finish system-app boot within the bounded wait. It was shut down and deleted; app launch and hot reload are **not verified**. No physical device was modified. Native RabbitMQ/Erlang and Docker were unavailable. The RabbitMQ package attempt was stopped when it required unrelated shared-system dependency upgrades; no existing broker was used. Live broker retry/DLQ/crash tests and container publication remain blocked, not skipped-as-passed. These workflow edits have not been pushed or run in Actions.
+
+**Credential action required:** a credential-like SMTP value was removed from `.env.example`. Treat it as exposed and revoke/rotate it with the provider; clearing the current file does not remove prior Git history. Do not reuse it for local or Actions configuration. No credential value is reproduced in documentation.
+
 ## Vendor references
 
 - [Django deployment checklist](https://docs.djangoproject.com/en/5.2/howto/deployment/)

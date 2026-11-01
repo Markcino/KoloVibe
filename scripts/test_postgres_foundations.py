@@ -1,6 +1,7 @@
 """Exercise foundation contracts against a disposable, TLS-only PostgreSQL."""
 
 import hashlib
+from contextlib import contextmanager
 import hmac
 import json
 import os
@@ -30,7 +31,8 @@ def secret_file(path, value):
     path.write_text(value)
 
 
-def fixture():
+@contextmanager
+def postgres_fixture():
     import psycopg
     from psycopg import sql
 
@@ -86,6 +88,7 @@ def fixture():
             with psycopg.connect(dbname="kolovibe_ci", autocommit=True, **parameters) as db:
                 db.execute((ROOT / "infra/postgres/schema_isolation.sql").read_text())
                 db.execute("REVOKE CREATE ON DATABASE kolovibe_ci FROM PUBLIC")
+                environments = {}
                 for service in SERVICES:
                     credential = secrets.token_urlsafe(48)
                     credential_path = base / f"{service}-password"
@@ -95,7 +98,9 @@ def fixture():
                     db.execute(sql.SQL("GRANT {} TO {}").format(
                         sql.Identifier("kolovibe_" + service),
                         sql.Identifier("ci_" + service)))
-                    environment = dict(os.environ,
+                    environment = dict(
+                        {name: value for name, value in os.environ.items()
+                         if not name.startswith("KOLOVIBE_")},
                         KOLOVIBE_ENV="local", DJANGO_SECRET_KEY=secrets.token_urlsafe(48),
                         KOLOVIBE_DB_NAME="kolovibe_ci", KOLOVIBE_DB_USER="ci_" + service,
                         KOLOVIBE_DB_HOST="127.0.0.1", KOLOVIBE_DB_PORT=str(port),
@@ -103,13 +108,20 @@ def fixture():
                         KOLOVIBE_DB_SSLROOTCERT=str(certificate),
                         KOLOVIBE_PG_FIXTURE=str(base),
                         KOLOVIBE_SERVICE_NAME=service)
+                    environments[service] = environment
                     run([sys.executable, "manage.py", "migrate", "--noinput"],
                         cwd=ROOT / "services" / service, env=environment)
-                    run([sys.executable, str(Path(__file__).resolve()), "--service", service],
-                        env=environment)
+            yield base, environments
         finally:
             run([tools["pg_ctl"], "-D", str(data), "-m", "fast", "-w", "stop"],
                 stdout=subprocess.DEVNULL)
+
+
+def fixture():
+    with postgres_fixture() as (_, environments):
+        for service, environment in environments.items():
+            run([sys.executable, str(Path(__file__).resolve()), "--service", service],
+                env=environment)
 
 
 def service_tests(service):
