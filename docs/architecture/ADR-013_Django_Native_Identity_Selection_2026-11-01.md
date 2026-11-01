@@ -5,6 +5,8 @@
 **Status:** **Partially decided — identity authority selected; token, sessions, privileged MFA and security acceptance pending**
 **Related:** DOC-207 ADR-013, DOC-205 API contracts, DOC-206 security verification, DOC-209 G-03, Stage 3 OD-01 and FND-10
 
+**Follow-up proposal (not approved):** [ADR-013 v1.0 client authentication and session security](ADR-013_Client_Authentication_and_Session_Security_v1.0_DRAFT.md) with separate [DOC-205](ADR-013_DOC-205_Proposed_Contract_Delta_v1.0_DRAFT.md) and [DOC-206](ADR-013_DOC-206_Verification_Matrix_v1.0_DRAFT.csv) proposed artifacts. This earlier owner selection remains partial until formal review.
+
 ## Owner-confirmed selection
 
 The owner explicitly selected **Django-native identity** for KoloVibe. The existing Django identity microservice, backed by PostgreSQL, is the intended authority for client account identities and authentication. Flutter and Django web clients use the existing API gateway and identity service boundaries; internal service authorization remains enforced separately.
