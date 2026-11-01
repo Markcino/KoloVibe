@@ -62,6 +62,9 @@ def validate(stack):
             raise ValueError("Staging rollout must fail with rollback")
         if service["deploy"]["replicas"] != 0:
             raise ValueError("Candidate activation requires separate capacity/release approval")
+        if service["deploy"].get("placement", {}).get("constraints") != [
+                "node.labels.kolovibe.workloads == true"]:
+            raise ValueError("All Django services must be constrained to the approved VM2 worker")
         resources = service["deploy"]["resources"]
         limit = memory_bytes(resources["limits"]["memory"])
         reservation = memory_bytes(resources["reservations"]["memory"])
@@ -90,7 +93,9 @@ def validate(stack):
     if (broker.get("ports") or broker.get("privileged") or broker.get("network_mode")
             or broker["networks"] != ["broker_private"] or broker["deploy"]["replicas"] != 0):
         raise ValueError("RabbitMQ must remain private and unactivated")
-    if broker["deploy"]["placement"]["constraints"] != ["node.labels.kolovibe.rabbitmq == true"]:
+    if broker["deploy"]["placement"]["constraints"] != [
+            "node.labels.kolovibe.workloads == true",
+            "node.labels.kolovibe.rabbitmq == true"]:
         raise ValueError("RabbitMQ requires reviewed durable-node placement")
     if broker["volumes"] != ["rabbitmq_data:/var/lib/rabbitmq"]:
         raise ValueError("RabbitMQ requires its owning persistent volume")
