@@ -86,6 +86,9 @@ class StagingManifestTests(unittest.TestCase):
     def test_reviewed_candidate_shape(self):
         validate(self.stack)
         self.assertEqual(set(self.stack["services"]), SERVICES | {"rabbitmq"})
+        self.assertEqual(
+            self.stack["services"]["gateway"]["deploy"]["placement"]["constraints"],
+            ["node.labels.kolovibe.workloads == true"])
         self.assertFalse((ROOT / "infra/rabbitmq/stack.yml").exists())
         self.assertEqual(sorted(str(path.relative_to(ROOT / "infra")) for path in
                                 (ROOT / "infra").rglob("*.yml")),
@@ -107,6 +110,33 @@ class StagingManifestTests(unittest.TestCase):
             stack["services"]["gateway"]["deploy"]["resources"].update(changes)
             with self.assertRaises(ValueError):
                 validate(stack)
+
+    def test_worker_only_placement_cannot_be_removed_or_redirected(self):
+        expected = ["node.labels.kolovibe.workloads == true"]
+        for service in SERVICES:
+            self.assertEqual(
+                self.stack["services"][service]["deploy"]["placement"]["constraints"],
+                expected)
+            for constraints in ([], ["node.role == manager"],
+                                ["node.labels.kolovibe.workloads == false"]):
+                with self.subTest(service=service, constraints=constraints):
+                    stack = copy.deepcopy(self.stack)
+                    stack["services"][service]["deploy"]["placement"]["constraints"] = constraints
+                    with self.assertRaises(ValueError):
+                        validate(stack)
+
+        broker = self.stack["services"]["rabbitmq"]
+        self.assertEqual(broker["deploy"]["placement"]["constraints"], [
+            "node.labels.kolovibe.workloads == true",
+            "node.labels.kolovibe.rabbitmq == true"])
+        for constraints in (["node.labels.kolovibe.rabbitmq == true"],
+                            ["node.labels.kolovibe.workloads == true"],
+                            ["node.role == manager"]):
+            with self.subTest(broker_constraints=constraints):
+                stack = copy.deepcopy(self.stack)
+                stack["services"]["rabbitmq"]["deploy"]["placement"]["constraints"] = constraints
+                with self.assertRaises(ValueError):
+                    validate(stack)
 
     def test_broker_digest_network_and_activation_are_rejected(self):
         for changes in ({"image": "dhi.io/rabbitmq:latest"},
