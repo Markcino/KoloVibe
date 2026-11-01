@@ -34,8 +34,15 @@ class InfrastructurePreflightTests(unittest.TestCase):
         self.assertIn("${RABBITMQ_MEMORY_LIMIT:?", limit)
         self.assertNotIn("1024M", self.source)
         self.assertEqual(broker["deploy"]["replicas"], 0)
-        self.assertIn("node.labels.kolovibe.rabbitmq == true",
-                      broker["deploy"]["placement"]["constraints"])
+        self.assertEqual(broker["deploy"]["placement"]["constraints"], [
+            "node.labels.kolovibe.workloads == true",
+            "node.labels.kolovibe.rabbitmq == true"])
+        for service in ("gateway", "identity", "content", "creators",
+                        "engagement", "points", "moderation", "audit"):
+            self.assertEqual(
+                self.stack["services"][service]["deploy"]["placement"]["constraints"],
+                ["node.labels.kolovibe.workloads == true"])
+            self.assertEqual(self.stack["services"][service]["deploy"]["replicas"], 0)
 
     def test_broker_secret_and_storage_boundaries(self):
         broker = self.stack["services"]["rabbitmq"]

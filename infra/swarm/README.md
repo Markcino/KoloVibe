@@ -1,5 +1,32 @@
 # Restricted staging candidate — activation pending
 
+## Minimal deployment configuration on VM1
+
+Do **not** clone the whole Django/Flutter project onto Oracle VM1 or VM2.
+The pinned GHCR shared image already packages the application runtime. VM1
+(Swarm manager) needs only the reviewed
+[`infra/swarm/staging.yml`](staging.yml) and
+[`infra/rabbitmq/rabbitmq.conf`](../rabbitmq/rabbitmq.conf)
+at their original relative paths, along with protected Swarm secrets and
+the explicitly approved non-secret deployment inputs. The host-Nginx operator
+separately needs
+[`infra/nginx/staging.conf.template`](../nginx/staging.conf.template)
+when updating the verified TLS edge configuration; the DBA separately uses
+[`infra/postgres/schema_isolation.sql`](../postgres/schema_isolation.sql).
+VM2 receives service tasks and pulls images through Swarm; no application
+source, Flutter files or Git checkout is needed on the worker. GHCR access
+for workers needs a reviewed credential/provisioning lifecycle: do not store
+registry credentials in Git or commit an `.env` file.
+
+**Worker-only scheduling:** All eight API services require
+`node.labels.kolovibe.workloads == true`. RabbitMQ requires both that label
+and `node.labels.kolovibe.rabbitmq == true` on the same worker, following
+durable-volume and capacity approval. The November 1 worker readback confirms
+only VM2 carries the workload label; neither node has the separate RabbitMQ
+label. Do not add the latter until the broker's storage/capacity review passes.
+These placement constraints do not establish memory sufficiency or authorize
+activation. All nine services continue to default to `replicas: 0`.
+
 [staging.yml](staging.yml) is the **single deployment YAML** defining all eight API
 services and RabbitMQ, with Gunicorn for APIs,
 verified TLS, external owner-only secrets, a private overlay, read-only non-root

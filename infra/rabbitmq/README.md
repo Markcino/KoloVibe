@@ -16,6 +16,7 @@ The approved architecture amendment uses RabbitMQ + Celery,
   the previous 1024M limit or invent a capacity figure. Budget RabbitMQ memory,
   Erlang overhead, OS, Docker, Django and Celery before enabling placement.
   API memory limits/reservations are also required in the single deployment file.
+- The Swarm candidate now requires `node.labels.kolovibe.workloads == true` **and** `node.labels.kolovibe.rabbitmq == true` on the same worker. The observed VM2 has the workload label but no approved RabbitMQ label; preserve zero replicas until capacity and durable storage are accepted.
 - Verify the manager-applied `node.labels.kolovibe.rabbitmq == true` placement
   selects a healthy node with durable storage; a named Docker local volume does
   not migrate with a Swarm task. Do not delete any existing worker volumes.
