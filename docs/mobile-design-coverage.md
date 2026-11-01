@@ -119,6 +119,6 @@ All recipes: `apps/mobile/assets/design/`. Shared renderer: `lib/shared/widgets/
 
 ## Integration gaps
 
-Identity provider, verification/reset/session APIs and secure token handling remain gated by ADR-001. Creator verification/retention, upload/provider callbacks, qualified engagement rules, and audit retention retain their documented ADR gates. Search/follow/settings/privacy-request routes require contract review where DOC-205 has no complete endpoint. No new backend endpoints were invented.
+Production identity/session policy and password-reset flows remain gated by ADR-013. Creator verification/retention, upload/provider callbacks, qualified engagement rules, and audit retention retain their documented decision gates. Search/follow/settings/privacy-request routes require contract review where DOC-205 has no complete endpoint. No new backend endpoints were invented.
 
 Media selection, playback, sharing, device settings and store launching are interface previews in this milestone; device adapters are not connected. Privacy/legal copy is a design reference, not an approved complete published policy.

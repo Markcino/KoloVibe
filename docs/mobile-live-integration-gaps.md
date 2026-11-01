@@ -1,6 +1,6 @@
 # Mobile live integration gaps
 
-The Flutter app uses `lib/main.dart` only. Its repository interfaces are in `lib/features`, and the default composition in `lib/app` reports unavailable operations. The app does not bundle accounts, content records, points balances, or simulated service results.
+The Flutter app uses `lib/main.dart` only. Its default composition reports unavailable operations unless `KOLOVIBE_API_URL` is set to an approved HTTPS gateway URL ending in `/api/v1`. The opt-in composition wires account operations and public video metadata; it does not bundle accounts, content records, points balances, or simulated service results.
 
 ## Source of truth
 
@@ -8,17 +8,17 @@ The Flutter app uses `lib/main.dart` only. Its repository interfaces are in `lib
 - Candidate public interface: `docs/architecture/DOC-205_OpenAPI_3_1_DRAFT.yaml`. It is a draft and its server URL is deliberately invalid.
 - Decision holds: `docs/architecture/DOC-207_Open_Decision_Log.csv` and `DOC-209_Consolidated_Open_Decisions.csv`.
 
-The local identity service now has an account table with hashed passwords, but no public account API. The local content service has read-only `GET /videos` and `GET /videos/{id}` endpoints; it returns an empty list until authoritative approved records exist. The gateway has a `GET /videos` route through signed, TLS-verified internal service transport, but peer credentials and certificates are not configured for local end-to-end use. No deployed environment is configured. A health response does not establish user identity or readiness of business operations.
+The identity service has internal account/session operations; the gateway contains forwarding routes for registration, verification, login, refresh, logout and `/me`. The mobile account adapter is wired when the gateway URL is provided. Production use remains blocked by ADR-013 and missing email, transport and end-to-end acceptance evidence. The content service exposes read-only public video metadata, and the gateway has list/detail routes through signed internal service transport. The mobile app parses this metadata when configured, but playback is not implemented and the feed remains empty until approved records exist. Gateway peer credentials and certificates are not configured for local end-to-end use; no deployed environment is configured. A health response does not establish identity or business readiness.
 
 | Mobile boundary | DOC-205 candidate | Gap before live connection |
 | --- | --- | --- |
-| Account access | `/auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `/me` | Implement identity endpoints and resolve ADR-013 for mobile token issuance, secure storage, rotation, revocation and session expiry. Registration verification, password reset and account deletion need approved contracts. |
-| Discovery and creators | `GET /videos`, `GET /videos/{video_id}`, `GET /creators/{creator_id}` | Approved-public video reads exist in content and the gateway list route is implemented. TLS peer configuration, mobile parsing and live creator profiles remain open. Search, follow and personalization need contract decisions. |
+| Account access | `/auth/register`, `/auth/verify`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `/me` | Identity operations and gateway forwarding routes exist; mobile wiring is opt-in. Resolve ADR-013 and provide email, secure transport and end-to-end contract evidence before production. Password reset and account deletion remain unimplemented and need approved contracts. |
+| Discovery and creators | `GET /videos`, `GET /videos/{video_id}`, `GET /creators/{creator_id}` | Approved-public video metadata and gateway list/detail routes exist; opt-in mobile parsing is implemented. The feed has no seeded records and playback/creator profiles are unavailable. TLS peer configuration, search, follow and personalization remain open. |
 | Content and playback | `/videos`, `/videos/{video_id}/upload-intents`, `/videos/{video_id}/publish`, `/videos/{video_id}/playback` | Implement authorized creator flow, provider upload/webhook decisions and media playback. Do not infer publication from a timer or local state. |
 | Engagement | `/videos/{video_id}/like`, `/engagement/watch-events` | Implement authenticated requests and server-side deduplication. Client actions must not award points. |
-| Lone Stars | `/creators/me/points`, `/creators/me/points/entries` | Implement the append-only non-cash ledger and resolve ADR-019 before any qualified-view calculation. |
+| Lone Stars | `/creators/me/points`, `/creators/me/points/entries` | The append-only ledger scaffold and local mutation/reversal tests exist. No public balance/history API or mobile dashboard is connected. Resolve ADR-019 before implementing award calculations. |
 | Reports and restrictions | `/reports`, `/moderation/reports` | Implement report submission, moderation decisions and appeal contracts with server authorization and audit. |
-| Profile and settings | `/me`, `PATCH /creators/me` | Define and implement personal profile, sessions, privacy requests, preferences and deletion contracts. Resolve retention requirements under ADR-020. |
+| Profile and settings | `/me`, `PATCH /creators/me` | Authenticated account read via `/me` exists. Profile updates, preferences, privacy requests, data export/deletion and retention contracts remain open under ADR-020. |
 
 ## Integration rule
 

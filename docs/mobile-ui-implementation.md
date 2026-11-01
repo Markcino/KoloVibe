@@ -14,7 +14,7 @@ flutter run
 
 The sole application entry point is `lib/main.dart`. `flutter run` selects it by default; the explicit equivalent is `flutter run --target lib/main.dart`. IDE launch configurations must use the same entry point.
 
-The app starts with splash and welcome. Account submissions return unavailable-service responses; populated account/content/points screens remain hidden until secure service adapters are connected. There is no built-in test account, state gallery, viewer-role override or simulated upload progression.
+The app starts with splash and welcome. By default, `lib/main.dart` uses unavailable-service adapters. Setting `KOLOVIBE_API_URL` to an approved HTTPS gateway URL ending in `/api/v1` opts into account operations and public video metadata. Playback, publishing, creator profiles, engagement, points and moderation are not connected. There is no built-in test account, state gallery, viewer-role override or simulated upload progression.
 
 The development bundle identifier is `com.kolovibe.kolovibe`; distribution identifiers, launcher artwork and signing require release review. Android release signing is unconfigured; debug keys are not configured for releases. The updated iOS project targets iOS 15.0 or newer.
 
@@ -28,7 +28,7 @@ Native safe areas, editable text inputs, semantic controls and system back navig
 
 ## Integration boundaries
 
-Follow the existing DOC-205 draft contracts and open ADRs. The content service has local read-only approved-public video endpoints and the gateway has a signed internal list route; the mobile app is not yet connected. Identity, secure token storage, media selection/provider uploads, playback, native sharing/settings/store launching, privacy requests, real content/search/follow state and backend notification delivery require service/device adapters. No client-side points-award formula or media moderation bypass exists.
+Follow the existing DOC-205 draft contracts and open ADRs. The content service and gateway expose read-only approved-public video metadata, which the opt-in mobile adapter can parse; playback is not implemented. Identity account/session operations and gateway forwarding routes also exist, but ADR-013, email/transport configuration and end-to-end acceptance remain open. Media selection/provider uploads, creator profiles, likes/follows, points APIs, moderation, native sharing/settings/store launching, privacy requests and backend notification delivery require additional service/device adapters. No client-side points-award formula or media moderation bypass exists.
 
 The current boundary-by-boundary status is in `docs/mobile-live-integration-gaps.md`. The intended future production host is `kolovibe.cabetechs.shop`; no deployment or production API is configured in this repository.
 
@@ -63,8 +63,8 @@ This is historical evidence from before the alternate entry point and simulation
 
 This evidence verifies the interface milestone, not live integration, deployment approval or security certification.
 
-## Service foundation update · 31 October 2026
+## Service foundation update · 1 November 2026
 
-The local identity service stores accounts with normalized unique email and hashed passwords; public sign-in and token issuance remain closed pending ADR-013 details. The local content service exposes read-only approved-public video metadata. Its empty feed contains no fixture records. The gateway list route uses signed internal transport but has no configured TLS peers; the mobile app does not yet consume these endpoints.
+The local identity service stores accounts with normalized unique email and hashed passwords; internal account/session operations and gateway forwarding routes exist, but production use remains gated by ADR-013. The local content service exposes read-only approved-public video metadata; its empty feed contains no fixture records. The gateway uses signed internal transport but has no configured TLS peers. The mobile account and video metadata adapters are opt-in through `KOLOVIBE_API_URL`; playback and other business integrations remain unavailable.
 
-The combined branch passed 68 Django service tests, 18 script tests, 133 Flutter widget tests, Flutter analysis, design integrity and migration drift checks. Local `.env` contains distinct generated service secrets with owner-only permissions and is ignored by Git. The intended production host is `kolovibe.cabetechs.shop`; no production deployment was attempted.
+Local verification on 1 November passed Flutter analysis and 136 Flutter tests, 87 Django service tests across all eight services, 18 script tests, the mobile design integrity check, and dependency-lock checks. Django migration drift checks also passed for every service. The structure check reports the ignored, untracked legacy `apps/mobile_flutter` directory present in this local workspace; it was not removed. Local `.env` contains distinct generated service secrets with owner-only permissions and is ignored by Git. No production deployment was attempted.

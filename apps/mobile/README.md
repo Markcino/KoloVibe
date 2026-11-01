@@ -42,6 +42,6 @@ Signing certificates, private keys, Apple Account credentials and provisioning p
 - `lib/shared/widgets` — reusable interface elements.
 - `test` — automated widget checks.
 
-The application starts with splash and welcome. Account, content and points screens remain unavailable until their secure service adapters are connected. There is no built-in test account; sign-in requires a connected identity service.
+The application starts with splash and welcome. By default, `lib/main.dart` uses unavailable-service adapters. Set the compile-time `KOLOVIBE_API_URL` to an approved HTTPS gateway URL ending in `/api/v1` to opt into the implemented account and public-video metadata adapters. They do not provide media playback, publishing, points, moderation or creator-profile operations. Auth and internal transport decisions remain open; no production gateway is configured. There is no built-in test account.
 
 See [implementation and verification](../../docs/mobile-ui-implementation.md) and [design coverage](../../docs/mobile-design-coverage.md).

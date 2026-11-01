@@ -1,6 +1,6 @@
 # Stage 3 — Current execution status
 
-As of 30 October 2026. Owner and sole developer: **Mark Allen Gbalazeh (@Markcino)**, with AI assistance.
+As of 1 November 2026. Owner and sole developer: **Mark Allen Gbalazeh (@Markcino)**, with AI assistance.
 
 Overall: **IN PROGRESS — conditional authorization; exit acceptance pending.**
 
@@ -11,8 +11,8 @@ The working tracker is [Stage3_Implementation_Tracker.csv](Stage3_Implementation
 | Classification | Count | Meaning |
 | --- | --- | --- |
 | Complete within CI scope | 2 | FND-02 and FND-03 have implementation and successful automated evidence for their scoped deliverables. |
-| Partial | 10 | Implementation/configuration or CI evidence exists; activation, integration or acceptance evidence is missing. |
-| Pending | 6 | Required implementation, environment/decision prerequisites or stage acceptance remains pending. |
+| Partial | 11 | Implementation/configuration or CI evidence exists; activation, integration or acceptance evidence is missing. |
+| Pending | 5 | Required implementation, environment/decision prerequisites or stage acceptance remains pending. |
 
 These counts describe task evidence, not overall percentage completion or formal stage approval.
 
@@ -28,7 +28,7 @@ These counts describe task evidence, not overall percentage completion or formal
 | FND-08 | RabbitMQ/Celery private queues and retries | Partial - integration evidence pending | RabbitMQ DHI TLS deployment; approved queue/workload identity |
 | FND-09 | Outbox/inbox and idempotency scaffold | Partial - integration evidence pending | PostgreSQL/RabbitMQ integration; transactional business writes |
 | FND-10 | Service identity enforcement | Partial - identity approval and evidence pending | OD-01 final identity/token contract; credential rotation |
-| FND-11 | Append-only noncash ledger scaffold | Pending - ledger implementation | DOC-204; qualified-view and points rules for future award calculation |
+| FND-11 | Append-only noncash ledger scaffold | Partial - scaffold implemented; integration/rules pending | SQLite model/guard tests pass; PostgreSQL integration and award calculation remain blocked by FND-07 and ADR-019/OD-06 |
 | FND-12 | Hardened image and Swarm secret handling | Partial - runtime verification pending | Swarm deployment; image digests; secret lifecycle |
 | FND-13 | Dedicated Nginx VM configuration | Pending - transport decision blocked | OD-02 private TLS/transport; certificate ownership |
 | FND-14 | Swarm staging stack and network zones | Pending - infrastructure blocked | OD-03 hosting/cluster sizing; private network access |
@@ -42,9 +42,19 @@ These counts describe task evidence, not overall percentage completion or formal
 - FND-02: CI pins the Flutter SDK and Python runtime; application and CI dependency lockfiles include hash checks. CI resolves locked packages and checks Flutter lockfile drift.
 - FND-03: eight Django service skeletons have independently built CI images, non-root runtime smoke checks and health checks. Production settings remain gated.
 - Flutter application entry is `lib/main.dart`. The alternate entry point, fixture and inactive simulation controls were removed through [PR #12](https://github.com/Markcino/KoloVibe/pull/12) and [PR #13](https://github.com/Markcino/KoloVibe/pull/13). The 108 design recipes remain; their presence is not proof of live business functionality.
-- The current Flutter CI suite reports 133 passing tests and clean static analysis. [API quality evidence](https://github.com/Markcino/KoloVibe/actions/runs/41050289508).
+- The previously recorded merged Flutter CI suite reported 133 passing tests and clean static analysis. [API quality evidence](https://github.com/Markcino/KoloVibe/actions/runs/41050289508). The 1 November local run passed 136 tests; details follow below.
 - Dependency and source security scans, container checks and SBOM generation are implemented. [Container evidence](https://github.com/Markcino/KoloVibe/actions/runs/41050331889) and [dependency review evidence](https://github.com/Markcino/KoloVibe/actions/runs/41050332526).
 - PostgreSQL schema/role SQL, service HMAC middleware, RabbitMQ/Celery configuration and transactional event primitives are present. Current tests include rejection of unsigned/spoofed calls and event operations outside transactions. Live database/broker integration acceptance remains pending.
+- FND-11: the points service has an append-only `PointsEntry` model and SQLite database guards. Reversal, uniqueness and ORM/SQL mutation-rejection tests pass in the local service suite. PostgreSQL guard integration, public points API and approved award calculation remain pending.
+- The gateway contains account forwarding routes, and `apps/mobile` contains opt-in account and public-video metadata adapters. These do not resolve ADR-013, provide a deployed gateway, or implement media playback and the remaining R1 business APIs.
+
+## Local verification · 1 November 2026
+
+- `cd apps/mobile && flutter analyze && flutter test`: passed; 136 tests.
+- All eight Django service test suites and `makemigrations --check --dry-run`: passed; 87 tests total.
+- RabbitMQ/Celery, Stage 3 foundation, local launcher and secret-finding regression tests: passed; 18 tests total.
+- `python3 scripts/check_mobile_design.py`, Python/Flutter dependency-lock checks and CI-toolchain lock check: passed.
+- `python3 scripts/check_structure.py`: the local workspace check is blocked by the ignored, untracked legacy `apps/mobile_flutter` directory. It passes in a clean tracked-tree snapshot; no files in the local directory were changed or removed.
 
 Evidence links refer to executed CI on merged changes; the solo-governance/status follow-up requires its own CI results.
 
@@ -82,7 +92,7 @@ The active broker implementation is RabbitMQ/Celery as requested. Historical app
 
 ## Next execution order and exit gate
 
-Verify PostgreSQL service isolation (FND-07), service authentication (FND-10), RabbitMQ workers (FND-08), and transactional duplicate handling (FND-09). Complete the remaining ledger, image/deployment, Nginx, monitoring and recovery work when their decisions and infrastructure are available.
+Verify PostgreSQL service isolation (FND-07), points ledger guards (FND-11), service authentication (FND-10), RabbitMQ workers (FND-08), and transactional duplicate handling (FND-09). Complete points API/award integration, image/deployment, Nginx, monitoring and recovery work when their decisions and infrastructure are available.
 
 Stage 3 closes only after the exit checklist, security evidence, recovery/rollback evidence and recorded acceptance are complete. CI success does not authorize production or formally close Stage 3. Stage 4 formal handoff remains pending. Web work is deliberately deferred under the mobile-first directive; resolve that scope explicitly at acceptance.
 

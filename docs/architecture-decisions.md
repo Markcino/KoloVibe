@@ -1,17 +1,9 @@
 # Architecture decisions
 
-The following decisions require design review before the dependent features are enabled.
+This file is an index, not a second decision register.
 
-| ID | Topic | Current state |
-| --- | --- | --- |
-| ADR-001 | End-user authentication and token provider | Open |
-| ADR-002 | Private edge-to-service communication and TLS ownership | Open |
-| ADR-003 | Cluster topology, compute capacity and hosting | Open |
-| ADR-004 | PostgreSQL isolation and recovery objectives | Open |
-| ADR-005 | Creator verification and personal-data retention | Open |
-| ADR-006 | Qualified engagement rules and non-cash Lone Stars formula | Open |
-| ADR-007 | Video ingestion, processing and signed callbacks | Open |
-| ADR-008 | Monitoring and audit retention | Open |
-| ADR-009 | CI/CD trust, deployment authorization and credentials | Open |
+- Current Stage 3 blockers: [OD-01–OD-09](engineering/Stage3_Open_Decisions.csv).
+- Formal ADR status, rationale and acceptance evidence: [DOC-207 ADR register](architecture/DOC-207_ADR_Register.csv) and [open decision log](architecture/DOC-207_Open_Decision_Log.csv).
+- Infrastructure-specific open items: [DOC-208 architecture and network registers](architecture/).
 
-Each decision requires an owner, accepted rationale, security implications and an implementation reference. Do not enable dependent behavior until the related decision is approved.
+ADR-001–ADR-010 in DOC-207 are accepted inherited baselines. Do not treat those identifiers as the current open-decision list. Do not enable a dependent feature or deployment until its applicable decision and acceptance evidence are approved.
