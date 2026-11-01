@@ -52,7 +52,7 @@ For manual local service use, the existing launcher accepts service-prefixed Pos
 | Disposable PostgreSQL foundation fixture | Passed: 24 tests; plaintext and wrong-host TLS rejected |
 | `flutter analyze`; `flutter test` in `apps/mobile` | Passed: clean analysis; 143 tests |
 | `flutter build ios --simulator --debug` | Passed: unsigned simulator application; not an App Store or Android release build |
-| Structure/design and dependency-lock checks; OpenAPI validation; `actionlint -shellcheck='' .github/workflows/api-quality.yml` | Passed |
+| Structure/design and dependency-lock checks; OpenAPI validation; actionlint on the then-separate API workflow | Passed; current consolidated workflow evidence is in [container verification](container-verification.md#validation-and-remaining-evidence) |
 | `bandit -r services scripts apps/web_django` with repository enforcement | Passed gate: 23 low findings, zero medium/high |
 | `pip-audit -r requirements-dev.txt --no-deps --disable-pip`; non-ignored source secret scan | Passed: no known dependency advisories or unreviewed secret findings |
 

@@ -6,6 +6,11 @@ Flutter uses Flutter SDK 3.47.8 and commits `apps/mobile/pubspec.lock`. CI runs 
 
 ## Continuous verification
 
+The single [ci_cd workflow](../../.github/workflows/ci_cd.yml) owns quality checks,
+test-gated publication, lock maintenance and environment verification. See
+[workflow operations](container-verification.md#single-entry-point) for triggers,
+manual choices and permission boundaries.
+
 - Django service and web tests, liveness and repository structure checks.
 - OpenAPI schema validation and real local gateway/web contract journeys using isolated TLS PostgreSQL and test-only mail capture.
 - `pip-audit` for published Python dependency vulnerabilities.

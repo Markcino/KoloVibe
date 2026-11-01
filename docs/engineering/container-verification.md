@@ -4,15 +4,30 @@ Eight Django service images use the shared Dockerfile, a pinned Python base-imag
 
 ## Required quality gate
 
-The existing API quality, container quality and dependency vulnerability workflows run on PRs and main pushes. Backend tests include a disposable TLS-only PostgreSQL fixture: migrations for all eight services, cross-service SQL access denial, nonce replay/expiry/audience checks, ledger guards and transactional inbox/outbox tests. The publisher in the outbox test is a controlled double, not a live RabbitMQ broker.
+The single [ci_cd workflow](../../.github/workflows/ci_cd.yml) runs backend/web, Flutter, source security, dependency advisories and all eight image checks on PRs and main pushes. Existing required job/check names are preserved, so the repository's branch-protection check list does not change. Backend tests include a disposable TLS-only PostgreSQL fixture: migrations for all eight services, cross-service SQL access denial, nonce replay/expiry/audience checks, ledger guards and transactional inbox/outbox tests. The publisher in the outbox test is a controlled double, not a live RabbitMQ broker.
 
 Every main image is built, smoke-tested and scanned before preservation as a commit-bound artifact. The artifact includes the image archive, checksum, image identity, service, commit and CycloneDX SBOM. PRs do not upload publication artifacts or receive registry write permissions.
 
-The publication workflow is triggered by completion of any required quality workflow. Its read-only gate queries the latest main-push run for the **same commit** in all three workflows and verifies every required job. Missing, pending, failed, cancelled or skipped checks withhold publication with a visible reason. Stale workflow attempts and other repositories/branches/PR events do not qualify.
+The `publish` job uses native `needs` dependencies on every quality job, including the entire image matrix and reusable advisory scan. GitHub's default success condition prevents publication when a required job fails, is cancelled or is skipped; pending jobs must finish first. The publication condition additionally requires a main-branch push. There is no `workflow_run` trigger, API polling gate or cross-run artifact selection.
+
+## Single entry point
+
+Use **Actions → ci_cd → Run workflow** for manual operations:
+
+| Event / operation | Jobs |
+| --- | --- |
+| Main push | All quality jobs, then GHCR publication if all succeed |
+| Pull request | All quality jobs; no publication |
+| Manual `ci` (default) | All quality jobs on the selected ref; no publication |
+| Feature/chore/fix/security branch push; weekly schedule | Dependency advisory scan |
+| Push to `security/ci-hardening`, or manual `dependency-locks` on that branch | Generate, validate, commit and upload lockfiles; only this job has repository write access |
+| Manual `staging-security` on reviewed `main` | Environment-protected read-only staging verification |
+
+Invalid maintenance/staging branch selections fail explicitly. The existing lock job's GITHUB_TOKEN push does not trigger another Actions run: manually run `ci` on the generated commit before relying on its checks. Staging secrets remain confined to the `staging-security-review` environment; see the [verification runbook](../security/staging-verification.md).
 
 ## Publication
 
-After the gate passes, a publication-only job downloads the artifacts from the exact successful container run. It validates the commit, service, image identity, SBOM and archive bytes, loads the same tested image without rebuilding, and publishes it to:
+After all dependencies pass, the publication-only job downloads artifacts from **its own workflow run**. It validates `github.sha`, service, image identity, SBOM and archive bytes, loads the same tested image without rebuilding, and publishes it to:
 
 ```text
 ghcr.io/markcino/kolovibe/<service>:<full-commit>-<image-config-sha256>
@@ -32,12 +47,9 @@ No local push, merge or VM deployment is part of this change. The workflow must 
 
 ## Validation and remaining evidence
 
-Local validation on 1 November 2026:
+Application/build evidence remains in the [API test roadmap](API_Test_Deployment_Roadmap.md#current-continuation-evidence). For this workflow consolidation, `actionlint -shellcheck='' .github/workflows/ci_cd.yml` passed. `.venv/bin/python -m unittest -v scripts/test_ci_cd.py scripts/test_image_artifact.py scripts/test_staging_verification.py` passed 20 tests covering event filters, same-run artifact wiring, required dependencies, permissions, maintenance branch errors and existing artifact/probe rejection behavior. These are local/static checks, not remote Actions execution.
 
-- All eight Django service suites: 89 tests passed; migration drift checks passed.
-- Disposable verified-TLS PostgreSQL integration: 24 tests passed, including the existing six ledger tests; plaintext and wrong-host certificate connections must be rejected.
-- `.venv/bin/python -m unittest discover -s scripts -p 'test_*.py' -v`: 34 script tests passed, including gate, artifact and environment-probe failure paths.
-- Changed Actions workflows passed actionlint; `bandit -r services scripts` followed by the existing `scripts/enforce_bandit.py` gate passed with zero medium/high findings. Changed-file secret checks and lockfile validation passed.
+The full script suite (`.venv/bin/python -m unittest discover -s scripts -p 'test_*.py'`) passed 39 tests. Bandit enforcement on the new workflow regression tests passed with zero medium/high findings; the existing quality, image-build and lock-generation steps were checked against their previous definitions and preserved.
 
 Docker is not installed in the current local environment. New image builds/scans, GHCR uploads and remote digest evidence are **pending actual Actions execution**, not claimed successful.
 

@@ -31,7 +31,8 @@ of long-lived deployment SSH keys where possible.
 1. Confirm DNS, TLS and the destination are authorized for testing.
 2. Restrict environment deployments to reviewed `main` and require independent reviewers
    in GitHub environment protection settings (if supported by your plan).
-3. Under **Actions → Environment security review → Run workflow**, select reviewed `main`.
+3. Under **Actions → ci_cd → Run workflow**, select reviewed `main` and operation
+   **staging-security**. Other refs are rejected; normal CI never receives the probe secret.
 4. Review the output and retain separate evidence for TLS termination, trusted proxy
    headers, origin bypass, private service networking, database access isolation,
    mTLS/service identity, restore, rollback, secrets rotation and audit logging.

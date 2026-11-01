@@ -61,7 +61,7 @@ Initial review evidence (before the delivery changes):
 
 The subsequent mobile/web continuation verifies account rotation/revocation, paginated discovery and real signed gateway contracts against disposable PostgreSQL, with test-only mail capture. Current commands and results are centralized in the [API test roadmap](API_Test_Deployment_Roadmap.md#current-continuation-evidence), including the passing unsigned iOS build and the blocked simulator hot-reload/broker checks. The [R1 tracker](R1_Application_Tracker.md) distinguishes local journeys from gated product features. All points APIs/UI remain gated. The example SMTP credential was cleared; provider revocation/rotation remains required.
 
-Web tests, local HTTP contract journeys and web Python scanning are now wired into API quality. These changes remain uncommitted and have no remote Actions evidence. See [container verification](container-verification.md) for the unchanged publication boundary. Full Stage 3 and R1 acceptance remain pending.
+Web tests, local HTTP contract journeys and web Python scanning are wired into the single `ci_cd` workflow. Its publication job depends on all quality jobs in the same run; required check names remain unchanged. The workflow consolidation has local regression/lint evidence but no new remote Actions evidence. See [container verification](container-verification.md) for operation selection and the publication boundary. Full Stage 3 and R1 acceptance remain pending.
 
 Evidence links refer to executed CI on merged changes; the solo-governance/status follow-up requires its own CI results.
 
