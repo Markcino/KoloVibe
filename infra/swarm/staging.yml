@@ -20,6 +20,9 @@ x-environment: &environment
 
 x-deploy: &deploy
   replicas: 0
+  # Only the labeled VM2 worker may run KoloVibe Django services.
+  placement:
+    constraints: ["node.labels.kolovibe.workloads == true"]
   resources:
     limits:
       cpus: "1.0"
@@ -230,7 +233,7 @@ services:
     deploy:
       replicas: 0
       placement:
-        constraints: ["node.labels.kolovibe.rabbitmq == true"]
+        constraints: ["node.labels.kolovibe.workloads == true", "node.labels.kolovibe.rabbitmq == true"]
       restart_policy: {condition: on-failure}
       resources:
         limits:
