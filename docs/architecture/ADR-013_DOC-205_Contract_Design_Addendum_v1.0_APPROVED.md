@@ -1,8 +1,8 @@
-# ADR-013 v1.0 — Proposed DOC-205 API Contract Delta
+# ADR-013 v1.0 — Owner-approved DOC-205 API Contract Design Addendum
 
-**Status: DRAFT / PENDING ADR-013 APPROVAL — NO BASELINE CHANGE**
+**Status: OWNER-APPROVED DESIGN ADDENDUM — 2026-11-01; executable OpenAPI/implementation and tests pending.**
 
-This document enumerates the **future** client authentication contract changes implied by [ADR-013 v1.0](ADR-013_Client_Authentication_and_Session_Security_v1.0_DRAFT.md). It is not executable OpenAPI and does **not** alter the current [DOC-205 draft](DOC-205_OpenAPI_3_1_DRAFT.yaml), existing server routes, public ingress, or identity-service capabilities.
+This owner-approved **design addendum** records required future client authentication contract changes under [ADR-013 v1.0](ADR-013_Client_Authentication_and_Session_Security_v1.0_APPROVED.md). The canonical [DOC-205 OpenAPI](DOC-205_OpenAPI_3_1_DRAFT.yaml) retains its currently gated operation status; exact wire schemas remain to be approved through consumer review and implementation. This design approval does **not** deploy routes, change public ingress or prove identity controls.
 
 ## 1. Existing contract: verified repository facts
 
@@ -10,9 +10,9 @@ The existing DOC-205 R1 OpenAPI draft has `/auth/register`, `/auth/verify`, `/au
 
 The current web client stores raw access/refresh credentials in HttpOnly local-loopback cookies. The ADR-013 target instead uses a PostgreSQL-backed opaque browser session, with credentials (if any) never stored as reusable raw browser cookies.
 
-## 2. Protocol decisions proposed
+## 2. Owner-approved protocol design
 
-| Aspect | Proposed v1.0 contract rule | Change impact |
+| Aspect | Approved design rule | Change impact |
 | --- | --- | --- |
 | Mobile access | `Authorization: Bearer <opaque-signed-Django-access-credential>`; 300s; `iss`, `aud`, `typ` and live session validated | Clarify `bearerAuth`, remove inaccurate `JWT` bearer format; no JWT assumption in clients |
 | Mobile refresh | One-time rotating `refresh_token`, absolute 30d, inactivity 7d | Document family reuse revocation, generic 401, 429 and no-store |
@@ -26,7 +26,7 @@ The current web client stores raw access/refresh credentials in HttpOnly local-l
 
 `bearerFormat` in OpenAPI is a documentation hint, not an authorization mechanism. Proposed v1.0 may omit the bearerFormat hint or describe the signed first-party credential accurately. **Do not** set `JWT` unless a JWT implementation has actually been selected, implemented and verified.
 
-## 3. Existing routes: proposed behavior revisions
+## 3. Existing routes: approved target behavior, not implemented
 
 ### `POST /api/v1/auth/register` (anonymous)
 
@@ -67,9 +67,9 @@ The current web client stores raw access/refresh credentials in HttpOnly local-l
 - Continue deriving the account and roles from the authoritative server-side identity/authorization state, not user-supplied role claims.
 - Fail closed on identity session revocation, suspended account, expired absolute/idle limit and lost internal identity availability.
 
-## 4. Proposed additional public/client endpoints (NOT IMPLEMENTED)
+## 4. Approved future endpoint requirements (NOT IMPLEMENTED)
 
-These route names are **candidate naming choices**, not claims that the current DOC-205 or service already implements them. Adopt names and exact schemas only during post-approval OpenAPI review.
+These route names are **review candidates**, not claims of implementation. The owner approved the required capabilities; exact routes, method/status/wire schemas and backward compatibility still require consumer-level review before updating runnable OpenAPI and code.
 
 | Method and candidate path | Authentication | Required behavior / restriction |
 | --- | --- | --- |
@@ -102,20 +102,20 @@ For state changes, use POST/DELETE, CSRF on browser operations, exact HTTP statu
 
 ## 6. Backward compatibility and activation
 
-1. **Before approval:** no change to DOC-205 canonical OpenAPI, currently deployed routes, web cookie behavior, or public ingress.
-2. **On approval:** review and sign exact schemas with the Flutter/web consumers; decide whether a new version path or staged contract compatibility period is necessary.
+1. **Design approval recorded:** DOC-205 retains gated operation status and no public-route or web-client deployment is authorized.
+2. **Before implementation:** review and sign exact schemas with the Flutter/web consumers; decide whether a new version path or staged contract compatibility period is necessary.
 3. **Implementation:** build feature-gated identity, gateway and BFF operations in branches; write contract tests for both current and target behaviors. Do not accept legacy cookie refresh and new BFF session modes in a way that bypasses security.
 4. **Staging:** test HTTPS CSRF/cookie, token expiry, MFA, replay, session revocation and negative HTTP response matrix; reject invalid origin and identity-service outages.
 5. **Production:** authorize only with complete DOC-206 evidence and release acceptance; no fallback to development settings or legacy privileged login.
 
 ## 7. DOC-206 links and reviewer sign-off
 
-Use [ADR-013 DOC-206 proposed verification matrix](ADR-013_DOC-206_Verification_Matrix_v1.0_DRAFT.csv) for negative and compatibility tests. Existing SEC-005/006/007/008/012/015/028/036/039 controls remain authoritative until reviewed update.
+Use [ADR-013 DOC-206 approved verification plan](ADR-013_DOC-206_Verification_Plan_v1.0_APPROVED.csv) for negative and compatibility tests. Existing SEC-005/006/007/008/012/015/028/036/039 controls remain authoritative, linked to the approved ADR-013 plan with each execution result pending.
 
 | Decision | Status |
 | --- | --- |
 | Owner selected Django-native identity authority | Recorded 2026-11-01 |
-| DOC-205 contract deltas in this file | **Proposed, not approved** |
-| Exact wire schemas / credential transport | **Pending review** |
-| Consumer and security tests | **NOT RUN against this proposed contract** |
-| Production endpoint activation | **Forbidden without separate approval** |
+| DOC-205 contract-design delta in this file | **OWNER-APPROVED 2026-11-01** |
+| Exact wire schemas / consumer compatibility | **Pending implementation-level review** |
+| Consumer and security tests | **NOT RUN against approved design** |
+| Production endpoint activation | **NOT AUTHORIZED; independent release approval required** |

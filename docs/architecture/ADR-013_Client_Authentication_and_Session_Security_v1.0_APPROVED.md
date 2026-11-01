@@ -5,26 +5,28 @@
 | Document control | Value |
 | --- | --- |
 | ID | ADR-013 |
-| Version | 1.0 — proposed security specification |
+| Version | **1.0 — owner-approved architecture/security design baseline** |
 | Created | 2026-11-01 |
-| Decision status | **DRAFT — PENDING FORMAL APPROVAL** |
+| Decision status | **ACCEPTED — DESIGN BASELINE (2026-11-01); implementation and evidence pending** |
 | Decision owner | KoloVibe product owner; sole implementation owner |
 | Scope | Django-native identity microservice, Django/DRF API gateway, Flutter Android/iOS, Django server-rendered web, session lifecycle and privileged MFA |
-| Source of truth | DOC-207 ADR register; this document is a review candidate only |
+| Source of truth | DOC-207 ADR register; this approved ADR-013 v1.0 policy is its normative design companion |
 | Governing controls | DOC-203 STRIDE, DOC-205 OpenAPI draft, DOC-206 security verification, DOC-209 architecture gate, Stage 3 OD-01 / FND-10 |
 | Baseline | Django-native client identity authority was selected by the owner on 2026-11-01 |
-| Implementation claim | **None**. Policy parameters below are proposals; most require new implementation and execution evidence |
-| Deployment authorization | **None**. No production settings, network, credentials, DNS or public account endpoints are authorized by this draft |
+| Implementation claim | **None**. Owner-approved design parameters require implementation and independent verification evidence |
+| Deployment authorization | **None**. Design approval does not authorize production settings, network, credentials, DNS, public account endpoints or staging activation |
+
+**Formal decision record:** The KoloVibe owner explicitly approved ADR-013 v1.0 and its accompanying DOC-205 contract-design delta and DOC-206 verification plan on **2026-11-01**. Approved text is based on merged PR #25, commit `f22b1b6777afbe5b29aeb0036a86331999db6391`. This is **owner approval of design requirements**, not proof that the code or infrastructure meets them; no independent assessment or production sign-off is claimed. The 45 verification cases remain **NOT RUN**.
 
 ## 1. Decision request and executive summary
 
 **Owner-confirmed and already selected:** retain **Django-native client identity**, backed by PostgreSQL in the existing identity microservice. Use the existing Django/DRF gateway and downstream object-authorization boundaries. Do not introduce a managed OIDC identity provider, JWT requirement or a third-party authentication dependency by default.
 
-**Proposed for formal ADR-013 approval:** issue short-lived server-validated mobile access credentials, rotate and revoke refresh credentials, establish PostgreSQL-backed server-side Django web sessions, enforce idle and hard lifetime limits, provide user-visible per-device and global revocation, require MFA for administrators/moderators, and make recovery, reauthentication, incident audit and negative testing release gates.
+**Owner-approved architecture requirements:** issue short-lived server-validated mobile access credentials, rotate and revoke refresh credentials, establish PostgreSQL-backed server-side Django web sessions, enforce idle and hard lifetime limits, provide user-visible per-device and global revocation, require MFA for administrators/moderators, and make recovery, reauthentication, incident audit and negative testing release gates.
 
 **Not decided by ADR-013:** inter-service identity issuer, workload credentials and mTLS (ADR-012); Nginx-to-Swarm routing (ADR-014), secret storage topology, PostgreSQL RTO/RPO (ADR-016), personal-data retention (ADR-020), and whether the two-node deployment meets availability objectives. These remain their own approval/evidence gates.
 
-**Proposed approval outcome:** accept the normative functional/security requirements in sections 3–17 after review, then track each implementation and test as independently pending. Approval of this architecture is not acceptance of a deployed system.
+**Approval outcome (2026-11-01):** the normative design requirements in sections 3–17 are accepted as ADR-013 v1.0 by the project owner. Implementation, interoperability details, DOC-206 execution and operational risk acceptance remain tracked separately. Design approval is not acceptance of a deployed system.
 
 ## 2. Scope, trust boundaries, and terminology
 
@@ -41,9 +43,9 @@ The architecture is intentionally centralized for authentication and decentraliz
 
 ## 3. Normative policy: lifetimes and renewals
 
-The following are **proposed KoloVibe policy choices**, not timeouts mandated by Django or OWASP. The identity service and web BFF MUST enforce them on the server using authoritative clock and database state. A mobile timer, cookie expiry or client UI alone MUST NOT extend authentication.
+The following are **KoloVibe owner-approved design policy choices**, not timeouts mandated by Django or OWASP. The identity service and web BFF MUST enforce them on the server using authoritative clock and database state. A mobile timer, cookie expiry or client UI alone MUST NOT extend authentication.
 
-| ID | Subject | Proposed policy | Required server behavior |
+| ID | Subject | Approved design policy | Required server behavior |
 | --- | --- | --- | --- |
 | ADR013-P01 | Mobile access credential | **300 seconds (5 minutes)** from issue | Reject at or after expiration; verify signature, token purpose, issuer, audience, current live identity session and account status on protected use |
 | ADR013-P02 | Mobile refresh family | **30 days absolute maximum** from initial login | Rotation never extends original absolute expiry; future requests require new authentication |
@@ -77,7 +79,7 @@ The following are **proposed KoloVibe policy choices**, not timeouts mandated by
 
 ## 5. Mobile access-credential contract
 
-**Proposed initial format:** retain Django's signed timestamped payload, as deployed code already implements, with explicit schema and unique verification context. No JWT is required for the first-party mobile application; the token is an opaque bearer credential to the client. If tokens are exposed to browsers or third-party clients later, reassess the protocol and interoperability requirements in a new ADR.
+**Approved initial design format:** retain Django's signed timestamped payload, as deployed code already implements, with explicit schema and unique verification context. No JWT is required for the first-party mobile application; the token is an opaque bearer credential to the client. If tokens are exposed to browsers or third-party clients later, reassess the protocol and interoperability requirements in a new ADR.
 
 Proposed signed fields:
 
@@ -102,7 +104,7 @@ API authentication errors use generic, stable 401/403 and optionally documented 
 
 **Existing foundation:** `LoginSession.refresh_digest` and `UsedRefreshToken` track one-use refresh material and detect reuse, with a PostgreSQL row lock in `services/identity/service/accounts.py`. These are local-code behaviors, **not evidence of full ADR-013 compliance**.
 
-**Required proposed sequence:**
+**Required approved design sequence:**
 
 1. Successful login creates `session_id`, `family_id`, `created_at`, hard `absolute_expires_at`, `last_authenticated_activity_at` and a digest of a high-entropy refresh credential in a service-owned PostgreSQL transaction.
 2. Return the one-time **raw** refresh credential only over an approved HTTPS response to the intended mobile client. Persist **only a keyed digest** server-side; hold the digest key separately from the Django application/signing keys.
@@ -117,11 +119,11 @@ API authentication errors use generic, stable 401/403 and optionally documented 
 
 ## 7. Django web BFF and PostgreSQL-backed sessions
 
-**Selected proposed target:** server-side Django browser session with an opaque cookie; **not** two long-lived bearer/refresh cookies.
+**Approved design target:** server-side Django browser session with an opaque cookie; **not** two long-lived bearer/refresh cookies.
 
 The current local-only web client sets `kv_access` and `kv_refresh` HttpOnly cookies with `secure=False`, which is confined to its local loopback profile. This behavior MUST NOT be promoted unchanged to HTTPS staging/production. The new web architecture will require separate reviewed code and migration.
 
-### Proposed login and request flow
+### Approved design login and request flow
 
 1. Browser submits a CSRF-protected form to Django web. The web backend authenticates through the trusted gateway/identity service using approved authenticated internal transport.
 2. Identity returns a **server-side web session reference** bound to the authenticated user and authentication strength; the web BFF creates a new PostgreSQL-backed Django browser session via `django.contrib.sessions` and `SessionMiddleware`.
@@ -160,7 +162,7 @@ CSRF tokens are required on **every state-changing web operation**, including lo
 
 Privileged roles include administrators, moderators and any future roles able to moderate users, alter sensitive account data or issue financial/ledger-related decisions. **Until MFA works end-to-end, privileged login must remain denied**, as it is in the current identity service.
 
-### Approved-factor proposal
+### Approved factor-policy design (not implemented)
 
 - **Preferred:** WebAuthn/passkeys (phishing-resistant when RP ID, origin, challenge, user verification and assertion checks are correct). Require exact relying-party ID and allowed HTTPS origins, user verification for privileged operations, single-use cryptographic challenges, credential uniqueness, and careful sign-counter handling; no automatic trust in device labels or attestation unless needed by policy.
 - **Fallback alternative:** standards-compliant authenticator-app TOTP for privileged personnel when WebAuthn is unavailable. Use CSPRNG enrollment secret, 30-second steps, at most ±1 accepted drift window, one-time timestep enforcement, rate limits, encryption of TOTP seed at rest and user notification on changes. TOTP is **not phishing resistant**.
@@ -208,7 +210,7 @@ Enrollment/change/reset of MFA must have a recovery flow, notifications, owner-v
 
 ## 12. Threat model: STRIDE and abuse cases
 
-The table is a **proposed ADR-013-specific extension** to DOC-203 (which already records TM-007–TM-011). The residual risk is *not accepted* until mitigations and evidence pass.
+The table is an **owner-approved ADR-013-specific design extension** to DOC-203 (which already records TM-007–TM-011). The residual risk is *not accepted* until mitigations and evidence pass.
 
 | Threat ID | STRIDE | Attack | Required protection | DOC-203 link |
 | --- | --- | --- | --- | --- |
@@ -232,9 +234,9 @@ Additional review topics: hostile mobile devices, malicious browser extensions, 
 
 ## 13. Logging, abuse limits, privacy and monitoring
 
-**Proposed minimum rate policy (risk-adjustable, not source-mandated):**
+**Approved initial rate policy (risk-adjustable at implementation review, not mandated by OWASP):**
 
-| Operation | Proposed initial budget | Behavior |
+| Operation | Approved initial design budget | Behavior |
 | --- | --- | --- |
 | Login failure | 5 failures / 15 minutes per account-and-origin key, plus distributed-account and IP budgets | Generic 401; 429 with bounded `Retry-After`; avoid permanent DoS lockouts |
 | Network-wide login abuse | Review 30 attempts / 15 minutes per trusted-origin IP and 10 failed attempts / hour per account across origins | Tune by load tests, NAT/shared-network patterns and legitimate failure rates |
@@ -272,13 +274,13 @@ These values must be tuned against Cloudflare, host Nginx and application behavi
 | A13-I07 | Generic reset and recovery endpoints, secure notifications and privileged step-up | Identity | SMTP, anti-enumeration, factor recovery, atomic revocation |
 | A13-I08 | Flutter session lifecycle, one-refresh-at-a-time, secure-store configuration | Flutter | MASVS device and failure-mode tests |
 | A13-I09 | Structured security-event stream and layered auth throttles | Identity / gateway / operations | DOC-206 logs/abuse tests, ADR-020 retention |
-| A13-I10 | Update OpenAPI contracts and DOC-206 verification mapping only after approval | Architecture/security | Approved ADR-013 and API compatibility tests |
+| A13-I10 | Implement approved DOC-205 contract delta and DOC-206 control mapping in separately reviewed changes | Architecture/security | Exact wire schemas and consumer compatibility tests still required |
 
 All changes are subject to the existing branch/CI security process and owner review. No task above is marked implemented by this document.
 
 ## 16. DOC-205 OpenAPI impact and versioning
 
-**Current DOC-205 remains an approved draft baseline, not edited by this proposal.** A separate proposed delta file describes exactly how to reconcile existing routes, authentication schemes and new routes without accidentally enabling them.
+**DOC-205 remains a gated API contract, with ADR-013 v1.0 owner-approved as an addendum.** Its implementation still requires separate wire-schema, consumer compatibility and security reviews. An approved design delta does not activate any routes.
 
 Main incompatibilities requiring conscious migration:
 
@@ -289,11 +291,11 @@ Main incompatibilities requiring conscious migration:
 5. Agree on a consistent error schema, 401/403/429/503/204 semantics and no-store headers; current local `{"detail": "..."}` and DOC-205 candidate Problem schema are not identical. Do not break deployed clients through a silent schema replacement.
 6. Contract tests must assert public routes stay disabled until owner-accepted security requirements, and that privileged routes remain inaccessible before MFA.
 
-See: [ADR-013 DOC-205 proposed delta](ADR-013_DOC-205_Proposed_Contract_Delta_v1.0_DRAFT.md).
+See: [ADR-013 DOC-205 approved contract-design addendum](ADR-013_DOC-205_Contract_Design_Addendum_v1.0_APPROVED.md).
 
 ## 17. DOC-206 security verification and evidence
 
-The companion [ADR-013 DOC-206 verification matrix](ADR-013_DOC-206_Verification_Matrix_v1.0_DRAFT.csv) contains test cases, negative conditions, ownership, criticality, expected response and evidence requirements. All rows begin **NOT RUN**, regardless of previously passing local unit tests, because this exact policy and end-to-end acceptance have not been implemented or executed.
+The companion [ADR-013 DOC-206 owner-approved verification plan](ADR-013_DOC-206_Verification_Plan_v1.0_APPROVED.csv) contains test cases, negative conditions, ownership, criticality, expected response and evidence requirements. All rows begin **NOT RUN**, regardless of previously passing local unit tests, because this exact policy and end-to-end acceptance have not been implemented or executed.
 
 Primary existing DOC-206 controls to link: **SEC-003, SEC-005, SEC-006, SEC-007, SEC-008, SEC-010, SEC-012, SEC-015, SEC-017, SEC-028, SEC-036, SEC-039**. Local tests are useful evidence only after requirement equivalence and exact commit/environment are recorded. Cross-reference DOC-203 TM-007 through TM-011 and related proxy/workload threats. Source historical DOC-203/DOC-206 records still say NOT RUN; no claim of completed verification is made.
 
@@ -303,7 +305,7 @@ Primary existing DOC-206 controls to link: **SEC-003, SEC-005, SEC-006, SEC-007,
 
 ## 18. Rollout, reversal and go/no-go
 
-**Phase 0 — record decision (now):** retain Django-native identity selection; circulate this v1.0 proposal. No code settings or live endpoints change.
+**Phase 0 — owner design approval (recorded 2026-11-01):** retain Django-native identity, record the approved ADR-013 v1.0 design and track its implementation/evidence. No code settings or live endpoints are authorized by approval.
 
 **Phase 1 — isolated implementation:** implement separate identity and web feature branches with migrations, contract changes behind capability flags, existing non-privileged auth tests, TOTP/WebAuthn checks and security-event tests. Keep existing public account access gated.
 
@@ -318,23 +320,23 @@ Primary existing DOC-206 controls to link: **SEC-003, SEC-005, SEC-006, SEC-007,
 | Decision / evidence | State at creation | Required for |
 | --- | --- | --- |
 | Django-native client identity provider | **Owner-selected, 2026-11-01** | Establish authority |
-| Exact mobile and web session lifetime policy | **Proposed — approval pending** | Full ADR-013 |
-| Refresh/replay and global revocation rules | **Proposed — approval pending** | Full ADR-013 |
-| Privileged MFA/WebAuthn/TOTP/recovery | **Proposed — approval pending** | Full ADR-013 |
-| Token schema, key lifecycle and cryptographic choices | **Proposed — approval pending** | Full ADR-013 |
-| DOC-205 API contract update and backward-compatibility plan | **Pending** | Account endpoint implementation |
+| Exact mobile and web session lifetime policy | **Owner-approved design 2026-11-01; implementation pending** | ADR-013 policy baseline |
+| Refresh/replay and global revocation rules | **Owner-approved design 2026-11-01; evidence pending** | ADR-013 policy baseline |
+| Privileged MFA/WebAuthn/TOTP/recovery | **Owner-approved design 2026-11-01; implementation pending** | ADR-013 policy baseline |
+| Token schema, key lifecycle and cryptographic choices | **Owner-approved design baseline; key provisioning/testing pending** | ADR-013 policy baseline |
+| DOC-205 API contract design and backward-compatibility plan | **Owner-approved addendum; executable schemas and consumers pending** | Account endpoint implementation |
 | DOC-206 exact test execution and security evidence | **NOT RUN for this specification** | Deployment |
 | ADR-012 service identity, ADR-014 upstream transport | **Separate approval pending** | Deployment |
 | ADR-020 privacy/retention and real SMTP | **Separate approval pending** | Account activation |
-| Product/architecture/security acceptance | **Not signed** | Unconditional Stage 2/3 gate |
+| ADR-013 design decision | **Owner-approved 2026-11-01; independent security/operational sign-off pending** | Design baseline only |
 
-**Requested decision for owner:** Approve, request changes, or reject this exact **ADR-013 v1.0 security policy**. Owner approval of this document will approve the policy design only; it will not mark DOC-206 tests as run or authorize staging/production activation. Document the date, approved commit SHA and any exceptions in DOC-207 and DOC-209. One developer may fulfill multiple delivery roles, but self-review is not independent third-party assurance.
+**Recorded owner decision:** **ADR-013 v1.0 security design approved on 2026-11-01**, based on source commit `f22b1b6777afbe5b29aeb0036a86331999db6391`. DOC-205 contract-design and DOC-206 verification-plan addenda are approved as design baselines, not as implemented or executed controls. Stage 2 G-03, Stage 3 acceptance, independent security review and deployment authorization remain open. The single developer's approval is not independent third-party assurance.
 
 | Role | Sign-off |
 | --- | --- |
-| Product / decision owner | **PENDING** |
-| Architecture review | **PENDING** |
-| Security review / residual-risk acceptance | **PENDING** |
+| Product / decision owner | **APPROVED — ADR-013 v1.0 design, 2026-11-01** |
+| Architecture review | **Owner accepted design baseline; independent architectural evidence pending** |
+| Security review / residual-risk acceptance | **PENDING — control execution and residual-risk disposition** |
 | Release / operational acceptance | **NOT REQUESTED** |
 
 ## 20. References and provenance
@@ -362,4 +364,4 @@ Primary existing DOC-206 controls to link: **SEC-003, SEC-005, SEC-006, SEC-007,
 
 ---
 
-**Document status: DRAFT / PENDING APPROVAL. DO NOT MODIFY PRODUCTION BASED ON THIS DOCUMENT.**
+**Document status: OWNER-APPROVED DESIGN BASELINE (2026-11-01). IMPLEMENTATION, SECURITY VERIFICATION AND PRODUCTION ACTIVATION NOT APPROVED.**
