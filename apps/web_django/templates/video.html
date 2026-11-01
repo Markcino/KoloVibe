@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block title %}Original · KoloVibe{% endblock %}
+{% block content %}
+{% if video %}
+<article class="panel"><h1>{{ video.title }}</h1><p>{{ video.description }}</p>
+<div class="notice" role="status">Playback requires an approved streaming provider.</div></article>
+{% elif unavailable %}
+<div class="notice" role="status">This original is temporarily unavailable.</div>
+{% else %}
+<div class="notice" role="status">This original is not available.</div>
+{% endif %}
+{% endblock %}

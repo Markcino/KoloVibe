@@ -1,0 +1,23 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}KoloVibe{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/site.css' %}">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="{% url 'feed' %}"><img src="{% static 'images/landscape_logo_with_name.svg' %}" alt="KoloVibe"></a>
+    <nav aria-label="Main navigation">
+      <a href="{% url 'feed' %}">Explore</a>
+      <a href="{% url 'creator' %}">Create</a>
+      <a href="{% url 'points' %}">Lone Stars</a>
+      <a href="{% url 'account' %}">Account</a>
+    </nav>
+  </header>
+  <main id="main">{% block content %}{% endblock %}</main>
+  <footer>Our stories. Our rhythm. Our vibe.</footer>
+</body>
+</html>

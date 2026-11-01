@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../core/presentation/design_node.dart';
 import '../../core/theme/kolovibe_theme.dart';
@@ -58,13 +57,13 @@ class DesignView extends StatelessWidget {
           labelText: 'Verification code',
           counterText: '',
         ),
-        keyboardType: TextInputType.number,
-        maxLength: 6,
+        keyboardType: TextInputType.text,
+        maxLength: 128,
         autofillHints: const [AutofillHints.oneTimeCode],
-        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        style: const TextStyle(fontSize: 24, letterSpacing: 18),
+        style: const TextStyle(fontSize: 16),
         onChanged: (v) => controller.update('verificationCode', v),
-        validator: (v) => v?.length == 6 ? null : 'Enter the six-digit code.',
+        validator: (v) => v != null && v.length >= 32
+            ? null : 'Enter the verification code from your email.',
       );
     }
     if (node.name == 'Report text area') {

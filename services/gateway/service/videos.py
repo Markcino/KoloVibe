@@ -61,3 +61,28 @@ def list_videos(request):
     except (HTTPError, URLError, TimeoutError, OSError, KeyError, ValueError, TypeError, UnicodeError):
         return JsonResponse({"detail": "Content service unavailable"}, status=503)
     return JsonResponse({"items": result["items"], "next_cursor": result.get("next_cursor")})
+
+
+@require_GET
+def video_detail(request, video_id):
+    try:
+        response = signed_internal_request(
+            "content", "/internal/videos/detail", method="POST",
+            payload=json.dumps({"video_id": str(video_id)}, separators=(",", ":")).encode(),
+        )
+        with response:
+            if response.status != 200:
+                raise ValueError("Unexpected content response")
+            raw = response.read(8193)
+        if len(raw) > 8192:
+            raise ValueError("Content response too large")
+        result = json.loads(raw)
+        if not _valid_item(result) or result["id"] != str(video_id):
+            raise ValueError("Invalid content response")
+    except HTTPError as error:
+        if error.code == 404:
+            return JsonResponse({"detail": "Not found"}, status=404)
+        return JsonResponse({"detail": "Content service unavailable"}, status=503)
+    except (URLError, TimeoutError, OSError, KeyError, ValueError, TypeError, UnicodeError):
+        return JsonResponse({"detail": "Content service unavailable"}, status=503)
+    return JsonResponse(result)

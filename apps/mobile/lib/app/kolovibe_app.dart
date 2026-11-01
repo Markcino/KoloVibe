@@ -7,6 +7,8 @@ import '../features/explore/explore_screen.dart';
 import '../features/create/create_screen.dart';
 import '../features/videos/video_feed_screen.dart';
 import '../features/profile/profile_screen.dart';
+import '../features/account/live_account_screen.dart';
+import '../features/discovery/live_video_screen.dart';
 import 'app_dependencies.dart';
 import 'app_session.dart';
 import 'screen_route.dart';
@@ -78,6 +80,14 @@ class _KoloVibeAppState extends State<KoloVibeApp> {
 
   Widget featureScreen(ScreenRoute route, DesignCatalog catalog) =>
       switch (route.screen) {
+        17 || 19 || 24 when widget.dependencies.liveVideos != null =>
+          LiveVideoScreen(route: route, catalog: catalog,
+            repository: widget.dependencies.liveVideos!),
+        25 when widget.dependencies.liveVideos != null && route.entityId != null =>
+          LiveVideoDetailScreen(id: route.entityId!,
+            repository: widget.dependencies.liveVideos!),
+        79 when widget.dependencies.liveAccount != null =>
+          LiveAccountScreen(repository: widget.dependencies.liveAccount!, catalog: catalog),
         17 => HomeScreen(
             catalog: catalog,
             dependencies: widget.dependencies,

@@ -1,10 +1,39 @@
 import '../core/presentation/feature_repository.dart';
 import 'service_repositories.dart';
+import '../core/network/api_client.dart';
+import '../core/security/credential_store.dart';
+import '../features/account/live_account_repository.dart';
+import '../features/discovery/live_video_repository.dart';
 
 class AppDependencies {
   const AppDependencies.unavailable()
-      : services = const ServiceRepositories.unavailable();
+      : services = const ServiceRepositories.unavailable(),
+        liveAccount = null,
+        liveVideos = null;
+
+  const AppDependencies._(this.services, this.liveAccount, this.liveVideos);
+
+  factory AppDependencies.live(String baseUrl, {CredentialStore? credentialStore}) {
+    final api = ApiClient(baseUrl);
+    final account = LiveAccountRepository(api, credentialStore ?? const PlatformCredentialStore());
+    return AppDependencies._(
+      ServiceRepositories(
+        account: account,
+        discovery: const UnavailableServices(),
+        creators: const UnavailableServices(),
+        content: const UnavailableServices(),
+        engagement: const UnavailableServices(),
+        points: const UnavailableServices(),
+        moderation: const UnavailableServices(),
+        settings: const UnavailableServices(),
+      ),
+      account,
+      LiveVideoRepository(api),
+    );
+  }
 
   final ServiceRepositories services;
+  final LiveAccountRepository? liveAccount;
+  final LiveVideoRepository? liveVideos;
   FeatureRepository get repository => RepositoryDispatcher(services);
 }

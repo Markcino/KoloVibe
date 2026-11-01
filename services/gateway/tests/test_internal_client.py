@@ -18,6 +18,7 @@ class SignedClientTests(SimpleTestCase):
         (self.root/"key").write_text(self.secret)
         (self.root/"peers").write_text(json.dumps({"identity":"https://identity.internal"}))
         self.config = {
+            "KOLOVIBE_ENV": "contract-test",
             "KOLOVIBE_SERVICE_NAME": "gateway",
             "KOLOVIBE_TRUSTED_PEERS_FILE": str(self.root/"peers"),
             "KOLOVIBE_OUTBOUND_KEY_FILE": str(self.root/"key"),
@@ -56,3 +57,19 @@ class SignedClientTests(SimpleTestCase):
         with patch.dict(os.environ,self.config):
             with self.assertRaises(ValueError):
                 signed_internal_request("identity","/internal/probe")
+
+    def test_local_plaintext_is_limited_to_loopback(self):
+        local = {
+            "KOLOVIBE_ENV": "local", "KOLOVIBE_SERVICE_NAME": "gateway",
+            "KOLOVIBE_GATEWAY_OUTBOUND_KEY": self.secret,
+            "KOLOVIBE_IDENTITY_URL": "http://127.0.0.1:8001",
+        }
+        with patch.dict(os.environ, local):
+            with patch("service.internal_client.build_opener") as factory:
+                factory.return_value.open.return_value = object()
+                signed_internal_request("identity", "/internal/probe")
+                request = factory.return_value.open.call_args.args[0]
+                self.assertEqual(request.full_url, "http://127.0.0.1:8001/internal/probe")
+            os.environ["KOLOVIBE_IDENTITY_URL"] = "http://identity.internal"
+            with self.assertRaises(ValueError):
+                signed_internal_request("identity", "/internal/probe")

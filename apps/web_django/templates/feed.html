@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}Explore · KoloVibe{% endblock %}
+{% block content %}
+<section class="hero"><h1>Original voices from Liberia</h1><p>Discover approved stories from KoloVibe creators.</p></section>
+{% if unavailable %}
+<div class="notice" role="status">Videos are temporarily unavailable. Please try again.</div>
+{% elif not items %}
+<div class="notice" role="status">No originals are available yet.</div>
+{% else %}
+<ul class="video-grid">
+{% for item in items %}
+  <li><a class="card" href="{% url 'video' item.id %}"><h2>{{ item.title }}</h2><p>{{ item.description }}</p></a></li>
+{% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

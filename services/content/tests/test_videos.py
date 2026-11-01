@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from service.models import Video
-from service.videos import internal_list_videos
+from service.videos import internal_list_videos, internal_video_detail
 
 
 class PublicVideoTests(TestCase):
@@ -69,6 +69,16 @@ class PublicVideoTests(TestCase):
         )
         response = internal_list_videos(request)
         self.assertEqual(json.loads(response.content), {"items": [], "next_cursor": None})
+
+    def test_internal_detail_never_returns_private_video(self):
+        video = self.make_video()
+        request = RequestFactory().post(
+            "/internal/videos/detail", data=json.dumps({"video_id": str(video.id)}),
+            content_type="application/json")
+        self.assertEqual(internal_video_detail(request).status_code, 404)
+        self.assertEqual(self.client.post(reverse("internal-video-detail"),
+            data=json.dumps({"video_id": str(video.id)}),
+            content_type="application/json").status_code, 403)
 
     def test_invalid_query_inputs_are_rejected(self):
         for query in ("?cursor=invalid", "?creator_id=invalid"):

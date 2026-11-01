@@ -178,6 +178,24 @@ class _MobileScreenState extends State<MobileScreen> {
       notify(result.message);
       return;
     }
+    if (widget.dependencies.liveAccount != null) {
+      switch (operation) {
+        case UiOperation.register:
+          await navigate(6);
+          return;
+        case UiOperation.verifyEmail:
+          await navigate(4, reset: true);
+          return;
+        case UiOperation.signIn:
+          await navigate(79, reset: true);
+          return;
+        case UiOperation.signOut:
+          await navigate(2, reset: true);
+          return;
+        default:
+          break;
+      }
+    }
   }
 
   Future<void> category() async {

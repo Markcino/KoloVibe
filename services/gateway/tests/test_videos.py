@@ -1,4 +1,5 @@
 import json
+import uuid
 from unittest.mock import patch
 
 from django.test import SimpleTestCase
@@ -49,3 +50,23 @@ class VideoGatewayTests(SimpleTestCase):
 
     def test_write_is_not_supported(self):
         self.assertEqual(self.client.post(reverse("videos"), data={}).status_code, 405)
+
+    def test_detail_returns_only_validated_approved_record(self):
+        video_id = uuid.uuid4()
+        creator_id = uuid.uuid4()
+        payload = {"id": str(video_id), "creator_id": str(creator_id),
+                   "title": "Original", "description": "", "state": "published",
+                   "created_at": "2026-10-31T00:00:00+00:00"}
+        with patch("service.videos.signed_internal_request") as call:
+            call.return_value = Response(json.dumps(payload).encode())
+            response = self.client.get(reverse("api-video-detail", args=[video_id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), payload)
+        self.assertEqual(json.loads(call.call_args.kwargs["payload"]), {"video_id": str(video_id)})
+
+    def test_detail_rejects_mismatched_record(self):
+        video_id = uuid.uuid4()
+        with patch("service.videos.signed_internal_request") as call:
+            call.return_value = Response(json.dumps({"id": str(uuid.uuid4()),
+                "creator_id": str(uuid.uuid4()), "title": "Another", "state": "published"}).encode())
+            self.assertEqual(self.client.get(reverse("api-video-detail", args=[video_id])).status_code, 503)

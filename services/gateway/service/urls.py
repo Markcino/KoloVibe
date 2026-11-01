@@ -1,10 +1,19 @@
 from django.urls import path
 from django.http import JsonResponse
 from .health import liveness
-from .videos import list_videos
+from .videos import list_videos, video_detail
+from . import accounts
 
 urlpatterns = [
     path("health/live", liveness, name="liveness"),
     path("videos", list_videos, name="videos"),
+    path("api/v1/videos", list_videos, name="api-videos"),
+    path("api/v1/videos/<uuid:video_id>", video_detail, name="api-video-detail"),
+    path("api/v1/auth/register", accounts.register, name="register"),
+    path("api/v1/auth/verify", accounts.verify_email, name="verify"),
+    path("api/v1/auth/login", accounts.login, name="login"),
+    path("api/v1/auth/refresh", accounts.refresh, name="refresh"),
+    path("api/v1/auth/logout", accounts.logout, name="logout"),
+    path("api/v1/me", accounts.me, name="me"),
     path("internal/probe", lambda request: JsonResponse({"status":"ok"}), name="internal-probe"),
 ]

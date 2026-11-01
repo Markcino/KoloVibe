@@ -38,6 +38,7 @@ class UiResult {
       : available = false,
         message =
             'This service is not connected yet. No request was submitted.';
+  const UiResult.failure(this.message) : available = false;
   final bool available;
   final String message;
 }

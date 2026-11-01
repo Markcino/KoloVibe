@@ -53,3 +53,39 @@ class Account(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return str(self.id)
+
+
+class LoginSession(models.Model):
+    """A revocable device session; raw refresh credentials never enter the database."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, related_name="login_sessions")
+    family_id = models.UUIDField(default=uuid.uuid4, db_index=True)
+    refresh_digest = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    rotated_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField()
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+
+class UsedRefreshToken(models.Model):
+    """Retains consumed digests until expiry so replay revokes the token family."""
+
+    digest = models.CharField(max_length=64, primary_key=True)
+    family_id = models.UUIDField(db_index=True)
+    expires_at = models.DateTimeField()
+
+
+class LoginThrottle(models.Model):
+    """A bounded, hashed account-and-origin key for local login throttling."""
+
+    key = models.CharField(max_length=64, primary_key=True)
+    failures = models.PositiveSmallIntegerField(default=0)
+    window_started_at = models.DateTimeField()
+
+
+class EmailVerification(models.Model):
+    digest = models.CharField(max_length=64, primary_key=True)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)

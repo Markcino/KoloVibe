@@ -84,3 +84,18 @@ def video_detail(request, video_id):
     if video is None:
         return JsonResponse({"detail": "Not found"}, status=404)
     return JsonResponse(_item(video))
+
+
+@require_POST
+def internal_video_detail(request):
+    try:
+        data = json.loads(request.body)
+        if not isinstance(data, dict) or set(data) != {"video_id"}:
+            raise ValueError("Invalid request")
+        video_id = uuid.UUID(data["video_id"])
+    except (ValueError, KeyError, TypeError, UnicodeDecodeError):
+        return JsonResponse({"detail": "Invalid request"}, status=400)
+    video = _public_videos().filter(pk=video_id).first()
+    if video is None:
+        return JsonResponse({"detail": "Not found"}, status=404)
+    return JsonResponse(_item(video))

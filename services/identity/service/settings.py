@@ -54,3 +54,9 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
+EMAIL_HOST = os.environ.get("KOLOVIBE_SMTP_HOST", "")
+EMAIL_PORT = int(os.environ.get("KOLOVIBE_SMTP_PORT", "587"))
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.environ.get("KOLOVIBE_SMTP_USER", "")
+EMAIL_HOST_PASSWORD = os.environ.get("KOLOVIBE_SMTP_PASSWORD", "")
+DEFAULT_FROM_EMAIL = os.environ.get("KOLOVIBE_FROM_EMAIL", "")

@@ -1,0 +1,15 @@
+from django.urls import path
+
+from . import views
+
+urlpatterns = [
+    path("", views.feed, name="feed"),
+    path("videos/<uuid:video_id>/", views.video, name="video"),
+    path("register/", views.register, name="register"),
+    path("verify/", views.verify, name="verify"),
+    path("login/", views.login, name="login"),
+    path("account/", views.account, name="account"),
+    path("logout/", views.logout, name="logout"),
+    path("creator/", views.gated_creator, name="creator"),
+    path("points/", views.gated_points, name="points"),
+]

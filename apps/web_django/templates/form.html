@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }} · KoloVibe{% endblock %}
+{% block content %}
+<section class="panel form-panel"><h1>{{ title }}</h1>
+{% if error %}<div class="notice error" role="alert">{{ error }}</div>{% endif %}
+<form method="post">{% csrf_token %}
+{% if kind == 'register' %}
+  <label>Display name<input name="display_name" autocomplete="name" minlength="2" maxlength="80" required></label>
+  <label>Email<input type="email" name="email" autocomplete="email" maxlength="254" required></label>
+  <label>Password<input type="password" name="password" autocomplete="new-password" minlength="12" maxlength="128" required></label>
+{% elif kind == 'login' %}
+  <label>Email<input type="email" name="email" autocomplete="email" required></label>
+  <label>Password<input type="password" name="password" autocomplete="current-password" required></label>
+{% else %}
+  <label>Verification code<input name="code" autocomplete="one-time-code" required></label>
+{% endif %}
+  <button type="submit">Continue</button>
+</form>
+{% if kind == 'login' %}<p><a href="{% url 'register' %}">Create an account</a></p>{% endif %}
+</section>
+{% endblock %}
