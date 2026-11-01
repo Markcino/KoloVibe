@@ -1,7 +1,7 @@
 index,Decision,Description,Stage3 impact,Status
 0,OD-01,Workload identity and token provider,Block dependent implementation,Open
-1,OD-02,Nginx-to-Swarm encrypted private transport,Block dependent implementation,Open
-2,OD-03,Swarm topology and hosting,Block dependent implementation,Open
+1,OD-02,VM1 host Nginx to Swarm private authenticated transport and Cloudflare Tunnel origin verification,Block dependent implementation,Open — live evidence pending
+2,OD-03,Two Oracle VMs (VM1 manager plus Nginx host service; VM2 worker) — single-manager availability and capacity acceptance,Block dependent implementation,Open — live evidence pending
 3,OD-04,PostgreSQL topology and RTO/RPO,Block dependent implementation,Open
 4,OD-05,Creator verification and privacy retention,Block dependent implementation,Open
 5,OD-06,Qualified view thresholds and points formula,Block dependent implementation,Open
