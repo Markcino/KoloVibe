@@ -1,6 +1,6 @@
 # Container verification and GHCR publication
 
-Eight Django service images use the shared Dockerfile, a pinned Python base-image digest, hash-locked dependencies and UID/GID 10001. Each contains only its owning service. Images are currently **local/CI-only**, not production runtime images.
+Eight Django service images use the shared Dockerfile, a pinned Python base-image digest, hash-locked dependencies and UID/GID 10001. Each contains its owning service and the shared infrastructure-only `staging_runtime` package, never another service's business code. Gunicorn replaces image `runserver`; local developer launchers are unchanged. Images support fail-closed restricted staging configuration, **not production activation**.
 
 ## Required quality gate
 
@@ -19,8 +19,9 @@ Use **Actions → ci_cd → Run workflow** for manual operations:
 | Main push | All quality jobs, then GHCR publication if all succeed |
 | Pull request | All quality jobs; no publication |
 | Manual `ci` (default) | All quality jobs on the selected ref; no publication |
-| Feature/chore/fix/security branch push; weekly schedule | Dependency advisory scan |
-| Push to `security/ci-hardening`, or manual `dependency-locks` on that branch | Generate, validate, commit and upload lockfiles; only this job has repository write access |
+| Weekly schedule | Dependency advisory scan |
+| Non-main branch push | No workflow; use a PR or manual `ci` |
+| Manual `dependency-locks` on `security/ci-hardening` | Generate, validate, commit and upload lockfiles; only this job has repository write access |
 | Manual `staging-security` on reviewed `main` | Environment-protected read-only staging verification |
 
 Invalid maintenance/staging branch selections fail explicitly. The existing lock job's GITHUB_TOKEN push does not trigger another Actions run: manually run `ci` on the generated commit before relying on its checks. Staging secrets remain confined to the `staging-security-review` environment; see the [verification runbook](../security/staging-verification.md).
@@ -43,7 +44,11 @@ Persistent DB, broker, provider, private-registry and environment credentials mu
 
 Disposable test-only credentials are generated inside isolated runners, never used against deployed systems, and removed with their fixture. The container smoke credential is masked. The current public Python base requires no private-registry login. Any future DHI/private base requires separately configured Actions secret names and approved access.
 
-No local push, merge or VM deployment is part of this change. The workflow must reach main through the normal PR process before publication can execute. A package upload does not authorize staging or production activation: the images still use Django's development server and reject staging/production settings.
+No local push, merge or VM deployment is part of this change. The workflow must reach main through the normal PR process before publication can execute. A package upload does not authorize staging or production activation. Images reject unknown/production environments and staging without its required secret files, TLS and capability configuration. The image matrix checks these refusals, plus local HTTP behavior under Gunicorn. Real staging Gunicorn/TLS journeys use isolated runner PostgreSQL and certificates in the backend job; successful staging-profile execution inside an actual image remains an additional acceptance requirement.
+
+Dependency lock generation resolves the CI lock first, then constrains the runtime
+lock to it so shared packages do not conflict with audit/SBOM tools. Gunicorn is
+pinned at 26.2.0; packaging 25.0 satisfies the existing CycloneDX tool constraint.
 
 ## Validation and remaining evidence
 

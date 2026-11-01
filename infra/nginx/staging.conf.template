@@ -1,0 +1,40 @@
+# Candidate server block; render ONLY the named deployment inputs, not Nginx variables.
+server {
+    listen 443 ssl default_server;
+    server_name _;
+    ssl_certificate ${ORIGIN_CERT_FILE};
+    ssl_certificate_key ${ORIGIN_KEY_FILE};
+    ssl_protocols TLSv1.2 TLSv1.3;
+    return 444;
+}
+server {
+    listen 443 ssl;
+    server_name api.cabetechs.shop;
+    ssl_certificate ${ORIGIN_CERT_FILE};
+    ssl_certificate_key ${ORIGIN_KEY_FILE};
+    ssl_protocols TLSv1.2 TLSv1.3;
+    client_max_body_size 8k;
+    access_log off;
+    error_log /var/log/nginx/kolovibe-error.log warn;
+
+    location ~ ^/(health/(live|ready)|ops/verify|videos|api/v1/videos(/[0-9a-f-]{36})?|api/v1/creators/[0-9a-f-]{36})$ {
+        limit_except GET { deny all; }
+        proxy_pass https://${GATEWAY_PRIVATE_ENDPOINT};
+        proxy_ssl_server_name on;
+        proxy_ssl_name ${GATEWAY_TLS_NAME};
+        proxy_ssl_trusted_certificate ${INTERNAL_CA_FILE};
+        proxy_ssl_verify on;
+        proxy_ssl_verify_depth 2;
+        proxy_ssl_protocols TLSv1.2 TLSv1.3;
+        proxy_set_header Host ${GATEWAY_TLS_NAME};
+        proxy_set_header X-Forwarded-For "";
+        proxy_set_header X-Forwarded-Host "";
+        proxy_set_header X-Forwarded-Proto "";
+        proxy_set_header Forwarded "";
+        proxy_connect_timeout 3s;
+        proxy_read_timeout 10s;
+        proxy_send_timeout 10s;
+        proxy_redirect off;
+    }
+    location / { return 403; }
+}

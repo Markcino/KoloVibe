@@ -61,7 +61,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(set(self.workflow["on"]),
                          {"push", "pull_request", "schedule", "workflow_dispatch"})
         self.assertEqual(self.workflow["on"]["push"]["branches"],
-                         ["main", "feature/**", "chore/**", "fix/**", "security/**"])
+                         ["main"])
         self.assertEqual(self.workflow["on"]["schedule"], [{"cron": "13 5 * * 1"}])
         inputs = self.workflow["on"]["workflow_dispatch"]["inputs"]["operation"]
         self.assertEqual(inputs["default"], "ci")
@@ -82,7 +82,7 @@ class WorkflowTests(unittest.TestCase):
                 with self.subTest(job=job, event=event, operation=operation):
                     self.assertEqual(matches(condition, event, ref, operation), expected)
 
-    def test_advisory_schedule_and_branch_coverage_are_preserved(self):
+    def test_advisory_schedule_and_ci_coverage_are_preserved(self):
         condition = self.jobs["osv"]["if"]
         for event in ("push", "pull_request", "schedule"):
             self.assertTrue(matches(condition, event, "refs/heads/feature/test"))
@@ -150,7 +150,7 @@ class WorkflowTests(unittest.TestCase):
     def test_lock_generation_is_restricted_to_maintenance_branch(self):
         condition = self.jobs["generate"]["if"]
         branch = "refs/heads/security/ci-hardening"
-        self.assertTrue(matches(condition, "push", branch))
+        self.assertFalse(matches(condition, "push", branch))
         self.assertTrue(matches(condition, "workflow_dispatch", branch, "dependency-locks"))
         self.assertFalse(matches(condition, "push"))
         self.assertFalse(matches(condition, "pull_request", branch))

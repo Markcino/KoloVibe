@@ -2,11 +2,12 @@
 import hashlib
 import hmac
 import json
+import logging
 import os
 import re
 import time
 from pathlib import Path
-from django.db import connection, transaction
+from django.db import DatabaseError, connection, transaction
 from django.http import JsonResponse
 
 def _deny():
@@ -47,6 +48,7 @@ class ServiceAuthMiddleware:
             if not hmac.compare_digest(sig, expected):
                 return _deny()
         except (OSError, ValueError, TypeError):
+            logging.getLogger(__name__).error("Internal caller configuration unavailable")
             return _deny()
         try:
             with transaction.atomic():
@@ -57,7 +59,8 @@ class ServiceAuthMiddleware:
                     )
                     if cursor.rowcount != 1:
                         return _deny()
-        except Exception:
+        except DatabaseError:
+            logging.getLogger(__name__).error("Internal nonce database unavailable")
             return JsonResponse({"detail": "Service unavailable"}, status=503)
         request.service_caller = caller
         return self.get_response(request)

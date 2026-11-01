@@ -1,0 +1,138 @@
+version: "3.8"
+
+x-environment: &environment
+  KOLOVIBE_ENV: staging
+  DJANGO_DEBUG: "0"
+  DJANGO_SECRET_KEY_FILE: /run/secrets/django_key
+  KOLOVIBE_DB_NAME: ${STAGING_DB_NAME:?approved staging database required}
+  KOLOVIBE_DB_HOST: ${STAGING_DB_HOST:?verified TLS database host required}
+  KOLOVIBE_DB_PORT: "5432"
+  KOLOVIBE_DB_PASSWORD_FILE: /run/secrets/db_password
+  KOLOVIBE_DB_SSLROOTCERT: /run/secrets/db_ca
+  KOLOVIBE_INTERNAL_CA_FILE: /run/secrets/internal_ca
+  KOLOVIBE_TLS_CERT_FILE: /run/secrets/tls_cert
+  KOLOVIBE_TLS_KEY_FILE: /run/secrets/tls_key
+  KOLOVIBE_CALLER_KEYS_FILE: /run/secrets/caller_keys
+  KOLOVIBE_PROBE_TOKEN_FILE: /run/secrets/probe_token
+  KOLOVIBE_STAGING_ACCOUNTS: "0"
+
+x-deploy: &deploy
+  replicas: 1
+  resources:
+    limits: {cpus: "1.0", memory: 512M}
+    reservations: {cpus: "0.25", memory: 128M}
+  update_config:
+    parallelism: 1
+    order: stop-first
+    failure_action: rollback
+    monitor: 30s
+  rollback_config: {parallelism: 1, order: stop-first, monitor: 30s}
+  restart_policy: {condition: on-failure, delay: 5s, max_attempts: 3}
+
+x-health: &health
+  test: ["CMD", "python", "-m", "staging_runtime.probe"]
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 30s
+
+services:
+  gateway:
+    image: ${GATEWAY_IMAGE:?verified GHCR digest required}
+    user: "10001:10001"
+    read_only: true
+    tmpfs: ["/tmp"]
+    networks: [private]
+    environment:
+      <<: *environment
+      KOLOVIBE_SERVICE_NAME: gateway
+      KOLOVIBE_ALLOWED_HOSTS: ${GATEWAY_HOSTS:?approved gateway hostnames required}
+      KOLOVIBE_DB_USER: ${GATEWAY_DB_USER:?runtime database login required}
+      KOLOVIBE_TRUSTED_PEERS_FILE: /run/secrets/trusted_peers
+      KOLOVIBE_OUTBOUND_KEY_FILE: /run/secrets/outbound_key
+    secrets:
+      - {source: gateway_django, target: django_key, uid: "10001", gid: "10001", mode: 0400}
+      - {source: gateway_db, target: db_password, uid: "10001", gid: "10001", mode: 0400}
+      - {source: gateway_tls_cert, target: tls_cert, uid: "10001", gid: "10001", mode: 0400}
+      - {source: gateway_tls_key, target: tls_key, uid: "10001", gid: "10001", mode: 0400}
+      - {source: gateway_callers, target: caller_keys, uid: "10001", gid: "10001", mode: 0400}
+      - {source: gateway_probe, target: probe_token, uid: "10001", gid: "10001", mode: 0400}
+      - {source: trusted_peers, target: trusted_peers, uid: "10001", gid: "10001", mode: 0400}
+      - {source: gateway_outbound, target: outbound_key, uid: "10001", gid: "10001", mode: 0400}
+      - {source: internal_ca, target: internal_ca, uid: "10001", gid: "10001", mode: 0400}
+      - {source: db_ca, target: db_ca, uid: "10001", gid: "10001", mode: 0400}
+    healthcheck: *health
+    deploy: *deploy
+  content:
+    image: ${CONTENT_IMAGE:?verified GHCR digest required}
+    user: "10001:10001"
+    read_only: true
+    tmpfs: ["/tmp"]
+    networks: [private]
+    environment:
+      <<: *environment
+      KOLOVIBE_SERVICE_NAME: content
+      KOLOVIBE_ALLOWED_HOSTS: content
+      KOLOVIBE_DB_USER: ${CONTENT_DB_USER:?runtime database login required}
+    secrets:
+      - {source: content_django, target: django_key, uid: "10001", gid: "10001", mode: 0400}
+      - {source: content_db, target: db_password, uid: "10001", gid: "10001", mode: 0400}
+      - {source: content_tls_cert, target: tls_cert, uid: "10001", gid: "10001", mode: 0400}
+      - {source: content_tls_key, target: tls_key, uid: "10001", gid: "10001", mode: 0400}
+      - {source: content_callers, target: caller_keys, uid: "10001", gid: "10001", mode: 0400}
+      - {source: content_probe, target: probe_token, uid: "10001", gid: "10001", mode: 0400}
+      - {source: internal_ca, target: internal_ca, uid: "10001", gid: "10001", mode: 0400}
+      - {source: db_ca, target: db_ca, uid: "10001", gid: "10001", mode: 0400}
+    healthcheck: *health
+    deploy: *deploy
+  creators:
+    image: ${CREATORS_IMAGE:?verified GHCR digest required}
+    user: "10001:10001"
+    read_only: true
+    tmpfs: ["/tmp"]
+    networks: [private]
+    environment:
+      <<: *environment
+      KOLOVIBE_SERVICE_NAME: creators
+      KOLOVIBE_ALLOWED_HOSTS: creators
+      KOLOVIBE_DB_USER: ${CREATORS_DB_USER:?runtime database login required}
+    secrets:
+      - {source: creators_django, target: django_key, uid: "10001", gid: "10001", mode: 0400}
+      - {source: creators_db, target: db_password, uid: "10001", gid: "10001", mode: 0400}
+      - {source: creators_tls_cert, target: tls_cert, uid: "10001", gid: "10001", mode: 0400}
+      - {source: creators_tls_key, target: tls_key, uid: "10001", gid: "10001", mode: 0400}
+      - {source: creators_callers, target: caller_keys, uid: "10001", gid: "10001", mode: 0400}
+      - {source: creators_probe, target: probe_token, uid: "10001", gid: "10001", mode: 0400}
+      - {source: internal_ca, target: internal_ca, uid: "10001", gid: "10001", mode: 0400}
+      - {source: db_ca, target: db_ca, uid: "10001", gid: "10001", mode: 0400}
+    healthcheck: *health
+    deploy: *deploy
+
+networks:
+  private:
+    external: true
+    name: ${STAGING_PRIVATE_NETWORK:?approved encrypted private overlay required}
+
+secrets:
+  gateway_django: {external: true}
+  gateway_db: {external: true}
+  gateway_tls_cert: {external: true}
+  gateway_tls_key: {external: true}
+  gateway_callers: {external: true}
+  gateway_probe: {external: true}
+  gateway_outbound: {external: true}
+  trusted_peers: {external: true}
+  content_django: {external: true}
+  content_db: {external: true}
+  content_tls_cert: {external: true}
+  content_tls_key: {external: true}
+  content_callers: {external: true}
+  content_probe: {external: true}
+  creators_django: {external: true}
+  creators_db: {external: true}
+  creators_tls_cert: {external: true}
+  creators_tls_key: {external: true}
+  creators_callers: {external: true}
+  creators_probe: {external: true}
+  internal_ca: {external: true}
+  db_ca: {external: true}

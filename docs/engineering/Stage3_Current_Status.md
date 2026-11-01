@@ -11,8 +11,8 @@ The working tracker is [Stage3_Implementation_Tracker.csv](Stage3_Implementation
 | Classification | Count | Meaning |
 | --- | --- | --- |
 | Complete | 3 | FND-01 is owner-declared; FND-02 and FND-03 are complete within previously verified CI scope. |
-| Partial | 10 | Implementation/configuration or CI evidence exists; integration or acceptance evidence is missing. |
-| Pending | 5 | Required implementation, environment/decision prerequisites or stage acceptance remains pending. |
+| Partial | 12 | Implementation/configuration or CI evidence exists; integration or acceptance evidence is missing. |
+| Pending | 3 | Required implementation, environment/decision prerequisites or stage acceptance remains pending. |
 
 These counts describe task evidence, not overall percentage completion or formal stage approval.
 
@@ -29,15 +29,20 @@ These counts describe task evidence, not overall percentage completion or formal
 | FND-09 | Outbox/inbox and idempotency scaffold | Partial - database integration verified | PostgreSQL rollback/republication and deduplication pass with a publisher double; live broker evidence pending |
 | FND-10 | Service identity enforcement | Partial - identity approval and evidence pending | OD-01 final identity/token contract; credential rotation |
 | FND-11 | Append-only noncash ledger scaffold | Partial - PostgreSQL tests verified; CI acceptance pending | SQLite/PostgreSQL ledger tests pass locally; run new CI acceptance. Award formula/public APIs are separate later work |
-| FND-12 | Hardened image and Swarm secret handling | Partial - runtime verification pending | Swarm deployment; image digests; secret lifecycle |
-| FND-13 | VM1 host Nginx configuration | Pending - transport decision blocked | OD-02 private TLS/transport; certificate ownership |
-| FND-14 | Swarm staging stack and network zones | Pending - infrastructure blocked | OD-03 hosting/cluster sizing; private network access |
+| FND-12 | Hardened image and Swarm secret handling | Partial - isolated staging runtime verified | Actual image/Swarm deployment; digests; secret lifecycle |
+| FND-13 | VM1 host Nginx configuration | Partial - candidate; activation blocked | Actual syntax/private route; OD-02 transport; certificate ownership |
+| FND-14 | Swarm staging stack and network zones | Partial - candidate; infrastructure blocked | Docker validation; OD-03 sizing; private network/rollout acceptance |
 | FND-15 | Central logs, metrics and alerts | Pending - monitoring implementation | OD-08 monitoring and audit retention |
 | FND-16 | Backup/restore and rollback drill | Pending - recovery targets blocked | OD-04 approved RTO/RPO; deployed database/infrastructure |
 | FND-17 | Stage 3 threat-control verification | Partial - CI baseline only | DOC-203/206; deployed environment; complete negative-test matrix |
 | FND-18 | Stage 3 gate and handoff | Pending - stage acceptance | All remaining blockers dispositioned; security and sponsor acceptance |
 
 ## Confirmed implementation and evidence
+
+Restricted staging preparation and current test results are centralized in the
+[API roadmap](API_Test_Deployment_Roadmap.md#restricted-staging-preparation-and-evidence).
+Nginx/Swarm candidates now exist, so FND-13/FND-14 are partial, not accepted.
+Production remains NO-GO; FND-01 stays owner-declared complete.
 
 - FND-02: CI pins the Flutter SDK and Python runtime; application and CI dependency lockfiles include hash checks. CI resolves locked packages and checks Flutter lockfile drift.
 - FND-03: eight Django service skeletons have independently built CI images, non-root runtime smoke checks and health checks. Production settings remain gated.

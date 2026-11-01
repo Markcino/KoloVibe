@@ -6,7 +6,7 @@
 
 The accepted pilot layout is Cloudflare edge and Tunnel → host Nginx on Oracle VM1 → private Swarm gateway → private services on the VM1 manager/VM2 worker network. RabbitMQ is the Celery broker; PostgreSQL owns business records. VM1 is a single manager and ingress host, so loss of VM1 interrupts service. See the [VM audit runbook](Oracle_VM_Infrastructure_Verification_Runbook.md) and [architecture amendment](../architecture/ADR-003_007_Implementation_Reconciliation_2026-11-01.md).
 
-Current code supports local account APIs, approved-public video and creator metadata, and a non-cash append-only points ledger scaffold. Video playback, provider uploads, eligibility, award calculation, reports/appeals, profile settings and production authentication are not ready for external testing. All service settings currently reject any environment other than `local`; runserver is development-only. An older CI run recorded a secret-discovery failure; verify the latest exact commit's check status before promoting any image.
+Current code supports local account APIs, approved-public video and creator metadata, and a non-cash append-only points ledger scaffold. Video playback, provider uploads, eligibility, award calculation, reports/appeals, profile settings and production authentication are not ready for external testing. All eight services now support a fail-closed restricted `staging` profile alongside unchanged local behavior, while continuing to reject `production`. Images use Gunicorn; local runserver remains development-only. Verify the latest exact commit's check status before promoting any image; repository/Actions readback during the preceding review returned 404 and remains unverified.
 
 ## Ordered delivery and acceptance gates
 
@@ -27,6 +27,71 @@ Current code supports local account APIs, approved-public video and creator meta
 The first externally reachable staging cut should be read-only. It may return an empty video list and 404 for unknown creators. Do not turn an empty database into sample content. Account testing requires a configured SMTP sender and newly registered tester accounts; the application contains no test credential. The current mobile debug build can use a configured loopback gateway; device/staging builds must use a verified HTTPS gateway URL ending in `/api/v1`.
 
 Do not label the API fully deployed while the current application gaps remain in [R1 application tracker](R1_Application_Tracker.md). `api.cabetechs.shop` and `kolovibe.cabetechs.shop` are owner-reported Cloudflare Tunnel hostnames. Their exact DNS records, ingress mapping, HTTPS behavior, Nginx virtual hosts and deployed gateway routing still require live verification. An externally reachable DNS name does not authorize deployment.
+
+## Restricted staging preparation and evidence
+
+Shared infrastructure configuration lives in `services/staging_runtime`; the
+eight service settings retain their own apps/models/schema paths. For native
+staging commands, include the absolute `services` directory in `PYTHONPATH` while
+running from the owning service directory. Images copy the package into `/app`.
+Do not set `KOLOVIBE_ENV=local` on a VM to evade these checks.
+
+Required settings are documented by the [Swarm candidate](../../infra/swarm/README.md);
+each service needs exact hosts, matching service identity, DEBUG=0, a private
+`DJANGO_SECRET_KEY_FILE`, verified-TLS PostgreSQL, server TLS cert/key, internal CA,
+caller-key JSON and a separate private probe token file. No SQLite, wildcard
+host, plaintext peer or local environment-key fallback is accepted. Runtime DB
+logins must not own migration/schema/database CREATE privileges.
+
+Staging APIs do not authenticate through browser cookies: public accounts use
+explicit bearer/refresh credentials; private calls use HMAC plus verified TLS.
+Therefore `security.W003` is explicitly scoped out of the API deployment check;
+the separate web app retains CSRF and cookie controls and is not part of this
+staging stack. `security.W005`/`W021` are also scoped out because domain-wide HSTS
+and preload are not approved for this restricted pilot. Per-host HTTPS/HSTS and
+secure cookie defaults remain enforced. These three documented exceptions are
+not production acceptance or permission to silence other check failures.
+
+Accounts default disabled at gateway **and identity**. Preparation supports an
+approved account wave through `KOLOVIBE_STAGING_ACCOUNTS=1` and
+`KOLOVIBE_ACCOUNT_APPROVAL_FILE`, a JSON object with nonempty reviewed-reference
+strings for `identity`, `smtp`, `credentials`, `transport`. Identity additionally
+requires SMTP host/port/from address and private SMTP user/password files. References
+must correspond to actual owner approvals; parsing the file does not verify their
+authenticity. This wave also needs separately reviewed identity manifests and
+ingress rules: the provided read-only stack/Nginx template blocks it.
+All points and other unapproved routes remain blocked regardless of account flags.
+
+Run from the repository root with native PostgreSQL tools and OpenSSL on PATH:
+
+```bash
+PYTHONPATH=scripts .venv/bin/python -m verify_staging_runtime
+```
+
+This passed against disposable TLS PostgreSQL: eight `check --deploy --fail-level
+WARNING` profiles (three explicit policy exceptions above), eight real Gunicorn
+HTTPS processes, production/incomplete configuration rejection, least-privilege
+schema access, protected probes/readiness, exact Host/TLS checks, public metadata,
+default-disabled account routes, captured account verification mail, concurrent
+refresh reuse/revocation, signing-key rotation, restricted-record 404s, forged
+proxy-scheme rejection, pending-migration propagation and dependency-outage 503.
+No external mail or existing
+database was accessed. Temporary logins, records, certificates and processes are
+removed with the fixture.
+
+Additional current results: 101 service tests and all migration drift checks
+passed; 14 web tests passed; 49 script regressions passed; hashed-lock checks,
+`pip check` and locked dependency audit passed with no known advisories.
+`actionlint -shellcheck='' .github/workflows/ci_cd.yml` passed using the
+checksum-verified 1.7.7 tool. Full repository Bandit enforcement passed with zero
+medium/high findings; the new runtime/validation source secret scan passed.
+The existing PostgreSQL foundation and six local contract journeys were rerun
+and passed without changing live data.
+The CI trigger regression now matches main-only pushes and manual lock generation.
+Docker/image execution, GHCR provenance, actual Nginx syntax/routing, private
+network isolation, certificate/workload rotation, backup/restore, alerts and live
+account acceptance remain pending. The prepared manifests are not applied; all
+changes remain uncommitted for review. Production is still **NO-GO**.
 
 ## Reproducible isolated local acceptance
 

@@ -3,9 +3,13 @@ import os
 from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 ENVIRONMENT = os.environ.get("KOLOVIBE_ENV")
-if ENVIRONMENT != "local":
-    raise RuntimeError("Production/staging settings are not authorized. KOLOVIBE_ENV=local is required.")
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
+if ENVIRONMENT not in ("local", "staging"):
+    raise RuntimeError("Production settings are not authorized; explicit local or staging profile required.")
+if ENVIRONMENT == "staging":
+    from staging_runtime import secret
+    SECRET_KEY = secret("DJANGO_SECRET_KEY_FILE")
+else:
+    SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
 if not SECRET_KEY or len(SECRET_KEY) < 32:
     raise RuntimeError("A unique DJANGO_SECRET_KEY of at least 32 characters is required")
 DEBUG = os.environ.get("DJANGO_DEBUG", "0") == "1"
@@ -60,3 +64,6 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.environ.get("KOLOVIBE_SMTP_USER", "")
 EMAIL_HOST_PASSWORD = os.environ.get("KOLOVIBE_SMTP_PASSWORD", "")
 DEFAULT_FROM_EMAIL = os.environ.get("KOLOVIBE_FROM_EMAIL", "")
+if ENVIRONMENT == "staging":
+    from staging_runtime import configure
+    configure(globals())
