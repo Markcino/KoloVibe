@@ -1,6 +1,8 @@
 # FND-01 — Repository governance
 
-Status: PARTIAL — repository configuration prepared; server-side activation and enforcement evidence remain pending.
+Status: COMPLETE — owner-declared on 1 November 2026, at Mark's direction.
+
+This records the owner's completion declaration, not a new independent verification of GitHub settings. The 30 October observations below are historical. No current protection readback or acceptance exercise was performed during this change.
 
 ## Ownership and review model
 
@@ -19,7 +21,7 @@ Self-review and AI assistance do not provide independent security assurance. Thi
 
 The committed JSON is configuration to apply; it does not activate protection on GitHub.
 
-## Observed blockers — 30 October 2026
+## Historical observations — 30 October 2026
 
 | Item | Observed state | Intervention |
 | --- | --- | --- |
@@ -100,7 +102,7 @@ Use a small, reversible documentation change on a separate branch:
 - [ ] Confirm merge becomes available after successful current checks and resolved conversations, with zero required approvals.
 - [ ] Retain the settings screenshot, effective configuration readback and PR URL.
 
-Verify force-push and deletion restrictions from the effective settings; do not attempt destructive tests against `main`. Mark FND-01 complete only after activation and this evidence are reviewed.
+Verify force-push and deletion restrictions from the effective settings; do not attempt destructive tests against `main`. Retain future verification evidence separately from the owner's completion declaration.
 
 ## References
 

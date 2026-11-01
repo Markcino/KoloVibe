@@ -1,5 +1,5 @@
 # Development/CI validation image; production runtime is gated on deployment ADRs.
-FROM python:3.12-alpine3.23
+FROM python:3.12-alpine3.23@sha256:a4ad86fc2eaa4f9a5c3153776c9fb56e502dbd8e23dfa855d164308f376a6dd2
 ARG SERVICE
 WORKDIR /app
 

@@ -1,7 +1,7 @@
 name: API quality
 on:
   push:
-    branches: [main, 'feature/**', 'chore/**', 'fix/**', 'security/**']
+    branches: [main]
   pull_request:
 permissions:
   contents: read
@@ -26,7 +26,12 @@ jobs:
       - name: RabbitMQ/Celery worker configuration regression tests
         run: python -m unittest -v scripts/test_rabbitmq_celery.py
       - name: Foundation security and isolation checks
-        run: python -m unittest -v scripts/test_stage3_foundations.py
+        run: python -m unittest -v scripts/test_stage3_foundations.py scripts/test_ghcr_gate.py scripts/test_image_artifact.py scripts/test_staging_verification.py
+      - name: TLS PostgreSQL migrations, isolation, ledger and event integration
+        run: |
+          set -euo pipefail
+          export PATH="$(pg_config --bindir):$PATH"
+          python scripts/test_postgres_foundations.py
       - name: Service checks
         run: |
           python scripts/check_structure.py
