@@ -48,6 +48,7 @@ def validate(stack):
         environment = service["environment"]
         if (environment["KOLOVIBE_ENV"] != "staging" or environment["DJANGO_DEBUG"] != "0"
                 or environment["KOLOVIBE_STAGING_ACCOUNTS"] != "0"
+                or environment["KOLOVIBE_STAGING_PRIVILEGED"] != "0"
                 or environment["KOLOVIBE_SERVICE_NAME"] != name):
             raise ValueError("Staging capability/environment gate was changed")
         if any(re.search(r"(PASSWORD|SECRET_KEY|TOKEN|OUTBOUND_KEY|CALLER_KEYS)$", key)

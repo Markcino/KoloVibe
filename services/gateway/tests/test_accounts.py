@@ -62,3 +62,19 @@ class AccountGatewayTests(SimpleTestCase):
             response = self.post("login", {"email": "a", "password": "b"})
         self.assertEqual(response.status_code, 503)
         self.assertNotIn("private server address", response.content.decode())
+
+    def test_privileged_login_challenge_and_mfa_verification_are_forwarded(self):
+        challenge = secrets.token_urlsafe(48)
+        with patch("service.accounts.signed_internal_request") as call:
+            call.return_value = Response(202, json.dumps({
+                "mfa_required": True, "challenge_token": challenge, "expires_in": 300}).encode())
+            response = self.post("login", {"email": "reviewer@example.test", "password": "input"})
+            self.assertEqual(response.status_code, 202)
+            self.assertNotIn("access_token", response.json())
+            call.return_value = Response(200, b'{"access_token":"a","refresh_token":"b"}')
+            response = self.post("mfa-verify", {"challenge_token": challenge, "code": "123456"})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(call.call_args.args, ("identity", "/internal/auth/mfa/verify"))
+        with patch("service.accounts.signed_internal_request") as call:
+            self.assertEqual(self.post("mfa-verify", {"role": "administrator"}).status_code, 400)
+            call.assert_not_called()

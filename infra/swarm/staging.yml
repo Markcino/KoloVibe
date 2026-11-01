@@ -16,6 +16,7 @@ x-environment: &environment
   KOLOVIBE_CALLER_KEYS_FILE: /run/secrets/caller_keys
   KOLOVIBE_PROBE_TOKEN_FILE: /run/secrets/probe_token
   KOLOVIBE_STAGING_ACCOUNTS: "0"
+  KOLOVIBE_STAGING_PRIVILEGED: "0"
 
 x-deploy: &deploy
   replicas: 0
@@ -128,6 +129,12 @@ services:
       KOLOVIBE_SERVICE_NAME: identity
       KOLOVIBE_ALLOWED_HOSTS: identity
       KOLOVIBE_DB_USER: ${IDENTITY_DB_USER:?runtime database login required}
+      KOLOVIBE_SMTP_USER_FILE: /run/secrets/smtp_user
+      KOLOVIBE_SMTP_PASSWORD_FILE: /run/secrets/smtp_password
+      KOLOVIBE_MFA_ENCRYPTION_KEY_FILE: /run/secrets/mfa_encryption_key
+      KOLOVIBE_OUTBOUND_KEY_FILE: /run/secrets/audit_signing_key
+      KOLOVIBE_TRUSTED_PEERS_FILE: /run/secrets/audit_peers
+      KOLOVIBE_ACCOUNT_APPROVAL_FILE: /run/secrets/account_approvals
     secrets:
       - {source: identity_django, target: django_key, uid: "10001", gid: "10001", mode: 0400}
       - {source: identity_db, target: db_password, uid: "10001", gid: "10001", mode: 0400}
@@ -135,6 +142,12 @@ services:
       - {source: identity_tls_key, target: tls_key, uid: "10001", gid: "10001", mode: 0400}
       - {source: identity_callers, target: caller_keys, uid: "10001", gid: "10001", mode: 0400}
       - {source: identity_probe, target: probe_token, uid: "10001", gid: "10001", mode: 0400}
+      - {source: identity_smtp_user, target: smtp_user, uid: "10001", gid: "10001", mode: 0400}
+      - {source: identity_smtp_password, target: smtp_password, uid: "10001", gid: "10001", mode: 0400}
+      - {source: identity_mfa_encryption, target: mfa_encryption_key, uid: "10001", gid: "10001", mode: 0400}
+      - {source: identity_audit_signing, target: audit_signing_key, uid: "10001", gid: "10001", mode: 0400}
+      - {source: identity_audit_peers, target: audit_peers, uid: "10001", gid: "10001", mode: 0400}
+      - {source: identity_approvals, target: account_approvals, uid: "10001", gid: "10001", mode: 0400}
       - {source: internal_ca, target: internal_ca, uid: "10001", gid: "10001", mode: 0400}
       - {source: db_ca, target: db_ca, uid: "10001", gid: "10001", mode: 0400}
   engagement:
@@ -271,6 +284,12 @@ secrets:
   identity_tls_key: {external: true}
   identity_callers: {external: true}
   identity_probe: {external: true}
+  identity_smtp_user: {external: true}
+  identity_smtp_password: {external: true}
+  identity_mfa_encryption: {external: true}
+  identity_audit_signing: {external: true}
+  identity_audit_peers: {external: true}
+  identity_approvals: {external: true}
   engagement_django: {external: true}
   engagement_db: {external: true}
   engagement_tls_cert: {external: true}

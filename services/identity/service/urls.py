@@ -2,6 +2,7 @@ from django.urls import path
 from django.http import JsonResponse
 from .health import liveness
 from . import accounts
+from .mfa import verify_mfa
 
 urlpatterns = [
     path("health/live", liveness, name="liveness"),
@@ -9,6 +10,7 @@ urlpatterns = [
     path("internal/auth/register", accounts.register, name="internal-register"),
     path("internal/auth/verify", accounts.verify_email, name="internal-verify"),
     path("internal/auth/login", accounts.login, name="internal-login"),
+    path("internal/auth/mfa/verify", verify_mfa, name="internal-mfa-verify"),
     path("internal/auth/refresh", accounts.refresh, name="internal-refresh"),
     path("internal/auth/validate", accounts.validate_access, name="internal-validate"),
     path("internal/auth/revoke", accounts.revoke, name="internal-revoke"),

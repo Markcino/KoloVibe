@@ -44,3 +44,29 @@ another host. Negative public-route checks do not include the token.
 **Limitations:** No live environment, protected environment configuration, approved
 endpoint, or token is currently verified here. The workflow is not evidence that
 deployment security controls have been accepted.
+
+## Identity secrets: offline validation only
+
+The same protected environment supports manual **identity-secrets** on reviewed
+`main`. It validates the identity staging profile, including SMTP STARTTLS, MFA
+encryption and the canonical HTTPS audit destination, without database, HTTP or
+SMTP connections. The job has read-only permissions, never deploys or uploads
+secret files, and deletes its owner-only temporary files even on validation failure.
+
+The authoritative names/mapping are in the
+[identity job](../../.github/workflows/ci_cd.yml). Set its `secrets.*` inputs as
+environment secrets: distinct identity Django/DB/TLS/caller/probe credentials,
+CA certificates, SMTP user/password, a separately generated Fernet MFA key and
+identity-to-audit signing key. Set its `vars.*` inputs as non-credential configuration:
+approved DB/identity/SMTP hosts, ports, sender, audit peers and approval references.
+The audit peer JSON contains exactly `audit` mapped to an approved HTTPS origin.
+Approval JSON contains actual references for `identity`, `smtp`, `credentials`,
+`transport`, `mfa`, `audit`; placeholder strings do not constitute approval.
+Audit must separately trust the identity signing key, with its own TLS/DB/probe
+credentials. Never share Django, signing, probe or MFA keys.
+
+Passing this offline operation proves configuration shape and readable trust/key
+files, not provider authentication, certificate issuance, remote DBA permissions,
+environment protection or secret installation. Those remain owner acceptance
+tasks. Test SMTP runs only on loopback, using generated credentials and a private
+capture fixture. No live provider test email is sent.

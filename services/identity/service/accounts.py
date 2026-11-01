@@ -24,6 +24,8 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .models import Account, EmailVerification, LoginSession, LoginThrottle, UsedRefreshToken
+from .mfa import challenge, privileged_enabled, session_allowed
+from .security_audit import record
 
 ACCESS_SECONDS = 300
 REFRESH_DAYS = 30
@@ -76,11 +78,11 @@ def _session_for_access(token):
     except (signing.BadSignature, KeyError, TypeError, ValueError, AttributeError):
         return None
     now = timezone.now()
-    return LoginSession.objects.select_related("account").filter(
+    session = LoginSession.objects.select_related("account").filter(
         pk=session_id, account_id=account_id, revoked_at__isnull=True,
         expires_at__gt=now, account__is_active=True,
-        account__role__in=(Account.Role.VIEWER, Account.Role.CREATOR),
     ).first()
+    return session if session is not None and session_allowed(session) else None
 
 
 def _throttle_key(email, origin):
@@ -108,6 +110,7 @@ def register(request):
             send_mail("Verify your KoloVibe account",
                       "Your verification code: " + raw,
                       settings.DEFAULT_FROM_EMAIL, [account.email], fail_silently=False)
+            record("account.registered", account.id)
     except (KeyError, ValueError, ValidationError, json.JSONDecodeError):
         return _error("Invalid registration")
     except IntegrityError:
@@ -134,6 +137,7 @@ def verify_email(request):
             verification.save(update_fields=["used_at"])
             verification.account.is_active = True
             verification.account.save(update_fields=["is_active"])
+            record("account.verified", verification.account_id)
     except (KeyError, ValueError, json.JSONDecodeError):
         return _error("Invalid verification")
     return JsonResponse({"verified": True})
@@ -160,20 +164,32 @@ def login(request):
             throttle.failures = 0
             throttle.window_started_at = now
         if throttle.failures >= LOGIN_LIMIT:
+            record("login.throttled")
             return _error("Too many attempts", 429)
         account = authenticate(request, username=email, password=password)
         if account is None or not account.is_active:
             throttle.failures += 1
             throttle.save(update_fields=["failures", "window_started_at"])
+            record("login.failed")
             return _error("Invalid credentials", 401)
+        if ((account.is_staff or account.is_superuser)
+                and account.role not in {Account.Role.MODERATOR, Account.Role.ADMINISTRATOR}):
+            return _error("Privileged role configuration unavailable", 403)
         if account.role in {Account.Role.MODERATOR, Account.Role.ADMINISTRATOR}:
-            return _error("Privileged access unavailable", 403)
+            if not privileged_enabled():
+                return _error("Privileged access unavailable", 403)
+            # Password success must not reset throttling until MFA succeeds.
+            throttle.failures += 1
+            throttle.save(update_fields=["failures", "window_started_at"])
+            return challenge(account, key)
         throttle.failures = 0
         throttle.save(update_fields=["failures", "window_started_at"])
         session = LoginSession.objects.create(
-            account=account, refresh_digest=_digest(secrets.token_urlsafe(48)),
+            account=account, authenticated_role=account.role,
+            refresh_digest=_digest(secrets.token_urlsafe(48)),
             expires_at=now + timedelta(days=REFRESH_DAYS))
         result = _issue(session)
+        record("login.succeeded", account.id)
     return JsonResponse(result)
 
 
@@ -193,18 +209,20 @@ def refresh(request):
         session = LoginSession.objects.select_for_update().select_related("account").filter(pk=session_id).first()
         if session is None or session.revoked_at is not None or session.expires_at <= now or not session.account.is_active:
             return _error("Invalid session", 401)
-        if session.account.role not in (Account.Role.VIEWER, Account.Role.CREATOR):
+        if not session_allowed(session):
             return _error("Privileged access unavailable", 403)
         if not hmac.compare_digest(session.refresh_digest, digest):
             if UsedRefreshToken.objects.filter(digest=digest, family_id=session.family_id,
                                                expires_at__gt=now).exists():
                 LoginSession.objects.filter(family_id=session.family_id, revoked_at__isnull=True).update(revoked_at=now)
+                record("session.replay", session.account_id)
             return _error("Invalid session", 401)
         UsedRefreshToken.objects.create(digest=digest, family_id=session.family_id,
                                         expires_at=session.expires_at)
         session.rotated_at = now
         session.save(update_fields=["rotated_at"])
         result = _issue(session)
+        record("session.rotated", session.account_id)
     return JsonResponse(result)
 
 
@@ -219,8 +237,6 @@ def validate_access(request):
     session = _session_for_access(token)
     if session is None:
         return _error("Invalid session", 401)
-    if session.account.role in {Account.Role.MODERATOR, Account.Role.ADMINISTRATOR}:
-        return _error("Privileged access unavailable", 403)
     return JsonResponse({"user": _account(session.account), "session_id": str(session.id)})
 
 
@@ -246,5 +262,7 @@ def revoke(request):
                                               revoked_at__isnull=True).first()
         if session is None:
             return _error("Invalid session", 401)
-    LoginSession.objects.filter(pk=session.id).update(revoked_at=timezone.now())
+    with transaction.atomic():
+        LoginSession.objects.filter(pk=session.id).update(revoked_at=timezone.now())
+        record("session.revoked", session.account_id)
     return JsonResponse({}, status=204)

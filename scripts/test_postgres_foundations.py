@@ -107,6 +107,8 @@ def postgres_fixture():
                         KOLOVIBE_DB_PASSWORD_FILE=str(credential_path),
                         KOLOVIBE_DB_SSLROOTCERT=str(certificate),
                         KOLOVIBE_PG_FIXTURE=str(base),
+                        PYTHONPATH=os.pathsep.join((str(ROOT / "services"),
+                                                   os.environ.get("PYTHONPATH", ""))),
                         KOLOVIBE_SERVICE_NAME=service)
                     environments[service] = environment
                     run([sys.executable, "manage.py", "migrate", "--noinput"],

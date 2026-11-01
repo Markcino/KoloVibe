@@ -84,3 +84,63 @@ node-bound volume, TLS definitions and sizing/recovery gates, and the
 runtime configuration, evidence and remaining backup/restore/acceptance gates.
 Production remains rejected. No stack, network, secret or database was deployed
 or changed on either VM.
+
+## Identity and privileged account activation
+
+Identity secret mounts for SMTP, MFA encryption, audit signing/peers and approval
+references are defined in the same YAML. They are external secrets, not embedded
+values. See [protected secret validation](../../docs/security/staging-verification.md#identity-secrets-offline-validation-only)
+for the Actions inputs. Actual provisioning is not performed by offline validation.
+SMTP uses certificate-verified STARTTLS, authentication and a five-second timeout;
+the sender/host/port still require an approved manifest change. The optional
+`KOLOVIBE_SMTP_CA_FILE` permits a reviewed private CA, never disables verification.
+
+`KOLOVIBE_STAGING_PRIVILEGED=0` remains the default at gateway and identity.
+Activation requires both account and privileged gates, six owner approval references,
+verified private identity/audit routing, audit trust for caller `identity`, migrations
+and reviewed least-privilege grants. The candidate validator rejects activation
+flags and nonzero replicas; Nginx still blocks account/MFA endpoints.
+
+Enroll only an **existing active moderator/administrator**, on the identity runtime
+with owner-controlled access. This command never creates/promotes privileged users:
+
+```bash
+python manage.py enroll_privileged_mfa \
+  --account-id <existing-account-uuid> \
+  --recovery-file <new-private-output-path> \
+  --approval-reference <recorded-owner-approval>
+```
+
+Supply owner-only `KOLOVIBE_ENROLLMENT_SECRET_FILE` (authenticator Base32 secret)
+and `KOLOVIBE_ENROLLMENT_CODE_FILE` (current TOTP), through private provisioning,
+not command arguments. The separate MFA encryption key must be retained securely.
+The command consumes the setup timestep, revokes sessions/challenges, writes ten
+hashed-at-rest one-use recovery credentials exclusively to a new mode-0600 file,
+and never prints them. Securely deliver them to the owner and remove temporary
+enrollment/output files after handoff. Enrollment approval is an external owner
+record, not independently verified by parsing its reference. No factor overwrite,
+public promotion or password-only recovery backdoor is provided.
+
+Password login returns a five-minute 202 challenge, not a session. TOTP allows
+one timestep of clock skew and rejects replay; challenges allow five failed
+attempts. Privileged sessions expire after fifteen minutes of MFA authentication;
+refresh cannot extend that deadline. Role changes, removed factors and disabled
+privileged capability invalidate them. Pre-migration sessions default to viewer;
+existing creator/privileged sessions must log in again. Privileged client UI and
+approved key replacement/rotation/recovery procedures remain activation gates.
+
+Identity appends credential-free security events transactionally with its session
+changes. Audit ingestion accepts only HMAC-authenticated identity calls over verified
+HTTPS and is idempotent; conflicting event IDs fail. Owning PostgreSQL triggers
+reject UPDATE, DELETE and TRUNCATE, while delivery acknowledgments are separate.
+DB/schema owners can still change triggers: operator privilege and retention policy
+remain required controls, not cryptographic tamper-proofing.
+
+Before activation, provision an owner-approved periodic runner for
+`python manage.py deliver_security_audit --limit 100`, using the identity runtime
+and its least-privilege credentials. Failed batches exit nonzero, log a redacted
+error and retain events for retry; subsequent successful batches acknowledge them.
+Monitor command failures, pending delivery count and oldest pending timestamp in
+`service_auditdelivery` joined to `service_securityevent`. Approve retry cadence,
+delivery-lag alerts, retention and storage capacity; no live scheduler is installed
+or silently implied here.

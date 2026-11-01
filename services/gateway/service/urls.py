@@ -13,6 +13,7 @@ urlpatterns = [
     path("api/v1/auth/register", accounts.register, name="register"),
     path("api/v1/auth/verify", accounts.verify_email, name="verify"),
     path("api/v1/auth/login", accounts.login, name="login"),
+    path("api/v1/auth/mfa/verify", accounts.verify_mfa, name="mfa-verify"),
     path("api/v1/auth/refresh", accounts.refresh, name="refresh"),
     path("api/v1/auth/logout", accounts.logout, name="logout"),
     path("api/v1/me", accounts.me, name="me"),

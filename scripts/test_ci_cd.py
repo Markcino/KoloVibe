@@ -65,7 +65,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(self.workflow["on"]["schedule"], [{"cron": "13 5 * * 1"}])
         inputs = self.workflow["on"]["workflow_dispatch"]["inputs"]["operation"]
         self.assertEqual(inputs["default"], "ci")
-        self.assertEqual(inputs["options"], ["ci", "dependency-locks", "staging-security"])
+        self.assertEqual(inputs["options"], ["ci", "dependency-locks", "staging-security", "identity-secrets"])
 
     def test_full_checks_run_for_main_pr_and_manual_ci_only(self):
         for job in QUALITY - {"osv"}:
@@ -77,6 +77,7 @@ class WorkflowTests(unittest.TestCase):
                 ("push", "refs/heads/feature/test", "", False),
                 ("schedule", "refs/heads/main", "", False),
                 ("workflow_dispatch", "refs/heads/main", "staging-security", False),
+                ("workflow_dispatch", "refs/heads/main", "identity-secrets", False),
                 ("workflow_dispatch", "refs/heads/security/ci-hardening", "dependency-locks", False),
             ]:
                 with self.subTest(job=job, event=event, operation=operation):
@@ -182,6 +183,17 @@ class WorkflowTests(unittest.TestCase):
                                  "staging-security"))
         self.assertFalse(matches(job["if"], "workflow_dispatch", operation="ci"))
         self.assertEqual(job["concurrency"]["group"], "kolovibe-environment-security-review")
+        identity = self.jobs["identity-secrets"]
+        self.assertEqual(identity["environment"], {"name": "staging-security-review"})
+        self.assertTrue(matches(identity["if"], "workflow_dispatch", operation="identity-secrets"))
+        self.assertFalse(matches(identity["if"], "pull_request", operation="identity-secrets"))
+        self.assertFalse(matches(identity["if"], "workflow_dispatch", "refs/heads/feature/test",
+                                 "identity-secrets"))
+        self.assertFalse(matches(identity["if"], "workflow_dispatch", operation="ci"))
+        self.assertEqual(identity["permissions"], {"contents": "read"})
+        self.assertEqual(identity["needs"], ["validate-dispatch"])
+        self.assertFalse(any(step.get("uses", "").startswith("actions/upload-artifact")
+                             for step in identity["steps"]))
 
     def test_invalid_maintenance_branch_reports_failure(self):
         job = self.jobs["validate-dispatch"]
@@ -197,6 +209,8 @@ class WorkflowTests(unittest.TestCase):
             ("dependency-locks", "refs/heads/main", 1),
             ("staging-security", "refs/heads/main", 0),
             ("staging-security", "refs/heads/feature/test", 1),
+            ("identity-secrets", "refs/heads/main", 0),
+            ("identity-secrets", "refs/heads/feature/test", 1),
             ("unknown", "refs/heads/main", 1),
         ]:
             with self.subTest(operation=operation, ref=ref):

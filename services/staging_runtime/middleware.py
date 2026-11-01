@@ -16,6 +16,7 @@ ACCOUNTS = {
 INTERNAL = {
     "content": {"/internal/videos", "/internal/videos/detail"},
     "creators": {"/internal/creators/profile"},
+    "audit": {"/internal/security-events"},
 }
 
 
@@ -37,6 +38,10 @@ class RestrictedStagingMiddleware:
         allowed |= service == "gateway" and request.method == "GET" and bool(PUBLIC.fullmatch(path))
         allowed |= path in INTERNAL.get(service, set()) and request.method == "POST"
         allowed |= settings.STAGING_ACCOUNTS and path in ACCOUNTS.get(service, set())
+        allowed |= getattr(settings, "STAGING_PRIVILEGED", False) and path in {
+            "gateway": {"/api/v1/auth/mfa/verify"},
+            "identity": {"/internal/auth/mfa/verify"},
+        }.get(service, set())
         if not allowed:
             logger.warning("Rejected gated staging route")
             return JsonResponse({"detail": "Not enabled in restricted staging"}, status=403)

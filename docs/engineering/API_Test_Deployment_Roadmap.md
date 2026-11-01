@@ -61,7 +61,7 @@ strings for `identity`, `smtp`, `credentials`, `transport`. Identity additionall
 requires SMTP host/port/from address and private SMTP user/password files. References
 must correspond to actual owner approvals; parsing the file does not verify their
 authenticity. Identity is defined in the single stack, but this wave still needs
-reviewed activation, SMTP secret mounts and ingress rules. The stack defaults
+reviewed activation, provisioning of the defined SMTP secret mounts and ingress rules. The stack defaults
 all eight APIs and RabbitMQ to zero replicas; accounts stay disabled and the
 Nginx template blocks them.
 All points and other unapproved routes remain blocked regardless of account flags.
@@ -76,16 +76,35 @@ This passed against disposable TLS PostgreSQL: eight `check --deploy --fail-leve
 WARNING` profiles (three explicit policy exceptions above), eight real Gunicorn
 HTTPS processes, production/incomplete configuration rejection, least-privilege
 schema access, protected probes/readiness, exact Host/TLS checks, public metadata,
-default-disabled account routes, captured account verification mail, concurrent
+default-disabled account routes, real loopback STARTTLS/authenticated SMTP capture,
+complete offline protected secret validation, TOTP/recovery login, concurrent
+one-use MFA challenges, signed HTTPS audit ingestion and outage/retry recovery,
+PostgreSQL security-event UPDATE/DELETE/TRUNCATE rejection, concurrent
 refresh reuse/revocation, signing-key rotation, restricted-record 404s, forged
 proxy-scheme rejection, pending-migration propagation and dependency-outage 503.
 No external mail or existing
 database was accessed. Temporary logins, records, certificates and processes are
 removed with the fixture.
 
-Additional current results: 101 service tests and all migration drift checks
-passed; 14 web tests passed; 49 script regressions passed; hashed-lock checks,
-`pip check` and locked dependency audit passed with no known advisories.
+Additional current results: **115 service tests** and all migration drift checks
+passed; **14 web tests**, **74 script regressions**, six local gateway/web journeys
+and all PostgreSQL foundation checks passed. `pip check` and the hash-locked
+dependency audit pass with no known advisories; cryptography is pinned to 50.0.2.
+The stale identity-proposal test now validates the canonical ADR/DOC-205 contract,
+without recreating removed duplicate proposal documents or implying approval.
+
+Privileged MFA defaults disabled at both account services and requires separate
+MFA/audit approval references in addition to the four account references.
+Password login returns 202 without session credentials; `/auth/mfa/verify`
+consumes a TOTP/recovery challenge before issuing a fifteen-minute role-bound
+privileged session. Ordinary local account behavior remains unchanged. Existing
+creator/privileged sessions must reauthenticate after migration. The
+[identity runbook](../../infra/swarm/README.md#identity-and-privileged-account-activation)
+owns enrollment, private key/secret handling, bounded audit retry and monitored
+scheduling requirements; [protected secret validation](../security/staging-verification.md#identity-secrets-offline-validation-only)
+owns environment setup. No external mail was sent or real secrets installed.
+Privileged client UI, recovery/rotation, retention, actual periodic delivery runner
+and remote activation evidence remain open; production is still rejected.
 `actionlint -shellcheck='' .github/workflows/ci_cd.yml` passed using the
 checksum-verified 1.7.7 tool. Full repository Bandit enforcement passed with zero
 medium/high findings; the new runtime/validation source secret scan passed.

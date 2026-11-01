@@ -30,6 +30,14 @@ def _invoke(path, data, success_statuses):
         result = json.loads(raw) if raw else {}
         if not isinstance(result, dict):
             raise ValueError("Invalid identity response")
+        if status == 202 and (
+            set(result) != {"mfa_required", "challenge_token", "expires_in"}
+            or result["mfa_required"] is not True
+            or not isinstance(result["challenge_token"], str)
+            or not 32 <= len(result["challenge_token"]) <= 128
+            or type(result["expires_in"]) is not int or result["expires_in"] != 300
+        ):
+            raise ValueError("Invalid MFA challenge response")
         return _json(result, status)
     except HTTPError as error:
         if error.code not in {400, 401, 403, 409, 429, 503}:
@@ -90,7 +98,16 @@ def login(request):
         data = _body(request, {"email", "password"})
     except (ValueError, UnicodeError):
         return _json({"detail": "Invalid credentials"}, 400)
-    return _invoke("/internal/auth/login", data, {200})
+    return _invoke("/internal/auth/login", data, {200, 202})
+
+
+@require_POST
+def verify_mfa(request):
+    try:
+        data = _body(request, {"challenge_token", "code"})
+    except (ValueError, UnicodeError):
+        return _json({"detail": "Invalid MFA challenge"}, 400)
+    return _invoke("/internal/auth/mfa/verify", data, {200})
 
 
 @require_POST

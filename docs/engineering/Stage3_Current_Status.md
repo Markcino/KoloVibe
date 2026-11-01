@@ -27,7 +27,7 @@ These counts describe task evidence, not overall percentage completion or formal
 | FND-07 | Per-service PostgreSQL roles and migrations | Partial - local integration verified | Disposable TLS PostgreSQL isolation/migration tests pass; deployed topology and login evidence pending |
 | FND-08 | RabbitMQ/Celery private queues and retries | Partial - integration evidence pending | RabbitMQ DHI TLS deployment; approved queue/workload identity |
 | FND-09 | Outbox/inbox and idempotency scaffold | Partial - database integration verified | PostgreSQL rollback/republication and deduplication pass with a publisher double; live broker evidence pending |
-| FND-10 | Service identity enforcement | Partial - Django-native client identity selected; acceptance pending | ADR-013 client identity authority selected; OD-01/ADR-012 workload identity, token/session/MFA contracts and credential rotation remain open |
+| FND-10 | Service identity enforcement | Partial - Django-native identity and gated TOTP/audit implemented | Isolated SMTP/MFA/audit and protected secret validation pass; full ADR-013/OD-01/ADR-012, privileged clients, recovery/rotation and deployed acceptance remain open |
 | FND-11 | Append-only noncash ledger scaffold | Partial - PostgreSQL tests verified; CI acceptance pending | SQLite/PostgreSQL ledger tests pass locally; run new CI acceptance. Award formula/public APIs are separate later work |
 | FND-12 | Hardened image and Swarm secret handling | Partial - isolated staging runtime verified | Actual image/Swarm deployment; digests; secret lifecycle |
 | FND-13 | VM1 host Nginx configuration | Partial - candidate; activation blocked | Actual syntax/private route; OD-02 transport; certificate ownership |

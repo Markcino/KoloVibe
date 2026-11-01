@@ -7,6 +7,7 @@ from django.contrib.auth.models import PermissionsMixin
 from django.contrib.auth.password_validation import validate_password
 from django.core.validators import validate_email
 from django.db import models
+from django.utils import timezone
 
 
 class AccountManager(BaseUserManager):
@@ -66,6 +67,8 @@ class LoginSession(models.Model):
     rotated_at = models.DateTimeField(null=True, blank=True)
     expires_at = models.DateTimeField()
     revoked_at = models.DateTimeField(null=True, blank=True)
+    authenticated_role = models.CharField(max_length=16, default="viewer")
+    mfa_verified_at = models.DateTimeField(null=True, blank=True)
 
 
 class UsedRefreshToken(models.Model):
@@ -89,3 +92,39 @@ class EmailVerification(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE)
     expires_at = models.DateTimeField()
     used_at = models.DateTimeField(null=True, blank=True)
+
+
+class TotpFactor(models.Model):
+    account = models.OneToOneField(Account, on_delete=models.CASCADE)
+    encrypted_secret = models.TextField()
+    last_step = models.BigIntegerField(default=-1)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class RecoveryCode(models.Model):
+    account = models.ForeignKey(Account, on_delete=models.CASCADE)
+    digest = models.CharField(max_length=64, unique=True)
+    used_at = models.DateTimeField(null=True, blank=True)
+
+
+class MfaChallenge(models.Model):
+    digest = models.CharField(max_length=64, primary_key=True)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE)
+    role = models.CharField(max_length=16)
+    throttle_key = models.CharField(max_length=64)
+    expires_at = models.DateTimeField()
+    failures = models.PositiveSmallIntegerField(default=0)
+    used_at = models.DateTimeField(null=True, blank=True)
+
+
+class SecurityEvent(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    actor_id = models.UUIDField(null=True)
+    kind = models.CharField(max_length=64)
+    occurred_at = models.DateTimeField(default=timezone.now)
+
+
+class AuditDelivery(models.Model):
+    event = models.OneToOneField(SecurityEvent, on_delete=models.PROTECT, primary_key=True)
+    attempts = models.PositiveIntegerField(default=0)
+    delivered_at = models.DateTimeField(null=True)

@@ -5,7 +5,7 @@
 **Status:** **Partially decided — identity authority selected; token, sessions, privileged MFA and security acceptance pending**
 **Related:** DOC-207 ADR-013, DOC-205 API contracts, DOC-206 security verification, DOC-209 G-03, Stage 3 OD-01 and FND-10
 
-**Follow-up proposal (not approved):** [ADR-013 v1.0 client authentication and session security](ADR-013_Client_Authentication_and_Session_Security_v1.0_DRAFT.md) with separate [DOC-205](ADR-013_DOC-205_Proposed_Contract_Delta_v1.0_DRAFT.md) and [DOC-206](ADR-013_DOC-206_Verification_Matrix_v1.0_DRAFT.csv) proposed artifacts. This earlier owner selection remains partial until formal review.
+**Canonical follow-up:** [DOC-205](DOC-205_OpenAPI_3_1_DRAFT.yaml) contains the implemented, gated account/MFA contract; [API roadmap](../engineering/API_Test_Deployment_Roadmap.md) records evidence and external activation prerequisites. Separate proposal copies are not maintained. This owner selection remains partial until formal review.
 
 ## Owner-confirmed selection
 
@@ -24,7 +24,7 @@ The identity-provider decision alone is **not final ADR-013 approval**. Still op
 
 1. **Mobile credentials:** access-token format (opaque/JWT or alternative), issuer, audience, scope, access lifetime, secure device storage, refresh-token lifetime, rotation/reuse response, revocation and device/session management.
 2. **Django web:** cookie/session model and lifetime, secure/HttpOnly/SameSite/CSRF settings, logout and revocation; reconcile browser and bearer credential boundaries.
-3. **Privileged MFA:** factor(s), enrollment, step-up, recovery, administrative access and audited enforcement. The approved PRD requires MFA for privileged users; concrete factor and workflow remain to be accepted.
+3. **Privileged MFA:** the owner selected TOTP, one-use recovery codes and authenticated append-only audit delivery for implementation. The gated APIs are implemented and tested; privileged client UI, key recovery/rotation, audit retention and deployment acceptance remain open. This is not full session-policy approval.
 4. **Recovery and abuse prevention:** contact verification, password reset, account recovery, brute-force/rate limits, account enumeration resistance, compromised-credential handling and audit retention.
 5. **Operational identity:** key generation, custody, rotation and revocation, trust boundaries, recovery exercises, real SMTP, environment secrets, and executable security tests.
 
@@ -32,7 +32,7 @@ The identity-provider decision alone is **not final ADR-013 approval**. Still op
 
 ## Implementation and evidence boundaries
 
-The repository already has local account registration/login, contact-verification fixtures, refresh rotation/revocation tests and secure web account journeys, as reported by the current Stage 3 tracker. The restricted staging deployment defaults account endpoints to disabled; it does not become approved simply because Django-native identity has been selected.
+The repository has local registration/login, verified STARTTLS SMTP configuration, contact-verification fixtures, refresh rotation/revocation, privileged TOTP/recovery challenges and append-only identity/audit evidence. Isolated tests never send external mail. The restricted staging deployment defaults account and privileged endpoints to disabled; it does not become approved simply because Django-native identity has been selected.
 
 Before enabling external account registration/login or privileged routes, obtain the outstanding approvals and pass the DOC-205/DOC-206 checks for expired/replayed tokens, wrong audience, forged identity, privilege elevation, revocation, rate limits, MFA, recovery, and protected transport. Record the exact design and tested evidence in the main ADR register and Stage 3 tracker.
 

@@ -22,7 +22,7 @@ def test_application():
     fixture_directory()
     from staging_runtime.wsgi import application
     from django.conf import settings
-    if settings.KOLOVIBE_SERVICE_NAME == "identity":
+    if settings.KOLOVIBE_SERVICE_NAME == "identity" and not os.getenv("KOLOVIBE_SMTP_FIXTURE"):
         settings.EMAIL_BACKEND = "verify_local_journeys.CapturedMail"
     return application
 
@@ -190,7 +190,8 @@ def verify():
             process = subprocess.Popen(
                 [sys.executable, "-m", "gunicorn", "--config",
                  str(ROOT / "services/staging_runtime/gunicorn.conf.py"),
-                 "--bind", f"127.0.0.1:{ports[service]}", "--workers", "1",
+                 "--bind", f"127.0.0.1:{ports[service]}", "--workers",
+                 "2" if service == "identity" else "1",
                  "verify_staging_runtime:test_application()"],
                 cwd=ROOT / "services" / service, env=environment, stdout=log, stderr=log)
             stack.callback(stop, process)
@@ -285,12 +286,15 @@ def verify():
         smtp_user, smtp_password = base / "smtp-user", base / "smtp-password"
         secret_file(smtp_user, "fixture@example.test")
         secret_file(smtp_password, secrets.token_urlsafe(48))
+        from smtp_fixture import smtp_fixture
+        smtp_port = stack.enter_context(smtp_fixture(base))
         for service in ("identity", "gateway"):
             stop(processes[service])
             environment = environments[service]
             environment.update(
                 KOLOVIBE_STAGING_ACCOUNTS="1", KOLOVIBE_ACCOUNT_APPROVAL_FILE=str(approvals),
-                KOLOVIBE_SMTP_HOST="test-only.invalid", KOLOVIBE_SMTP_PORT="587",
+                KOLOVIBE_SMTP_HOST="127.0.0.1", KOLOVIBE_SMTP_PORT=str(smtp_port),
+                KOLOVIBE_SMTP_CA_FILE=str(certificate), KOLOVIBE_SMTP_FIXTURE="1",
                 KOLOVIBE_SMTP_USER_FILE=str(smtp_user), KOLOVIBE_SMTP_PASSWORD_FILE=str(smtp_password),
                 KOLOVIBE_FROM_EMAIL="fixture@example.test")
             check_environment(environment, service)
@@ -335,15 +339,152 @@ def verify():
         assert status == 200
         assert api("gateway", "/api/v1/auth/logout", data={}, token=session["access_token"])[0] == 204
         assert api("gateway", "/api/v1/me", token=session["access_token"])[0] == 401
+
+        from cryptography.fernet import Fernet
+        import pyotp
+        encryption_file = base / "mfa-encryption"
+        secret_file(encryption_file, Fernet.generate_key().decode())
+        factor_secret = pyotp.random_base32()
+        factor_file, code_file = base / "factor-secret", base / "factor-code"
+        secret_file(factor_file, factor_secret)
+        secret_file(code_file, pyotp.TOTP(factor_secret).now())
+        identity_peers = base / "identity-audit-peers"
+        secret_file(identity_peers, json.dumps({"audit": f"https://127.0.0.1:{ports['audit']}"}))
+        secret_file(callers, json.dumps({"gateway": signing, "identity": signing}))
+        secret_file(approvals, json.dumps({name: "disposable-test-approval"
+                                          for name in ("identity", "smtp", "credentials",
+                                                       "transport", "mfa", "audit")}))
+        environments["identity"].update(
+            KOLOVIBE_MFA_ENCRYPTION_KEY_FILE=str(encryption_file),
+            KOLOVIBE_TRUSTED_PEERS_FILE=str(identity_peers))
+        def restart_service(service):
+            environment = environments[service]
+            check_environment(environment, service)
+            stop(processes[service])
+            log = stack.enter_context((base / f"privileged-{service}.log").open("w"))
+            process = subprocess.Popen(
+                [sys.executable, "-m", "gunicorn", "--config",
+                 str(ROOT / "services/staging_runtime/gunicorn.conf.py"),
+                 "--bind", f"127.0.0.1:{ports[service]}", "--workers",
+                 "2" if service == "identity" else "1",
+                 "verify_staging_runtime:test_application()"],
+                cwd=ROOT / "services" / service, env=environment, stdout=log, stderr=log)
+            stack.callback(stop, process)
+            processes[service] = process
+            deadline = time.monotonic() + 20
+            while True:
+                if process.poll() is not None:
+                    raise AssertionError("Privileged fixture process failed")
+                try:
+                    if api(service, "/health/live")[0] == 200:
+                        break
+                except OSError:
+                    pass
+                if time.monotonic() >= deadline:
+                    raise AssertionError("Privileged fixture startup timed out")
+                time.sleep(0.1)
+        for service in ("identity", "gateway"):
+            environments[service]["KOLOVIBE_STAGING_PRIVILEGED"] = "1"
+            restart_service(service)
+
+        from validate_identity_secrets import SECRET_FILES, CONFIG_FILES
+        protected_environment = dict(environments["identity"])
+        protected_environment.update({
+            source: Path(environments["identity"][target]).read_text()
+            for source, target in {**SECRET_FILES, **CONFIG_FILES}.items()})
+        offline = subprocess.run(
+            [sys.executable, str(ROOT / "scripts/validate_identity_secrets.py")],
+            env=protected_environment, capture_output=True, text=True, timeout=40)
+        if offline.returncode:
+            raise AssertionError("Complete protected identity secret validation failed")
+        with admin_connection(base, environments["identity"]) as connection:
+            privileged_id = connection.execute(
+                "UPDATE identity.service_account SET role=%s WHERE email=%s RETURNING id",
+                ("moderator", account["email"])).fetchone()[0]
+        enroll_environment = dict(
+            environments["identity"], KOLOVIBE_ENROLLMENT_SECRET_FILE=str(factor_file),
+            KOLOVIBE_ENROLLMENT_CODE_FILE=str(code_file))
+        secret_file(code_file, pyotp.TOTP(factor_secret).now())
+        enrolled = subprocess.run(
+            [sys.executable, "manage.py", "enroll_privileged_mfa",
+             "--account-id", str(privileged_id), "--recovery-file", str(base / "recovery-codes"),
+             "--approval-reference", "disposable-owner-approval"],
+            cwd=ROOT / "services/identity", env=enroll_environment,
+            capture_output=True, text=True, timeout=20)
+        if enrolled.returncode:
+            raise AssertionError("Disposable privileged enrollment failed")
+        status, challenged = api("gateway", "/api/v1/auth/login",
+                                 data={key: account[key] for key in ("email", "password")})
+        assert status == 202 and "access_token" not in challenged
+        recovery = (base / "recovery-codes").read_text().splitlines()[0]
+        status, privileged = api("gateway", "/api/v1/auth/mfa/verify",
+                                 data={"challenge_token": challenged["challenge_token"], "code": recovery})
+        assert status == 200
+        assert api("gateway", "/api/v1/me", token=privileged["access_token"])[0] == 200
+        assert api("gateway", "/api/v1/auth/mfa/verify",
+                   data={"challenge_token": challenged["challenge_token"], "code": recovery})[0] == 401
+        status, challenged = api("gateway", "/api/v1/auth/login",
+                                 data={key: account[key] for key in ("email", "password")})
+        assert status == 202
+        assert api("gateway", "/api/v1/auth/mfa/verify",
+                   data={"challenge_token": challenged["challenge_token"], "code": recovery})[0] == 401
+        code = pyotp.TOTP(factor_secret).at(time.time() + 30)
+        def verify_concurrently(_):
+            return api("gateway", "/api/v1/auth/mfa/verify",
+                       data={"challenge_token": challenged["challenge_token"], "code": code})[0]
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            assert sorted(executor.map(verify_concurrently, range(2))) == [200, 401]
+
+        stop(processes["audit"])
+        failed_delivery = subprocess.run(
+            [sys.executable, "manage.py", "deliver_security_audit", "--limit", "1"],
+            cwd=ROOT / "services/identity", env=environments["identity"],
+            capture_output=True, text=True, timeout=20)
+        assert failed_delivery.returncode != 0
+        with admin_connection(base, environments["identity"]) as connection:
+            assert connection.execute(
+                "SELECT count(*) FROM identity.service_auditdelivery "
+                "WHERE delivered_at IS NULL AND attempts > 0"
+            ).fetchone()[0] > 0
+        restart_service("audit")
+        delivery = subprocess.run(
+            [sys.executable, "manage.py", "deliver_security_audit"],
+            cwd=ROOT / "services/identity", env=environments["identity"],
+            capture_output=True, text=True, timeout=60)
+        if delivery.returncode:
+            raise AssertionError("Real signed TLS audit delivery failed")
+        with admin_connection(base, environments["identity"]) as connection:
+            assert connection.execute(
+                "SELECT count(*) FROM identity.service_auditdelivery WHERE delivered_at IS NULL"
+            ).fetchone()[0] == 0
+            assert connection.execute(
+                "SELECT count(*) FROM audit.service_securityevent WHERE kind=%s",
+                ("mfa.recovery_used",)).fetchone()[0] == 1
+            import psycopg
+            from psycopg import sql
+            for schema in ("identity", "audit"):
+                table = sql.Identifier(schema, "service_securityevent")
+                for statement in (
+                        sql.SQL("DELETE FROM {}").format(table),
+                        sql.SQL("UPDATE {} SET kind='login.failed'").format(table),
+                        sql.SQL("TRUNCATE {} CASCADE").format(table)):
+                    try:
+                        connection.execute(statement)
+                    except psycopg.errors.RaiseException:
+                        pass
+                    else:
+                        raise AssertionError("PostgreSQL permitted security evidence mutation")
         rotated = secrets.token_urlsafe(48)
-        secret_file(callers, json.dumps({"gateway": rotated}))
+        secret_file(callers, json.dumps({"gateway": rotated, "identity": signing}))
         assert api("gateway", "/health/ready")[0] == 503
         secret_file(outbound, rotated)
         assert api("gateway", "/health/ready") == (200, {"status": "ok"})
         stop(processes["content"])
         assert api("gateway", "/health/ready")[0] == 503
         print("PASS: eight staging profiles, Gunicorn/TLS, readiness, route/secret gates, "
-              "approved account mail/refresh/revocation, signing rotation and dependency outage", flush=True)
+              "loopback SMTP STARTTLS, protected secret validation, concurrent privileged MFA, "
+              "signed audit outage/retry and append-only SQL, account refresh/revocation, "
+              "signing rotation and dependency outage", flush=True)
 
 
 if __name__ == "__main__":

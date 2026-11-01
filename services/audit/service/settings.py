@@ -15,7 +15,7 @@ if not SECRET_KEY or len(SECRET_KEY) < 32:
 DEBUG = os.environ.get("DJANGO_DEBUG", "0") == "1"
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "testserver"]
 ROOT_URLCONF = "service.urls"
-INSTALLED_APPS = []
+INSTALLED_APPS = ["service"]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "service.service_auth.ServiceAuthMiddleware",

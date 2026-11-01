@@ -139,6 +139,7 @@ class StagingManifestTests(unittest.TestCase):
         # assignment: detect-secrets otherwise flags this synthetic negative test.
         invalid_key = "_".join(("KOLOVIBE", "DB", "PASSWORD"))
         for changes in ({"KOLOVIBE_ENV": "local"}, {"KOLOVIBE_STAGING_ACCOUNTS": "1"},
+                        {"KOLOVIBE_STAGING_PRIVILEGED": "1"},
                         {invalid_key: "not-allowed"}):
             stack = copy.deepcopy(self.stack)
             stack["services"]["gateway"]["environment"].update(changes)

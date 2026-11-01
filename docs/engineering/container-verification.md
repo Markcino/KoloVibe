@@ -43,6 +43,7 @@ Use **Actions → ci_cd → Run workflow** for manual operations:
 | Non-main branch push | No workflow; use a PR or manual `ci` |
 | Manual `dependency-locks` on `security/ci-hardening` | Generate, validate, commit and upload lockfiles; only this job has repository write access |
 | Manual `staging-security` on reviewed `main` | Environment-protected read-only staging verification |
+| Manual `identity-secrets` on reviewed `main` | Environment-protected offline SMTP/TLS/MFA/audit configuration validation; no network or deployment |
 
 Invalid maintenance/staging branch selections fail explicitly. The existing lock job's GITHUB_TOKEN push does not trigger another Actions run: manually run `ci` on the generated commit before relying on its checks. Staging secrets remain confined to the `staging-security-review` environment; see the [verification runbook](../security/staging-verification.md).
 
@@ -95,13 +96,22 @@ pinned at 26.2.0; packaging 25.0 satisfies the existing CycloneDX tool constrain
 
 Current shared-image/single-deployment validation:
 
-- `.venv/bin/python -m unittest discover -s scripts -p 'test_*.py'`: **60 passed**,
+- `.venv/bin/python -m unittest discover -s scripts -p 'test_*.py'`: **74 passed**,
   including real HTTP startup for all eight selections through the shared launcher,
   exactly one build/publish wiring, inventory/checksum rejection and deployment
   digest, secret, capacity, zero-replica and private-network boundaries.
 - `PYTHONPATH=scripts .venv/bin/python -m verify_staging_runtime`: **passed**,
   including shared-launcher checks for all staging profiles and isolated TLS,
-  accounts, rotation, readiness, migration and dependency-outage journeys.
+  SMTP STARTTLS capture, protected secret validation, concurrent privileged MFA,
+  signed append-only audit delivery/outage/retry, accounts, rotation, readiness,
+  migration and dependency-outage journeys.
+- `PYTHONPATH=scripts .venv/bin/python -m verify_local_journeys` and
+  `PYTHONPATH=scripts .venv/bin/python -m test_postgres_foundations`: **passed**;
+  all service suites/migration drift checks (**115 tests**) and web (**14 tests**) pass.
+- `.venv/bin/pip-audit -r requirements-dev.txt --require-hashes --disable-pip`
+  and `.venv/bin/pip check`: **passed**, no known advisories/conflicts.
+  Source Bandit has **zero medium/high** findings; source secret discovery passed,
+  excluding local virtualenv/generated build files and root `.env`.
 - `actionlint -shellcheck='' .github/workflows/ci_cd.yml`: **passed** using
   checksum-verified 1.7.7; official Compose schema validation of the single
   deployment YAML: **passed**. Docker stack parsing/runtime remains unverified.

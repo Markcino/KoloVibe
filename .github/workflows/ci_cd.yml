@@ -12,7 +12,7 @@ on:
         type: choice
         required: true
         default: ci
-        options: [ci, dependency-locks, staging-security]
+        options: [ci, dependency-locks, staging-security, identity-secrets]
 permissions:
   contents: read
 jobs:
@@ -32,7 +32,7 @@ jobs:
               test "$GITHUB_REF" = refs/heads/security/ci-hardening || {
                 echo "::error::Dependency lock generation requires security/ci-hardening"; exit 1;
               } ;;
-            staging-security)
+            staging-security|identity-secrets)
               test "$GITHUB_REF" = refs/heads/main || {
                 echo "::error::Staging verification requires reviewed main"; exit 1;
               } ;;
@@ -477,3 +477,49 @@ jobs:
           test -n "$KOLOVIBE_STAGING_CHECK_PATH" || { echo "::error::Missing authenticated probe path environment variable"; exit 1; }
           test -n "$KOLOVIBE_STAGING_CHECK_TOKEN" || { echo "::error::Missing environment-scoped probe token"; exit 1; }
           python scripts/verify_staging.py
+  identity-secrets:
+    name: Validate protected identity secrets offline
+    needs: [validate-dispatch]
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      inputs.operation == 'identity-secrets' &&
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: staging-security-review
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Install locked runtime
+        run: python -m pip install --require-hashes -r requirements-dev.txt
+      - name: Validate secret files without network or mail delivery
+        env:
+          KOLOVIBE_IDENTITY_DJANGO_KEY: ${{ secrets.KOLOVIBE_IDENTITY_DJANGO_KEY }}
+          KOLOVIBE_IDENTITY_DB_PASSWORD: ${{ secrets.KOLOVIBE_IDENTITY_DB_PASSWORD }}
+          KOLOVIBE_IDENTITY_DB_CA: ${{ secrets.KOLOVIBE_IDENTITY_DB_CA }}
+          KOLOVIBE_IDENTITY_TLS_CERT: ${{ secrets.KOLOVIBE_IDENTITY_TLS_CERT }}
+          KOLOVIBE_IDENTITY_TLS_KEY: ${{ secrets.KOLOVIBE_IDENTITY_TLS_KEY }}
+          KOLOVIBE_INTERNAL_CA: ${{ secrets.KOLOVIBE_INTERNAL_CA }}
+          KOLOVIBE_IDENTITY_CALLER_KEYS: ${{ secrets.KOLOVIBE_IDENTITY_CALLER_KEYS }}
+          KOLOVIBE_IDENTITY_PROBE_TOKEN: ${{ secrets.KOLOVIBE_IDENTITY_PROBE_TOKEN }}
+          KOLOVIBE_SMTP_USER: ${{ secrets.KOLOVIBE_SMTP_USER }}
+          KOLOVIBE_SMTP_PASSWORD: ${{ secrets.KOLOVIBE_SMTP_PASSWORD }}
+          KOLOVIBE_MFA_ENCRYPTION_KEY: ${{ secrets.KOLOVIBE_MFA_ENCRYPTION_KEY }}
+          KOLOVIBE_IDENTITY_AUDIT_SIGNING_KEY: ${{ secrets.KOLOVIBE_IDENTITY_AUDIT_SIGNING_KEY }}
+          KOLOVIBE_IDENTITY_AUDIT_PEERS: ${{ vars.KOLOVIBE_IDENTITY_AUDIT_PEERS }}
+          KOLOVIBE_IDENTITY_APPROVALS: ${{ vars.KOLOVIBE_IDENTITY_APPROVALS }}
+          KOLOVIBE_ALLOWED_HOSTS: ${{ vars.KOLOVIBE_IDENTITY_HOSTS }}
+          KOLOVIBE_DB_NAME: ${{ vars.KOLOVIBE_DB_NAME }}
+          KOLOVIBE_DB_HOST: ${{ vars.KOLOVIBE_DB_HOST }}
+          KOLOVIBE_DB_USER: ${{ vars.KOLOVIBE_IDENTITY_DB_USER }}
+          KOLOVIBE_DB_PORT: ${{ vars.KOLOVIBE_DB_PORT }}
+          KOLOVIBE_SMTP_HOST: ${{ vars.KOLOVIBE_SMTP_HOST }}
+          KOLOVIBE_SMTP_PORT: ${{ vars.KOLOVIBE_SMTP_PORT }}
+          KOLOVIBE_FROM_EMAIL: ${{ vars.KOLOVIBE_FROM_EMAIL }}
+        run: python scripts/validate_identity_secrets.py
