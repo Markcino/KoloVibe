@@ -7,7 +7,7 @@ Use the controlled source documents below. Link to them instead of copying requi
 - [DEC-001 and document register](requirements/platform_documentation_register_and_DEC001.md) — canonical Release 1 scope decision.
 - [PRD](requirements/platform_PRD_v0_2_scope_approved.md) and [SRS](requirements/platform_SRS_v0_2_scope_approved.md) — detailed requirements remain drafts; only the Release 1 scope is approved.
 - [Architecture references](architecture/) — data model, draft API, architecture, risks, controls and open decisions.
-- [Architecture decision summary](architecture-decisions.md) — index to decisions; the registers in `architecture/` remain authoritative.
+- [Architecture decision summary](architecture-decisions.md) — index to decisions; the registers in `architecture/` remain authoritative. ADR-013 selects Django-native client identity, with session/MFA details still pending.
 
 ## Delivery and engineering
 

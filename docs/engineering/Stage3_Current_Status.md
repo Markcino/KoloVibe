@@ -27,7 +27,7 @@ These counts describe task evidence, not overall percentage completion or formal
 | FND-07 | Per-service PostgreSQL roles and migrations | Partial - local integration verified | Disposable TLS PostgreSQL isolation/migration tests pass; deployed topology and login evidence pending |
 | FND-08 | RabbitMQ/Celery private queues and retries | Partial - integration evidence pending | RabbitMQ DHI TLS deployment; approved queue/workload identity |
 | FND-09 | Outbox/inbox and idempotency scaffold | Partial - database integration verified | PostgreSQL rollback/republication and deduplication pass with a publisher double; live broker evidence pending |
-| FND-10 | Service identity enforcement | Partial - identity approval and evidence pending | OD-01 final identity/token contract; credential rotation |
+| FND-10 | Service identity enforcement | Partial - Django-native client identity selected; acceptance pending | ADR-013 client identity authority selected; OD-01/ADR-012 workload identity, token/session/MFA contracts and credential rotation remain open |
 | FND-11 | Append-only noncash ledger scaffold | Partial - PostgreSQL tests verified; CI acceptance pending | SQLite/PostgreSQL ledger tests pass locally; run new CI acceptance. Award formula/public APIs are separate later work |
 | FND-12 | Hardened image and Swarm secret handling | Partial - isolated staging runtime verified | Actual image/Swarm deployment; digests; secret lifecycle |
 | FND-13 | VM1 host Nginx configuration | Partial - candidate; activation blocked | Actual syntax/private route; OD-02 transport; certificate ownership |
@@ -53,7 +53,7 @@ Production remains NO-GO; FND-01 stays owner-declared complete.
 - Dependency and source security scans, container checks and SBOM generation are implemented. [Container evidence](https://github.com/Markcino/KoloVibe/actions/runs/41050331889) and [dependency review evidence](https://github.com/Markcino/KoloVibe/actions/runs/41050332526).
 - PostgreSQL schema/role SQL, service HMAC middleware, RabbitMQ/Celery configuration and transactional event primitives are present. Current tests include rejection of unsigned/spoofed calls and event operations outside transactions. Live database/broker integration acceptance remains pending.
 - FND-11: SQLite and PostgreSQL guards, reversal, source-decision uniqueness and ORM/SQL mutation-rejection tests pass locally. A PostgreSQL-only transaction-boundary issue in the test was corrected. The Stage 3 scaffold does not require an award formula or public points API; those remain separate gated product work.
-- The gateway contains account forwarding routes, and `apps/mobile` contains opt-in account and public-video metadata adapters. These do not resolve ADR-013, provide a deployed gateway, or implement media playback and the remaining R1 business APIs.
+- The gateway contains account forwarding routes, and `apps/mobile` contains opt-in account and public-video metadata adapters. The owner selected Django-native client identity in ADR-013 on 2026-11-01, but those features and the selection do not settle its token/session/MFA requirements, provide a deployed gateway, or implement media playback and the remaining R1 business APIs.
 - The creator service now stores review-gated profiles and returns only active reviewed records through a signed gateway route. Mobile and web read those profiles from the gateway. No creator application or approval API is enabled.
 
 ## Local verification · 1 November 2026
@@ -90,9 +90,9 @@ The base digest is pinned. Registry publication is implemented but **not yet exe
 
 ## Open decisions and hold points
 
-The [nine-decision register](Stage3_Open_Decisions.csv) remains open. Existing implementation does not approve an ADR.
+The [nine-decision register](Stage3_Open_Decisions.csv) retains unresolved items. The owner selected Django-native client identity (partial ADR-013 decision); the remaining session/MFA approval, other ADRs and security acceptance are not implied by that selection.
 
-- OD-01: final workload/end-user identity and token contract.
+- OD-01: **Django-native client identity selected** under [ADR-013](../architecture/ADR-013_Django_Native_Identity_Selection_2026-11-01.md); final client token/session/MFA contract and separate ADR-012 workload identity/rotation still require approval.
 - OD-02: private Nginx-to-Swarm encryption and certificate ownership.
 - OD-03: hosting, cluster size and capacity.
 - OD-04: database topology, login provisioning and recovery targets.

@@ -1,7 +1,7 @@
 index,Gate_ID,Topic,Acceptance_criterion,Current_assessment,Required_by
 0,G-01,Architecture baselines,DOC-201 through DOC-208 individually approved as design baselines,PASS — user approval recorded,Stage 2 design
 1,G-02,Complete review package,"DOC-209 contains decision log, traceability, risks, responsibilities and sign-off",READY FOR REVIEW,Stage 2 design
-2,G-03,Critical architecture decisions,"Authentication, private Nginx-to-Swarm transport, manager sizing, DB/DR, points rules, privacy, TLS HA resolved or formally deferred",BLOCKED — ADR open,Before unconditional Stage 2 closure
+2,G-03,Critical architecture decisions,"Authentication, private Nginx-to-Swarm transport, manager sizing, DB/DR, points rules, privacy, TLS HA resolved or formally deferred","BLOCKED — Django-native authority selected for ADR-013; session/MFA and other ADR decisions still open",Before unconditional Stage 2 closure
 3,G-04,Infrastructure commitments,"Provider, region, budget, topology, ports, backup retention and video provider chosen",BLOCKED — INF open,Before affected implementation
 4,G-05,Security risk acceptance,"Security owner reviews all DOC-203 threats, controls and residual risks; no unowned critical risk",PENDING SECURITY REVIEW,Before pilot
 5,G-06,Security verification mapping,"DOC-206 controls assigned, tests/evidence planned, no controls represented as tested",DESIGN BASELINE APPROVED; EXECUTION PENDING,Stage 3 onward
