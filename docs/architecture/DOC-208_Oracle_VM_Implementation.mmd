@@ -1,0 +1,28 @@
+%% 2026-11-01 implementation amendment to historical DOC-208, not a new approval.
+%% Solid edges are owner-verified; dashed edges are design/acceptance pending.
+flowchart TB
+  CLIENT[Flutter mobile and browser] --> CF[Cloudflare HTTPS edge]
+  subgraph VM1[Oracle VM1 - single Swarm manager and host ingress]
+    TUNNEL[cloudflared systemd connector]
+    NGINX[Host Nginx systemd - outside Swarm]
+    MANAGER[Docker Swarm manager]
+  end
+  subgraph VM2[Oracle VM2 - Swarm worker]
+    WORKER[Docker Swarm worker agent]
+  end
+  CF --> TUNNEL
+  TUNNEL -->|127.0.0.1 port 80 - placeholders verified| NGINX
+  MANAGER <-->|Private Swarm control and encrypted overlay| WORKER
+  subgraph APPS[Proposed Swarm workloads - not deployed]
+    GATE[Gateway - restricted staging candidate]
+    DJANGO[Private Django services]
+    CELERY[Celery workers]
+    RABBIT[(RabbitMQ DHI - private broker)]
+  end
+  NGINX -.->|Private authenticated gateway route TBD| GATE
+  GATE -.-> DJANGO
+  DJANGO -.-> CELERY
+  CELERY -.->|TLS 5671 - pending| RABBIT
+  DJANGO -.->|TLS and per-service roles - pending| PG[(PostgreSQL - topology TBD)]
+  DJANGO -.->|Signed API and webhooks - pending| VIDEO[Video provider - selection pending]
+  PG -.->|Restore drill pending| BACKUP[(Encrypted offsite backups - pending)]

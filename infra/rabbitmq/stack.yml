@@ -1,7 +1,8 @@
-# Deploy only after DHI digest, secrets, provisioning and failover review.
+# Candidate only: do not deploy until capacity, storage, secrets and recovery are approved.
+# Deploy from VM1 manager only. RabbitMQ has no public listeners.
 services:
   rabbitmq:
-    image: ${RABBITMQ_DHI_IMAGE:?Reviewed dhi.io/rabbitmq@sha256 digest required}
+    image: ${RABBITMQ_DHI_IMAGE:?reviewed dhi.io/rabbitmq@sha256 digest required}
     hostname: kolovibe-rabbitmq-1
     networks:
       - broker_private
@@ -24,13 +25,13 @@ services:
         condition: on-failure
       resources:
         limits:
-          memory: 1024M
+          memory: ${RABBITMQ_MEMORY_LIMIT:?approved capacity-tested RabbitMQ memory limit required}
           cpus: "1.0"
-# No published ports and no management UI.
+# No published ports, host bind mounts or management UI.
 networks:
   broker_private:
     external: true
-    name: kolovibe_broker_private
+    name: kolovibe_messaging
 configs:
   rabbitmq_conf:
     file: ./rabbitmq.conf

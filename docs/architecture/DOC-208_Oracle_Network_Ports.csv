@@ -1,0 +1,12 @@
+Source,Destination,Protocol_Port,Scope,Verification
+Clients,Cloudflare edge,443/TCP,Public TLS,Edge hostname routing verified earlier - policy review pending
+VM1 cloudflared,VM1 host Nginx,127.0.0.1:80/TCP,Local only,Temporary 503 routes tested - origin authentication pending
+VM1 host Nginx,Private Swarm gateway,TBD private authenticated TLS,Private only,Blocked pending route and certificate ownership
+VM2 Swarm worker,VM1 Swarm manager,2377/TCP,Private peer only,Cluster healthy - complete OCI exposure review pending
+VM1 and VM2,Each other,7946/TCP+UDP,Private peer only,TCP both ways passed - UDP negative tests pending
+VM1 and VM2,Each other,4789/UDP and ESP protocol 50,Private peer only,Encrypted overlay configured and HTTP passed - on-wire encryption evidence pending
+Celery and services,RabbitMQ DHI,5671/TCP,Internal kolovibe_messaging only,Not deployed or tested
+Django services,PostgreSQL,5432/TCP,Private TLS verify-full,Not deployed or tested
+Authorized administration,Oracle VMs,22/TCP,Restricted Bastion and ProxyJump,SSH demonstrated - OCI ACL review pending
+Public internet,Docker Engine API and Swarm control,No public exposure,Deny public access,Effective OCI/host ACL review pending
+Public internet,RabbitMQ and PostgreSQL,No public exposure,Deny public access,Effective OCI/host ACL review pending
