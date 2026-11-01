@@ -47,7 +47,7 @@ class LocalEnvironmentTests(unittest.TestCase):
             path = Path(directory) / ".env"
             create_local_env(path)
             values = read_local_env(path)
-            self.assertEqual(len(values), 15)
+            self.assertEqual(len(values), 16)
             self.assertEqual(path.stat().st_mode & 0o777, 0o600)
             with self.assertRaises(FileExistsError):
                 create_local_env(path)

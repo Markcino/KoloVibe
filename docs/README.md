@@ -12,6 +12,7 @@ Use the controlled source documents below. Link to them instead of copying requi
 ## Delivery and engineering
 
 - [Current Stage 3 status](engineering/Stage3_Current_Status.md) and [implementation tracker](engineering/Stage3_Implementation_Tracker.csv) — update together from verified evidence.
+- [R1 application tracker](engineering/R1_Application_Tracker.md) and [API test deployment roadmap](engineering/API_Test_Deployment_Roadmap.md) — feature status and staging sequence.
 - [Open Stage 3 decisions](engineering/Stage3_Open_Decisions.csv) — blockers requiring owner approval or environment evidence.
 - [Engineering standards](engineering-standards.md), [repository layout](engineering/repository-layout.md), and [dependency/security checks](engineering/dependency-and-security.md).
 - [FND-01 governance provenance](engineering/FND-01_repository_governance.md) — owner-declared complete; historical observations and verification procedure retained.

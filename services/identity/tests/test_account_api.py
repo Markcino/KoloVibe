@@ -71,9 +71,10 @@ class AccountApiTests(TestCase):
 
     def test_failed_login_is_throttled(self):
         self.register_and_verify()
+        incorrect = secrets.token_urlsafe(24)
         for _ in range(5):
             self.assertEqual(self.post(accounts.login, {"email": "user@example.test",
-                                                       "password": "wrong"}).status_code, 401)
+                                                       "password": incorrect}).status_code, 401)
         self.assertEqual(self.post(accounts.login, {"email": "user@example.test",
                                                    "password": self.password}).status_code, 429)
 

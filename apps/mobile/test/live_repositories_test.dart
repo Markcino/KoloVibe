@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -7,6 +8,7 @@ import 'package:kolovibe/core/presentation/feature_repository.dart';
 import 'package:kolovibe/core/security/credential_store.dart';
 import 'package:kolovibe/features/account/live_account_repository.dart';
 import 'package:kolovibe/features/discovery/live_video_repository.dart';
+import 'package:kolovibe/features/creators/live_creator_repository.dart';
 
 class MemoryCredentials implements CredentialStore {
   String? value;
@@ -32,6 +34,17 @@ void main() {
     expect(videos.single.title, 'A real original');
   });
 
+  test('creator detail accepts only an active matching profile', () async {
+    const id = '00000000-0000-4000-8000-000000000003';
+    final api = ApiClient('https://api.example.test/api/v1', client: MockClient((request) async {
+      expect(request.url.path, '/api/v1/creators/$id');
+      return http.Response(jsonEncode({'id': id,
+        'user_id': '00000000-0000-4000-8000-000000000004',
+        'handle': 'original-voice', 'bio': '', 'status': 'active'}), 200);
+    }));
+    expect((await LiveCreatorRepository(api).detail(id)).handle, 'original-voice');
+  });
+
   test('identity keeps access token in memory and clears refresh on sign-out', () async {
     final storage = MemoryCredentials();
     final calls = <String>[];
@@ -47,8 +60,9 @@ void main() {
       return http.Response('{}', 503);
     }));
     final repo = LiveAccountRepository(api, storage);
-    final login = await repo.execute(const UiRequest(UiOperation.signIn,
-        fields: {'Email address': 'user@example.test', 'Password': 'entered-at-runtime'}));
+    final entered = List.generate(24, (_) => Random.secure().nextInt(10)).join();
+    final login = await repo.execute(UiRequest(UiOperation.signIn,
+        fields: {'Email address': 'user@example.test', 'Password': entered}));
     expect(login.available, isTrue);
     expect(storage.value, 'refresh');
     await repo.execute(const UiRequest(UiOperation.signOut));

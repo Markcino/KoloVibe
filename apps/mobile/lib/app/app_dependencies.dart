@@ -4,14 +4,16 @@ import '../core/network/api_client.dart';
 import '../core/security/credential_store.dart';
 import '../features/account/live_account_repository.dart';
 import '../features/discovery/live_video_repository.dart';
+import '../features/creators/live_creator_repository.dart';
 
 class AppDependencies {
   const AppDependencies.unavailable()
       : services = const ServiceRepositories.unavailable(),
         liveAccount = null,
-        liveVideos = null;
+        liveVideos = null,
+        liveCreators = null;
 
-  const AppDependencies._(this.services, this.liveAccount, this.liveVideos);
+  const AppDependencies._(this.services, this.liveAccount, this.liveVideos, this.liveCreators);
 
   factory AppDependencies.live(String baseUrl, {CredentialStore? credentialStore}) {
     final api = ApiClient(baseUrl);
@@ -29,11 +31,13 @@ class AppDependencies {
       ),
       account,
       LiveVideoRepository(api),
+      LiveCreatorRepository(api),
     );
   }
 
   final ServiceRepositories services;
   final LiveAccountRepository? liveAccount;
   final LiveVideoRepository? liveVideos;
+  final LiveCreatorRepository? liveCreators;
   FeatureRepository get repository => RepositoryDispatcher(services);
 }

@@ -3,6 +3,7 @@ from django.http import JsonResponse
 from .health import liveness
 from .videos import list_videos, video_detail
 from . import accounts
+from .creators import creator_detail
 
 urlpatterns = [
     path("health/live", liveness, name="liveness"),
@@ -15,5 +16,6 @@ urlpatterns = [
     path("api/v1/auth/refresh", accounts.refresh, name="refresh"),
     path("api/v1/auth/logout", accounts.logout, name="logout"),
     path("api/v1/me", accounts.me, name="me"),
+    path("api/v1/creators/<uuid:creator_id>", creator_detail, name="api-creator-detail"),
     path("internal/probe", lambda request: JsonResponse({"status":"ok"}), name="internal-probe"),
 ]

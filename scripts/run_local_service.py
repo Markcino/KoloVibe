@@ -49,6 +49,7 @@ def environment_for(service: str, values: dict[str, str]) -> dict[str, str]:
         if (name.startswith("KOLOVIBE_") and name.endswith("_DJANGO_SECRET_KEY")) or name in {
             "KOLOVIBE_GATEWAY_OUTBOUND_KEY", "KOLOVIBE_CALLER_GATEWAY_KEY",
             "KOLOVIBE_SMTP_PASSWORD", "KOLOVIBE_IDENTITY_URL", "KOLOVIBE_CONTENT_URL",
+            "KOLOVIBE_CREATORS_URL",
         }:
             del env[name]
     env["KOLOVIBE_ENV"] = "local"
@@ -59,11 +60,11 @@ def environment_for(service: str, values: dict[str, str]) -> dict[str, str]:
     if service == "gateway":
         if len(gateway_key) >= 32:
             env["KOLOVIBE_GATEWAY_OUTBOUND_KEY"] = gateway_key
-        for name in ("identity", "content"):
+        for name in ("identity", "content", "creators"):
             url = values.get(f"KOLOVIBE_{name.upper()}_URL")
             if url:
                 env[f"KOLOVIBE_{name.upper()}_URL"] = url
-    elif service in ("identity", "content") and len(gateway_key) >= 32:
+    elif service in ("identity", "content", "creators") and len(gateway_key) >= 32:
         env["KOLOVIBE_CALLER_GATEWAY_KEY"] = gateway_key
     if service == "identity":
         for name in ("KOLOVIBE_SMTP_HOST", "KOLOVIBE_SMTP_PORT",

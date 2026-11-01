@@ -30,9 +30,10 @@ class AccountStorageTests(TestCase):
             )
 
     def test_short_password_is_rejected(self):
+        weak = "x" * 5
         with self.assertRaises(ValidationError):
             Account.objects.create_user(
-                email="user@example.com", password="short", display_name="User"
+                email="user@example.com", password=weak, display_name="User"
             )
         self.assertEqual(Account.objects.count(), 0)
 

@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}Creator · KoloVibe{% endblock %}
+{% block content %}
+{% if creator %}
+<article class="panel"><h1>@{{ creator.handle }}</h1><p>{{ creator.bio }}</p></article>
+{% elif unavailable %}
+<div class="notice" role="status">This creator is temporarily unavailable.</div>
+{% else %}
+<div class="notice" role="status">This creator is not available.</div>
+{% endif %}
+{% endblock %}

@@ -21,6 +21,7 @@ The [approved mobile design](https://www.figma.com/design/ANaV0jnwjZ0LEcByTc98HP
 | Directory | Responsibility |
 | --- | --- |
 | `apps/mobile` | Flutter application for Android and iOS |
+| `apps/web_django` | Local Django template client for R1 testing |
 | `services` | Django services for identity, creators, content, engagement, points, moderation, audit and gateway |
 | `packages/contracts` | API interface definitions |
 | `infra` | Infrastructure and deployment configuration |
@@ -42,7 +43,7 @@ flutter run
 
 The application entry point is `apps/mobile/lib/main.dart`. From the mobile directory, `flutter run` launches it by default; use `flutter run --target lib/main.dart` when specifying a target explicitly.
 
-Native platform configuration, application identifiers and signing must be reviewed before release. The app includes native presentation recipes for all 108 designed screens and states and shared widgets. Without `KOLOVIBE_API_URL`, the app uses unavailable-service adapters. Opt-in account and public-video metadata adapters exist, but publishing, media playback, points, moderation and other live integrations are not complete.
+Native platform configuration, application identifiers and signing must be reviewed before release. The app includes native presentation recipes for all 108 designed screens and states and shared widgets. Without `KOLOVIBE_API_URL`, the app uses unavailable-service adapters. Opt-in account, public-video and reviewed-creator metadata adapters exist, but publishing, media playback, points, moderation and other live integrations are not complete.
 
 ### Backend services
 
@@ -65,7 +66,9 @@ Run a service locally with an explicit local environment and unique secret:
 python scripts/run_local_service.py gateway runserver 127.0.0.1:8000
 ```
 
-The local launcher reads only the selected service's generated secret from `.env`. It requires owner-only file permissions and never prints secret values. Containers and CI continue to inject secrets through their own controls. Identity has internal account/session operations, and the gateway contains forwarding routes for registration, verification, login, refresh, logout and `/me`. Production/mobile use remains gated by ADR-013, email and service-transport configuration, and end-to-end contract evidence. Content exposes read-only `GET /videos` and `GET /videos/{id}` for approved public records; no fixture content is seeded. The gateway's video routes call content through the signed internal service client and require configured TLS peer credentials. Other business APIs and managed deployment remain open.
+The local launcher reads only the selected service's generated secret from `.env`. It requires owner-only file permissions and never prints secret values. Containers and CI continue to inject secrets through their own controls. Identity has internal account/session operations, and the gateway contains forwarding routes for registration, verification, login, refresh, logout and `/me`. Production use remains gated by ADR-013, email and service-transport configuration, and end-to-end contract evidence. Content exposes read-only approved-public video metadata; the creators service exposes reviewed-active profiles through the signed gateway path. No fixture content is seeded. Other business APIs and managed deployment remain open.
+
+The local Django web client can be checked with `python scripts/run_local_web.py test tests`. Its sign-in and discovery routes use the gateway; staging/production web settings are not enabled.
 
 ## Engineering
 
@@ -76,5 +79,7 @@ Code changes are reviewed through pull requests and automated checks. Production
 - [Mobile design reference](docs/mobile-design.md)
 - [Mobile UI implementation and verification](docs/mobile-ui-implementation.md)
 - [108-screen design coverage](docs/mobile-design-coverage.md)
+- [R1 application tracker](docs/engineering/R1_Application_Tracker.md)
+- [API test deployment roadmap](docs/engineering/API_Test_Deployment_Roadmap.md)
 
 Lone Stars are non-cash recognition points. Paid tickets, withdrawals and other deferred services are not included in the current release.

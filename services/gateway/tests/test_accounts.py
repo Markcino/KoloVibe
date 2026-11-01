@@ -1,4 +1,5 @@
 import json
+import secrets
 from unittest.mock import patch
 
 from django.test import SimpleTestCase
@@ -26,13 +27,14 @@ class AccountGatewayTests(SimpleTestCase):
                                 content_type="application/json", **headers)
 
     def test_login_forwards_only_expected_fields(self):
+        entered = secrets.token_urlsafe(24)
         with patch("service.accounts.signed_internal_request") as call:
             call.return_value = Response(200, b'{"access_token":"a","refresh_token":"b"}')
-            result = self.post("login", {"email": "a@example.test", "password": "secret"})
+            result = self.post("login", {"email": "a@example.test", "password": entered})
         self.assertEqual(result.status_code, 200)
         self.assertEqual(call.call_args.args, ("identity", "/internal/auth/login"))
         self.assertEqual(json.loads(call.call_args.kwargs["payload"]),
-                         {"email": "a@example.test", "password": "secret"})
+                         {"email": "a@example.test", "password": entered})
 
     def test_rejects_extra_fields_before_identity_call(self):
         with patch("service.accounts.signed_internal_request") as call:

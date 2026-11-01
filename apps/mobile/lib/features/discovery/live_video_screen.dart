@@ -106,6 +106,11 @@ class LiveVideoDetailScreen extends StatelessWidget {
         return ListView(padding: const EdgeInsets.all(24), children: [
           Text(video.title, style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 16), Text(video.description),
+          const SizedBox(height: 16),
+          TextButton(onPressed: () {
+            final route = ScreenRoute(38, entityId: video.creatorId);
+            Navigator.of(context).pushNamed(route.name, arguments: route);
+          }, child: const Text('View creator')),
           const SizedBox(height: 24),
           const Text('Playback is awaiting an approved streaming provider.'),
         ]);

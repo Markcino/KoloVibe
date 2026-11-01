@@ -96,6 +96,14 @@ def video(request, video_id):
                   status=status if status in (200, 404, 503) else 503)
 
 
+@require_GET
+def creator_detail(request, creator_id):
+    status, payload = _api("/creators/" + str(creator_id))
+    return render(request, "creator.html", {"creator": payload if status == 200 else None,
+                                            "unavailable": status == 503},
+                  status=status if status in (200, 404, 503) else 503)
+
+
 def register(request):
     if request.method == "GET":
         return render(request, "form.html", {"title": "Create an account", "kind": "register"})

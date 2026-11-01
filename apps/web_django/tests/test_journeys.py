@@ -46,3 +46,12 @@ class WebJourneys(SimpleTestCase):
     def test_creator_and_points_are_gated(self):
         self.assertEqual(self.client.get(reverse("creator")).status_code, 503)
         self.assertEqual(self.client.get(reverse("points")).status_code, 503)
+
+    def test_public_creator_profile_uses_gateway_data(self):
+        import uuid
+        creator_id = uuid.uuid4()
+        with patch("web.views._api", return_value=(200, {
+                "id": str(creator_id), "user_id": str(uuid.uuid4()),
+                "handle": "original-voice", "bio": "", "status": "active"})):
+            response = self.client.get(reverse("creator-detail", args=[creator_id]))
+        self.assertContains(response, "@original-voice")

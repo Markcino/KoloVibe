@@ -1,5 +1,5 @@
-# Django web client — deferred
+# Django web client — local R1 shell
 
-The approved Stage 3 architecture allocates this path for a Django server-rendered web client. Implementation is deferred under the mobile-first directive. No runnable web app is claimed here.
+The user expanded R1 to include a Django server-rendered web client. This directory contains a local-only shell with public video and creator reads plus account forms against the gateway. Creator publishing, points and playback remain gated.
 
-The project branding assets are in `static/images/`; they are retained as static SVG sources for the future Django web app. No live web routes or templates have been added.
+Run local tests from the repository root with `.venv/bin/python scripts/run_local_web.py test tests`. The root `.env` supplies the unique web secret and loopback gateway URL; no credential is bundled in the client. Staging/production settings and deployment remain pending.

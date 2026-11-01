@@ -19,6 +19,7 @@ def create_local_env(path: Path) -> None:
         "KOLOVIBE_GATEWAY_URL=http://127.0.0.1:8000",
         "KOLOVIBE_IDENTITY_URL=http://127.0.0.1:8001",
         "KOLOVIBE_CONTENT_URL=http://127.0.0.1:8002",
+        "KOLOVIBE_CREATORS_URL=http://127.0.0.1:8003",
     ))
     descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     try:
@@ -38,6 +39,7 @@ def add_local_peer_configuration(path: Path) -> None:
         "KOLOVIBE_GATEWAY_URL": "http://127.0.0.1:8000",
         "KOLOVIBE_IDENTITY_URL": "http://127.0.0.1:8001",
         "KOLOVIBE_CONTENT_URL": "http://127.0.0.1:8002",
+        "KOLOVIBE_CREATORS_URL": "http://127.0.0.1:8003",
     }
     with path.open("a", encoding="utf-8") as stream:
         for key, value in additions.items():

@@ -21,7 +21,7 @@ These counts describe task evidence, not overall percentage completion or formal
 | FND-01 | Repo governance, branch protection, CODEOWNERS | Complete - owner-declared | Retain owner declaration and historical verification provenance; no new independent readback |
 | FND-02 | Pin toolchains and dependency lockfiles | Complete - CI scope | Continue toolchain/dependency maintenance |
 | FND-03 | Django microservice skeletons and health checks | Complete - CI scope | Production runtime/deployment tracked under FND-12 and FND-14 |
-| FND-04 | Flutter and Django web shells | Partial - mobile implemented; web deferred | Mobile-first scope; secure client adapters; web deliberately deferred |
+| FND-04 | Flutter and Django web shells | Partial - mobile and local web shells | Live R1 service contracts and staging security profile remain open |
 | FND-05 | OpenAPI lint and consumer contract tests | Partial - schema validation implemented | DOC-205; consumer/provider contract tests |
 | FND-06 | Security scanning and SBOM | Partial - publication verification pending | Pinned base digest and verified-artifact publication workflow implemented; new Actions/image/registry evidence pending |
 | FND-07 | Per-service PostgreSQL roles and migrations | Partial - local integration verified | Disposable TLS PostgreSQL isolation/migration tests pass; deployed topology and login evidence pending |
@@ -42,23 +42,24 @@ These counts describe task evidence, not overall percentage completion or formal
 - FND-02: CI pins the Flutter SDK and Python runtime; application and CI dependency lockfiles include hash checks. CI resolves locked packages and checks Flutter lockfile drift.
 - FND-03: eight Django service skeletons have independently built CI images, non-root runtime smoke checks and health checks. Production settings remain gated.
 - Flutter application entry is `lib/main.dart`. The alternate entry point, fixture and inactive simulation controls were removed through [PR #12](https://github.com/Markcino/KoloVibe/pull/12) and [PR #13](https://github.com/Markcino/KoloVibe/pull/13). The 108 design recipes remain; their presence is not proof of live business functionality.
-- The previously recorded merged Flutter CI suite reported 133 passing tests and clean static analysis. [API quality evidence](https://github.com/Markcino/KoloVibe/actions/runs/41050289508). The 1 November local run passed 136 tests; details follow below.
+- The previously recorded merged Flutter CI suite reported 133 passing tests and clean static analysis. [API quality evidence](https://github.com/Markcino/KoloVibe/actions/runs/41050289508). The current 1 November local run passed 137 tests and clean analysis; details follow below.
 - Dependency and source security scans, container checks and SBOM generation are implemented. [Container evidence](https://github.com/Markcino/KoloVibe/actions/runs/41050331889) and [dependency review evidence](https://github.com/Markcino/KoloVibe/actions/runs/41050332526).
 - PostgreSQL schema/role SQL, service HMAC middleware, RabbitMQ/Celery configuration and transactional event primitives are present. Current tests include rejection of unsigned/spoofed calls and event operations outside transactions. Live database/broker integration acceptance remains pending.
 - FND-11: SQLite and PostgreSQL guards, reversal, source-decision uniqueness and ORM/SQL mutation-rejection tests pass locally. A PostgreSQL-only transaction-boundary issue in the test was corrected. The Stage 3 scaffold does not require an award formula or public points API; those remain separate gated product work.
 - The gateway contains account forwarding routes, and `apps/mobile` contains opt-in account and public-video metadata adapters. These do not resolve ADR-013, provide a deployed gateway, or implement media playback and the remaining R1 business APIs.
+- The creator service now stores review-gated profiles and returns only active reviewed records through a signed gateway route. Mobile and web read those profiles from the gateway. No creator application or approval API is enabled.
 
 ## Local verification · 1 November 2026
 
 Initial review evidence (before the delivery changes):
 
-- `cd apps/mobile && flutter analyze && flutter test`: passed; 136 tests.
-- All eight Django service test suites and `makemigrations --check --dry-run`: passed; 87 tests total.
+- `cd apps/mobile && flutter analyze && flutter test`: passed after creator-read wiring; 137 tests.
+- All eight Django service test suites and `makemigrations --check --dry-run`: passed; 94 tests total after creator profile tests.
 - RabbitMQ/Celery, Stage 3 foundation, local launcher and secret-finding regression tests: passed; 18 tests total.
 - `python3 scripts/check_mobile_design.py`, Python/Flutter dependency-lock checks and CI-toolchain lock check: passed.
-- `python3 scripts/check_structure.py`: the local workspace check is blocked by the ignored, untracked legacy `apps/mobile_flutter` directory. It passes in a clean tracked-tree snapshot; no files in the local directory were changed or removed.
+- `python3 scripts/check_structure.py`: passed after removing the ignored legacy `apps/mobile_flutter` generated build and IDE directory. No source files were present in that obsolete directory.
 
-Delivery-change verification: all service suites now pass 89 tests with no migration drift. The disposable PostgreSQL integration suite passes 24 tests, and all 34 script regression tests pass. Plaintext and wrong-host PostgreSQL connections are rejected. Actionlint, the full repository Bandit medium/high gate and changed-file secret checks pass. See [container verification](container-verification.md) for pipeline behavior and the outstanding image/registry evidence.
+Delivery-change verification: all service suites now pass 94 tests with no migration drift; the local web suite passes 7 tests. The disposable PostgreSQL integration suite passes 24 tests, and all 34 script regression tests pass. Plaintext and wrong-host PostgreSQL connections are rejected. The tracked-source secret scan passes after replacing test-only password literals; it excludes ignored local `.env` and generated Flutter environment files, as a clean CI checkout does. See [container verification](container-verification.md) for pipeline behavior and the outstanding image/registry evidence.
 
 Evidence links refer to executed CI on merged changes; the solo-governance/status follow-up requires its own CI results.
 
@@ -98,6 +99,6 @@ The active broker implementation is RabbitMQ/Celery as requested. Historical app
 
 Run the new Actions pipeline and verify GHCR image digests. Retain PostgreSQL/ledger/service-auth/inbox-outbox integration evidence, then verify live RabbitMQ delivery and deployed database/identity controls when their prerequisites are approved. Complete image/runtime, Nginx, monitoring and recovery work when their decisions and infrastructure are available. Points APIs and award calculations are later product integrations, not prerequisites for the Stage 3 ledger scaffold.
 
-Stage 3 closes only after the exit checklist, security evidence, recovery/rollback evidence and recorded acceptance are complete. CI success does not authorize production or formally close Stage 3. Stage 4 formal handoff remains pending. Web work is deliberately deferred under the mobile-first directive; resolve that scope explicitly at acceptance.
+Stage 3 closes only after the exit checklist, security evidence, recovery/rollback evidence and recorded acceptance are complete. CI success does not authorize production or formally close Stage 3. Stage 4 formal handoff remains pending. A local Django web shell now exists under the user's expanded R1 scope; production web acceptance remains open.
 
 The approved architecture and Stage 3 plan are retained as baselines. This file and the CSV are execution records and do not assert a new sign-off.
