@@ -1,4 +1,4 @@
-"""Reject mismatched revision, service, image identity or archive bytes."""
+"""Reject mismatched revision, shared-service inventory, image identity or bytes."""
 
 import argparse
 import hashlib
@@ -10,14 +10,15 @@ SERVICES = ("gateway", "identity", "creators", "content", "engagement", "points"
             "moderation", "audit")
 
 
-def verify(directory, service, revision):
-    if service not in SERVICES or not re.fullmatch(r"[0-9a-f]{40}", revision):
-        raise ValueError("Invalid artifact service or revision")
+def verify(directory, revision):
+    if not re.fullmatch(r"[0-9a-f]{40}", revision):
+        raise ValueError("Invalid artifact revision")
     directory = Path(directory)
     if (directory / "revision.txt").read_text().strip() != revision:
         raise ValueError("Artifact belongs to a different commit")
-    if (directory / "service.txt").read_text().strip() != service:
-        raise ValueError("Artifact belongs to a different service")
+    services = json.loads((directory / "services.json").read_text())
+    if services != list(SERVICES):
+        raise ValueError("Artifact must contain the complete shared-service inventory")
     image_id = (directory / "image-id.txt").read_text().strip()
     if not re.fullmatch(r"sha256:[0-9a-f]{64}", image_id):
         raise ValueError("Invalid artifact image identity")
@@ -39,7 +40,6 @@ def verify(directory, service, revision):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("directory", type=Path)
-    parser.add_argument("--service", required=True, choices=SERVICES)
     parser.add_argument("--revision", required=True)
     args = parser.parse_args()
-    print(verify(args.directory, args.service, args.revision))
+    print(verify(args.directory, args.revision))

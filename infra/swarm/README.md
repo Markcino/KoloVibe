@@ -1,15 +1,26 @@
 # Restricted staging candidate — activation pending
 
-[staging.yml](staging.yml) prepares gateway/content/creators only, with Gunicorn,
+[staging.yml](staging.yml) is the **single deployment YAML** defining all eight API
+services and RabbitMQ, with Gunicorn for APIs,
 verified TLS, external owner-only secrets, a private overlay, read-only non-root
 filesystems, readiness checks, resource bounds and rollback-on-update-failure.
-There are no published ports, database containers, account routes or points APIs.
-This is a candidate, not a deployed/accepted stack. Single replicas and stop-first
-updates can interrupt the pilot; the VM1 manager/host-ingress topology is not HA.
+There are no published ports, database containers or enabled account/points APIs.
+This is a candidate, not a deployed/accepted stack. All nine services default to
+**zero replicas**: definition does not authorize activation. The two ~956 MiB VMs
+cannot be assumed to fit eight Django processes plus RabbitMQ and existing
+workloads. `API_MEMORY_LIMIT`, `API_MEMORY_RESERVATION` and `RABBITMQ_MEMORY_LIMIT`
+are required reviewed inputs, not invented defaults. The validator rejects
+nonzero candidate replicas; enabling a reviewed subset requires an explicit
+owner-approved manifest/rollout change after capacity/identity/transport checks.
+Single replicas and stop-first updates can interrupt the pilot; VM1 is not HA.
 
-Set only the non-secret inputs named by `${...:?}` in the candidate. Images must be
-`ghcr.io/markcino/kolovibe/<service>@sha256:<64-hex-digest>` from the exact successful
-CI run, not tags. With those approved inputs:
+Set only the non-secret inputs named by `${...:?}` in the candidate.
+`KOLOVIBE_IMAGE` must be `ghcr.io/markcino/kolovibe/services@sha256:<64-hex-digest>`
+from the exact successful CI run, not a tag. All service containers use this same
+digest and select their own application with `KOLOVIBE_SERVICE_NAME`.
+RabbitMQ uses its own independently reviewed `dhi.io/rabbitmq@sha256:...` image;
+the application image does not embed a broker. Database logins, secret mounts
+and capabilities remain service-specific. With approved inputs:
 
 ```bash
 .venv/bin/python scripts/validate_staging_stack.py
@@ -18,17 +29,25 @@ docker stack config -c infra/swarm/staging.yml
 
 The first command validates static boundaries without contacting infrastructure.
 The second requires Docker and is still pending in the current environment.
-Neither deploys the stack. Input syntax checks do not verify image provenance or
+Neither deploys the stack. The previous separate RabbitMQ stack was removed;
+its config remains [rabbitmq.conf](../rabbitmq/rabbitmq.conf), referenced relative
+to this file. Input syntax checks do not verify image provenance or
 the actual network's encryption, firewall, capacity or secret lifecycle.
 
 ## External provisioning prerequisites
 
-- Provision/review the encrypted overlay and a private **host Nginx to gateway**
+- Provision/review encrypted service, data (`kolovibe_data`) and messaging
+  (`kolovibe_messaging`) overlays and a private **host Nginx to gateway**
   route. Swarm DNS is available to containers, not automatically to host Nginx.
   No host-reachable address is invented here; do not add public published ports
   as a shortcut. Until this route is approved/tested, activation is blocked.
-- Issue distinct server cert/key pairs with the actual service DNS SANs. Content
-  and creators use those names internally. Put the gateway's private TLS name
+- APIs join the service/data networks only; RabbitMQ joins messaging only.
+  No Celery worker or broker-dependent feature is enabled by this change.
+  Scoped producers/consumers need a separately approved messaging connection,
+  TLS broker credentials, queue policy and worker/retry/recovery acceptance;
+  do not join all APIs to messaging as a shortcut.
+- Issue distinct server cert/key pairs with the actual service DNS SANs. Services
+  use their own names internally. Put the gateway's private TLS name
   first in `GATEWAY_HOSTS` and include every approved ingress Host explicitly.
   The first host is also used by the verified-TLS image readiness probe.
 - Supply a trusted-peers JSON object containing exactly `content` and `creators`,
@@ -53,12 +72,15 @@ the actual network's encryption, firewall, capacity or secret lifecycle.
   probe bearer token and the existing protected verification workflow.
 
 The account wave needs approved identity/session, SMTP, credential revocation and
-transport references, a private identity service, updated peer configuration and
-a separately reviewed ingress/stack change. This read-only candidate cannot enable
+transport references, activation of the defined private identity service, updated
+peer configuration and a separately reviewed ingress/stack change.
+This gated candidate cannot enable
 it merely by setting a flag. Account runtime checks are tested only with disposable
 approval references and captured mail; they do not approve actual infrastructure.
 
-See the [API roadmap](../../docs/engineering/API_Test_Deployment_Roadmap.md) for
+See [RabbitMQ prerequisites](../rabbitmq/README.md) for DHI entitlements, durable
+node-bound volume, TLS definitions and sizing/recovery gates, and the
+[API roadmap](../../docs/engineering/API_Test_Deployment_Roadmap.md) for
 runtime configuration, evidence and remaining backup/restore/acceptance gates.
 Production remains rejected. No stack, network, secret or database was deployed
 or changed on either VM.

@@ -59,6 +59,11 @@ def check_environment(environment, service, *, succeeds=True):
             raise AssertionError(f"Unexpected staging deployment check result: {service}\n"
                                  + result.stderr)
         raise AssertionError(f"Invalid staging configuration was accepted: {service}")
+    launch = subprocess.run(
+        [sys.executable, "-m", "staging_runtime.launch", "--check-settings"],
+        cwd=ROOT, env=environment, capture_output=True, text=True, timeout=20)
+    if (launch.returncode == 0) != succeeds:
+        raise AssertionError(f"Shared-image launcher staging profile mismatch: {service}")
 
 
 def admin_connection(base, environment):

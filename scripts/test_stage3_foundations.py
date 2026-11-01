@@ -12,7 +12,7 @@ class FoundationTests(unittest.TestCase):
             self.assertIn("verify-full", text)
             self.assertIn("search_path="+svc, text)
     def test_dhi_private_broker(self):
-        stack=(ROOT/"infra/rabbitmq/stack.yml").read_text()
+        stack=(ROOT/"infra/swarm/staging.yml").read_text()
         config=(ROOT/"infra/rabbitmq/rabbitmq.conf").read_text()
         self.assertIn("RABBITMQ_DHI_IMAGE", stack)
         self.assertNotIn("ports:",stack)

@@ -10,7 +10,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from scripts.validate_staging_stack import ROOT, load_stack, validate
+from scripts.validate_staging_stack import ROOT, SERVICES, load_stack, validate
 
 sys.path.insert(0, str(ROOT / "services"))
 from staging_runtime import configure, json_file, secret
@@ -75,14 +75,50 @@ class StagingManifestTests(unittest.TestCase):
             "STAGING_DB_NAME": "fixture", "STAGING_DB_HOST": "db.example.test",
             "STAGING_PRIVATE_NETWORK": "fixture-private", "GATEWAY_HOSTS": "gateway",
             **{name.upper() + "_DB_USER": "runtime_" + name
-               for name in ("gateway", "content", "creators")},
-            **{name.upper() + "_IMAGE": f"ghcr.io/markcino/kolovibe/{name}@sha256:" + "a" * 64
-               for name in ("gateway", "content", "creators")},
+               for name in SERVICES},
+            "KOLOVIBE_IMAGE": "ghcr.io/markcino/kolovibe/services@sha256:" + "a" * 64,
+            "API_MEMORY_LIMIT": "128M", "API_MEMORY_RESERVATION": "64M",
+            "RABBITMQ_DHI_IMAGE": "dhi.io/rabbitmq@sha256:" + "b" * 64,
+            "RABBITMQ_MEMORY_LIMIT": "128M",
         }
         self.stack = load_stack(ROOT / "infra/swarm/staging.yml", self.environment)
 
     def test_reviewed_candidate_shape(self):
         validate(self.stack)
+        self.assertEqual(set(self.stack["services"]), SERVICES | {"rabbitmq"})
+        self.assertFalse((ROOT / "infra/rabbitmq/stack.yml").exists())
+        self.assertEqual(sorted(str(path.relative_to(ROOT / "infra")) for path in
+                                (ROOT / "infra").rglob("*.yml")),
+                         ["swarm/staging.yml"])
+
+    def test_memory_activation_and_cross_service_secrets_are_rejected(self):
+        for service in SERVICES:
+            stack = copy.deepcopy(self.stack)
+            stack["services"][service]["deploy"]["replicas"] = 1
+            with self.assertRaises(ValueError):
+                validate(stack)
+            stack = copy.deepcopy(self.stack)
+            stack["services"][service]["secrets"][0]["source"] = "other_django"
+            with self.assertRaises(ValueError):
+                validate(stack)
+        for changes in ({"limits": {"memory": "0"}},
+                        {"reservations": {"memory": "256M"}}):
+            stack = copy.deepcopy(self.stack)
+            stack["services"]["gateway"]["deploy"]["resources"].update(changes)
+            with self.assertRaises(ValueError):
+                validate(stack)
+
+    def test_broker_digest_network_and_activation_are_rejected(self):
+        for changes in ({"image": "dhi.io/rabbitmq:latest"},
+                        {"ports": ["5671:5671"]}, {"networks": ["private"]}):
+            stack = copy.deepcopy(self.stack)
+            stack["services"]["rabbitmq"].update(changes)
+            with self.assertRaises(ValueError):
+                validate(stack)
+        stack = copy.deepcopy(self.stack)
+        stack["services"]["rabbitmq"]["deploy"]["replicas"] = 1
+        with self.assertRaises(ValueError):
+            validate(stack)
 
     def test_missing_environment_inputs_cannot_render(self):
         with self.assertRaises(ValueError):
@@ -90,7 +126,8 @@ class StagingManifestTests(unittest.TestCase):
 
     def test_mutable_images_credentials_ports_and_account_flags_cannot_pass(self):
         for changes in (
-            {"image": "ghcr.io/markcino/kolovibe/gateway:latest"},
+            {"image": "ghcr.io/markcino/kolovibe/services:latest"},
+            {"image": "ghcr.io/markcino/kolovibe/services@sha256:" + "b" * 64},
             {"ports": ["8000:8000"]}, {"user": "root"}, {"read_only": False},
             {"volumes": ["/:/host"]},
         ):
@@ -116,10 +153,11 @@ class StagingManifestTests(unittest.TestCase):
         self.assertNotIn("/auth", config)
         self.assertNotIn("proxy_ssl_verify off", config)
 
-    def test_image_has_wsgi_runtime_and_only_shared_infrastructure(self):
+    def test_image_has_shared_service_launcher_without_build_selector(self):
         config = (ROOT / "infra/docker/Dockerfile.service").read_text()
-        self.assertIn('"staging_runtime.wsgi:application"', config)
-        self.assertIn("services/staging_runtime/", config)
+        self.assertIn('"staging_runtime.launch"', config)
+        self.assertIn("services/ /app/services/", config)
+        self.assertNotIn("ARG SERVICE", config)
         self.assertNotIn("runserver", config)
 
 

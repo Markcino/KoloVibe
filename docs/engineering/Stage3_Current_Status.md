@@ -45,7 +45,9 @@ Nginx/Swarm candidates now exist, so FND-13/FND-14 are partial, not accepted.
 Production remains NO-GO; FND-01 stays owner-declared complete.
 
 - FND-02: CI pins the Flutter SDK and Python runtime; application and CI dependency lockfiles include hash checks. CI resolves locked packages and checks Flutter lockfile drift.
-- FND-03: eight Django service skeletons have independently built CI images, non-root runtime smoke checks and health checks. Production settings remain gated.
+- FND-03: eight independent Django services now share one build image; each selected
+  service retains its non-root runtime smoke/health check and separate database
+  permissions. Production settings remain gated. See [shared-image delivery](container-verification.md).
 - Flutter application entry is `lib/main.dart`. The alternate entry point, fixture and inactive simulation controls were removed through [PR #12](https://github.com/Markcino/KoloVibe/pull/12) and [PR #13](https://github.com/Markcino/KoloVibe/pull/13). The 108 design recipes remain; their presence is not proof of live business functionality.
 - The previously recorded merged Flutter CI suite reported 133 passing tests and clean static analysis. [API quality evidence](https://github.com/Markcino/KoloVibe/actions/runs/41050289508). Current local continuation evidence is separate and linked below; it does not establish new remote CI results.
 - Dependency and source security scans, container checks and SBOM generation are implemented. [Container evidence](https://github.com/Markcino/KoloVibe/actions/runs/41050331889) and [dependency review evidence](https://github.com/Markcino/KoloVibe/actions/runs/41050332526).
@@ -82,7 +84,7 @@ See [activation and acceptance](FND-01_repository_governance.md).
 
 ## Test-gated GHCR delivery
 
-The [container verification record](container-verification.md) describes the new publication pipeline. All existing required API, Flutter, dependency/security and eight container checks must succeed for the same main push commit. PRs cannot publish. The pipeline preserves scanned images and SBOMs, then publishes those exact artifacts using `GITHUB_TOKEN`; no persistent credential enters source or images.
+The [container verification record](container-verification.md) describes the new publication pipeline. The shared build/scan plus all required API, Flutter, dependency/security and eight selected-service container checks must succeed for the same main push commit. PRs cannot publish. The pipeline preserves one image/SBOM artifact and publishes it once using `GITHUB_TOKEN`; no persistent credential enters source or images.
 
 The base digest is pinned. Registry publication is implemented but **not yet executed or verified**: these changes must first reach main through the normal PR process. Docker is unavailable in this local environment, so new image build/scan evidence must come from Actions. Published local/CI images still reject staging/production activation.
 

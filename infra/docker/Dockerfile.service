@@ -1,7 +1,7 @@
 # Local/CI and restricted staging image; production remains gated.
 FROM python:3.12-alpine3.23@sha256:a4ad86fc2eaa4f9a5c3153776c9fb56e502dbd8e23dfa855d164308f376a6dd2
-ARG SERVICE
 WORKDIR /app
+ENV PYTHONPATH=/app/services
 
 # A predictable, immutable dependency set, verified against package hashes.
 COPY requirements-dev.txt /tmp/requirements-dev.txt
@@ -10,11 +10,11 @@ RUN python -m pip install --no-cache-dir --require-hashes -r /tmp/requirements-d
     && addgroup -S -g 10001 kolovibe \
     && adduser -S -D -H -u 10001 -G kolovibe kolovibe
 
-COPY --chown=10001:10001 services/${SERVICE}/ /app/
-COPY --chown=10001:10001 services/staging_runtime/ /app/staging_runtime/
+COPY --chown=10001:10001 services/ /app/services/
 RUN chown 10001:10001 /app
 USER 10001:10001
 EXPOSE 8000
 
 # Staging requires external secret files, verified TLS and explicit capabilities.
-CMD ["gunicorn", "--config", "staging_runtime/gunicorn.conf.py", "staging_runtime.wsgi:application"]
+ENTRYPOINT ["python", "-m", "staging_runtime.launch"]
+CMD []

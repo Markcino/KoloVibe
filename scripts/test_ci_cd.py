@@ -10,7 +10,7 @@ import unittest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-QUALITY = {"python", "security", "flutter", "osv", "build-and-verify"}
+QUALITY = {"python", "security", "flutter", "osv", "image-build", "build-and-verify"}
 SERVICES = {"gateway", "identity", "creators", "content", "engagement", "points",
             "moderation", "audit"}
 MAIN_PUSH = "github.event_name == 'push' && github.ref == 'refs/heads/main'"
@@ -102,7 +102,9 @@ class WorkflowTests(unittest.TestCase):
         self.assertNotIn("(", publish["if"])
         self.assertFalse(self.jobs["build-and-verify"]["strategy"]["fail-fast"])
         self.assertEqual(set(self.jobs["build-and-verify"]["strategy"]["matrix"]["service"]), SERVICES)
-        self.assertEqual(set(publish["strategy"]["matrix"]["service"]), SERVICES)
+        self.assertNotIn("strategy", publish)
+        self.assertNotIn("strategy", self.jobs["image-build"])
+        self.assertEqual(self.jobs["build-and-verify"]["needs"], ["image-build"])
 
     def test_pr_schedule_and_manual_runs_cannot_publish(self):
         condition = self.jobs["publish"]["if"]
@@ -118,14 +120,15 @@ class WorkflowTests(unittest.TestCase):
             self.assertFalse(matches(condition, event, ref, operation))
 
     def test_same_run_exact_commit_artifact_handoff(self):
-        build = self.jobs["build-and-verify"]["steps"]
+        build = self.jobs["image-build"]["steps"]
         publish = self.jobs["publish"]["steps"]
         upload = next(step for step in build if step["name"] == "Upload the verified image")
         download = next(step for step in publish if step.get("uses", "").startswith("actions/download-artifact@"))
         self.assertEqual(upload["with"]["name"], download["with"]["name"])
-        self.assertEqual(upload["if"], MAIN_PUSH)
+        # PR/manual jobs share the built artifact but can never publish it.
+        self.assertNotIn("if", upload)
         self.assertEqual(download["with"],
-                         {"name": "verified-image-${{ matrix.service }}-${{ github.sha }}",
+                         {"name": "verified-image-${{ github.sha }}",
                           "path": "verified-image"})
         for step in publish:
             self.assertNotIn("ref", step.get("with", {}))
@@ -136,6 +139,18 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("docker load", commands)
         self.assertNotIn("docker build", commands)
         self.assertIn('docker pull "$TARGET"', commands)
+        matrix_steps = self.jobs["build-and-verify"]["steps"]
+        matrix_download = next(step for step in matrix_steps
+                               if step.get("uses", "").startswith("actions/download-artifact@"))
+        self.assertEqual(matrix_download["with"], download["with"])
+        all_commands = "\n".join(step.get("run", "") for job in self.jobs.values()
+                                 for step in job.get("steps", []))
+        self.assertEqual(all_commands.count("docker build "), 1)
+        self.assertEqual(all_commands.count("docker push "), 1)
+        self.assertIn('TARGET="ghcr.io/$REPOSITORY/services:', commands)
+        smoke = next(step for step in matrix_steps if step.get("name") == "Run service HTTP smoke check")
+        self.assertIn('-e "KOLOVIBE_SERVICE_NAME=$SERVICE"', smoke["run"])
+        self.assertIn('"kolovibe/services:ci"', smoke["run"])
 
     def test_permissions_are_job_scoped(self):
         self.assertEqual(self.workflow["permissions"], {"contents": "read"})

@@ -1,7 +1,9 @@
 # RabbitMQ DHI deployment candidate — NOT ACTIVE
 
-The stack in this directory is an **unapproved deployment template**, not a running
-or accepted broker. The approved architecture amendment uses RabbitMQ + Celery,
+The broker is defined in the single [Swarm deployment YAML](../swarm/staging.yml);
+there is no separate RabbitMQ stack. Its configuration stays in this directory.
+The candidate has zero replicas and is not a running or accepted broker.
+The approved architecture amendment uses RabbitMQ + Celery,
 **not Redis**. Deploy only from VM1 manager after the prerequisites below are met.
 
 - External overlay is the already-created encrypted, internal
@@ -13,6 +15,7 @@ or accepted broker. The approved architecture amendment uses RabbitMQ + Celery,
   Both OCI VMs have ~956 MiB of RAM and existing workloads. Do **not** reuse
   the previous 1024M limit or invent a capacity figure. Budget RabbitMQ memory,
   Erlang overhead, OS, Docker, Django and Celery before enabling placement.
+  API memory limits/reservations are also required in the single deployment file.
 - Verify the manager-applied `node.labels.kolovibe.rabbitmq == true` placement
   selects a healthy node with durable storage; a named Docker local volume does
   not migrate with a Swarm task. Do not delete any existing worker volumes.

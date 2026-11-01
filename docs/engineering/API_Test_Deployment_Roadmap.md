@@ -17,7 +17,7 @@ Current code supports local account APIs, approved-public video and creator meta
 | 2. Staging identity and transport decisions | Record ADR-013 token/key ownership, MFA boundary and rotation; approve Nginx→gateway TLS or mTLS and workload identity, trusted proxy headers and origin policy. Keep privileged APIs disabled until MFA and audit pass. | Approved ADRs and negative tests for wrong audience, replay, expired tokens, forged headers and direct-origin access. |
 | 3. Staging settings and contracts | Add explicit staging settings per service and web client: `DEBUG=False`, exact hosts, HTTPS, trusted proxies, cookie/CSRF policy, bounded request bodies, WSGI runtime, redacted logs, and `/api/v1` contract tests. Preserve current local-only settings as a separate profile. | `manage.py check --deploy`, contract tests and a staging build that refuses missing secrets or unsafe hosts. |
 | 4. Data and broker | Provision one PostgreSQL owner/login per service with verified TLS and no cross-service privileges. Apply migrations using each owner; configure encrypted backup and perform isolated restore. Configure private RabbitMQ vhosts/users, durable queues, publisher confirms, bounded retries and dead letters. | Cross-service SELECT/DELETE denied, restore timing recorded, duplicate/replay and broker-outage tests pass. |
-| 5. Immutable images and Swarm | Build and scan each image in Actions. Publish only the exact checked digest; inject per-service secrets with Swarm secrets, not a committed or copied `.env`. Place gateway on a private ingress network, services and data on isolated networks, and constrain placement to verified VM capacity. Define health checks, resource limits and rolling rollback. | Image/SBOM provenance, secret-mount checks, network isolation, worker failure and rollback results. |
+| 5. Immutable images and Swarm | Build/scan the shared API image once in Actions; test all eight selected services, then publish only that exact checked digest. The single deployment YAML also defines the separately pinned RabbitMQ DHI image. Inject per-service Swarm secrets, not `.env`; use private service/data/messaging zones and reviewed capacity before enabling any zero-replica candidate. | Image/SBOM provenance, secret-mount checks, network isolation, worker failure and rollback results. |
 | 6. Edge route | Verify `api.cabetechs.shop` maps through the existing Cloudflare Tunnel to the intended VM1 Nginx virtual host; prepare an access-controlled API test route and only the gateway upstream. Verify the `kolovibe.cabetechs.shop` application route separately. Verify Cloudflare Tunnel service URL and origin certificate with TLS verification enabled; restrict OCI and host firewall rules so Docker, PostgreSQL and RabbitMQ are not public. | External staging request works; direct-origin, wrong Host, invalid certificate and header-spoof probes fail. |
 | 7. Restricted API test wave | Permit a small tester cohort. Start with `GET /api/v1/videos` and `GET /api/v1/creators/{id}`; empty and 404 are valid without approved records. Enable account registration/login only after SMTP, session ADR, rate limits and secure transport pass. Enable each remaining R1 endpoint only after its owner-approved rules and audit evidence. | Endpoint matrix records success, empty, 401/403/404/429/503, replay and cross-account cases; no seeded password or demo account. |
 | 8. Operational acceptance | Add request correlation, redacted logs, alerts, backup monitoring, capacity/load measurements, incident procedure, and a rollback and restore drill. Recheck mobile Android/iOS against the staging HTTPS hostname. | INF-07–INF-10 evidence, signed security/product acceptance and pilot go/no-go record. |
@@ -33,7 +33,9 @@ Do not label the API fully deployed while the current application gaps remain in
 Shared infrastructure configuration lives in `services/staging_runtime`; the
 eight service settings retain their own apps/models/schema paths. For native
 staging commands, include the absolute `services` directory in `PYTHONPATH` while
-running from the owning service directory. Images copy the package into `/app`.
+running from the owning service directory. The shared image copies all service
+source into `/app/services` and selects one application at container startup;
+see [container verification](container-verification.md#running-separate-services).
 Do not set `KOLOVIBE_ENV=local` on a VM to evade these checks.
 
 Required settings are documented by the [Swarm candidate](../../infra/swarm/README.md);
@@ -58,8 +60,10 @@ approved account wave through `KOLOVIBE_STAGING_ACCOUNTS=1` and
 strings for `identity`, `smtp`, `credentials`, `transport`. Identity additionally
 requires SMTP host/port/from address and private SMTP user/password files. References
 must correspond to actual owner approvals; parsing the file does not verify their
-authenticity. This wave also needs separately reviewed identity manifests and
-ingress rules: the provided read-only stack/Nginx template blocks it.
+authenticity. Identity is defined in the single stack, but this wave still needs
+reviewed activation, SMTP secret mounts and ingress rules. The stack defaults
+all eight APIs and RabbitMQ to zero replicas; accounts stay disabled and the
+Nginx template blocks them.
 All points and other unapproved routes remain blocked regardless of account flags.
 
 Run from the repository root with native PostgreSQL tools and OpenSSL on PATH:

@@ -185,8 +185,78 @@ jobs:
       contents: read
       actions: read
       security-events: write
+  image-build:
+    name: Build and scan shared service image
+    if: >-
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && inputs.operation == 'ci')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Build shared service image
+        run: |
+          docker build --pull \
+            --file infra/docker/Dockerfile.service \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+            --tag "kolovibe/services:ci" .
+      - name: Inspect image configuration
+        run: |
+          set -euo pipefail
+          test "$(docker image inspect "kolovibe/services:ci" --format '{{.Config.User}}')" = '10001:10001'
+          docker image inspect "kolovibe/services:ci" --format '{{.Config.WorkingDir}}' | grep -qx /app
+          test -z "$(docker image inspect "kolovibe/services:ci" --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -Ei '(SECRET|TOKEN|PASSWORD|PRIVATE_KEY)=' || true)"
+          for service in unset invalid '../identity'; do
+            if docker run --rm -e "KOLOVIBE_SERVICE_NAME=$service" "kolovibe/services:ci"; then
+              echo "::error::Shared image accepted invalid service selection"; exit 1
+            fi
+          done
+      - name: Scan local image vulnerabilities
+        uses: anchore/scan-action@1638637db639e0ade3258b51db49a9a137574c3e # v6
+        with:
+          image: kolovibe/services:ci
+          fail-build: true
+          severity-cutoff: high
+          output-format: table
+      - name: Generate verified image SBOM
+        uses: anchore/sbom-action@f8bdd1d8ac5e901a77a92f111440fdb1b593736b # v0.20.6
+        with:
+          image: kolovibe/services:ci
+          format: cyclonedx-json
+          output-file: image-sbom.json
+          upload-artifact: false
+          upload-release-assets: false
+      - name: Preserve the verified image
+        run: |
+          set -euo pipefail
+          mkdir -p verified-image
+          docker save "kolovibe/services:ci" --output verified-image/image.tar
+          docker image inspect "kolovibe/services:ci" \
+            --format '{{.Id}}' > verified-image/image-id.txt
+          printf '%s\n' "$GITHUB_SHA" > verified-image/revision.txt
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          from scripts.verify_image_artifact import SERVICES
+          Path("verified-image/services.json").write_text(json.dumps(list(SERVICES)))
+          PY
+          cp image-sbom.json verified-image/image-sbom.json
+          (cd verified-image && sha256sum image.tar > image.tar.sha256)
+      - name: Upload the verified image
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: verified-image-${{ github.sha }}
+          path: verified-image/
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
   build-and-verify:
     name: Image build and security / ${{ matrix.service }}
+    needs: [image-build]
     if: >-
       github.event_name == 'pull_request' ||
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
@@ -197,28 +267,22 @@ jobs:
       matrix:
         service: [gateway, identity, creators, content, engagement, points, moderation, audit]
     steps:
-      - name: Check out source
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-      - name: Build service image
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: verified-image-${{ github.sha }}
+          path: verified-image
+      - name: Load the shared image
         env:
-          SERVICE: ${{ matrix.service }}
-        run: |
-          docker build --pull \
-            --file infra/docker/Dockerfile.service \
-            --build-arg "SERVICE=$SERVICE" \
-            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
-            --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
-            --tag "kolovibe/$SERVICE:ci" .
-      - name: Inspect image configuration
-        env:
-          SERVICE: ${{ matrix.service }}
+          REVISION: ${{ github.sha }}
         run: |
           set -euo pipefail
-          test "$(docker image inspect "kolovibe/$SERVICE:ci" --format '{{.Config.User}}')" = '10001:10001'
-          docker image inspect "kolovibe/$SERVICE:ci" --format '{{.Config.WorkingDir}}' | grep -qx /app
-          test -z "$(docker image inspect "kolovibe/$SERVICE:ci" --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -Ei '(SECRET|TOKEN|PASSWORD|PRIVATE_KEY)=' || true)"
+          python3 scripts/verify_image_artifact.py verified-image --revision "$REVISION"
+          docker load --input verified-image/image.tar
+          test "$(docker image inspect kolovibe/services:ci --format '{{.Id}}')" = "$(cat verified-image/image-id.txt)"
+          test "$(docker image inspect kolovibe/services:ci --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "$REVISION"
       - name: Run service HTTP smoke check
         env:
           SERVICE: ${{ matrix.service }}
@@ -228,9 +292,10 @@ jobs:
           echo "::add-mask::$SECRET"
           docker run -d --name "kolovibe-$SERVICE" \
             -p 127.0.0.1:18080:8000 \
+            -e "KOLOVIBE_SERVICE_NAME=$SERVICE" \
             -e KOLOVIBE_ENV=local \
             -e DJANGO_SECRET_KEY="$SECRET" \
-            "kolovibe/$SERVICE:ci"
+            "kolovibe/services:ci"
           trap 'docker logs "kolovibe-$SERVICE" || true; docker rm -f "kolovibe-$SERVICE" || true' EXIT
           for attempt in $(seq 1 25); do
             if curl --fail --silent --show-error --max-time 2 http://127.0.0.1:18080/health/live > /tmp/kolovibe-health.json; then
@@ -244,65 +309,26 @@ jobs:
           python3 - <<'PY'
           import json
           from pathlib import Path
-          result = json.loads(Path("/tmp/kolovibe-health.json").read_text())
-          if result != {"status": "ok"}:
+          if json.loads(Path("/tmp/kolovibe-health.json").read_text()) != {"status": "ok"}:
               raise SystemExit("Unexpected liveness response")
           PY
           code="$(curl --silent --output /dev/null --write-out '%{http_code}' -X POST http://127.0.0.1:18080/health/live)"
           test "$code" = "405"
-      - name: Scan local image vulnerabilities
-        uses: anchore/scan-action@1638637db639e0ade3258b51db49a9a137574c3e # v6
-        with:
-          image: kolovibe/${{ matrix.service }}:ci
-          fail-build: true
-          severity-cutoff: high
-          output-format: table
-      - name: Generate verified image SBOM
-        uses: anchore/sbom-action@f8bdd1d8ac5e901a77a92f111440fdb1b593736b # v0.20.6
-        with:
-          image: kolovibe/${{ matrix.service }}:ci
-          format: cyclonedx-json
-          output-file: image-sbom.json
-          upload-artifact: false
-          upload-release-assets: false
       - name: Check for unapproved deploy configuration
         env:
           SERVICE: ${{ matrix.service }}
         run: |
           set -euo pipefail
           for environment in unset production staging; do
-            if docker run --rm --entrypoint python -e "KOLOVIBE_ENV=$environment" "kolovibe/$SERVICE:ci" \
-              -c 'import service.settings'; then
+            if docker run --rm -e "KOLOVIBE_SERVICE_NAME=$SERVICE" -e "KOLOVIBE_ENV=$environment" \
+              "kolovibe/services:ci" --check-settings; then
               echo "::error::Service accepted an unauthorized or incomplete deployment profile"
               exit 1
             fi
           done
-      - name: Preserve the verified image
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        env:
-          SERVICE: ${{ matrix.service }}
-        run: |
-          set -euo pipefail
-          mkdir -p verified-image
-          docker save "kolovibe/$SERVICE:ci" --output verified-image/image.tar
-          docker image inspect "kolovibe/$SERVICE:ci" \
-            --format '{{.Id}}' > verified-image/image-id.txt
-          printf '%s\n' "$GITHUB_SHA" > verified-image/revision.txt
-          printf '%s\n' "$SERVICE" > verified-image/service.txt
-          cp image-sbom.json verified-image/image-sbom.json
-          (cd verified-image && sha256sum image.tar > image.tar.sha256)
-      - name: Upload the verified image
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: verified-image-${{ matrix.service }}-${{ github.sha }}
-          path: verified-image/
-          compression-level: 0
-          retention-days: 3
-          if-no-files-found: error
   publish:
-    name: Publish verified image / ${{ matrix.service }}
-    needs: [python, security, flutter, osv, build-and-verify]
+    name: Publish verified shared image
+    needs: [python, security, flutter, osv, image-build, build-and-verify]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
@@ -310,12 +336,8 @@ jobs:
       actions: read
       packages: write
     concurrency:
-      group: ghcr-${{ github.sha }}-${{ matrix.service }}
+      group: ghcr-${{ github.sha }}
       cancel-in-progress: false
-    strategy:
-      fail-fast: false
-      matrix:
-        service: [gateway, identity, creators, content, engagement, points, moderation, audit]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -323,23 +345,21 @@ jobs:
       - name: Download the verified image from this run
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: verified-image-${{ matrix.service }}-${{ github.sha }}
+          name: verified-image-${{ github.sha }}
           path: verified-image
       - name: Verify and load the exact tested image
         env:
-          SERVICE: ${{ matrix.service }}
           REVISION: ${{ github.sha }}
         run: |
           set -euo pipefail
-          python3 scripts/verify_image_artifact.py verified-image --service "$SERVICE" --revision "$REVISION"
+          python3 scripts/verify_image_artifact.py verified-image --revision "$REVISION"
           docker load --input verified-image/image.tar
-          IMAGE="kolovibe/$SERVICE:ci"
+          IMAGE="kolovibe/services:ci"
           test "$(docker image inspect "$IMAGE" --format '{{.Id}}')" = "$(cat verified-image/image-id.txt)"
           test "$(docker image inspect "$IMAGE" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "$REVISION"
       - name: Authenticate and publish
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SERVICE: ${{ matrix.service }}
           REVISION: ${{ github.sha }}
         run: |
           set -euo pipefail
@@ -347,26 +367,26 @@ jobs:
           printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
           REPOSITORY="$(printf '%s' "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')"
           IMAGE_ID="$(cat verified-image/image-id.txt)"
-          TARGET="ghcr.io/$REPOSITORY/$SERVICE:$REVISION-${IMAGE_ID#sha256:}"
-          docker tag "kolovibe/$SERVICE:ci" "$TARGET"
+          TARGET="ghcr.io/$REPOSITORY/services:$REVISION-${IMAGE_ID#sha256:}"
+          docker tag "kolovibe/services:ci" "$TARGET"
           docker push "$TARGET"
           docker pull "$TARGET"
           test "$(docker image inspect "$TARGET" --format '{{.Id}}')" = "$(cat verified-image/image-id.txt)"
           DIGEST="$(docker image inspect "$TARGET" --format '{{index .RepoDigests 0}}')"
-          printf '%s\n' "$DIGEST" | grep -Eq "^ghcr.io/$REPOSITORY/$SERVICE@sha256:[0-9a-f]{64}$"
+          printf '%s\n' "$DIGEST" | grep -Eq "^ghcr.io/$REPOSITORY/services@sha256:[0-9a-f]{64}$"
           printf '%s\n' "$DIGEST" > verified-image/published-digest.txt
           printf '%s\n' "$TARGET" > verified-image/published-tag.txt
-          printf '### %s\n\nCommit: `%s`\n\nImage: `%s`\n' "$SERVICE" "$REVISION" "$DIGEST" >> "$GITHUB_STEP_SUMMARY"
+          printf '### Shared services image\n\nCommit: `%s`\n\nImage: `%s`\n' "$REVISION" "$DIGEST" >> "$GITHUB_STEP_SUMMARY"
       - name: Retain publication evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: published-image-${{ matrix.service }}-${{ github.sha }}
+          name: published-image-${{ github.sha }}
           path: |
             verified-image/published-digest.txt
             verified-image/published-tag.txt
             verified-image/image-id.txt
             verified-image/revision.txt
-            verified-image/service.txt
+            verified-image/services.json
             verified-image/image-sbom.json
           if-no-files-found: error
   generate:

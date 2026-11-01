@@ -6,7 +6,7 @@ import unittest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-BROKER = ROOT / "infra/rabbitmq/stack.yml"
+BROKER = ROOT / "infra/swarm/staging.yml"
 IMPLEMENTATION = ROOT / "docs/architecture/DOC-208_Oracle_VM_Implementation.mmd"
 PORTS = ROOT / "docs/architecture/DOC-208_Oracle_Network_Ports.csv"
 
@@ -33,7 +33,7 @@ class InfrastructurePreflightTests(unittest.TestCase):
         limit = broker["deploy"]["resources"]["limits"]["memory"]
         self.assertIn("${RABBITMQ_MEMORY_LIMIT:?", limit)
         self.assertNotIn("1024M", self.source)
-        self.assertEqual(broker["deploy"]["replicas"], 1)
+        self.assertEqual(broker["deploy"]["replicas"], 0)
         self.assertIn("node.labels.kolovibe.rabbitmq == true",
                       broker["deploy"]["placement"]["constraints"])
 
