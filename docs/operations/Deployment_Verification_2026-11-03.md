@@ -34,6 +34,44 @@ The public 503 responses alone do not identify which ingress component produced
 the response. Nginx currently has no verified route from the public hostname to
 this private Gateway. Changing database DNS is unnecessary for the next step.
 
+## Observed capacity refusal and preserved architecture
+
+The owner's first live runner execution stopped at the capacity gate before any
+service mutation: `deployment_exit_code=1`, `private_checks_exit_code=2`,
+`public_failed_checks=19`, `full_acceptance=false`. The reports were written to
+`kolovibe-evidence-20261103T131440Z`.
+
+Subsequent owner-supplied VM2 output reports 956 MiB total RAM, 322 MiB available,
+no swap, and only the existing Gateway container (101.8 MiB of its 256 MiB limit).
+Falco/falcoctl, Docker/containerd, PostgreSQL and Oracle agent processes are
+present. RSS figures are not additive accounting because processes can share
+pages; `MemAvailable` is the input used by the startup gate.
+
+The failed plan required 2,176 MiB available: seven new API limits of 256 MiB
+plus 384 MiB headroom. This is a conservative limit-based policy, not a measured
+minimum application footprint. That reported number contains no additional broker
+allocation; a new broker would require its own approved budget.
+
+The deployment preserves the existing layout: Cloudflare edge/Tunnel →
+host-installed Nginx on VM1 (the Swarm manager) → private Gateway and API services
+on VM2. Cloudflared/Nginx usage on VM1 is not charged again against VM2's memory;
+VM2's current OS, security, database and Gateway usage is already reflected in
+its available-memory reading. This preservation does not establish that every
+security control or ingress hop has passed end-to-end acceptance.
+
+Existing OPA policy, encrypted overlays, file-backed Swarm secrets, verified
+service/database TLS, runtime database identities, bridge guard and HBA rules
+remain part of the deployment boundary. Account and privileged capabilities stay
+disabled. Running Falco processes confirm presence only, not rule coverage or
+alert delivery. The current public 503 responses do not verify Cloudflare access
+policy, Nginx-to-Gateway TLS/routing or application authorization behavior.
+
+Do not mark the full stack deployed, lower security controls, move workloads to
+VM1 or treat swap as additional physical RAM on the basis of these results.
+Full concurrent deployment needs a revised, measured memory budget and sufficient
+worker capacity. Sequential component checks are a separate possible test mode;
+they would not establish simultaneous full-stack readiness.
+
 ## Cloud Shell execution
 
 The assistant workspace has repository access, but no SSH connection or keys for
