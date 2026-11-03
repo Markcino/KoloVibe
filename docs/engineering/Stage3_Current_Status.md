@@ -1,37 +1,51 @@
 # Stage 3 — Current execution status
 
-As of 1 November 2026. Owner and sole developer: **Mark Allen Gbalazeh (@Markcino)**, with AI assistance.
+As of 3 November 2026. Owner and sole developer: **Mark Allen Gbalazeh (@Markcino)**, with AI assistance.
 
 Overall: **IN PROGRESS — conditional authorization; exit acceptance pending.**
 
 The working tracker is [Stage3_Implementation_Tracker.csv](Stage3_Implementation_Tracker.csv). Engineering, DBA, API, DevSecOps, SRE and sponsor labels describe responsibilities assigned to the same owner; they do not imply additional developers. Security assurance requirements remain separate from everyday PR self-review.
 
+## 3 November deployment evidence
+
+[Current deployment record](../operations/Deployment_Verification_2026-11-03.md):
+GitHub CI and GHCR publication are verified for commit `be03dbcced01f1a4f71c643dbc179da2810ffa61`.
+Owner-supplied Gateway output passes HTTPS/certificate and PostgreSQL `verify-full`
+checks on VM2. The working database/DNS/firewall setup is preserved. All 19
+independent public API checks returned HTTP 503. Other services, RabbitMQ,
+ingress and full acceptance remain pending. The new Cloud Shell runner has
+passed offline tests but has not yet executed against the VMs.
+
+GitHub's current `main` branch readback reports `protected: false`. FND-01's prior
+owner declaration is retained as historical evidence; current enforcement is
+therefore partial/pending verification, with no branch settings changed here.
+
 ## Evidence-based task assessment
 
 | Classification | Count | Meaning |
 | --- | --- | --- |
-| Complete | 3 | FND-01 is owner-declared; FND-02 and FND-03 are complete within previously verified CI scope. |
-| Partial | 12 | Implementation/configuration or CI evidence exists; integration or acceptance evidence is missing. |
+| Complete | 2 | FND-02 and FND-03 are complete within verified CI scope. |
+| Partial | 13 | Implementation/configuration or CI evidence exists; integration or acceptance evidence is missing. |
 | Pending | 3 | Required implementation, environment/decision prerequisites or stage acceptance remains pending. |
 
 These counts describe task evidence, not overall percentage completion or formal stage approval.
 
 | ID | Deliverable | Assessment | Remaining work |
 | --- | --- | --- | --- |
-| FND-01 | Repo governance, branch protection, CODEOWNERS | Complete - owner-declared | Retain owner declaration and historical verification provenance; no new independent readback |
+| FND-01 | Repo governance, branch protection, CODEOWNERS | Partial - current main is unprotected | Reconcile historical owner declaration with 3 November GitHub readback; enforce supported solo-developer governance |
 | FND-02 | Pin toolchains and dependency lockfiles | Complete - CI scope | Continue toolchain/dependency maintenance |
 | FND-03 | Django microservice skeletons and health checks | Complete - CI scope | Production runtime/deployment tracked under FND-12 and FND-14 |
 | FND-04 | Flutter and Django web shells | Partial - mobile and local web shells | Live R1 service contracts and staging security profile remain open |
 | FND-05 | OpenAPI lint and consumer contract tests | Partial - local contract journeys verified | Remaining gated business contracts and deployed transport evidence |
-| FND-06 | Security scanning and SBOM | Partial - publication verification pending | Pinned base digest and verified-artifact publication workflow implemented; new Actions/image/registry evidence pending |
-| FND-07 | Per-service PostgreSQL roles and migrations | Partial - local integration verified | Disposable TLS PostgreSQL isolation/migration tests pass; deployed topology and login evidence pending |
+| FND-06 | Security scanning and SBOM | Partial - CI/image publication verified | Exact candidate checks, scan and GHCR digest verified; deployed lifecycle/acceptance remains open |
+| FND-07 | Per-service PostgreSQL roles and migrations | Partial - Gateway DB verified on VM2 | Gateway verify-full/schema checks pass; deployed checks for the other seven runtime roles remain pending |
 | FND-08 | RabbitMQ/Celery private queues and retries | Partial - integration evidence pending | RabbitMQ DHI TLS deployment; approved queue/workload identity |
 | FND-09 | Outbox/inbox and idempotency scaffold | Partial - database integration verified | PostgreSQL rollback/republication and deduplication pass with a publisher double; live broker evidence pending |
 | FND-10 | Service identity enforcement | Partial - Django-native identity and gated TOTP/audit implemented | Isolated SMTP/MFA/audit and protected secret validation pass; full ADR-013/OD-01/ADR-012, privileged clients, recovery/rotation and deployed acceptance remain open |
-| FND-11 | Append-only noncash ledger scaffold | Partial - PostgreSQL tests verified; CI acceptance pending | SQLite/PostgreSQL ledger tests pass locally; run new CI acceptance. Award formula/public APIs are separate later work |
-| FND-12 | Hardened image and Swarm secret handling | Partial - isolated staging runtime verified | Actual image/Swarm deployment; digests; secret lifecycle |
-| FND-13 | VM1 host Nginx configuration | Partial - candidate; activation blocked | Actual syntax/private route; OD-02 transport; certificate ownership |
-| FND-14 | Swarm staging stack and network zones | Partial - candidate; infrastructure blocked | Docker validation; OD-03 sizing; private network/rollout acceptance |
+| FND-11 | Append-only noncash ledger scaffold | Partial - CI ledger verified | Exact-commit CI PostgreSQL/ledger checks pass; deployed ledger acceptance remains pending; formula/public APIs are separate later work |
+| FND-12 | Hardened image and Swarm secret handling | Partial - image and Gateway verified | Other seven deployed services, secret rotation and runtime acceptance |
+| FND-13 | VM1 host Nginx configuration | Partial - public routing blocked | All 19 public checks returned 503; inspect actual private Gateway route and active configuration |
+| FND-14 | Swarm staging stack and network zones | Partial - Gateway network verified | Capacity; remaining seven APIs and RabbitMQ; network/rollout acceptance |
 | FND-15 | Central logs, metrics and alerts | Pending - monitoring implementation | OD-08 monitoring and audit retention |
 | FND-16 | Backup/restore and rollback drill | Pending - recovery targets blocked | OD-04 approved RTO/RPO; deployed database/infrastructure |
 | FND-17 | Stage 3 threat-control verification | Partial - CI baseline only | DOC-203/206; deployed environment; complete negative-test matrix |
@@ -42,7 +56,7 @@ These counts describe task evidence, not overall percentage completion or formal
 Restricted staging preparation and current test results are centralized in the
 [API roadmap](API_Test_Deployment_Roadmap.md#restricted-staging-preparation-and-evidence).
 Nginx/Swarm candidates now exist, so FND-13/FND-14 are partial, not accepted.
-Production remains NO-GO; FND-01 stays owner-declared complete.
+Production remains NO-GO; the current FND-01 assessment reflects the newer unprotected-main readback.
 
 - FND-02: CI pins the Flutter SDK and Python runtime; application and CI dependency lockfiles include hash checks. CI resolves locked packages and checks Flutter lockfile drift.
 - FND-03: eight independent Django services now share one build image; each selected
@@ -111,3 +125,4 @@ Run the new Actions pipeline and verify GHCR image digests. Retain PostgreSQL/le
 Stage 3 closes only after the exit checklist, security evidence, recovery/rollback evidence and recorded acceptance are complete. CI success does not authorize production or formally close Stage 3. Stage 4 formal handoff remains pending. A local Django web shell now exists under the user's expanded R1 scope; production web acceptance remains open.
 
 The approved architecture and Stage 3 plan are retained as baselines. This file and the CSV are execution records and do not assert a new sign-off.
+
