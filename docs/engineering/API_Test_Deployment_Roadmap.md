@@ -1,12 +1,24 @@
 # API test deployment roadmap
 
-**Status: planning and local verification only (1 November 2026).** No staging or production deployment is claimed. The owner confirms configured Cloudflare Tunnel hostnames: `api.cabetechs.shop` for the KoloVibe API and `kolovibe.cabetechs.shop` for the app/web. This confirms the intended hostnames, **not** successful origin routing, API readiness, or external security tests. Before restricted external API testing, apply access controls to `api.cabetechs.shop` or designate an isolated test route; do not activate incomplete account/business endpoints.  Do not expose the root `.env` or use `KOLOVIBE_ENV=local` on either VM.
+**Status: deployment in progress; external API acceptance blocked (3 November 2026).**
+Owner-supplied live output confirms that `kvtest-gateway` on VM2 passes HTTPS
+liveness, certificate verification and PostgreSQL `verify-full` with its
+least-privilege schema. The existing database routing, fixed hostname mapping,
+firewall and HBA configuration remain unchanged at the owner's request. Independent
+public endpoint checks returned HTTP 503 on all 19 cases. The other seven APIs,
+RabbitMQ, ingress routing and full deployed acceptance remain pending.
+
+The [3 November deployment record](../operations/Deployment_Verification_2026-11-03.md)
+contains the verified commit/image/Actions evidence, endpoint report, capacity-gated
+Cloud Shell deployment runner and explicit limits. It supersedes older statements
+below that Actions readback or image publication were unverified; historical
+local-fixture evidence remains scoped to its original environment.
 
 ## Target and current boundary
 
 The accepted pilot layout is Cloudflare edge and Tunnel → host Nginx on Oracle VM1 → private Swarm gateway → private services on the VM1 manager/VM2 worker network. RabbitMQ is the Celery broker; PostgreSQL owns business records. VM1 is a single manager and ingress host, so loss of VM1 interrupts service. See the [VM audit runbook](Oracle_VM_Infrastructure_Verification_Runbook.md) and [architecture amendment](../architecture/ADR-003_007_Implementation_Reconciliation_2026-11-01.md).
 
-Current code supports local account APIs, approved-public video and creator metadata, and a non-cash append-only points ledger scaffold. Video playback, provider uploads, eligibility, award calculation, reports/appeals, profile settings and production authentication are not ready for external testing. All eight services now support a fail-closed restricted `staging` profile alongside unchanged local behavior, while continuing to reject `production`. Images use Gunicorn; local runserver remains development-only. Verify the latest exact commit's check status before promoting any image; repository/Actions readback during the preceding review returned 404 and remains unverified.
+Current code supports local account APIs, approved-public video and creator metadata, and a non-cash append-only points ledger scaffold. Video playback, provider uploads, eligibility, award calculation, reports/appeals, profile settings and production authentication are not ready for external testing. All eight services now support a fail-closed restricted `staging` profile alongside unchanged local behavior, while continuing to reject `production`. Images use Gunicorn; local runserver remains development-only. The 3 November readback verifies successful CI and publication for commit `be03dbcced01f1a4f71c643dbc179da2810ffa61`; preserve the matching immutable image identified in the deployment record.
 
 ## Ordered delivery and acceptance gates
 
@@ -155,3 +167,4 @@ An isolated iOS simulator could not finish system-app boot within the bounded wa
 - [Docker Swarm secrets](https://docs.docker.com/engine/swarm/secrets/)
 - [Cloudflare Tunnel HTTPS origin verification](https://developers.cloudflare.com/tunnel/troubleshooting/https-origins/)
 - [OCI network security controls](https://docs.oracle.com/en-us/iaas/Content/Security/Reference/networking_security.htm)
+

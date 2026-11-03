@@ -1,0 +1,173 @@
+{
+  "scope": "public-api",
+  "time": "2026-11-03T13:09:08.404416+00:00",
+  "origin": "https://api.cabetechs.shop",
+  "checks": [
+    {
+      "test": "/health/live",
+      "status": "FAIL",
+      "http": 503,
+      "expected_http": [
+        200
+      ]
+    },
+    {
+      "test": "/health/ready",
+      "status": "FAIL",
+      "http": 503,
+      "expected_http": [
+        200
+      ]
+    },
+    {
+      "test": "video list contract",
+      "status": "FAIL",
+      "http": 503,
+      "expected_http": [
+        200
+      ]
+    },
+    {
+      "test": "invalid cursor",
+      "status": "FAIL",
+      "http": 503,
+      "expected_http": [
+        400
+      ]
+    },
+    {
+      "test": "unexpected query rejected",
+      "status": "FAIL",
+      "http": 503,
+      "expected_http": [
+        400
+      ]
+    },
+    {
+      "test": "unknown /api/v1/videos/",
+      "status": "FAIL",
+      "http": 503,
+      "expected_http": [
+        404
+      ]
+    },
+    {
+      "test": "unknown /api/v1/creators/",
+      "status": "FAIL",
+      "http": 503,
+      "expected_http": [
+        404
+      ]
+    },
+    {
+      "test": "video mutation denied",
+      "status": "FAIL",
+      "http": 503,
+      "expected_http": [
+        403
+      ]
+    },
+    {
+      "test": "account gate register",
+      "status": "FAIL",
+      "http": 503,
+      "expected_http": [
+        403
+      ]
+    },
+    {
+      "test": "account gate verify",
+      "status": "FAIL",
+      "http": 503,
+      "expected_http": [
+        403
+      ]
+    },
+    {
+      "test": "account gate login",
+      "status": "FAIL",
+      "http": 503,
+      "expected_http": [
+        403
+      ]
+    },
+    {
+      "test": "account gate refresh",
+      "status": "FAIL",
+      "http": 503,
+      "expected_http": [
+        403
+      ]
+    },
+    {
+      "test": "account gate logout",
+      "status": "FAIL",
+      "http": 503,
+      "expected_http": [
+        403
+      ]
+    },
+    {
+      "test": "account gate mfa/verify",
+      "status": "FAIL",
+      "http": 503,
+      "expected_http": [
+        403
+      ]
+    },
+    {
+      "test": "account me gate",
+      "status": "FAIL",
+      "http": 503,
+      "expected_http": [
+        403
+      ]
+    },
+    {
+      "test": "public negative /internal/probe",
+      "status": "FAIL",
+      "http": 503,
+      "expected_http": [
+        401,
+        403,
+        404
+      ]
+    },
+    {
+      "test": "public negative /admin",
+      "status": "FAIL",
+      "http": 503,
+      "expected_http": [
+        401,
+        403,
+        404
+      ]
+    },
+    {
+      "test": "public negative /ops/verify",
+      "status": "FAIL",
+      "http": 503,
+      "expected_http": [
+        401,
+        403,
+        404
+      ]
+    },
+    {
+      "test": "public negative /api/v1/points",
+      "status": "FAIL",
+      "http": 503,
+      "expected_http": [
+        401,
+        403,
+        404
+      ]
+    }
+  ],
+  "not_tested": [
+    "private service health",
+    "live account success flows",
+    "unimplemented business routes",
+    "Cloudflare access policy"
+  ]
+}
