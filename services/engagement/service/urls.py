@@ -12,3 +12,8 @@ if settings.ENVIRONMENT == "local":
     from .likes import update_like
 
     urlpatterns.append(path("internal/likes", update_like, name="internal-like"))
+
+if settings.LOCAL_POINTS_ENABLED:
+    from .watch import watch_api
+
+    urlpatterns.append(path("internal/engagement/watch/<slug:operation>", watch_api))

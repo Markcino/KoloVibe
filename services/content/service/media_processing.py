@@ -46,8 +46,9 @@ def _finish(upload, token, state, *, key=None, duration=None):
         if state is not None:
             video.state = state
             video.provider_asset_id = key
-            video.duration_seconds = duration
-            video.save(update_fields=["state", "provider_asset_id", "duration_seconds"])
+            video.duration_ms = duration
+            video.duration_seconds = (duration + 999) // 1000 if duration is not None else None
+            video.save(update_fields=["state", "provider_asset_id", "duration_seconds", "duration_ms"])
         reservation.lease_id = reservation.lease_until = None
         reservation.save(update_fields=["lease_id", "lease_until"])
 

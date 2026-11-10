@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 ENVIRONMENT = os.environ.get("KOLOVIBE_ENV")
+LOCAL_POINTS_ENABLED = ENVIRONMENT == "local" and os.environ.get("KOLOVIBE_LOCAL_POINTS_ENABLED") == "1"
 LOCAL_MODERATION_ENABLED = ENVIRONMENT == "local" and os.environ.get("KOLOVIBE_LOCAL_MODERATION_ENABLED") == "1"
 LOCAL_MEDIA_ENABLED = ENVIRONMENT == "local" and os.environ.get("KOLOVIBE_LOCAL_MEDIA_ENABLED") == "1"
 if ENVIRONMENT not in ("local", "staging"):

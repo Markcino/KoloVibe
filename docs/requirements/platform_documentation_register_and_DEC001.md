@@ -94,6 +94,14 @@ DOC-023            Change requests    Product owner      Active              All
                    and decision log
 
 
+DEC-003 — Restricted pilot qualified views and non-cash points
+
+Approved by the product owner on 10 November 2026. A signed-in viewer may qualify after watching the lesser of 30 seconds or 80 percent of the processed video. Count at most one qualified view per viewer account and video in a rolling 24-hour window. Self-views, ad views, duplicates and suspicious progress are ineligible. Each qualified view earns the creator one non-cash point, capped at 100 per creator per UTC day. Likes award zero points.
+
+Engagement owns watch sessions and qualification. Content supplies the encoded duration and current publication revision. Points applies the approved formula once per durable event and serves the creator's own balance and history. The pilot rejects impossible or stale playback progress using server elapsed time and forward samples. A signed R2 URL and paced client telemetry cannot prove that a person watched the video. Edge throttling, abuse monitoring and session retention need staging acceptance and DEC-008 review before activation.
+
+Local acceptance requires `KOLOVIBE_LOCAL_POINTS_ENABLED=1` for Gateway, Engagement and Points, `KOLOVIBE_LOCAL_MEDIA_ENABLED=1` for tracked playback, and the existing PostgreSQL schema bootstrap and migrations. Run the Points Celery worker on `kolovibe.points` and periodically run the Engagement `dispatch_engagement_events` command. Verify RabbitMQ permissions and retry behavior with the staging broker. Legacy renditions without a measured millisecond duration keep ordinary playback and require reprocessing to qualify.
+
 DEC-004 — Restricted pilot creator eligibility
 
 Approved by the product owner on 10 November 2026. Invited accounts with verified email may apply. Applicants attest that they are at least 18 and will upload only content they own or have permission to use. The pilot collects neither government IDs nor dates of birth. An authorized reviewer approves the application before upload eligibility is granted. Publication requires separate content review.
@@ -112,7 +120,6 @@ Moderation owns reports, appeals and attributed decisions. Content applies signe
 
 Open decisions
    DEC-002: Final product name and legal entity.
-   DEC-003: Qualified-view threshold, likes weighting and points formula.
 <PARSED TEXT FOR PAGE: 3 / 3>
    DEC-006: Pilot cohort size and Android/iOS release requirement.
    DEC-007: Monthly cloud cap, moderation capacity and security assessment budget.

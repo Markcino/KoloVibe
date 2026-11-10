@@ -69,6 +69,7 @@ def encode(source, destination):
     ], ENCODE_TIMEOUT)
     if not destination.is_file() or not 0 < destination.stat().st_size <= MAX_BYTES:
         raise InvalidMedia
-    if abs(_probe(destination) - duration) > 1:
+    rendition_duration = _probe(destination)
+    if abs(rendition_duration - duration) > 1:
         raise InvalidMedia
-    return math.ceil(duration)
+    return max(1, math.floor(rendition_duration * 1000))

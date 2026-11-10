@@ -107,16 +107,24 @@ def _complete(video_id, creator_id):
     return JsonResponse(_status(video))
 
 
-def _playback(video_id):
+def _playback(video_id, operation):
     video = Video.objects.filter(
         pk=video_id, state=Video.State.PUBLISHED, visibility=Video.Visibility.PUBLIC,
         moderation_approved_at__isnull=False, published_at__isnull=False, media_upload__isnull=False,
     ).first()
     if video is None or not video.provider_asset_id or not video.provider_asset_id.startswith("playback/"):
         return _error("Video not found", 404)
-    expires_at = timezone.now() + timedelta(seconds=PLAYBACK_SECONDS)
-    return JsonResponse({"playback_url": storage.sign_playback(video.provider_asset_id, PLAYBACK_SECONDS),
-                         "expires_at": expires_at.isoformat()})
+    result = {}
+    if operation != "playback":
+        if not video.duration_ms:
+            return _error("Tracked playback unavailable", 409)
+        result.update(creator_id=str(video.creator_id), duration_ms=video.duration_ms,
+                      revision=video.moderation_revision)
+    if operation != "watch-check":
+        expires_at = timezone.now() + timedelta(seconds=PLAYBACK_SECONDS)
+        result.update(playback_url=storage.sign_playback(video.provider_asset_id, PLAYBACK_SECONDS),
+                      expires_at=expires_at.isoformat())
+    return JsonResponse(result)
 
 
 @require_POST
@@ -131,12 +139,12 @@ def media_api(request, operation):
             "draft": {"creator_id", "title", "description"},
             "intent": {"creator_id", "video_id", "idempotency_key", "size_bytes"},
             "complete": {"creator_id", "video_id"}, "status": {"creator_id", "video_id"},
-            "playback": {"video_id"},
+            "playback": {"video_id"}, "watch": {"video_id"}, "watch-check": {"video_id"},
         }
         if operation not in fields or not isinstance(data, dict) or set(data) != fields[operation]:
             raise ValueError("Invalid media request")
-        if operation == "playback":
-            return _playback(UUID(data["video_id"]))
+        if operation in ("playback", "watch", "watch-check"):
+            return _playback(UUID(data["video_id"]), operation)
         creator_id = UUID(data["creator_id"])
         if operation == "draft":
             return _draft(creator_id, data)
