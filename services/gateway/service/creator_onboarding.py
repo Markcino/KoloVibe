@@ -73,11 +73,8 @@ def _forward(operation, actor, role, data):
     return _error("Creator service unavailable", 503)
 
 
-@never_cache
-def creator_onboarding(request, operation, account_id=None):
-    if request.method not in METHODS[operation]:
-        return HttpResponseNotAllowed(METHODS[operation])
-    account = current_account(request, require_verified_email=operation in SELF_OPERATIONS)
+def _actor(request, *, require_verified_email):
+    account = current_account(request, require_verified_email=require_verified_email)
     if account.status_code != 200:
         return account
     try:
@@ -88,6 +85,27 @@ def creator_onboarding(request, operation, account_id=None):
             return _error("Forbidden", 403)
     except (ValueError, KeyError, TypeError, AttributeError):
         return _error("Identity unavailable", 503)
+    return actor, roles[0]
+
+
+def creator_eligibility(request):
+    actor = _actor(request, require_verified_email=True)
+    if isinstance(actor, JsonResponse):
+        return actor
+    return _forward("eligibility", *actor, {})
+
+
+@never_cache
+def creator_onboarding(request, operation, account_id=None):
+    if request.method not in METHODS[operation]:
+        return HttpResponseNotAllowed(METHODS[operation])
+    if operation == "eligibility":
+        if request.GET or request.body:
+            return _error("Invalid creator request", 400)
+        return creator_eligibility(request)
+    actor = _actor(request, require_verified_email=operation in SELF_OPERATIONS)
+    if isinstance(actor, JsonResponse):
+        return actor
 
     try:
         if operation == "pending":
@@ -113,4 +131,4 @@ def creator_onboarding(request, operation, account_id=None):
             operation = "submit" if request.method == "POST" else "status"
     except (ValueError, TypeError, AttributeError):
         return _error("Invalid creator request", 400)
-    return _forward(operation, actor, roles[0], data)
+    return _forward(operation, *actor, data)

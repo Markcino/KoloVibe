@@ -100,6 +100,10 @@ Approved by the product owner on 10 November 2026. Invited accounts with verifie
 
 The Creators service owns pilot eligibility. It records the invitation, policy attestation and review with account IDs and timestamps. The future upload API must verify eligibility server-side on every new upload authorization. Creator approval does not elevate the Identity account role. General privacy retention, copyright/takedown/appeals rules and the video provider remain separate decisions.
 
+OD-07 — Restricted pilot video provider
+
+Approved by the product owner on 10 November 2026. Cloudflare Stream is the pilot provider for direct creator uploads, processing and signed playback. Video bytes go directly to Stream. The Content service requires private assets and matches a signed processing callback to its reserved video, then verifies status with Stream before moving a video into review. Publication requires a separate content decision under DEC-005. Provider provisioning, paid usage and deployed verification remain open.
+
 Open decisions
    DEC-002: Final product name and legal entity.
    DEC-003: Qualified-view threshold, likes weighting and points formula.

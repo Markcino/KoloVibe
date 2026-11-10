@@ -35,3 +35,9 @@ See the [API test deployment roadmap](API_Test_Deployment_Roadmap.md) for deploy
 ## DEC-004 staging activation checklist
 
 Creator onboarding defaults off in staging. Only the Gateway and Creators service accept `KOLOVIBE_STAGING_CREATOR_ONBOARDING=1`. Gateway also requires the existing privileged and account capability approvals. Keep Identity's privileged MFA and audit checks enabled when testing reviewer actions. Apply the Identity and Creators migrations, verify the exact gateway ingress paths and rate limits, and capture PostgreSQL and reviewer MFA acceptance before activation. The current production profile remains closed.
+
+## OD-07 Stream pilot controls
+
+Gateway and Content expose the Stream candidate only under the local profile with `KOLOVIBE_LOCAL_STREAM_ENABLED=1`. The local launcher passes the flag to those services and passes provider configuration only to Content. Fixtures use generated credentials and never call the paid provider. A future staging deployment needs a reviewed ingress, a provider account ID, scoped token and webhook secret files, and the approved Stream playback hostname. No staging flag exists in this change.
+
+The candidate uses a ten-minute direct upload URL, a five-minute maximum video duration and five-minute signed playback URLs. A private draft reserves at most one upload intent. The API returns the upload URL once and does not store it. An ambiguous provider response, expired link or lost response requires reconciliation before another reservation. Processing moves a private asset only to review. A moderation decision and public publication are separate.

@@ -27,6 +27,7 @@ class Video(models.Model):
     description = models.TextField(blank=True, max_length=2000)
     state = models.CharField(max_length=16, choices=State.choices, default=State.DRAFT)
     visibility = models.CharField(max_length=16, choices=Visibility.choices, default=Visibility.PRIVATE)
+    stream_upload_id = models.UUIDField(null=True, blank=True, unique=True)
     provider_asset_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
     moderation_approved_at = models.DateTimeField(null=True, blank=True)
     duration_seconds = models.PositiveIntegerField(null=True, blank=True)

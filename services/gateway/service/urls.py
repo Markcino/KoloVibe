@@ -8,10 +8,15 @@ from .creators import creator_detail
 
 from .creator_onboarding import creator_onboarding
 
+if settings.LOCAL_STREAM_ENABLED:
+    from .stream_ingest import cloudflare_stream_webhook, issue_video_upload, video_collection, video_playback
+else:
+    video_collection = list_videos
+
 urlpatterns = [
     path("health/live", liveness, name="liveness"),
     path("videos", list_videos, name="videos"),
-    path("api/v1/videos", list_videos, name="api-videos"),
+    path("api/v1/videos", video_collection, name="api-videos"),
     path("api/v1/videos/<uuid:video_id>", video_detail, name="api-video-detail"),
     path("api/v1/auth/register", accounts.register, name="register"),
     path("api/v1/auth/verify", accounts.verify_email, name="verify"),
