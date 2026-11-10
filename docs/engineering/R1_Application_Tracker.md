@@ -1,6 +1,6 @@
 # R1 application delivery tracker
 
-**Updated 10 November 2026.** This is the feature tracker. Stage 3 infrastructure acceptance remains in [Stage3_Implementation_Tracker.csv](Stage3_Implementation_Tracker.csv). Status distinguishes staging evidence, code changes, and production acceptance.
+**Updated 10 November 2026.** The project owner confirmed that Stage 3 (Technical Foundation) was completed successfully. Stage 4 (MVP implementation) is in progress, with Stage 5 (testing and security verification) running in parallel on AWS staging. See the [Stage 3 tracker](Stage3_Implementation_Tracker.csv) for the detailed foundation record.
 
 | Area | Current status | Evidence | Remaining gate |
 | --- | --- | --- | --- |
@@ -14,7 +14,7 @@
 | Non-cash points | Foundation only; product gated | Append-only ledger, constraints and SQLite/PostgreSQL mutation tests. | Owner explicitly keeps ALL points APIs/UI gated, including read-only balances/history, until points decisions are approved. |
 | Moderation and audit | Partial | Identity-owned append-only security records, authenticated idempotent audit ingestion, retry and PostgreSQL mutation rejection; privileged MFA APIs implemented. | Reports, decisions, appeals, operational audit scheduling/alerts/retention and deployed security acceptance. |
 | Profile/privacy/settings | Gated | Own account read via `/me`. | Approved retention and deletion policy, session management, profile/preferences APIs. |
-| Deployment | Partial - AWS staging UAT | The public mobile API and account flow were exercised against AWS staging. The protected backend health route returned HTTP 401 without authorization. The staging evidence below applies to that AWS endpoint. | Production acceptance, Cloudflare rate-limit evidence, audit operations, backup and restore, resilience, and remaining MVP integrations. Oracle Cloud foundation acceptance is tracked separately. |
+| Deployment | Partial - AWS staging UAT | The public mobile API and account flow were exercised against AWS staging. The protected backend health route returned HTTP 401 without authorization. The staging evidence below applies to that AWS endpoint. | Production acceptance, Cloudflare rate-limit evidence, audit operations, backup and restore, resilience, and remaining MVP integrations. Oracle Cloud deployment evidence is tracked separately. |
 
 See the [API test deployment roadmap](API_Test_Deployment_Roadmap.md) for deployment sequencing and earlier environment evidence. No demo data or fixed credential is part of the application.
 
