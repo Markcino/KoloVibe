@@ -119,6 +119,11 @@ jobs:
         run: python -m pip install --require-hashes -r requirements-dev.txt
       - name: Install auditing tools
         run: python -m pip install --require-hashes -r requirements-ci.txt
+      - name: Secret discovery and regression checks
+        run: |
+          PYTHONPATH=scripts python -m unittest -v scripts/test_check_secret_findings.py
+          detect-secrets scan --all-files --exclude-files '(^\.git/)' > security-reports/secret-findings.json
+          python scripts/check_secret_findings.py security-reports/secret-findings.json
       - name: Dependency vulnerability audit
         run: |
           mkdir -p security-reports
@@ -127,11 +132,6 @@ jobs:
         run: |
           bandit -r services scripts apps/web_django -f json -o security-reports/bandit.json || true
           python scripts/enforce_bandit.py security-reports/bandit.json
-      - name: Secret discovery and regression checks
-        run: |
-          PYTHONPATH=scripts python -m unittest -v scripts/test_check_secret_findings.py
-          detect-secrets scan --all-files --exclude-files '(^\.git/)' > security-reports/secret-findings.json
-          python scripts/check_secret_findings.py security-reports/secret-findings.json
       - name: Software bill of materials
         if: always()
         run: |
