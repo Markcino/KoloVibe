@@ -48,24 +48,25 @@ class LocalEnvironmentTests(unittest.TestCase):
         self.assertEqual(env["DJANGO_SECRET_KEY"], identity_secret)
         self.assertNotIn("KOLOVIBE_POINTS_DJANGO_SECRET_KEY", env)
 
-    def test_stream_configuration_stays_scoped_to_gateway_and_content(self):
+    def test_r2_credentials_and_broker_stay_scoped_to_content(self):
         values = {
             f"KOLOVIBE_{service.upper()}_DJANGO_SECRET_KEY": secrets.token_urlsafe(48)
             for service in ("gateway", "content", "identity")
         }
         values.update({
-            "KOLOVIBE_LOCAL_STREAM_ENABLED": "1",
-            "KOLOVIBE_STREAM_ACCOUNT_ID": "a" * 32,
-            "KOLOVIBE_STREAM_API_TOKEN_FILE": "/fixture/provider-token",
-            "KOLOVIBE_STREAM_WEBHOOK_SECRET_FILE": "/fixture/webhook-secret",
-            "KOLOVIBE_STREAM_PLAYBACK_HOST": "customer-fixture.cloudflarestream.com",
+            "KOLOVIBE_LOCAL_MEDIA_ENABLED": "1",
+            "KOLOVIBE_R2_ACCOUNT_ID": "a" * 32,
+            "KOLOVIBE_R2_SECRET_KEY_FILE": "/fixture/r2-secret",
+            "KOLOVIBE_CONTENT_RABBITMQ_URL": "fixture-broker",
         })
         gateway = environment_for("gateway", values)
         content = environment_for("content", values)
-        self.assertEqual(gateway["KOLOVIBE_LOCAL_STREAM_ENABLED"], "1")
-        self.assertEqual(content["KOLOVIBE_STREAM_API_TOKEN_FILE"], values["KOLOVIBE_STREAM_API_TOKEN_FILE"])
-        self.assertNotIn("KOLOVIBE_STREAM_API_TOKEN_FILE", gateway)
-        self.assertNotIn("KOLOVIBE_LOCAL_STREAM_ENABLED", environment_for("identity", values))
+        self.assertEqual(gateway["KOLOVIBE_LOCAL_MEDIA_ENABLED"], "1")
+        self.assertEqual(content["KOLOVIBE_R2_SECRET_KEY_FILE"], "/fixture/r2-secret")
+        self.assertEqual(content["KOLOVIBE_RABBITMQ_URL"], "fixture-broker")
+        self.assertNotIn("KOLOVIBE_R2_SECRET_KEY_FILE", gateway)
+        self.assertNotIn("KOLOVIBE_RABBITMQ_URL", gateway)
+        self.assertNotIn("KOLOVIBE_LOCAL_MEDIA_ENABLED", environment_for("identity", values))
 
     def test_rejects_missing_service_secret(self):
         with self.assertRaisesRegex(ValueError, "KOLOVIBE_IDENTITY"):

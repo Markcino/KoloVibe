@@ -102,13 +102,13 @@ The Creators service owns pilot eligibility. It records the invitation, policy a
 
 OD-07 — Restricted pilot video provider
 
-Approved by the product owner on 10 November 2026. Cloudflare Stream is the on-demand processor and playback provider. The owner clarified that original files upload to private Cloudflare R2 first and live streaming is outside R1. R2-first ingestion is pending and supersedes the local direct-to-Stream candidate as the pilot upload path. The Content service requires private assets and matches a signed processing callback to its reserved video, then verifies status with Stream before moving a video into review. Publication requires a separate content decision under DEC-005. Provider provisioning, paid usage and deployed verification remain open.
+Approved by the product owner on 10 November 2026. R1 uses private Cloudflare R2 for uploaded originals and playback renditions, with FFmpeg encoding managed by a Content Celery worker over RabbitMQ. This supersedes the earlier Cloudflare Stream selection. Live streaming is outside R1. The worker moves a valid encoded video to private review. Publication requires a separate content decision under DEC-005. Live R2, RabbitMQ and worker deployment acceptance remain open.
 
 DEC-005 — Restricted pilot moderation
 
 Approved by the product owner on 10 November 2026. A reviewer approves a processed video before publication. Signed-in users can report a published video. Authorized moderators can unpublish it and must record a reason. The creator can appeal the removal and a different reviewer must approve restoration.
 
-Moderation owns reports, appeals and attributed decisions. Content applies signed decisions against the current video revision. Removal closes public discovery and stops new playback URLs. Previously issued Stream URLs can remain usable until their short expiry. This decision covers the application workflow. Legal notices and data retention require separate review.
+Moderation owns reports, appeals and attributed decisions. Content applies signed decisions against the current video revision. Removal closes public discovery and stops new playback URLs. Previously issued playback URLs can remain usable until their short expiry. This decision covers the application workflow. Legal notices and data retention require separate review.
 
 Open decisions
    DEC-002: Final product name and legal entity.

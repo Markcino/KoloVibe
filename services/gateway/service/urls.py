@@ -8,8 +8,8 @@ from .creators import creator_detail
 
 from .creator_onboarding import creator_onboarding
 
-if settings.LOCAL_STREAM_ENABLED:
-    from .stream_ingest import cloudflare_stream_webhook, issue_video_upload, video_collection, video_playback
+if settings.LOCAL_MEDIA_ENABLED:
+    from .media import issue_video_upload, video_collection, video_playback, video_upload_status
 else:
     video_collection = list_videos
 
@@ -41,11 +41,11 @@ if settings.ENVIRONMENT == "local" or getattr(settings, "STAGING_CREATOR_ONBOARD
              {"operation": "eligibility"}, name="creator-upload-eligibility"),
     ]
 
-if settings.LOCAL_STREAM_ENABLED:
+if settings.LOCAL_MEDIA_ENABLED:
     urlpatterns += [
         path("api/v1/videos/<uuid:video_id>/upload-intents", issue_video_upload, name="api-video-upload"),
         path("api/v1/videos/<uuid:video_id>/playback", video_playback, name="api-video-playback"),
-        path("api/v1/webhooks/cloudflare-stream", cloudflare_stream_webhook, name="api-stream-webhook"),
+        path("api/v1/videos/<uuid:video_id>/upload-status", video_upload_status, name="api-video-upload-status"),
     ]
 
 if settings.LOCAL_MODERATION_ENABLED:

@@ -13,10 +13,10 @@ urlpatterns = [
     path("internal/probe", lambda request: JsonResponse({"status":"ok"}), name="internal-probe"),
 ]
 
-if settings.LOCAL_STREAM_ENABLED:
-    from .stream_ingest import stream_ingest
+if settings.LOCAL_MEDIA_ENABLED:
+    from .media_api import media_api
 
-    urlpatterns.append(path("internal/videos/stream/<slug:operation>", stream_ingest, name="internal-stream-ingest"))
+    urlpatterns.append(path("internal/videos/media/<slug:operation>", media_api, name="internal-media"))
 
 if settings.LOCAL_MODERATION_ENABLED:
     from .moderation import moderation_video

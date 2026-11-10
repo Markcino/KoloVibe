@@ -1,0 +1,2 @@
+# Optional glibc local media runtime; kept out of the shared Alpine image.
+awscrt==0.38.1
