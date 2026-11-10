@@ -29,7 +29,7 @@ class Video(models.Model):
     visibility = models.CharField(max_length=16, choices=Visibility.choices, default=Visibility.PRIVATE)
     stream_upload_id = models.UUIDField(null=True, blank=True, unique=True)
     provider_asset_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
-    moderation_revision = models.PositiveIntegerField(default=0)
+    moderation_revision = models.PositiveIntegerField(default=0, db_default=0)
     moderation_approved_at = models.DateTimeField(null=True, blank=True)
     duration_seconds = models.PositiveIntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
