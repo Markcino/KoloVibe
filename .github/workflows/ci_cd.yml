@@ -122,7 +122,9 @@ jobs:
       - name: Secret discovery and regression checks
         run: |
           PYTHONPATH=scripts python -m unittest -v scripts/test_check_secret_findings.py
-          detect-secrets scan --all-files --exclude-files '(^\.git/)' > security-reports/secret-findings.json
+          detect-secrets scan --all-files --exclude-files '(^\.git/)' > "$RUNNER_TEMP/secret-findings.json"
+          mkdir -p security-reports
+          mv "$RUNNER_TEMP/secret-findings.json" security-reports/secret-findings.json
           python scripts/check_secret_findings.py security-reports/secret-findings.json
       - name: Dependency vulnerability audit
         run: |
