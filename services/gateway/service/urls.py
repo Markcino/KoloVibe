@@ -1,9 +1,12 @@
+from django.conf import settings
 from django.urls import path
 from django.http import JsonResponse
 from .health import liveness
 from .videos import list_videos, video_detail
 from . import accounts
 from .creators import creator_detail
+
+from .creator_onboarding import creator_onboarding
 
 urlpatterns = [
     path("health/live", liveness, name="liveness"),
@@ -20,3 +23,15 @@ urlpatterns = [
     path("api/v1/creators/<uuid:creator_id>", creator_detail, name="api-creator-detail"),
     path("internal/probe", lambda request: JsonResponse({"status":"ok"}), name="internal-probe"),
 ]
+
+if settings.ENVIRONMENT == "local" or getattr(settings, "STAGING_CREATOR_ONBOARDING", False):
+    urlpatterns += [
+        path("api/v1/creator-invitations", creator_onboarding, {"operation": "invite"}, name="creator-invite"),
+        path("api/v1/creator-applications", creator_onboarding, {"operation": "pending"}, name="creator-queue"),
+        path("api/v1/creator-applications/<uuid:account_id>/decision", creator_onboarding,
+             {"operation": "review"}, name="creator-review"),
+        path("api/v1/creators/me/application", creator_onboarding,
+             {"operation": "application"}, name="creator-application"),
+        path("api/v1/creators/me/upload-eligibility", creator_onboarding,
+             {"operation": "eligibility"}, name="creator-upload-eligibility"),
+    ]

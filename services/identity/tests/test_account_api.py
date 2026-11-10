@@ -54,6 +54,7 @@ class AccountApiTests(TestCase):
         self.assertEqual(self.post(accounts.verify_email, {"code": code}).status_code, 200)
         account.refresh_from_db()
         self.assertTrue(account.is_active)
+        self.assertIsNotNone(account.email_verified_at)
         self.assertEqual(self.post(accounts.verify_email, {"code": code}).status_code, 400)
         return account
 
@@ -82,6 +83,21 @@ class AccountApiTests(TestCase):
         self.assertEqual(self.post(accounts.validate_access,
                                    {"access_token": second["access_token"]}).status_code, 401)
         self.assertIsNotNone(LoginSession.objects.get().revoked_at)
+
+    def test_creator_verification_requires_recorded_email_verification(self):
+        account = Account.objects.create_user(
+            email="unverified@example.test", password=self.password, display_name="Local Viewer",
+        )
+        login = self.post(accounts.login, {"email": account.email, "password": self.password})
+        token = json.loads(login.content)["access_token"]
+        request = {"access_token": token, "include_email_verification": True}
+        self.assertIs(json.loads(self.post(accounts.validate_access, request).content)["email_verified"], False)
+
+        account.email_verified_at = timezone.now()
+        account.save(update_fields=["email_verified_at"])
+        self.assertIs(json.loads(self.post(accounts.validate_access, request).content)["email_verified"], True)
+        ordinary = self.post(accounts.validate_access, {"access_token": token})
+        self.assertNotIn("email_verified", json.loads(ordinary.content))
 
     def test_logout_revokes_access(self):
         self.register_and_verify()

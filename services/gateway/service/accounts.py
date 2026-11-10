@@ -135,10 +135,17 @@ def logout(request):
 
 @require_GET
 def me(request):
+    return current_account(request)
+
+
+def current_account(request, *, require_verified_email=False):
     token = _bearer(request)
     if token is None:
         return _json({"detail": "Unauthorized"}, 401)
-    result = _invoke("/internal/auth/validate", {"access_token": token}, {200})
+    data = {"access_token": token}
+    if require_verified_email:
+        data["include_email_verification"] = True
+    result = _invoke("/internal/auth/validate", data, {200})
     if result.status_code != 200:
         return result
     try:
@@ -150,6 +157,11 @@ def me(request):
         if not isinstance(user.get("roles"), list) or not all(
                 isinstance(role, str) for role in user["roles"]):
             raise ValueError("Invalid user")
+        if require_verified_email:
+            if type(payload["email_verified"]) is not bool:
+                raise ValueError("Invalid verification state")
+            if not payload["email_verified"]:
+                return _json({"detail": "Verified email required"}, 403)
     except (ValueError, KeyError, TypeError):
         return _json({"detail": "Identity unavailable"}, 503)
     return _json(user, 200)
