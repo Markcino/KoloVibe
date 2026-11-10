@@ -136,7 +136,8 @@ def verify_email(request):
             verification.used_at = timezone.now()
             verification.save(update_fields=["used_at"])
             verification.account.is_active = True
-            verification.account.save(update_fields=["is_active"])
+            verification.account.email_verified_at = verification.used_at
+            verification.account.save(update_fields=["is_active", "email_verified_at"])
             record("account.verified", verification.account_id)
     except (KeyError, ValueError, json.JSONDecodeError):
         return _error("Invalid verification")
@@ -229,15 +230,20 @@ def refresh(request):
 @require_POST
 def validate_access(request):
     try:
-        token = _body(request, {"access_token"})["access_token"]
-        if not isinstance(token, str):
+        data = _body(request, {"access_token", "include_email_verification"})
+        token = data["access_token"]
+        include_verification = data.get("include_email_verification", False)
+        if not isinstance(token, str) or type(include_verification) is not bool:
             raise ValueError("Invalid token")
     except (KeyError, ValueError, json.JSONDecodeError):
         return _error("Invalid session", 401)
     session = _session_for_access(token)
     if session is None:
         return _error("Invalid session", 401)
-    return JsonResponse({"user": _account(session.account), "session_id": str(session.id)})
+    result = {"user": _account(session.account), "session_id": str(session.id)}
+    if include_verification:
+        result["email_verified"] = session.account.email_verified_at is not None
+    return JsonResponse(result)
 
 
 @require_POST

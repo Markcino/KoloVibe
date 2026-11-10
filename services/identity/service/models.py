@@ -45,6 +45,7 @@ class Account(AbstractBaseUser, PermissionsMixin):
     display_name = models.CharField(max_length=80)
     role = models.CharField(max_length=16, choices=Role.choices, default=Role.VIEWER)
     is_active = models.BooleanField(default=True)
+    email_verified_at = models.DateTimeField(null=True, blank=True)
     is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 

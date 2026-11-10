@@ -94,10 +94,15 @@ DOC-023            Change requests    Product owner      Active              All
                    and decision log
 
 
+DEC-004 — Restricted pilot creator eligibility
+
+Approved by the product owner on 10 November 2026. Invited accounts with verified email may apply. Applicants attest that they are at least 18 and will upload only content they own or have permission to use. The pilot collects neither government IDs nor dates of birth. An authorized reviewer approves the application before upload eligibility is granted. Publication requires separate content review.
+
+The Creators service owns pilot eligibility. It records the invitation, policy attestation and review with account IDs and timestamps. The future upload API must verify eligibility server-side on every new upload authorization. Creator approval does not elevate the Identity account role. General privacy retention, copyright/takedown/appeals rules and the video provider remain separate decisions.
+
 Open decisions
    DEC-002: Final product name and legal entity.
    DEC-003: Qualified-view threshold, likes weighting and points formula.
-   DEC-004: Creator eligibility, age policy and verification evidence.
    DEC-005: Content copyright, takedown and appeals rules.
 <PARSED TEXT FOR PAGE: 3 / 3>
    DEC-006: Pilot cohort size and Android/iOS release requirement.

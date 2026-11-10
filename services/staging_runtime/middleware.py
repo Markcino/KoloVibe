@@ -7,6 +7,10 @@ from django.http import JsonResponse
 logger = logging.getLogger(__name__)
 UUID = r"[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}"
 PUBLIC = re.compile(rf"/(?:videos|api/v1/videos(?:/{UUID})?|api/v1/creators/{UUID})")
+CREATOR_ONBOARDING_PUBLIC = re.compile(
+    rf"/api/v1/(?:creator-invitations|creator-applications(?:/{UUID}/decision)?|creators/me/(?:application|upload-eligibility))"
+)
+CREATOR_ONBOARDING_INTERNAL = re.compile(r"/internal/creators/onboarding/(?:invite|pending|review|status|submit|eligibility)")
 ACCOUNTS = {
     "gateway": {"/api/v1/auth/" + name for name in
                 ("register", "verify", "login", "refresh", "logout")} | {"/api/v1/me"},
@@ -42,6 +46,10 @@ class RestrictedStagingMiddleware:
             "gateway": {"/api/v1/auth/mfa/verify"},
             "identity": {"/internal/auth/mfa/verify"},
         }.get(service, set())
+        if getattr(settings, "STAGING_CREATOR_ONBOARDING", False):
+            allowed |= service == "gateway" and bool(CREATOR_ONBOARDING_PUBLIC.fullmatch(path))
+            allowed |= (service == "creators" and request.method == "POST"
+                        and bool(CREATOR_ONBOARDING_INTERNAL.fullmatch(path)))
         if not allowed:
             logger.warning("Rejected gated staging route")
             return JsonResponse({"detail": "Not enabled in restricted staging"}, status=403)

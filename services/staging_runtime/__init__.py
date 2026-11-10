@@ -95,6 +95,14 @@ def configure(settings):
     settings["STAGING_PRIVILEGED"] = privileged == "1"
     if privileged == "1" and (not accounts or service not in ("gateway", "identity")):
         raise RuntimeError("Privileged capability requires approved account services")
+    creator_onboarding = os.environ.get("KOLOVIBE_STAGING_CREATOR_ONBOARDING", "0")
+    if creator_onboarding not in ("0", "1"):
+        raise RuntimeError("Invalid staging creator onboarding capability")
+    settings["STAGING_CREATOR_ONBOARDING"] = creator_onboarding == "1"
+    if creator_onboarding == "1" and (
+        service not in ("gateway", "creators") or service == "gateway" and privileged != "1"
+    ):
+        raise RuntimeError("Creator onboarding requires the approved creator service and an MFA-enabled gateway")
     if accounts:
         if service not in ("gateway", "identity"):
             raise RuntimeError("Account capability belongs only to gateway/identity")

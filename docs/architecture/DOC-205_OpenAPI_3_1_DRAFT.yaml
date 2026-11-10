@@ -253,6 +253,153 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           description: Unexpected server error; no internal details exposed
+  /creator-invitations:
+    post:
+      tags: [Creators]
+      summary: Invite a pilot account
+      operationId: post_creator_invitation
+      x-implementation: staging-gated
+      x-required-roles: [moderator, administrator]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [account_id]
+              properties:
+                account_id: {type: string, format: uuid}
+      responses:
+        '201': {$ref: '#/components/responses/PilotCreatorApplication'}
+        '200': {$ref: '#/components/responses/PilotCreatorApplication'}
+        '400': {description: Invalid account identifier or request}
+        '401': {description: Missing or invalid session}
+        '403': {description: Role or creator eligibility requirements not met}
+        '503': {description: Required service unavailable}
+  /creator-applications:
+    get:
+      tags: [Creators]
+      summary: List pending pilot applications
+      operationId: get_creator_applications
+      x-implementation: staging-gated
+      x-required-roles: [moderator, administrator]
+      parameters:
+      - name: cursor
+        in: query
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Page of pending applications
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_cursor]
+                additionalProperties: false
+                properties:
+                  items:
+                    type: array
+                    maxItems: 20
+                    items: {$ref: '#/components/schemas/PilotCreatorApplication'}
+                  next_cursor: {type: [string, 'null'], format: uuid}
+        '400': {description: Invalid cursor}
+        '401': {description: Missing or invalid session}
+        '403': {description: Role or creator eligibility requirements not met}
+        '503': {description: Required service unavailable}
+  /creator-applications/{account_id}/decision:
+    parameters:
+    - name: account_id
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    post:
+      tags: [Creators]
+      summary: Approve or reject a pending application
+      operationId: post_creator_application_decision
+      x-implementation: staging-gated
+      x-required-roles: [moderator, administrator]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [decision]
+              properties:
+                decision: {type: string, enum: [approved, rejected]}
+      responses:
+        '200': {$ref: '#/components/responses/PilotCreatorApplication'}
+        '400': {description: Invalid decision}
+        '404': {description: Application not found}
+        '409': {description: Application or profile cannot be reviewed}
+        '401': {description: Missing or invalid session}
+        '403': {description: Role or creator eligibility requirements not met}
+        '503': {description: Required service unavailable}
+  /creators/me/application:
+    get:
+      tags: [Creators]
+      summary: Read own pilot application
+      operationId: get_own_creator_application
+      x-implementation: staging-gated
+      x-required-roles: [viewer, creator]
+      responses:
+        '200': {$ref: '#/components/responses/PilotCreatorApplication'}
+        '400': {description: Unexpected request data}
+        '404': {description: Application or invitation not found}
+        '401': {description: Missing or invalid session}
+        '403': {description: Role or creator eligibility requirements not met}
+        '503': {description: Required service unavailable}
+    post:
+      tags: [Creators]
+      summary: Submit own invited application with verified email
+      operationId: post_own_creator_application
+      x-implementation: staging-gated
+      x-required-roles: [viewer, creator]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [handle, adult_attested, rights_attested]
+              properties:
+                handle: {type: string, pattern: '^[A-Za-z0-9_-]{1,40}$'}
+                adult_attested: {const: true}
+                rights_attested: {const: true}
+      responses:
+        '201': {$ref: '#/components/responses/PilotCreatorApplication'}
+        '200': {$ref: '#/components/responses/PilotCreatorApplication'}
+        '400': {description: Invalid handle or missing attestations}
+        '409': {description: Application or handle conflict}
+        '401': {description: Missing or invalid session}
+        '403': {description: Role or creator eligibility requirements not met}
+        '503': {description: Required service unavailable}
+  /creators/me/upload-eligibility:
+    get:
+      tags: [Creators]
+      summary: Read own pilot upload eligibility
+      operationId: get_own_creator_upload_eligibility
+      x-implementation: staging-gated
+      x-required-roles: [viewer, creator]
+      responses:
+        '200':
+          description: Current upload eligibility
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [upload_eligible, creator_id]
+                properties:
+                  upload_eligible: {type: boolean}
+                  creator_id: {type: [string, 'null'], format: uuid}
+        '400': {description: Unexpected request data}
+        '401': {description: Missing or invalid session}
+        '403': {description: Role or creator eligibility requirements not met}
+        '503': {description: Required service unavailable}
   /creators/{creator_id}:
     get:
       tags:
@@ -1165,6 +1312,14 @@ components:
       - token_type
       - refresh_token
       - user
+    PilotCreatorApplication:
+      type: object
+      additionalProperties: false
+      required: [account_id, status, creator_id]
+      properties:
+        account_id: {type: string, format: uuid}
+        status: {type: string, enum: [invited, pending, approved, rejected]}
+        creator_id: {type: [string, 'null'], format: uuid}
     Creator:
       type: object
       additionalProperties: false
@@ -1445,6 +1600,11 @@ components:
       - items
       - next_cursor
   responses:
+    PilotCreatorApplication:
+      description: Pilot application summary
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/PilotCreatorApplication'}
     LocalUnavailable:
       description: Local dependency unavailable; no internal details exposed
       content:

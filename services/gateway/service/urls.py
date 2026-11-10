@@ -6,6 +6,8 @@ from .videos import list_videos, video_detail
 from . import accounts
 from .creators import creator_detail
 
+from .creator_onboarding import creator_onboarding
+
 urlpatterns = [
     path("health/live", liveness, name="liveness"),
     path("videos", list_videos, name="videos"),
