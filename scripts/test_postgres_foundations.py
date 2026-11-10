@@ -289,11 +289,11 @@ def service_tests(service):
         names.append("test_outbox_republish_and_transactional_inbox")
     if service == "engagement":
         names.append("test_qualified_view_reaches_the_points_queue")
-    if service == "points":
-        names.append("test_concurrent_awards_stay_within_daily_cap")
     suite = unittest.TestSuite(Foundations(name) for name in names)
     if service == "points":
         suite.addTests(unittest.defaultTestLoader.loadTestsFromName("tests.test_ledger"))
+        # The concurrent integration test commits ledger entries to the disposable database.
+        suite.addTest(Foundations("test_concurrent_awards_stay_within_daily_cap"))
     result = unittest.TextTestRunner(verbosity=2).run(suite)
     connection.close()
     if not result.wasSuccessful():
