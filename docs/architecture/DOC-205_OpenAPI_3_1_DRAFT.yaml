@@ -887,8 +887,8 @@ paths:
         '400': {description: Invalid request}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
-        '404': {description: Session, video or creator unavailable}
-        '409': {description: Session expired, playback progress rejected, or publication changed}
+        '404': {description: 'Session, video or creator unavailable'}
+        '409': {description: 'Session expired, playback progress rejected, or publication changed'}
         '503': {description: A required service is unavailable}
   /videos/{video_id}/like:
     put:
