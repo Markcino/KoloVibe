@@ -1,4 +1,4 @@
-"""Cross-check owner-confirmed partial ADR-013 decision across current registers."""
+"""Cross-check the approved ADR-013 design and open verification across current registers."""
 
 import csv
 from pathlib import Path
@@ -19,25 +19,24 @@ def matching_record(path, key, value):
 
 
 class IdentityDecisionConsistencyTests(unittest.TestCase):
-    def test_adr_register_has_selected_provider_but_no_full_approval(self):
+    def test_adr_register_records_design_approval_and_open_verification(self):
         row = matching_record(ARCH / "DOC-207_ADR_Register.csv", "ID", "ADR-013")
-        self.assertIn("Django-native identity selected", row["Status"])
-        self.assertIn("session/MFA pending", row["Status"])
-        self.assertNotIn("Accepted", row["Status"])
+        self.assertIn("Design approved", row["Status"])
+        self.assertIn("implementation and verification open", row["Status"])
         self.assertIn("Django-native", row["Decision"])
 
-    def test_open_decision_logs_preserve_partial_status(self):
+    def test_open_decision_logs_preserve_remaining_work(self):
         a = matching_record(ARCH / "DOC-207_Open_Decision_Log.csv",
                             "ADR_ID", "ADR-013")
         b = matching_record(ARCH / "DOC-209_Consolidated_Open_Decisions.csv",
                             "ID", "ADR-013")
         self.assertEqual(a["Current_status"], b["Status"])
-        self.assertIn("pending", a["Current_status"])
+        self.assertIn("verification open", a["Current_status"])
 
     def test_stage3_client_authority_not_misread_as_workload_identity(self):
         row = matching_record(ENG / "Stage3_Open_Decisions.csv",
                               "Decision", "OD-01")
-        self.assertIn("Django-native", row["Status"])
+        self.assertIn("client design approved", row["Status"])
         self.assertIn("workload", row["Status"])
         self.assertIn("pending", row["Status"])
 
@@ -45,17 +44,17 @@ class IdentityDecisionConsistencyTests(unittest.TestCase):
         row = matching_record(ARCH / "DOC-209_Gate_Criteria.csv", "Gate_ID", "G-03")
         self.assertIn("BLOCKED", row["Current_assessment"])
 
-    def test_decision_record_preserves_missing_approvals(self):
+    def test_historical_selection_points_to_approved_design(self):
         record = (ARCH / "ADR-013_Django_Native_Identity_Selection_2026-11-01.md").read_text()
         for phrase in ("Django-native", "ADR-012", "session", "MFA",
-                       "refresh", "revocation", "not final ADR-013 approval"):
+                       "refresh", "revocation", "ADR-013_Client_Authentication_and_Session_Security_v1.0_APPROVED.md"):
             self.assertIn(phrase.lower(), record.lower())
 
     def test_stage3_feature_gate_remains_open(self):
         current = (ENG / "Stage3_Current_Status.md").read_text()
         roadmap = (ENG / "API_Test_Deployment_Roadmap.md").read_text()
         self.assertIn("OD-01", current)
-        self.assertIn("final ADR-013 session/MFA contract", roadmap)
+        self.assertIn("verified ADR-013 session/MFA implementation", roadmap)
         self.assertIn("Keep privileged APIs disabled", roadmap)
 
 

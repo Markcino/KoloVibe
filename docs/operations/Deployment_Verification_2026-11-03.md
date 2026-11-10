@@ -1,10 +1,12 @@
 # Deployment and API verification — 3 November 2026
 
-Owner: Mark Allen Gbalazeh. Status: **deployment in progress; full API acceptance pending**.
+This record covers the Oracle Cloud deployment on 3 November 2026. See the [AWS staging record](AWS_Staging_Deployment_Verification_2026-11-10.md) for the separate 10 November rollout.
+
+Owner: Mark Allen Gbalazeh. Status on 3 November: **deployment in progress; full API acceptance pending**.
 
 ## Verified source and image
 
-The GitHub API readback still identifies `main` as commit
+The 3 November GitHub API readback identified the candidate as commit
 `be03dbcced01f1a4f71c643dbc179da2810ffa61`.
 [Actions run 41341123921](https://github.com/Markcino/KoloVibe/actions/runs/41341123921)
 completed successfully. Its jobs include all eight shared-image service smoke

@@ -2,7 +2,7 @@
 
 Status: COMPLETE — owner-declared on 1 November 2026, at Mark's direction.
 
-This records the owner's completion declaration, not a new independent verification of GitHub settings. The 30 October observations below are historical. No current protection readback or acceptance exercise was performed during this change.
+On 10 November 2026 GitHub reported `protected: false` for `main` and returned HTTP 403 with a plan restriction for repository rulesets. Server-side enforcement and the acceptance exercise remain pending.
 
 ## Ownership and review model
 

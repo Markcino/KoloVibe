@@ -14,7 +14,7 @@ flutter run
 
 The sole application entry point is `lib/main.dart`. `flutter run` selects it by default; the explicit equivalent is `flutter run --target lib/main.dart`. IDE launch configurations must use the same entry point.
 
-The app starts with splash and welcome. By default, `lib/main.dart` uses unavailable-service adapters. Setting `KOLOVIBE_API_URL` to an approved HTTPS gateway URL ending in `/api/v1` opts into account operations and public video metadata. Playback, publishing, creator profiles, engagement, points and moderation are not connected. There is no built-in test account, state gallery, viewer-role override or simulated upload progression.
+Without an API URL, the app opens Welcome with unavailable-service adapters. Setting `KOLOVIBE_API_URL` to an approved HTTPS gateway ending in `/api/v1` enables account operations and approved-public video and reviewed-creator metadata. The startup session check opens Home when the account session restores, Welcome when it is absent or rejected, and offers Retry if the check fails. Playback, publishing, engagement, points and moderation remain disconnected. The app ships without a built-in test account or simulated service results.
 
 The development bundle identifier is `com.kolovibe.kolovibe`; distribution identifiers, launcher artwork and signing require release review. Android release signing is unconfigured; debug keys are not configured for releases. The updated iOS project targets iOS 15.0 or newer.
 
@@ -28,9 +28,9 @@ Native safe areas, editable text inputs, semantic controls and system back navig
 
 ## Integration boundaries
 
-Follow the existing DOC-205 draft contracts and open ADRs. The content service and gateway expose read-only approved-public video metadata, which the opt-in mobile adapter can parse; playback is not implemented. Identity account/session operations and gateway forwarding routes also exist, but ADR-013, email/transport configuration and end-to-end acceptance remain open. Media selection/provider uploads, creator profiles, likes/follows, points APIs, moderation, native sharing/settings/store launching, privacy requests and backend notification delivery require additional service/device adapters. No client-side points-award formula or media moderation bypass exists.
+Follow the DOC-205 draft contract and the [approved ADR-013 design](architecture/ADR-013_Client_Authentication_and_Session_Security_v1.0_APPROVED.md). The mobile adapter reads approved-public video metadata and reviewed-active creator profiles through the gateway. Creator onboarding and profile editing, media selection/provider uploads, playback, likes/follows, points, moderation, native sharing/settings/store launching, privacy requests and backend notification delivery still need integration. The server owns points calculation and moderation decisions.
 
-The current boundary-by-boundary status is in `docs/mobile-live-integration-gaps.md`. The intended future production host is `kolovibe.cabetechs.shop`; no deployment or production API is configured in this repository.
+See [mobile integration gaps](mobile-live-integration-gaps.md) and the [R1 tracker](engineering/R1_Application_Tracker.md#aws-staging-acceptance-on-10-november-2026) for AWS staging evidence and the pending physical iPhone retest. The intended future web host is `kolovibe.cabetechs.shop`.
 
 Policy summaries are design-reference copy; they are not a complete approved legal policy. Business discovery, tickets, real-money rewards and payouts remain deferred under DEC-001.
 

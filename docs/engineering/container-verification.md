@@ -86,7 +86,7 @@ Persistent DB, broker, provider, private-registry and environment credentials mu
 
 Disposable test-only credentials are generated inside isolated runners, never used against deployed systems, and removed with their fixture. The container smoke credential is masked. The current public Python base requires no private-registry login. Any future DHI/private base requires separately configured Actions secret names and approved access.
 
-No local push, merge or VM deployment is part of this change. The workflow must reach main through the normal PR process before publication can execute. A package upload does not authorize staging or production activation. Images reject unknown/production environments and staging without its required secret files, TLS and capability configuration. The image matrix checks these refusals, plus local HTTP behavior under Gunicorn. Real staging Gunicorn/TLS journeys use isolated runner PostgreSQL and certificates in the backend job; successful staging-profile execution inside an actual image remains an additional acceptance requirement.
+Publication requires a passing main-push run. Deployment activation has a separate acceptance process. Images reject unknown/production environments and staging without its required secret files, TLS and capability configuration. The image matrix checks these refusals, plus local HTTP behavior under Gunicorn. Real staging Gunicorn/TLS journeys use isolated runner PostgreSQL and certificates in the backend job; successful staging-profile execution inside an actual image remains an additional acceptance requirement.
 
 Dependency lock generation resolves the CI lock first, then constrains the runtime
 lock to it so shared packages do not conflict with audit/SBOM tools. Gunicorn is
@@ -94,7 +94,10 @@ pinned at 26.2.0; packaging 25.0 satisfies the existing CycloneDX tool constrain
 
 ## Validation and remaining evidence
 
-Current shared-image/single-deployment validation:
+- [Main run for `be03dbcc`](https://github.com/Markcino/KoloVibe/actions/runs/41341123921) passed and published the digest recorded in the [3 November deployment record](../operations/Deployment_Verification_2026-11-03.md#verified-source-and-image). The same digest was recorded in the [10 November AWS rollout](../operations/AWS_Staging_Deployment_Verification_2026-11-10.md).
+- The [10 November main run for `b6441bd1`](https://github.com/Markcino/KoloVibe/actions/runs/42830288613) passed Flutter and Django. Dependency advisory, security/SBOM and shared-image build/scan jobs failed. The service matrix and publication were skipped. Draft [PR #29](https://github.com/Markcino/KoloVibe/pull/29) proposes a source scan ordering change and still has a failing CI run.
+
+Local shared-image and deployment validation from the implementation record:
 
 - `.venv/bin/python -m unittest discover -s scripts -p 'test_*.py'`: **74 passed**,
   including real HTTP startup for all eight selections through the shared launcher,
@@ -124,6 +127,6 @@ Application/build evidence remains in the [API test roadmap](API_Test_Deployment
 
 The full script suite (`.venv/bin/python -m unittest discover -s scripts -p 'test_*.py'`) passed 39 tests. Bandit enforcement on the new workflow regression tests passed with zero medium/high findings; the existing quality, image-build and lock-generation steps were checked against their previous definitions and preserved.
 
-Docker is not installed in the current local environment. New image builds/scans, GHCR uploads and remote digest evidence are **pending actual Actions execution**, not claimed successful.
+Docker was unavailable during the local consolidation checks. Later Actions and image publication results appear above.
 
-Live RabbitMQ retries/dead-letter/crash recovery, workload-credential rotation, deployed PostgreSQL isolation, Nginx/Swarm private networking, observability, backups/restore/rollback and security/sponsor acceptance remain separate Stage 3 gates.
+Live RabbitMQ retries/dead-letter/crash recovery, workload-credential rotation, deployed PostgreSQL isolation, Nginx/Swarm private networking, observability, backups/restore/rollback and security acceptance remain open deployment verification items.

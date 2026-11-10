@@ -7,7 +7,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 ARCH = ROOT / "docs" / "architecture"
-SPEC = ARCH / "ADR-013_Django_Native_Identity_Selection_2026-11-01.md"
+SPEC = ARCH / "ADR-013_Client_Authentication_and_Session_Security_v1.0_APPROVED.md"
 API = ARCH / "DOC-205_OpenAPI_3_1_DRAFT.yaml"
 
 
@@ -16,17 +16,16 @@ def load_csv(path):
         return list(csv.DictReader(stream))
 
 
-class ProposedADR013DocumentationTests(unittest.TestCase):
+class ADR013DocumentationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.spec = SPEC.read_text(encoding="utf-8")
         cls.api = yaml.safe_load(API.read_text(encoding="utf-8"))
 
-    def test_policy_unapproved_and_safe_boundary(self):
-        self.assertIn("Partially decided", self.spec)
+    def test_design_approval_preserves_verification_boundary(self):
+        self.assertIn("owner-approved architecture/security design baseline", self.spec)
         self.assertIn("ADR-012", self.spec)
-        self.assertIn("not final ADR-013 approval", self.spec)
-        self.assertIn("Do not mark it fully accepted", self.spec)
+        self.assertIn("no independent assessment or production sign-off", self.spec)
 
     def test_exact_policy_timeout_values_stated(self):
         challenge = self.api["components"]["schemas"]["MfaChallengeResponse"]
@@ -50,11 +49,11 @@ class ProposedADR013DocumentationTests(unittest.TestCase):
         self.assertEqual(self.api["components"]["securitySchemes"]["bearerAuth"]["bearerFormat"],
                          "Django-signed")
 
-    def test_existing_selection_stays_partial(self):
+    def test_design_approval_leaves_release_gate_open(self):
         register = load_csv(ARCH / "DOC-207_ADR_Register.csv")
         decision = [row for row in register if row["ID"] == "ADR-013"]
         self.assertEqual(len(decision), 1)
-        self.assertIn("Partially decided", decision[0]["Status"])
+        self.assertIn("implementation and verification open", decision[0]["Status"])
         self.assertIn("Django-native", decision[0]["Decision"])
         gates = load_csv(ARCH / "DOC-209_Gate_Criteria.csv")
         gate = next(row for row in gates if row["Gate_ID"] == "G-03")

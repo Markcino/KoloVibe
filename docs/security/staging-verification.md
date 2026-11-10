@@ -1,6 +1,6 @@
 # Environment security verification
 
-KoloVibe runs its authorized remote checks exclusively through the **GitHub Environment**
+KoloVibe runs this protected GitHub Actions verification through the **GitHub Environment**
 `staging-security-review`. The workflow is manually dispatched, has read-only repository
 permissions, and must be protected by required reviewers and an allowed deployment branch.
 
@@ -41,9 +41,7 @@ The workflow refuses to run with any missing environment variable or environment
 Its secret-bearing request does not follow HTTP redirects, preventing forwarding to
 another host. Negative public-route checks do not include the token.
 
-**Limitations:** No live environment, protected environment configuration, approved
-endpoint, or token is currently verified here. The workflow is not evidence that
-deployment security controls have been accepted.
+The [AWS staging deployment record](../operations/AWS_Staging_Deployment_Verification_2026-11-10.md) captures the separate operator and tester evidence. Protected workflow execution and environment protection settings still require their own verification.
 
 ## Identity secrets: offline validation only
 

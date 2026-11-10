@@ -1,7 +1,7 @@
 index,ADR_ID,Title,Current_status,Required_decision_or_evidence,Suggested_owner,Due_gate
 0,ADR-011,Public gateway and internal service access,Proposed — needs approval,Gateway failover and unauthorized route probes,Platform/Security,Before implementation of affected component
 1,ADR-012,Service-to-service identity,Proposed — needs approval,"Expired, wrong-audience and forged identity tests",Platform/Security,Before implementation of affected component
-2,ADR-013,Client authentication and sessions,Partially decided — Django-native identity selected; session/MFA pending,"Django-native authority selected 2026-11-01; approve token and web-session contracts, revocation, MFA, recovery and security tests",Platform/Security,Before Stage 2 final sign-off
+2,ADR-013,Client authentication and sessions,Design approved — implementation and verification open,"Owner approved ADR-013 v1.0 on 2026-11-01; complete executable contracts, implementation and DOC-206 verification",Platform/Security,Before production acceptance
 3,ADR-014,Nginx-to-Swarm private transport,Open — decision required,"Network diagram, firewall audit and MITM test",Platform/Security,Before Stage 2 final sign-off
 4,ADR-015,Swarm control-plane sizing and availability,Open — decision required,Quorum and node-loss drill,SRE/Platform,Before Stage 2 final sign-off
 5,ADR-016,PostgreSQL hosting and DR targets,Open — decision required,Timed isolated restore and failover test,SRE/Platform,Before Stage 2 final sign-off
