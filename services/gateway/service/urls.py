@@ -29,21 +29,7 @@ urlpatterns = [
     path("internal/probe", lambda request: JsonResponse({"status":"ok"}), name="internal-probe"),
 ]
 
-if settings.ENVIRONMENT == "local" or getattr(settings, "STAGING_CREATOR_ONBOARDING", False):
-    urlpatterns += [
-        path("api/v1/creator-invitations", creator_onboarding, {"operation": "invite"}, name="creator-invite"),
-        path("api/v1/creator-applications", creator_onboarding, {"operation": "pending"}, name="creator-queue"),
-        path("api/v1/creator-applications/<uuid:account_id>/decision", creator_onboarding,
-             {"operation": "review"}, name="creator-review"),
-        path("api/v1/creators/me/application", creator_onboarding,
-             {"operation": "application"}, name="creator-application"),
-        path("api/v1/creators/me/upload-eligibility", creator_onboarding,
-             {"operation": "eligibility"}, name="creator-upload-eligibility"),
-    ]
+if settings.ENVIRONMENT == "local":
+    from .likes import video_like
 
-if settings.LOCAL_STREAM_ENABLED:
-    urlpatterns += [
-        path("api/v1/videos/<uuid:video_id>/upload-intents", issue_video_upload, name="api-video-upload"),
-        path("api/v1/videos/<uuid:video_id>/playback", video_playback, name="api-video-playback"),
-        path("api/v1/webhooks/cloudflare-stream", cloudflare_stream_webhook, name="api-stream-webhook"),
-    ]
+    urlpatterns.append(path("api/v1/videos/<uuid:video_id>/like", video_like, name="api-video-like"))
