@@ -475,8 +475,10 @@ paths:
     post:
       tags:
       - Content
-      summary: Create draft video metadata
+      summary: Create private draft video metadata
+      description: Requires current approved creator eligibility from DEC-004.
       operationId: post__videos
+      x-implementation: local-only
       responses:
         '401':
           $ref: '#/components/responses/Unauthorized'
@@ -502,8 +504,8 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/VideoCreate'
-      x-required-roles:
-      - creator
+      x-required-roles: [viewer, creator]
+      x-required-creator-eligibility: true
       parameters:
       - name: Idempotency-Key
         in: header
@@ -633,6 +635,7 @@ paths:
       - Content
       summary: Issue one-time direct upload intent
       operationId: post__videos_video_id_upload-intents
+      x-implementation: local-only
       responses:
         '401':
           $ref: '#/components/responses/Unauthorized'
@@ -647,13 +650,17 @@ paths:
               schema:
                 $ref: '#/components/schemas/UploadIntent'
         '400':
-          description: Invalid request; application/problem+json
+          description: Invalid request
+        '404':
+          description: Video is not available for the operation
+        '503':
+          description: Required service unavailable
         '409':
           $ref: '#/components/responses/Conflict'
         '500':
           description: Unexpected server error; no internal details exposed
-      x-required-roles:
-      - creator
+      x-required-roles: [viewer, creator]
+      x-required-creator-eligibility: true
       parameters:
       - name: video_id
         in: path
@@ -666,8 +673,8 @@ paths:
           type: string
           minLength: 16
           maxLength: 128
-      description: Video bytes upload to provider; backend verifies provider completion via authenticated webhook
-        and provider status check.
+      description: Requires current approved creator eligibility and ownership of the private draft.
+        The upload link is returned once. Retries cannot reserve a second provider upload for the same draft.
   /videos/{video_id}/publish:
     post:
       tags:
@@ -750,8 +757,10 @@ paths:
     get:
       tags:
       - Content
-      summary: Obtain authorized short-lived playback token
+      summary: Obtain authorized short-lived playback URL
+      description: Requires sign-in and an approved public video with a bound Stream asset.
       operationId: get__videos_video_id_playback
+      x-implementation: local-only
       responses:
         '401':
           $ref: '#/components/responses/Unauthorized'
@@ -766,7 +775,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/Playback'
         '400':
-          description: Invalid request; application/problem+json
+          description: Invalid request
+        '404':
+          description: Video is not available for the operation
+        '503':
+          description: Required service unavailable
         '409':
           $ref: '#/components/responses/Conflict'
         '500':
@@ -776,6 +789,28 @@ paths:
         in: path
         required: true
         schema: *id001
+  /webhooks/cloudflare-stream:
+    post:
+      tags: [Content]
+      summary: Receive a signed Stream processing callback
+      operationId: post_cloudflare_stream_webhook
+      x-implementation: local-only
+      security: []
+      parameters:
+      - name: Webhook-Signature
+        in: header
+        required: true
+        schema: {type: string, maxLength: 160}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object}
+      responses:
+        '204': {description: Callback acknowledged}
+        '400': {description: Invalid callback envelope}
+        '403': {description: Invalid callback signature}
+        '503': {description: Processing confirmation unavailable}
   /engagement/watch-events:
     post:
       tags:
@@ -1394,12 +1429,6 @@ components:
         description:
           type: string
           maxLength: 2000
-        visibility:
-          type: string
-          enum:
-          - public
-          - unlisted
-          default: public
       required:
       - title
     UploadIntent:

@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 ENVIRONMENT = os.environ.get("KOLOVIBE_ENV")
+LOCAL_STREAM_ENABLED = ENVIRONMENT == "local" and os.environ.get("KOLOVIBE_LOCAL_STREAM_ENABLED") == "1"
 if ENVIRONMENT not in ("local", "staging"):
     raise RuntimeError("Production settings are not authorized; explicit local or staging profile required.")
 if ENVIRONMENT == "staging":

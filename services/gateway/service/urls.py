@@ -8,10 +8,15 @@ from .creators import creator_detail
 
 from .creator_onboarding import creator_onboarding
 
+if settings.LOCAL_STREAM_ENABLED:
+    from .stream_ingest import cloudflare_stream_webhook, issue_video_upload, video_collection, video_playback
+else:
+    video_collection = list_videos
+
 urlpatterns = [
     path("health/live", liveness, name="liveness"),
     path("videos", list_videos, name="videos"),
-    path("api/v1/videos", list_videos, name="api-videos"),
+    path("api/v1/videos", video_collection, name="api-videos"),
     path("api/v1/videos/<uuid:video_id>", video_detail, name="api-video-detail"),
     path("api/v1/auth/register", accounts.register, name="register"),
     path("api/v1/auth/verify", accounts.verify_email, name="verify"),
@@ -34,4 +39,11 @@ if settings.ENVIRONMENT == "local" or getattr(settings, "STAGING_CREATOR_ONBOARD
              {"operation": "application"}, name="creator-application"),
         path("api/v1/creators/me/upload-eligibility", creator_onboarding,
              {"operation": "eligibility"}, name="creator-upload-eligibility"),
+    ]
+
+if settings.LOCAL_STREAM_ENABLED:
+    urlpatterns += [
+        path("api/v1/videos/<uuid:video_id>/upload-intents", issue_video_upload, name="api-video-upload"),
+        path("api/v1/videos/<uuid:video_id>/playback", video_playback, name="api-video-playback"),
+        path("api/v1/webhooks/cloudflare-stream", cloudflare_stream_webhook, name="api-stream-webhook"),
     ]
