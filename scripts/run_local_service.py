@@ -95,6 +95,18 @@ def environment_for(service: str, values: dict[str, str]) -> dict[str, str]:
             broker = values.get("KOLOVIBE_CONTENT_RABBITMQ_URL")
             if broker:
                 env["KOLOVIBE_RABBITMQ_URL"] = broker
+    if service in ("gateway", "engagement", "points") and values.get("KOLOVIBE_LOCAL_POINTS_ENABLED") == "1":
+        if len(gateway_key) < 32:
+            raise ValueError("Local points require a Gateway signing key")
+        env["KOLOVIBE_LOCAL_POINTS_ENABLED"] = "1"
+        if service == "gateway":
+            if values.get("KOLOVIBE_POINTS_URL"):
+                env["KOLOVIBE_POINTS_URL"] = values["KOLOVIBE_POINTS_URL"]
+        else:
+            if not all(database[name] for name in required_db):
+                raise ValueError(f"Local points require PostgreSQL for {service}")
+            if service == "points":
+                env["KOLOVIBE_CALLER_GATEWAY_KEY"] = gateway_key
     if service == "identity":
         for name in ("KOLOVIBE_SMTP_HOST", "KOLOVIBE_SMTP_PORT",
                      "KOLOVIBE_SMTP_USER", "KOLOVIBE_SMTP_PASSWORD", "KOLOVIBE_FROM_EMAIL"):

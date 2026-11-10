@@ -32,6 +32,7 @@ class Video(models.Model):
     moderation_revision = models.PositiveIntegerField(default=0, db_default=0)
     moderation_approved_at = models.DateTimeField(null=True, blank=True)
     duration_seconds = models.PositiveIntegerField(null=True, blank=True)
+    duration_ms = models.PositiveIntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     published_at = models.DateTimeField(null=True, blank=True)
 

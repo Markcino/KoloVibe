@@ -32,6 +32,17 @@ def _safe_url(value):
 def _valid_result(operation, data, payload):
     if not isinstance(data, dict):
         return False
+    if operation in ("watch", "watch-check"):
+        metadata = {"creator_id", "duration_ms", "revision"}
+        expected = metadata | ({"playback_url", "expires_at"} if operation == "watch" else set())
+        if (set(data) != expected or str(UUID(data["creator_id"])) != data["creator_id"]
+                or type(data["duration_ms"]) is not int or not 1 <= data["duration_ms"] <= 300_000
+                or type(data["revision"]) is not int or not 0 <= data["revision"] <= 2_147_483_647):
+            return False
+        if operation == "watch-check":
+            return True
+        data = {key: value for key, value in data.items() if key not in metadata}
+        operation = "playback"
     if operation == "playback":
         return (set(data) == {"playback_url", "expires_at"} and _safe_url(data["playback_url"])
                 and datetime.fromisoformat(data["expires_at"]).tzinfo is not None)
@@ -52,7 +63,7 @@ def _valid_result(operation, data, payload):
             and type(data["max_bytes"]) is int and data["max_bytes"] == 50 * 1024 * 1024)
 
 
-def _forward(operation, data, success):
+def forward_media(operation, data, success):
     try:
         with signed_internal_request(
             "content", f"/internal/videos/media/{operation}", method="POST",
@@ -108,7 +119,7 @@ def create_video_draft(request):
             raise ValueError("Invalid draft")
     except (ValueError, UnicodeError):
         return _error("Invalid video draft", 400)
-    return _forward("draft", {"creator_id": creator_id, "title": data["title"],
+    return forward_media("draft", {"creator_id": creator_id, "title": data["title"],
                               "description": data.get("description", "")}, (201,))
 
 
@@ -128,7 +139,7 @@ def issue_video_upload(request, video_id):
             raise ValueError("Invalid upload size")
     except (ValueError, TypeError):
         return _error("Valid upload size and Idempotency-Key required", 400)
-    return _forward("intent", {"creator_id": creator_id, "video_id": str(video_id),
+    return forward_media("intent", {"creator_id": creator_id, "video_id": str(video_id),
                                "idempotency_key": key, "size_bytes": data["size_bytes"]}, (200,))
 
 
@@ -142,7 +153,7 @@ def video_upload_status(request, video_id):
     if request.GET or request.body:
         return _error("Invalid upload request", 400)
     operation = "complete" if request.method == "POST" else "status"
-    return _forward(operation, {"creator_id": creator_id, "video_id": str(video_id)}, (200, 202))
+    return forward_media(operation, {"creator_id": creator_id, "video_id": str(video_id)}, (200, 202))
 
 
 @never_cache
@@ -153,4 +164,4 @@ def video_playback(request, video_id):
         return account
     if request.GET or request.body:
         return _error("Invalid playback request", 400)
-    return _forward("playback", {"video_id": str(video_id)}, (200,))
+    return forward_media("playback", {"video_id": str(video_id)}, (200,))

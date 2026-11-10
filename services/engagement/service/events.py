@@ -1,7 +1,7 @@
 """PostgreSQL-backed outbox and idempotent inbox for at-least-once Celery delivery.
 
 These primitives are not a business-rule processor. Business effects must be
-committed in the same transaction as accept_once(). No point awards are enabled.
+committed in the same transaction as accept_once().
 """
 import json
 import uuid
@@ -9,6 +9,7 @@ from django.db import connection, transaction
 
 SERVICE = "engagement"
 TASK_NAME = f"kolovibe.{SERVICE}.event"
+QUALIFIED_VIEW = "dec003.qualified_view"
 
 def record_event(event_type, payload):
     if not connection.in_atomic_block:
@@ -36,10 +37,16 @@ def dispatch_one(celery_app):
             if row is None:
                 return False
             ident, event_type, payload = row
+            if isinstance(payload, str):
+                payload = json.loads(payload)
+            if event_type == QUALIFIED_VIEW:
+                task_name, queue = "kolovibe.points.event", "kolovibe.points"
+            else:
+                task_name, queue = TASK_NAME, f"kolovibe.{SERVICE}"
             celery_app.send_task(
-                TASK_NAME,
+                task_name,
                 args=[str(ident), event_type, payload],
-                queue=f"kolovibe.{SERVICE}",
+                queue=queue,
                 task_id=str(ident),
                 delivery_mode=2,
             )

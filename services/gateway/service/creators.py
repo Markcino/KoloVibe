@@ -13,6 +13,10 @@ from .internal_client import signed_internal_request
 
 @require_GET
 def creator_detail(request, creator_id):
+    return read_creator(creator_id)
+
+
+def read_creator(creator_id):
     try:
         response = signed_internal_request(
             "creators", "/internal/creators/profile", method="POST",

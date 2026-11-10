@@ -7,7 +7,7 @@ info:
     local are implemented for isolated local testing. All other operations remain
     gated draft requirements. Local errors use application/json with a detail
     field, not the candidate Problem schema. Production identity remains subject
-    to ADR-013. All points operations remain disabled.
+    to ADR-013. DEC-003 points routes are opt-in and local-only.
 x-default-implementation: gated
 servers:
 - url: https://api.example.invalid/api/v1
@@ -826,43 +826,70 @@ paths:
         in: path
         required: true
         schema: *id001
+  /videos/{video_id}/watch-sessions:
+    post:
+      tags: [Engagement]
+      summary: Start tracked playback for a published video
+      operationId: startPilotWatchSession
+      x-implementation: local-only
+      description: Returns a playback grant and an account-bound session. Use ordinary playback for the creator's own video.
+      parameters:
+      - name: video_id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Tracked playback grant
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [session_id, session_expires_at, playback_url, playback_expires_at]
+                properties:
+                  session_id: {type: string, format: uuid}
+                  session_expires_at: {type: string, format: date-time}
+                  playback_url: {type: string, format: uri}
+                  playback_expires_at: {type: string, format: date-time}
+        '400': {description: Unexpected body or query parameters}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Video or creator unavailable}
+        '409': {description: Tracked playback unavailable}
+        '503': {description: A required service is unavailable}
   /engagement/watch-events:
     post:
-      tags:
-      - Engagement
-      summary: Submit untrusted watch telemetry for server validation
+      tags: [Engagement]
+      summary: Submit forward playback progress to an account-bound session
       operationId: post__engagement_watch-events
-      responses:
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-        '202':
-          description: Accepted for asynchronous qualification
-        '400':
-          description: Invalid request; application/problem+json
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '500':
-          description: Unexpected server error; no internal details exposed
+      x-implementation: local-only
+      description: >-
+        During ordinary playback, submit position every three seconds and at completion.
+        The service validates server elapsed time, publication state and pace.
+        Retrying the same position cannot award twice. Qualification and points delivery are separate.
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: '#/components/schemas/WatchEvent'
-      parameters:
-      - name: Idempotency-Key
-        in: header
-        required: true
-        schema:
-          type: string
-          minLength: 16
-          maxLength: 128
-      description: 202 Accepted. Telemetry alone never grants points; server checks signed sessions, playback
-        evidence and abuse signals.
+            schema: {$ref: '#/components/schemas/WatchEvent'}
+      responses:
+        '200':
+          description: Whether this account and video have qualified in the current window
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [qualified]
+                properties:
+                  qualified: {type: boolean}
+        '400': {description: Invalid request}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Session, video or creator unavailable}
+        '409': {description: Session expired, playback progress rejected, or publication changed}
+        '503': {description: A required service is unavailable}
   /videos/{video_id}/like:
     put:
       tags:
@@ -926,65 +953,52 @@ paths:
         schema: *id001
   /creators/me/points:
     get:
-      tags:
-      - Points
+      tags: [Points]
       summary: Read own non-cash points balance
       operationId: get__creators_me_points
+      x-implementation: local-only
+      description: Requires a verified email and an active approved creator profile.
       responses:
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '429':
-          $ref: '#/components/responses/RateLimited'
         '200':
-          description: Success
+          description: Own posted ledger balance
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/PointsBalance'
-        '400':
-          description: Invalid request; application/problem+json
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '500':
-          description: Unexpected server error; no internal details exposed
-      x-required-roles:
-      - creator
+              schema: {$ref: '#/components/schemas/PointsBalance'}
+        '400': {description: Invalid query}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '503': {description: A required service is unavailable}
   /creators/me/points/entries:
     get:
-      tags:
-      - Points
+      tags: [Points]
       summary: Read own points history
       operationId: get__creators_me_points_entries
-      responses:
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PointsEntry'
-        '400':
-          description: Invalid request; application/problem+json
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '500':
-          description: Unexpected server error; no internal details exposed
-      x-required-roles:
-      - creator
+      x-implementation: local-only
+      description: Requires a verified email and an active approved creator profile.
       parameters:
       - name: cursor
         in: query
         required: false
-        schema:
-          type: string
-      description: Actual response should be paginated; schema refinement before implementation.
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Up to 20 entries in reverse chronological order
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items, next_cursor]
+                properties:
+                  items:
+                    type: array
+                    maxItems: 20
+                    items: {$ref: '#/components/schemas/PointsEntry'}
+                  next_cursor: {type: [string, 'null'], format: uuid}
+        '400': {description: Invalid query or cursor}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '503': {description: A required service is unavailable}
   /reports:
     post:
       tags: [Moderation]
@@ -1266,47 +1280,6 @@ paths:
           description: Unexpected server error; no internal details exposed
       security: []
       description: Not exposed publicly through Nginx; only cluster health checks.
-  /internal/points/qualified-events:
-    post:
-      tags:
-      - Internal Events
-      summary: Record qualified award via service identity only
-      operationId: post__internal_points_qualified-events
-      responses:
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-        '204':
-          description: Success; no response body
-        '400':
-          description: Invalid request; application/problem+json
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '500':
-          description: Unexpected server error; no internal details exposed
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/InternalQualifiedEvent'
-      parameters:
-      - name: Idempotency-Key
-        in: header
-        required: true
-        schema:
-          type: string
-          minLength: 16
-          maxLength: 128
-      description: Never exposed through public Nginx. mTLS/workload JWT with points:write scope, audience
-        checks, and outbox/inbox deduplication.
-      security:
-      - serviceToken: []
-      x-required-scopes:
-      - points:write
 components:
   securitySchemes:
     bearerAuth:
@@ -1608,19 +1581,11 @@ components:
     WatchEvent:
       type: object
       additionalProperties: false
+      required: [video_id, session_id, position_ms]
       properties:
-        video_id: *id001
-        session_id: *id001
-        event_id: *id001
-        position_seconds:
-          type: number
-          minimum: 0
-        observed_at: *id002
-      required:
-      - video_id
-      - session_id
-      - event_id
-      - position_seconds
+        video_id: {type: string, format: uuid}
+        session_id: {type: string, format: uuid}
+        position_ms: {type: integer, minimum: 0, maximum: 300000}
     Like:
       type: object
       additionalProperties: false
@@ -1639,8 +1604,6 @@ components:
         creator_id: *id001
         balance:
           type: integer
-        pending:
-          type: integer
         currency:
           type: string
           enum:
@@ -1649,8 +1612,8 @@ components:
       required:
       - creator_id
       - balance
-      - pending
       - currency
+      - as_of
     PointsEntry:
       type: object
       additionalProperties: false
@@ -1666,8 +1629,6 @@ components:
           - reversal
           - adjustment
         rule_version:
-          type: string
-        evidence_ref:
           type: string
         created_at: *id002
       required:
@@ -1753,27 +1714,6 @@ components:
         status: {const: open}
         created_at: {type: string, format: date-time}
         reason: {type: string, maxLength: 2000}
-    InternalQualifiedEvent:
-      type: object
-      additionalProperties: false
-      properties:
-        event_id: *id001
-        creator_id: *id001
-        video_id: *id001
-        rule_version:
-          type: string
-        evidence_ref:
-          type: string
-        points:
-          type: integer
-          minimum: 0
-      required:
-      - event_id
-      - creator_id
-      - video_id
-      - rule_version
-      - evidence_ref
-      - points
     PageVideos:
       type: object
       additionalProperties: false

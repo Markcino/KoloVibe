@@ -63,13 +63,14 @@ class R2MediaTests(TestCase):
         self.video.save(update_fields=["state"])
         reservation = MediaUpload.objects.create(id=uuid4(), video=self.video, expected_bytes=10,
                                                  expires_at=timezone.now(), source_etag='"object"')
-        encode.return_value = 2
+        encode.return_value = 1900
         process(self.video.id)
         process(self.video.id)
         download.assert_called_once()
         put.assert_called_once()
         self.video.refresh_from_db()
         self.assertEqual((self.video.state, self.video.visibility), ("review", "private"))
+        self.assertEqual((self.video.duration_seconds, self.video.duration_ms), (2, 1900))
         self.assertTrue(self.video.provider_asset_id.startswith(f"playback/{reservation.id}/"))
         self.assertEqual(self.call("playback", {"video_id": str(self.video.id)}).status_code, 404)
         sign.assert_not_called()
@@ -78,6 +79,11 @@ class R2MediaTests(TestCase):
                                                      published_at=now, moderation_approved_at=now)
         sign.return_value = "https://example.invalid/playback"
         self.assertEqual(self.call("playback", {"video_id": str(self.video.id)}).status_code, 200)
+        response = self.call("watch-check", {"video_id": str(self.video.id)})
+        self.assertEqual(json.loads(response.content), {
+            "creator_id": str(self.creator), "duration_ms": 1900, "revision": 0,
+        })
+        sign.assert_called_once()
 
     @patch("service.media_encoding.encode", side_effect=media_encoding.InvalidMedia)
     @patch("service.media_storage.download_upload")

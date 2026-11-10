@@ -1,4 +1,4 @@
-"""Non-cash append-only points ledger. No award API exists until rules approval."""
+"""Non-cash append-only points ledger. DEC-003 awards arrive through the private event queue."""
 
 import uuid
 
@@ -42,3 +42,15 @@ class PointsEntry(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValueError("Points entries are append-only")
+
+
+class DailyAwardCount(models.Model):
+    creator_user_id = models.UUIDField()
+    day = models.DateField()
+    awards = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["creator_user_id", "day"], name="points_creator_day_unique"),
+            models.CheckConstraint(condition=Q(awards__lte=100), name="points_daily_awards_lte_100"),
+        ]

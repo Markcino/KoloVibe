@@ -7,6 +7,8 @@ import os
 import ssl
 from urllib.parse import urlsplit
 
+from django.db import DatabaseError
+
 SERVICE = "points"
 QUEUE = "kolovibe.points"
 
@@ -75,14 +77,21 @@ def build_app():
 # HTTP service startup does not import this module.
 app = build_app()
 
-@app.task(name="kolovibe.points.event", ignore_result=True)
+@app.task(name="kolovibe.points.event", ignore_result=True, autoretry_for=(DatabaseError,),
+          retry_backoff=True, max_retries=None)
 def receive_event(event_id, event_type, payload):
-    """Persist an idempotent receive marker, not unapproved engagement/point awards."""
+    """Apply DEC-003 awards or record an idempotent foundation event receipt."""
     if not isinstance(payload, dict) or not isinstance(event_type, str):
         raise ValueError("Invalid event payload")
     import django
     django.setup()
+    from django.conf import settings
     from django.db import transaction
     from .events import accept_once
+    from .pilot_points import QUALIFIED_VIEW, apply_qualified_view
+    if event_type == QUALIFIED_VIEW:
+        if not settings.LOCAL_POINTS_ENABLED:
+            raise RuntimeError("DEC-003 awards are disabled for this worker")
+        return apply_qualified_view(event_id, payload)
     with transaction.atomic():
         return accept_once(event_id, event_type)

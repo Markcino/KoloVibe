@@ -1,6 +1,8 @@
 """Exercise foundation contracts against a disposable, TLS-only PostgreSQL."""
 
 import hashlib
+from concurrent.futures import ThreadPoolExecutor
+from datetime import timedelta
 from contextlib import contextmanager
 import hmac
 import json
@@ -224,13 +226,74 @@ def service_tests(service):
                 self.assertTrue(events.accept_once(event_id, "foundation.test"))
                 self.assertFalse(events.accept_once(event_id, "foundation.test"))
 
+        def test_qualified_view_reaches_the_points_queue(self):
+            from django.utils import timezone
+            from service import events
+            from service.watch import progress, start
+
+            now = timezone.now()
+            data = {"account_id": uuid.uuid4(), "video_id": uuid.uuid4(),
+                    "creator_user_id": uuid.uuid4(), "duration_ms": 3000, "revision": 1}
+            with patch("service.watch.timezone.now", return_value=now):
+                session = uuid.UUID(json.loads(start(data).content)["session_id"])
+            sample = data | {"session_id": session, "position_ms": 2500}
+            accepted_at = now + timedelta(seconds=3)
+            with patch("service.watch.timezone.now", return_value=accepted_at):
+                for _ in range(2):
+                    self.assertEqual(json.loads(progress(sample).content), {"qualified": True})
+
+            delivered = []
+
+            class Publisher:
+                def send_task(self, name, **kwargs):
+                    delivered.append((name, kwargs))
+
+            self.assertTrue(events.dispatch_one(Publisher()))
+            self.assertFalse(events.dispatch_one(Publisher()))
+            name, message = delivered[0]
+            self.assertEqual(name, "kolovibe.points.event")
+            self.assertEqual(message["queue"], "kolovibe.points")
+            self.assertEqual(message["args"], [message["task_id"], events.QUALIFIED_VIEW, {
+                "creator_user_id": str(data["creator_user_id"]), "qualified_at": accepted_at.isoformat(),
+            }])
+
+        def test_concurrent_awards_stay_within_daily_cap(self):
+            from datetime import UTC
+            from django.utils import timezone
+            from service.models import DailyAwardCount, PointsEntry
+            from service.pilot_points import apply_qualified_view
+
+            creator = uuid.uuid4()
+            now = timezone.now()
+            day = now.astimezone(UTC).date()
+            DailyAwardCount.objects.create(creator_user_id=creator, day=day, awards=99)
+            payload = {"creator_user_id": str(creator), "qualified_at": now.isoformat()}
+            events = [uuid.uuid4() for _ in range(6)]
+
+            def receive(event):
+                try:
+                    return apply_qualified_view(event, payload)
+                finally:
+                    connection.close()
+
+            with ThreadPoolExecutor(max_workers=6) as executor:
+                outcomes = list(executor.map(receive, events))
+            self.assertEqual(sum(outcomes), 1)
+            self.assertEqual(DailyAwardCount.objects.get(creator_user_id=creator, day=day).awards, 100)
+            self.assertEqual(PointsEntry.objects.filter(creator_user_id=creator).count(), 1)
+            self.assertTrue(all(not apply_qualified_view(event, payload) for event in events))
+
     names = ["test_actual_cross_service_sql_access_is_denied",
              "test_signed_identity_replay_expiry_and_wrong_audience"]
     if service in ("points", "engagement"):
         names.append("test_outbox_republish_and_transactional_inbox")
+    if service == "engagement":
+        names.append("test_qualified_view_reaches_the_points_queue")
     suite = unittest.TestSuite(Foundations(name) for name in names)
     if service == "points":
         suite.addTests(unittest.defaultTestLoader.loadTestsFromName("tests.test_ledger"))
+        # The concurrent integration test commits ledger entries to the disposable database.
+        suite.addTest(Foundations("test_concurrent_awards_stay_within_daily_cap"))
     result = unittest.TextTestRunner(verbosity=2).run(suite)
     connection.close()
     if not result.wasSuccessful():
