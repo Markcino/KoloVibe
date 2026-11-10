@@ -1,7 +1,7 @@
 index,Source,ID,Decision,Status,Owner_or_requirement,Due_gate
 0,DOC-207,ADR-011,Public gateway and internal service access,Proposed — needs approval,Platform/Security,Before implementation of affected component
 1,DOC-207,ADR-012,Service-to-service identity,Proposed — needs approval,Platform/Security,Before implementation of affected component
-2,DOC-207,ADR-013,Client authentication and sessions,Partially decided — Django-native identity selected; session/MFA pending,Platform/Security,Before Stage 2 final sign-off
+2,DOC-207,ADR-013,Client authentication and sessions,Design approved — implementation and verification open,Platform/Security,Before production acceptance
 3,DOC-207,ADR-014,Nginx-to-Swarm private transport,Open — decision required,Platform/Security,Before Stage 2 final sign-off
 4,DOC-207,ADR-015,Swarm control-plane sizing and availability,Open — decision required,SRE/Platform,Before Stage 2 final sign-off
 5,DOC-207,ADR-016,PostgreSQL hosting and DR targets,Open — decision required,SRE/Platform,Before Stage 2 final sign-off

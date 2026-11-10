@@ -5,7 +5,7 @@
 **Status:** **Partially decided — identity authority selected; token, sessions, privileged MFA and security acceptance pending**
 **Related:** DOC-207 ADR-013, DOC-205 API contracts, DOC-206 security verification, DOC-209 G-03, Stage 3 OD-01 and FND-10
 
-**Canonical follow-up:** [DOC-205](DOC-205_OpenAPI_3_1_DRAFT.yaml) contains the implemented, gated account/MFA contract; [API roadmap](../engineering/API_Test_Deployment_Roadmap.md) records evidence and external activation prerequisites. Separate proposal copies are not maintained. This owner selection remains partial until formal review.
+**Historical selection record.** The owner subsequently approved the [ADR-013 v1.0 session and MFA design](ADR-013_Client_Authentication_and_Session_Security_v1.0_APPROVED.md) on 1 November 2026. See the [current decision index](../architecture-decisions.md) and [API roadmap](../engineering/API_Test_Deployment_Roadmap.md) for implementation and verification status. The status and open items below describe the original selection.
 
 ## Owner-confirmed selection
 

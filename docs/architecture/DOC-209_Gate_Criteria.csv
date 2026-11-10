@@ -1,11 +1,11 @@
 index,Gate_ID,Topic,Acceptance_criterion,Current_assessment,Required_by
 0,G-01,Architecture baselines,DOC-201 through DOC-208 individually approved as design baselines,PASS — user approval recorded,Stage 2 design
 1,G-02,Complete review package,"DOC-209 contains decision log, traceability, risks, responsibilities and sign-off",READY FOR REVIEW,Stage 2 design
-2,G-03,Critical architecture decisions,"Authentication, private Nginx-to-Swarm transport, manager sizing, DB/DR, points rules, privacy, TLS HA resolved or formally deferred","BLOCKED — Django-native authority selected for ADR-013; session/MFA and other ADR decisions still open",Before unconditional Stage 2 closure
+2,G-03,Critical architecture decisions,"Authentication, private Nginx-to-Swarm transport, manager sizing, DB/DR, points rules, privacy, TLS HA resolved or formally deferred","BLOCKED — ADR-013 design approved; implementation and verification and other ADR decisions remain open",Before unconditional Stage 2 closure
 3,G-04,Infrastructure commitments,"Provider, region, budget, topology, ports, backup retention and video provider chosen",BLOCKED — INF open,Before affected implementation
 4,G-05,Security risk acceptance,"Security owner reviews all DOC-203 threats, controls and residual risks; no unowned critical risk",PENDING SECURITY REVIEW,Before pilot
 5,G-06,Security verification mapping,"DOC-206 controls assigned, tests/evidence planned, no controls represented as tested",DESIGN BASELINE APPROVED; EXECUTION PENDING,Stage 3 onward
 6,G-07,Data and API consistency,DOC-204 service ownership and DOC-205 operations mapped to DOC-201 service boundaries,REQUIRES TECHNICAL WALKTHROUGH,Before service build
 7,G-08,Business-rule consistency,Points are non-cash; no ad-event rewards; qualification thresholds and points formula approved,"PARTIAL — invariant accepted, parameters open",Before engagement implementation
-8,G-09,Deployment readiness,Nginx separate VM; Swarm network restrictions; rollback and restore plans reviewed,DESIGN ACCEPTED; PROVISIONING NOT DONE,Before staging/pilot
+8,G-09,Deployment readiness,Host Nginx on Swarm manager VM1; Swarm network restrictions; rollback and restore plans reviewed,DESIGN ACCEPTED; ENVIRONMENT ACCEPTANCE OPEN,Before staging/pilot
 9,G-10,Governance sign-off,"Sponsor, architecture lead and security lead explicitly sign with conditions and dates",NOT SIGNED,Stage 2 gate

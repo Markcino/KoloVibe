@@ -7,12 +7,13 @@ Use the controlled source documents below. Link to them instead of copying requi
 - [DEC-001 and document register](requirements/platform_documentation_register_and_DEC001.md) — canonical Release 1 scope decision.
 - [PRD](requirements/platform_PRD_v0_2_scope_approved.md) and [SRS](requirements/platform_SRS_v0_2_scope_approved.md) — detailed requirements remain drafts; only the Release 1 scope is approved.
 - [Architecture references](architecture/) — data model, draft API, architecture, risks, controls and open decisions.
-- [Architecture decision summary](architecture-decisions.md) — index to decisions; the registers in `architecture/` remain authoritative. ADR-013 selects Django-native client identity, with session/MFA details still pending. The [ADR-013 v1.0 security proposal](architecture/ADR-013_Client_Authentication_and_Session_Security_v1.0_DRAFT.md) remains unapproved.
+- [Architecture decision summary](architecture-decisions.md) — index to decisions; the registers in `architecture/` remain authoritative. The owner approved the [ADR-013 v1.0 security design](architecture/ADR-013_Client_Authentication_and_Session_Security_v1.0_APPROVED.md), covering Django-native client identity, sessions and privileged MFA. Implementation and verification remain open.
 
 ## Delivery and engineering
 
 - [Current Stage 3 status](engineering/Stage3_Current_Status.md) and [implementation tracker](engineering/Stage3_Implementation_Tracker.csv) — update together from verified evidence.
-- [R1 application tracker](engineering/R1_Application_Tracker.md) and [API test deployment roadmap](engineering/API_Test_Deployment_Roadmap.md) — feature status and staging sequence.
+- [R1 application tracker](engineering/R1_Application_Tracker.md) and [API test deployment roadmap](engineering/API_Test_Deployment_Roadmap.md) — Stage 4 implementation, Stage 5 verification and environment-specific evidence.
+- [AWS staging deployment verification](operations/AWS_Staging_Deployment_Verification_2026-11-10.md) and [Oracle Cloud deployment record](operations/Deployment_Verification_2026-11-03.md) — separate environment evidence.
 - [Open Stage 3 decisions](engineering/Stage3_Open_Decisions.csv) — blockers requiring owner approval or environment evidence.
 - [Engineering standards](engineering-standards.md), [repository layout](engineering/repository-layout.md), and [dependency/security checks](engineering/dependency-and-security.md).
 - [FND-01 governance provenance](engineering/FND-01_repository_governance.md) — owner-declared complete; historical observations and verification procedure retained.

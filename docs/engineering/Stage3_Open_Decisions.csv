@@ -1,5 +1,5 @@
 index,Decision,Description,Stage3 impact,Status
-0,OD-01,Workload identity and token provider,"Django-native client identity selected; final session/token and separate workload identity contract block dependent implementation","Partial — Django-native client identity selected; session/workload contracts pending"
+0,OD-01,Workload identity and token provider,"Client session/MFA design approved; executable contract and verification remain open; separate ADR-012 workload identity remains open","Partial — client design approved; workload decision and verification pending"
 1,OD-02,VM1 host Nginx to Swarm private authenticated transport and Cloudflare Tunnel origin verification,Block dependent implementation,Open — live evidence pending
 2,OD-03,Two Oracle VMs (VM1 manager plus Nginx host service; VM2 worker) — single-manager availability and capacity acceptance,Block dependent implementation,Open — live evidence pending
 3,OD-04,PostgreSQL topology and RTO/RPO,Block dependent implementation,Open

@@ -1,6 +1,8 @@
 # API test deployment roadmap
 
-**Status: deployment in progress; external API acceptance blocked (3 November 2026).**
+**AWS staging was deployed and exercised on 10 November 2026.** The [AWS rollout record](../operations/AWS_Staging_Deployment_Verification_2026-11-10.md) covers service convergence, deployed image provenance and distinct public mobile, protected backend and web outcomes. The [R1 tracker](R1_Application_Tracker.md#aws-staging-acceptance-on-10-november-2026) owns application UAT.
+
+**Oracle Cloud baseline · 3 November 2026.** Public acceptance was blocked in that environment.
 Owner-supplied live output confirms that `kvtest-gateway` on VM2 passes HTTPS
 liveness, certificate verification and PostgreSQL `verify-full` with its
 least-privilege schema. The existing database routing, fixed hostname mapping,
@@ -14,7 +16,7 @@ Cloud Shell deployment runner and explicit limits. It supersedes older statement
 below that Actions readback or image publication were unverified; historical
 local-fixture evidence remains scoped to its original environment.
 
-## Target and current boundary
+## Oracle Cloud target and rollout gates
 
 The accepted pilot layout is Cloudflare edge and Tunnel → host Nginx on Oracle VM1 → private Swarm gateway → private services on the VM1 manager/VM2 worker network. RabbitMQ is the Celery broker; PostgreSQL owns business records. VM1 is a single manager and ingress host, so loss of VM1 interrupts service. See the [VM audit runbook](Oracle_VM_Infrastructure_Verification_Runbook.md) and [architecture amendment](../architecture/ADR-003_007_Implementation_Reconciliation_2026-11-01.md).
 
@@ -26,12 +28,12 @@ Current code supports local account APIs, approved-public video and creator meta
 | --- | --- | --- |
 | 0. Clean source | Review current diff, run all eight Django suites and migrations, web and Flutter tests, structure/design/contract checks, secret scan, SAST and dependency audit. Resolve any failing GitHub Actions check for the exact candidate commit. | Green checks and recorded commit/image digest; no candidate secret findings. |
 | 1. Read-only infrastructure audit | Run the VM1/VM2 metadata-only checks in the VM audit runbook. Confirm actual Tunnel connector, Nginx listener, Swarm nodes/services, RabbitMQ location, PostgreSQL topology, disk and recovery access. | Redacted inventory and INF-01–INF-06 findings; no guessed hostnames, ports or credentials. |
-| 2. Staging identity and transport decisions | Django-native client identity authority selected under ADR-013 (2026-11-01); finalize token/session lifetimes, refresh/revocation, web cookie/CSRF, MFA boundary, recovery and key rotation. Separately approve ADR-012 workload identity and Nginx→gateway TLS or mTLS, trusted proxy headers and origin policy. Keep privileged APIs disabled until MFA and audit pass. | Full approved session/MFA and transport contracts; negative tests for wrong audience, replay, expiry, forged headers and direct-origin access. |
+| 2. Staging identity and transport decisions | Implement and verify the owner-approved [ADR-013 client identity and session design](../architecture/ADR-013_Client_Authentication_and_Session_Security_v1.0_APPROVED.md), including lifetimes, refresh/revocation, web sessions/CSRF, MFA, recovery and key rotation. Separately approve ADR-012 workload identity and Nginx→gateway TLS or mTLS, trusted proxy headers and origin policy. Keep privileged APIs disabled until MFA and audit pass. | Full approved session/MFA and transport contracts; negative tests for wrong audience, replay, expiry, forged headers and direct-origin access. |
 | 3. Staging settings and contracts | Add explicit staging settings per service and web client: `DEBUG=False`, exact hosts, HTTPS, trusted proxies, cookie/CSRF policy, bounded request bodies, WSGI runtime, redacted logs, and `/api/v1` contract tests. Preserve current local-only settings as a separate profile. | `manage.py check --deploy`, contract tests and a staging build that refuses missing secrets or unsafe hosts. |
 | 4. Data and broker | Provision one PostgreSQL owner/login per service with verified TLS and no cross-service privileges. Apply migrations using each owner; configure encrypted backup and perform isolated restore. Configure private RabbitMQ vhosts/users, durable queues, publisher confirms, bounded retries and dead letters. | Cross-service SELECT/DELETE denied, restore timing recorded, duplicate/replay and broker-outage tests pass. |
 | 5. Immutable images and Swarm | Build/scan the shared API image once in Actions; test all eight selected services, then publish only that exact checked digest. The single deployment YAML also defines the separately pinned RabbitMQ DHI image. Inject per-service Swarm secrets, not `.env`; use private service/data/messaging zones and reviewed capacity before enabling any zero-replica candidate. | Image/SBOM provenance, secret-mount checks, network isolation, worker failure and rollback results. |
 | 6. Edge route | Verify `api.cabetechs.shop` maps through the existing Cloudflare Tunnel to the intended VM1 Nginx virtual host; prepare an access-controlled API test route and only the gateway upstream. Verify the `kolovibe.cabetechs.shop` application route separately. Verify Cloudflare Tunnel service URL and origin certificate with TLS verification enabled; restrict OCI and host firewall rules so Docker, PostgreSQL and RabbitMQ are not public. | External staging request works; direct-origin, wrong Host, invalid certificate and header-spoof probes fail. |
-| 7. Restricted API test wave | Permit a small tester cohort. Start with `GET /api/v1/videos` and `GET /api/v1/creators/{id}`; empty and 404 are valid without approved records. Django-native identity selection alone does not enable accounts: registration/login require real SMTP, final ADR-013 session/MFA contract, rate limits and secure transport. Enable remaining R1 endpoints only after their owner-approved rules and audit evidence. | Endpoint matrix records success, empty, 401/403/404/429/503, replay and cross-account cases; no seeded password or demo account. |
+| 7. Restricted API test wave | Permit a small tester cohort. Start with `GET /api/v1/videos` and `GET /api/v1/creators/{id}`; empty and 404 are valid without approved records. Django-native identity selection alone does not enable accounts: registration/login require real SMTP, verified ADR-013 session/MFA implementation, rate limits and secure transport. Enable remaining R1 endpoints only after their owner-approved rules and audit evidence. | Endpoint matrix records success, empty, 401/403/404/429/503, replay and cross-account cases; no seeded password or demo account. |
 | 8. Operational acceptance | Add request correlation, redacted logs, alerts, backup monitoring, capacity/load measurements, incident procedure, and a rollback and restore drill. Recheck mobile Android/iOS against the staging HTTPS hostname. | INF-07–INF-10 evidence, signed security/product acceptance and pilot go/no-go record. |
 
 ## Immediate API test contract
@@ -41,6 +43,8 @@ The first externally reachable staging cut should be read-only. It may return an
 Do not label the API fully deployed while the current application gaps remain in [R1 application tracker](R1_Application_Tracker.md). `api.cabetechs.shop` and `kolovibe.cabetechs.shop` are owner-reported Cloudflare Tunnel hostnames. Their exact DNS records, ingress mapping, HTTPS behavior, Nginx virtual hosts and deployed gateway routing still require live verification. An externally reachable DNS name does not authorize deployment.
 
 ## Restricted staging preparation and evidence
+
+The preparation and fixture results below describe the repository’s Oracle candidate and local test harness. See the dated AWS rollout record above for actual AWS staging results.
 
 Shared infrastructure configuration lives in `services/staging_runtime`; the
 eight service settings retain their own apps/models/schema paths. For native
