@@ -680,6 +680,8 @@ paths:
       tags:
       - Content
       summary: Request publication after processing/moderation
+      x-implementation: gated
+      description: Pilot publication uses the DEC-005 reviewer decision route.
       operationId: post__videos_video_id_publish
       responses:
         '401':
@@ -972,124 +974,240 @@ paths:
       description: Actual response should be paginated; schema refinement before implementation.
   /reports:
     post:
-      tags:
-      - Moderation
-      summary: Report content
+      tags: [Moderation]
+      summary: Report a published video
       operationId: post__reports
-      responses:
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-        '201':
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Report'
-        '400':
-          description: Invalid request; application/problem+json
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '500':
-          description: Unexpected server error; no internal details exposed
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ReportCreate'
+      x-implementation: local-only
+      x-required-roles: [viewer, creator, moderator, administrator]
       parameters:
       - name: Idempotency-Key
         in: header
         required: true
-        schema:
-          type: string
-          minLength: 16
-          maxLength: 128
-  /moderation/reports:
-    get:
-      tags:
-      - Moderation
-      summary: List moderation cases
-      operationId: get__moderation_reports
-      responses:
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Report'
-        '400':
-          description: Invalid request; application/problem+json
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '500':
-          description: Unexpected server error; no internal details exposed
-      x-required-roles:
-      - moderator
-      - admin
-      parameters:
-      - name: cursor
-        in: query
-        required: false
-        schema:
-          type: string
-      description: Paginated response refinement required.
-  /moderation/reports/{report_id}/decisions:
-    post:
-      tags:
-      - Moderation
-      summary: Make audited moderation decision
-      operationId: post__moderation_reports_report_id_decisions
-      responses:
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Report'
-        '400':
-          description: Invalid request; application/problem+json
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '500':
-          description: Unexpected server error; no internal details exposed
+        schema: {type: string, pattern: '^[A-Za-z0-9_-]{16,128}$'}
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: '#/components/schemas/ModerationDecision'
-      x-required-roles:
-      - moderator
-      - admin
+            schema: {$ref: '#/components/schemas/ReportCreate'}
+      responses:
+        '201':
+          description: Moderation operation accepted
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Report'}
+        '200':
+          description: Moderation operation accepted
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Report'}
+        '400': {description: Invalid moderation request}
+        '401': {description: Missing or invalid session}
+        '403': {description: Role or independence requirement not met}
+        '404': {description: Resource not found}
+        '409': {description: State or idempotency conflict}
+        '503': {description: Moderation temporarily unavailable}
+  /moderation/reports:
+    get:
+      tags: [Moderation]
+      summary: List open reports
+      operationId: get__moderation_reports
+      x-implementation: local-only
+      x-required-roles: [moderator, administrator]
+      parameters:
+      - name: cursor
+        in: query
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Moderation operation accepted
+          content:
+            application/json:
+              schema: {type: object, additionalProperties: false, required: [items, next_cursor], properties: {items: {type: array, maxItems: 20, items: {$ref: '#/components/schemas/PilotReportQueueItem'}}, next_cursor: {type: [string, 'null'], format: uuid}}}
+        '400': {description: Invalid moderation request}
+        '401': {description: Missing or invalid session}
+        '403': {description: Role or independence requirement not met}
+        '404': {description: Resource not found}
+        '409': {description: State or idempotency conflict}
+        '503': {description: Moderation temporarily unavailable}
+  /moderation/reports/{report_id}/decisions:
+    post:
+      tags: [Moderation]
+      summary: Dismiss a report or remove its video
+      operationId: post__moderation_reports_report_id_decisions
+      x-implementation: local-only
+      x-required-roles: [moderator, administrator]
       parameters:
       - name: report_id
         in: path
         required: true
-        schema: *id001
+        schema: {type: string, format: uuid}
       - name: Idempotency-Key
         in: header
         required: true
-        schema:
-          type: string
-          minLength: 16
-          maxLength: 128
+        schema: {type: string, pattern: '^[A-Za-z0-9_-]{16,128}$'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: false, required: [action, reason], properties: {action: {type: string, enum: [dismiss, remove]}, reason: {type: string, minLength: 10, maxLength: 2000}}}
+      responses:
+        '200':
+          description: Moderation operation accepted
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PilotModerationAction'}
+        '400': {description: Invalid moderation request}
+        '401': {description: Missing or invalid session}
+        '403': {description: Role or independence requirement not met}
+        '404': {description: Resource not found}
+        '409': {description: State or idempotency conflict}
+        '503': {description: Moderation temporarily unavailable}
+  /moderation/videos:
+    get:
+      tags: [Moderation]
+      summary: List processed videos awaiting review
+      operationId: get_pilot_video_review_queue
+      x-implementation: local-only
+      x-required-roles: [moderator, administrator]
+      parameters:
+      - name: cursor
+        in: query
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Moderation operation accepted
+          content:
+            application/json:
+              schema: {type: object, additionalProperties: false, required: [items, next_cursor], properties: {items: {type: array, maxItems: 20, items: {type: object, additionalProperties: false, required: [id, title], properties: {id: {type: string, format: uuid}, title: {type: string}}}}, next_cursor: {type: [string, 'null'], format: uuid}}}
+        '400': {description: Invalid moderation request}
+        '401': {description: Missing or invalid session}
+        '403': {description: Role or independence requirement not met}
+        '404': {description: Resource not found}
+        '409': {description: State or idempotency conflict}
+        '503': {description: Moderation temporarily unavailable}
+  /moderation/videos/{video_id}/decisions:
+    post:
+      tags: [Moderation]
+      summary: Publish or reject a reviewed video or remove a publication
+      operationId: post_pilot_video_decision
+      x-implementation: local-only
+      x-required-roles: [moderator, administrator]
+      parameters:
+      - name: video_id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema: {type: string, pattern: '^[A-Za-z0-9_-]{16,128}$'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: false, required: [action, reason], properties: {action: {type: string, enum: [publish, reject, remove]}, reason: {type: string, minLength: 10, maxLength: 2000}}}
+      responses:
+        '200':
+          description: Moderation operation accepted
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PilotModerationAction'}
+        '400': {description: Invalid moderation request}
+        '401': {description: Missing or invalid session}
+        '403': {description: Role or independence requirement not met}
+        '404': {description: Resource not found}
+        '409': {description: State or idempotency conflict}
+        '503': {description: Moderation temporarily unavailable}
+  /videos/{video_id}/appeals:
+    post:
+      tags: [Moderation]
+      summary: Appeal removal of own video
+      operationId: post_pilot_video_appeal
+      x-implementation: local-only
+      x-required-roles: [viewer, creator]
+      parameters:
+      - name: video_id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: false, required: [reason], properties: {reason: {type: string, minLength: 10, maxLength: 2000}}}
+      responses:
+        '201':
+          description: Moderation operation accepted
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PilotAppeal'}
+        '200':
+          description: Moderation operation accepted
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PilotAppeal'}
+        '400': {description: Invalid moderation request}
+        '401': {description: Missing or invalid session}
+        '403': {description: Role or independence requirement not met}
+        '404': {description: Resource not found}
+        '409': {description: State or idempotency conflict}
+        '503': {description: Moderation temporarily unavailable}
+  /moderation/appeals:
+    get:
+      tags: [Moderation]
+      summary: List open appeals
+      operationId: get_pilot_appeal_queue
+      x-implementation: local-only
+      x-required-roles: [moderator, administrator]
+      parameters:
+      - name: cursor
+        in: query
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Moderation operation accepted
+          content:
+            application/json:
+              schema: {type: object, additionalProperties: false, required: [items, next_cursor], properties: {items: {type: array, maxItems: 20, items: {$ref: '#/components/schemas/PilotAppealQueueItem'}}, next_cursor: {type: [string, 'null'], format: uuid}}}
+        '400': {description: Invalid moderation request}
+        '401': {description: Missing or invalid session}
+        '403': {description: Role or independence requirement not met}
+        '404': {description: Resource not found}
+        '409': {description: State or idempotency conflict}
+        '503': {description: Moderation temporarily unavailable}
+  /moderation/appeals/{appeal_id}/decisions:
+    post:
+      tags: [Moderation]
+      summary: Resolve appeal as an independent reviewer
+      operationId: post_pilot_appeal_decision
+      x-implementation: local-only
+      x-required-roles: [moderator, administrator]
+      parameters:
+      - name: appeal_id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema: {type: string, pattern: '^[A-Za-z0-9_-]{16,128}$'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: false, required: [action, reason], properties: {action: {type: string, enum: [deny, restore]}, reason: {type: string, minLength: 10, maxLength: 2000}}}
+      responses:
+        '200':
+          description: Moderation operation accepted
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PilotModerationAction'}
+        '400': {description: Invalid moderation request}
+        '401': {description: Missing or invalid session}
+        '403': {description: Role or independence requirement not met}
+        '404': {description: Resource not found}
+        '409': {description: State or idempotency conflict}
+        '503': {description: Moderation temporarily unavailable}
   /health/live:
     get:
       tags:
@@ -1574,24 +1692,45 @@ components:
       - id
       - video_id
       - status
-    ModerationDecision:
+    PilotModerationAction:
       type: object
       additionalProperties: false
+      required: [id, video_id, action, status]
       properties:
-        action:
-          type: string
-          enum:
-          - remove
-          - restore
-          - restrict
-          - dismiss
-        reason:
-          type: string
-          minLength: 10
-          maxLength: 2000
-      required:
-      - action
-      - reason
+        id: {type: string, format: uuid}
+        video_id: {type: string, format: uuid}
+        action: {type: string, enum: [publish, reject, remove, dismiss, deny, restore]}
+        status: {const: applied}
+    PilotReportQueueItem:
+      type: object
+      required: [id, video_id, status, created_at, reason, details]
+      additionalProperties: false
+      properties:
+        id: {type: string, format: uuid}
+        video_id: {type: string, format: uuid}
+        status: {const: open}
+        created_at: {type: string, format: date-time}
+        reason: {type: string}
+        details: {type: string, maxLength: 2000}
+    PilotAppeal:
+      type: object
+      additionalProperties: false
+      required: [id, video_id, status, created_at]
+      properties:
+        id: {type: string, format: uuid}
+        video_id: {type: string, format: uuid}
+        status: {type: string, enum: [open, denied, restored]}
+        created_at: {type: string, format: date-time}
+    PilotAppealQueueItem:
+      type: object
+      required: [id, video_id, status, created_at, reason]
+      additionalProperties: false
+      properties:
+        id: {type: string, format: uuid}
+        video_id: {type: string, format: uuid}
+        status: {const: open}
+        created_at: {type: string, format: date-time}
+        reason: {type: string, maxLength: 2000}
     InternalQualifiedEvent:
       type: object
       additionalProperties: false

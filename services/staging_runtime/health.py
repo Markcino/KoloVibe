@@ -4,6 +4,7 @@ from urllib.error import URLError
 
 from django.conf import settings
 from django.db import DatabaseError, connection
+from django.db.migrations.exceptions import InconsistentMigrationHistory
 from django.db.migrations.executor import MigrationExecutor
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
@@ -26,6 +27,7 @@ def is_ready():
                 logger.error("Staging runtime login must not own migration privileges")
                 return False
         executor = MigrationExecutor(connection)
+        executor.loader.check_consistent_history(connection)
         if executor.migration_plan(executor.loader.graph.leaf_nodes()):
             logger.error("Staging database migrations are pending")
             return False
@@ -37,7 +39,7 @@ def is_ready():
                     if response.status != 200 or response.read(100) != b'{"status": "ok"}':
                         logger.error("Staging dependent service probe failed")
                         return False
-    except (DatabaseError, OSError, URLError, ValueError):
+    except (DatabaseError, InconsistentMigrationHistory, OSError, URLError, ValueError):
         logger.error("Staging readiness dependency failed")
         return False
     return True

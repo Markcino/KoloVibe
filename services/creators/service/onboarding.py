@@ -110,6 +110,11 @@ def _pending(cursor):
 
 
 def _status(actor, operation):
+    if operation == "ownership":
+        profile_id = CreatorProfile.objects.filter(user_id=actor).values_list("id", flat=True).first()
+        if profile_id is None:
+            return _error("Creator profile not found", 404)
+        return JsonResponse({"creator_id": str(profile_id)})
     application = Application.objects.select_related("profile").filter(account_id=actor).first()
     if operation == "eligibility":
         eligible = (
@@ -140,7 +145,7 @@ def onboarding(request, operation):
             raise ValueError("Invalid envelope")
         required = {
             "invite": {"account_id"}, "pending": {"cursor"}, "review": {"account_id", "decision"},
-            "submit": {"handle", "adult_attested", "rights_attested"}, "status": set(), "eligibility": set(),
+            "submit": {"handle", "adult_attested", "rights_attested"}, "status": set(), "eligibility": set(), "ownership": set(),
         }
         if operation not in required or set(data) != required[operation]:
             raise ValueError("Invalid creator operation")

@@ -17,7 +17,7 @@ The identity service has internal account/session operations; the gateway contai
 | Content and playback | `/videos`, `/videos/{video_id}/upload-intents`, `/videos/{video_id}/publish`, `/videos/{video_id}/playback` | Implement authorized creator flow, provider upload/webhook decisions and media playback. Do not infer publication from a timer or local state. |
 | Engagement | `/videos/{video_id}/like`, `/engagement/watch-events` | The local gateway supports like and unlike for authenticated viewer and creator accounts, with one like per account and video. Staging activation, mobile wiring and watch-event qualification remain open. Likes do not award points. |
 | Lone Stars | `/creators/me/points`, `/creators/me/points/entries` | The append-only ledger scaffold and local mutation/reversal tests exist. No public balance/history API or mobile dashboard is connected. Resolve ADR-019 before implementing award calculations. |
-| Reports and restrictions | `/reports`, `/moderation/reports` | Implement report submission, moderation decisions and appeal contracts with server authorization and audit. |
+| Reports and restrictions | `/reports`, `/moderation/reports` | The local DEC-005 backend supports signed-in reports, MFA-protected reviewer decisions and independent appeals. Staging activation and Flutter wiring remain pending. |
 | Profile and settings | `/me`, `PATCH /creators/me` | Authenticated account read via `/me` exists. Profile updates, preferences, privacy requests, data export/deletion and retention contracts remain open under ADR-020. |
 
 ## Integration rule

@@ -34,7 +34,12 @@ class ServiceAuthMiddleware:
             return _deny()
         secret_file = os.getenv("KOLOVIBE_CALLER_KEYS_FILE")
         service = os.getenv("KOLOVIBE_SERVICE_NAME")
-        local_key = os.getenv("KOLOVIBE_CALLER_GATEWAY_KEY") if os.getenv("KOLOVIBE_ENV") == "local" and caller == "gateway" else None
+        local_key = None
+        if os.getenv("KOLOVIBE_ENV") == "local":
+            if caller == "gateway":
+                local_key = os.getenv("KOLOVIBE_CALLER_GATEWAY_KEY")
+            elif caller == "moderation" and request.path.startswith("/internal/videos/moderation/"):
+                local_key = os.getenv("KOLOVIBE_CALLER_MODERATION_KEY")
         if not (secret_file or local_key) or not service:
             return _deny()
         try:

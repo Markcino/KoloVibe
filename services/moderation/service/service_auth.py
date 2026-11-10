@@ -34,11 +34,11 @@ class ServiceAuthMiddleware:
             return _deny()
         secret_file = os.getenv("KOLOVIBE_CALLER_KEYS_FILE")
         service = os.getenv("KOLOVIBE_SERVICE_NAME")
-        if not secret_file or not service:
+        local_key = os.getenv("KOLOVIBE_CALLER_GATEWAY_KEY") if os.getenv("KOLOVIBE_ENV") == "local" and caller == "gateway" else None
+        if not (secret_file or local_key) or not service:
             return _deny()
         try:
-            authorized = json.loads(Path(secret_file).read_text())
-            key = authorized.get(caller)
+            key = local_key if local_key else json.loads(Path(secret_file).read_text()).get(caller)
             if not isinstance(key, str) or len(key) < 32:
                 return _deny()
             payload_hash = hashlib.sha256(request.body).hexdigest()
