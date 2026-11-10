@@ -11,6 +11,7 @@ class Video(models.Model):
         DRAFT = "draft", "Draft"
         UPLOADING = "uploading", "Uploading"
         PROCESSING = "processing", "Processing"
+        FAILED = "failed", "Processing failed"
         REVIEW = "review", "Review"
         PUBLISHED = "published", "Published"
         REJECTED = "rejected", "Rejected"
@@ -27,7 +28,6 @@ class Video(models.Model):
     description = models.TextField(blank=True, max_length=2000)
     state = models.CharField(max_length=16, choices=State.choices, default=State.DRAFT)
     visibility = models.CharField(max_length=16, choices=Visibility.choices, default=Visibility.PRIVATE)
-    stream_upload_id = models.UUIDField(null=True, blank=True, unique=True)
     provider_asset_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
     moderation_revision = models.PositiveIntegerField(default=0, db_default=0)
     moderation_approved_at = models.DateTimeField(null=True, blank=True)
@@ -57,3 +57,17 @@ class ModerationReceipt(models.Model):
     video_id = models.UUIDField()
     action = models.CharField(max_length=16)
     previous_revision = models.PositiveIntegerField()
+
+
+class MediaUpload(models.Model):
+    id = models.UUIDField(primary_key=True, editable=False)
+    video = models.OneToOneField(Video, on_delete=models.CASCADE, related_name="media_upload")
+    expected_bytes = models.PositiveIntegerField()
+    expires_at = models.DateTimeField()
+    source_etag = models.CharField(max_length=128, blank=True)
+    lease_id = models.UUIDField(null=True)
+    lease_until = models.DateTimeField(null=True)
+
+    @property
+    def source_key(self):
+        return f"originals/{self.id}.mp4"

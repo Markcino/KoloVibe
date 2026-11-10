@@ -8,8 +8,8 @@ from .creators import creator_detail
 
 from .creator_onboarding import creator_onboarding
 
-if settings.LOCAL_STREAM_ENABLED:
-    from .stream_ingest import cloudflare_stream_webhook, issue_video_upload, video_collection, video_playback
+if settings.LOCAL_MEDIA_ENABLED:
+    from .media import issue_video_upload, video_collection, video_playback, video_upload_status
 else:
     video_collection = list_videos
 

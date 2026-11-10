@@ -1,13 +1,13 @@
-"""Gateway boundary for eligible creator uploads and Stream callbacks."""
+"""Gateway boundary for the private R2 VOD pipeline."""
 
-from base64 import b64encode
 from datetime import datetime
 import json
 import re
 from urllib.error import HTTPError
+from urllib.parse import urlsplit
 from uuid import UUID
 
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponseNotAllowed, JsonResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
 
@@ -21,43 +21,49 @@ def _error(detail, status):
     return JsonResponse({"detail": detail}, status=status)
 
 
+def _safe_url(value):
+    if not isinstance(value, str) or len(value) > 4096:
+        return False
+    url = urlsplit(value)
+    return (url.scheme == "https" and bool(re.fullmatch(r"[0-9a-f]{32}\.r2\.cloudflarestorage\.com", url.netloc))
+            and url.path.endswith(".mp4") and bool(url.query) and not url.fragment)
+
+
 def _valid_result(operation, data, payload):
     if not isinstance(data, dict):
         return False
     if operation == "playback":
-        return (set(data) == {"playback_url", "expires_at"}
-                and bool(re.fullmatch(
-                    r"https://customer-[a-z0-9]+\.cloudflarestream\.com/[A-Za-z0-9_.-]{1,4096}/manifest/video\.m3u8",
-                    data["playback_url"],
-                ))
+        return (set(data) == {"playback_url", "expires_at"} and _safe_url(data["playback_url"])
                 and datetime.fromisoformat(data["expires_at"]).tzinfo is not None)
     if operation == "draft":
         return (set(data) == {"id", "creator_id", "title", "description", "state", "created_at"}
                 and str(UUID(data["id"])) == data["id"] and data["creator_id"] == payload["creator_id"]
                 and data["title"] == payload["title"].strip() and data["description"] == payload["description"]
-                and data["state"] == "draft"
-                and datetime.fromisoformat(data["created_at"]).tzinfo is not None)
-    return (set(data) == {"video_id", "upload_id", "upload_url", "expires_at", "max_bytes"}
+                and data["state"] == "draft" and datetime.fromisoformat(data["created_at"]).tzinfo is not None)
+    if operation in ("complete", "status"):
+        return (set(data) == {"video_id", "state"} and data["video_id"] == payload["video_id"]
+                and data["state"] in ("draft", "uploading", "processing", "failed", "review", "published", "rejected", "removed"))
+    return (set(data) == {"video_id", "upload_id", "upload_url", "upload_headers", "expires_at", "max_bytes"}
             and data["video_id"] == payload["video_id"] and str(UUID(data["upload_id"])) == data["upload_id"]
-            and bool(re.fullmatch(r"https://upload\.videodelivery\.net/[0-9a-f]{32}", data["upload_url"]))
+            and _safe_url(data["upload_url"])
+            and data["upload_headers"] == {"Content-Type": "video/mp4", "Content-Length": str(payload["size_bytes"]),
+                                           "If-None-Match": "*"}
             and datetime.fromisoformat(data["expires_at"]).tzinfo is not None
-            and type(data["max_bytes"]) is int and 0 < data["max_bytes"] <= 200_000_000)
+            and type(data["max_bytes"]) is int and data["max_bytes"] == 50 * 1024 * 1024)
 
 
 def _forward(operation, data, success):
     try:
         with signed_internal_request(
-            "content", f"/internal/videos/stream/{operation}", method="POST",
+            "content", f"/internal/videos/media/{operation}", method="POST",
             payload=json.dumps(data, separators=(",", ":")).encode(), timeout=8,
         ) as response:
-            if response.status == success:
-                if success == 204:
-                    return HttpResponse(status=204)
-                raw = response.read(8193)
-                if len(raw) <= 8192:
+            if response.status in success:
+                raw = response.read(32769)
+                if len(raw) <= 32768:
                     result = json.loads(raw)
                     if _valid_result(operation, result, data):
-                        return JsonResponse(result, status=success)
+                        return JsonResponse(result, status=response.status)
     except HTTPError as error:
         with error:
             if error.code in (400, 403, 404, 409):
@@ -95,7 +101,7 @@ def create_video_draft(request):
     if error is not None:
         return error
     try:
-        if request.GET or len(request.body) > 8192:
+        if request.GET or len(request.body) > 32768:
             raise ValueError("Invalid draft")
         data = json.loads(request.body)
         if not isinstance(data, dict) or "title" not in data or set(data) - {"title", "description"}:
@@ -103,7 +109,7 @@ def create_video_draft(request):
     except (ValueError, UnicodeError):
         return _error("Invalid video draft", 400)
     return _forward("draft", {"creator_id": creator_id, "title": data["title"],
-                              "description": data.get("description", "")}, 201)
+                              "description": data.get("description", "")}, (201,))
 
 
 @never_cache
@@ -113,21 +119,30 @@ def issue_video_upload(request, video_id):
     if error is not None:
         return error
     key = request.headers.get("Idempotency-Key", "")
-    if request.GET or request.body or not re.fullmatch(r"[A-Za-z0-9_-]{16,128}", key):
-        return _error("Valid Idempotency-Key and empty request body required", 400)
+    try:
+        if request.GET or len(request.body) > 128 or not re.fullmatch(r"[A-Za-z0-9_-]{16,128}", key):
+            raise ValueError("Invalid upload intent")
+        data = json.loads(request.body)
+        if (not isinstance(data, dict) or set(data) != {"size_bytes"}
+                or type(data["size_bytes"]) is not int or not 0 < data["size_bytes"] <= 50 * 1024 * 1024):
+            raise ValueError("Invalid upload size")
+    except (ValueError, TypeError):
+        return _error("Valid upload size and Idempotency-Key required", 400)
     return _forward("intent", {"creator_id": creator_id, "video_id": str(video_id),
-                               "idempotency_key": key}, 200)
+                               "idempotency_key": key, "size_bytes": data["size_bytes"]}, (200,))
 
 
-@require_POST
-def cloudflare_stream_webhook(request):
-    signature = request.headers.get("Webhook-Signature", "")
-    if not signature or len(signature) > 160:
-        return _error("Invalid Stream webhook", 403)
-    if request.GET or not 0 < len(request.body) <= 16_384:
-        return _error("Invalid Stream webhook body", 400)
-    return _forward("webhook", {"body": b64encode(request.body).decode("ascii"), "signature": signature}, 204)
-
+@never_cache
+def video_upload_status(request, video_id):
+    if request.method not in ("POST", "GET"):
+        return HttpResponseNotAllowed(["POST", "GET"])
+    creator_id, error = _eligible_creator(request)
+    if error is not None:
+        return error
+    if request.GET or request.body:
+        return _error("Invalid upload request", 400)
+    operation = "complete" if request.method == "POST" else "status"
+    return _forward(operation, {"creator_id": creator_id, "video_id": str(video_id)}, (200, 202))
 
 
 @never_cache
@@ -138,4 +153,4 @@ def video_playback(request, video_id):
         return account
     if request.GET or request.body:
         return _error("Invalid playback request", 400)
-    return _forward("playback", {"video_id": str(video_id)}, 200)
+    return _forward("playback", {"video_id": str(video_id)}, (200,))

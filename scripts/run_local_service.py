@@ -85,13 +85,16 @@ def environment_for(service: str, values: dict[str, str]) -> dict[str, str]:
             env["KOLOVIBE_CONTENT_URL"] = values.get("KOLOVIBE_CONTENT_URL", "")
             if len(gateway_key) >= 32:
                 env["KOLOVIBE_CALLER_GATEWAY_KEY"] = gateway_key
-    if service in ("gateway", "content") and values.get("KOLOVIBE_LOCAL_STREAM_ENABLED") == "1":
-        env["KOLOVIBE_LOCAL_STREAM_ENABLED"] = "1"
+    if service in ("gateway", "content") and values.get("KOLOVIBE_LOCAL_MEDIA_ENABLED") == "1":
+        env["KOLOVIBE_LOCAL_MEDIA_ENABLED"] = "1"
         if service == "content":
-            for name in ("KOLOVIBE_STREAM_ACCOUNT_ID", "KOLOVIBE_STREAM_API_TOKEN_FILE",
-                         "KOLOVIBE_STREAM_WEBHOOK_SECRET_FILE", "KOLOVIBE_STREAM_PLAYBACK_HOST"):
+            for name in ("KOLOVIBE_R2_ACCOUNT_ID", "KOLOVIBE_R2_MEDIA_BUCKET",
+                         "KOLOVIBE_R2_ACCESS_KEY_FILE", "KOLOVIBE_R2_SECRET_KEY_FILE"):
                 if name in values:
                     env[name] = values[name]
+            broker = values.get("KOLOVIBE_CONTENT_RABBITMQ_URL")
+            if broker:
+                env["KOLOVIBE_RABBITMQ_URL"] = broker
     if service == "identity":
         for name in ("KOLOVIBE_SMTP_HOST", "KOLOVIBE_SMTP_PORT",
                      "KOLOVIBE_SMTP_USER", "KOLOVIBE_SMTP_PASSWORD", "KOLOVIBE_FROM_EMAIL"):

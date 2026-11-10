@@ -633,9 +633,14 @@ paths:
     post:
       tags:
       - Content
-      summary: Issue one-time direct upload intent
+      summary: Reserve a conditional direct R2 upload
       operationId: post__videos_video_id_upload-intents
       x-implementation: local-only
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: false, required: [size_bytes], properties: {size_bytes: {type: integer, minimum: 1, maximum: 52428800}}}
       responses:
         '401':
           $ref: '#/components/responses/Unauthorized'
@@ -674,7 +679,37 @@ paths:
           minLength: 16
           maxLength: 128
       description: Requires current approved creator eligibility and ownership of the private draft.
-        The upload link is returned once. Retries cannot reserve a second provider upload for the same draft.
+        Reusing the same idempotency key and size returns a link for the same object until expiry.
+  /videos/{video_id}/upload-status:
+    parameters:
+    - name: video_id
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    get:
+      tags: [Content]
+      summary: Read own upload or processing state
+      operationId: get_video_upload_status
+      x-implementation: local-only
+      responses:
+        '200': {$ref: '#/components/responses/VideoUploadStatus'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Video not found}
+        '503': {description: Media temporarily unavailable}
+    post:
+      tags: [Content]
+      summary: Confirm own upload and enqueue processing
+      operationId: post_video_upload_complete
+      x-implementation: local-only
+      responses:
+        '200': {$ref: '#/components/responses/VideoUploadStatus'}
+        '202': {$ref: '#/components/responses/VideoUploadStatus'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Video not found}
+        '409': {description: Upload not available or does not match its reservation}
+        '503': {description: Retry the same completion request if media or queue is temporarily unavailable}
   /videos/{video_id}/publish:
     post:
       tags:
@@ -760,7 +795,7 @@ paths:
       tags:
       - Content
       summary: Obtain authorized short-lived playback URL
-      description: Requires sign-in and an approved public video with a bound Stream asset.
+      description: Requires sign-in and an approved public video with a private R2 playback rendition.
       operationId: get__videos_video_id_playback
       x-implementation: local-only
       responses:
@@ -791,28 +826,6 @@ paths:
         in: path
         required: true
         schema: *id001
-  /webhooks/cloudflare-stream:
-    post:
-      tags: [Content]
-      summary: Receive a signed Stream processing callback
-      operationId: post_cloudflare_stream_webhook
-      x-implementation: local-only
-      security: []
-      parameters:
-      - name: Webhook-Signature
-        in: header
-        required: true
-        schema: {type: string, maxLength: 160}
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: {type: object}
-      responses:
-        '204': {description: Callback acknowledged}
-        '400': {description: Invalid callback envelope}
-        '403': {description: Invalid callback signature}
-        '503': {description: Processing confirmation unavailable}
   /engagement/watch-events:
     post:
       tags:
@@ -1527,6 +1540,7 @@ components:
           - draft
           - uploading
           - processing
+          - failed
           - review
           - published
           - rejected
@@ -1558,20 +1572,28 @@ components:
     UploadIntent:
       type: object
       additionalProperties: false
+      required: [upload_id, video_id, upload_url, upload_headers, expires_at, max_bytes]
       properties:
         upload_id: *id001
         video_id: *id001
-        upload_url:
-          type: string
-          format: uri
+        upload_url: {type: string, format: uri}
+        upload_headers:
+          type: object
+          additionalProperties: false
+          required: [Content-Type, Content-Length, If-None-Match]
+          properties:
+            Content-Type: {const: video/mp4}
+            Content-Length: {type: string, pattern: '^[1-9][0-9]*$'}
+            If-None-Match: {const: '*'}
         expires_at: *id002
-        max_bytes:
-          type: integer
-      required:
-      - upload_id
-      - video_id
-      - upload_url
-      - expires_at
+        max_bytes: {type: integer, const: 52428800}
+    VideoUploadStatus:
+      type: object
+      additionalProperties: false
+      required: [video_id, state]
+      properties:
+        video_id: {type: string, format: uuid}
+        state: {type: string, enum: [draft, uploading, processing, failed, review, published, rejected, removed]}
     Playback:
       type: object
       additionalProperties: false
@@ -1768,6 +1790,11 @@ components:
       - items
       - next_cursor
   responses:
+    VideoUploadStatus:
+      description: Current owner-visible upload or processing state
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/VideoUploadStatus'}
     PilotCreatorApplication:
       description: Pilot application summary
       content:
