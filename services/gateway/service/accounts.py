@@ -135,6 +135,10 @@ def logout(request):
 
 @require_GET
 def me(request):
+    return current_account(request)
+
+
+def current_account(request):
     token = _bearer(request)
     if token is None:
         return _json({"detail": "Unauthorized"}, 401)

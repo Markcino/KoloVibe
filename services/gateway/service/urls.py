@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.urls import path
 from django.http import JsonResponse
 from .health import liveness
@@ -20,3 +21,8 @@ urlpatterns = [
     path("api/v1/creators/<uuid:creator_id>", creator_detail, name="api-creator-detail"),
     path("internal/probe", lambda request: JsonResponse({"status":"ok"}), name="internal-probe"),
 ]
+
+if settings.ENVIRONMENT == "local":
+    from .likes import video_like
+
+    urlpatterns.append(path("api/v1/videos/<uuid:video_id>/like", video_like, name="api-video-like"))

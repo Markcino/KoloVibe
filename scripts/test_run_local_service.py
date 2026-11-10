@@ -65,7 +65,12 @@ class LocalEnvironmentTests(unittest.TestCase):
             path = Path(directory) / ".env"
             create_local_env(path)
             values = read_local_env(path)
-            self.assertEqual(len(values), 16)
+            self.assertEqual(len(values), 17)
+            gateway = environment_for("gateway", values)
+            engagement = environment_for("engagement", values)
+            self.assertEqual(gateway["KOLOVIBE_ENGAGEMENT_URL"], "http://127.0.0.1:8004")
+            self.assertEqual(engagement["KOLOVIBE_CALLER_GATEWAY_KEY"],
+                             gateway["KOLOVIBE_GATEWAY_OUTBOUND_KEY"])
             self.assertEqual(path.stat().st_mode & 0o777, 0o600)
             with self.assertRaises(FileExistsError):
                 create_local_env(path)

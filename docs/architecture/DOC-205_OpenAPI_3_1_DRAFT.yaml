@@ -670,6 +670,7 @@ paths:
     put:
       tags:
       - Engagement
+      x-implementation: local-only
       summary: Like video once per user
       operationId: put__videos_video_id_like
       responses:
@@ -687,8 +688,10 @@ paths:
                 $ref: '#/components/schemas/Like'
         '400':
           description: Invalid request; application/problem+json
-        '409':
-          $ref: '#/components/responses/Conflict'
+        '404':
+          description: Published video not found
+        '503':
+          description: Required service unavailable
         '500':
           description: Unexpected server error; no internal details exposed
       parameters:
@@ -699,6 +702,7 @@ paths:
     delete:
       tags:
       - Engagement
+      x-implementation: local-only
       summary: Remove like
       operationId: delete__videos_video_id_like
       responses:
@@ -712,8 +716,8 @@ paths:
           description: Success; no response body
         '400':
           description: Invalid request; application/problem+json
-        '409':
-          $ref: '#/components/responses/Conflict'
+        '503':
+          description: Required service unavailable
         '500':
           description: Unexpected server error; no internal details exposed
       parameters:

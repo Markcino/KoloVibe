@@ -89,6 +89,10 @@ def list_videos(request):
 
 @require_GET
 def video_detail(request, video_id):
+    return read_public_video(video_id)
+
+
+def read_public_video(video_id):
     try:
         response = signed_internal_request(
             "content", "/internal/videos/detail", method="POST",

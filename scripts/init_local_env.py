@@ -20,6 +20,7 @@ def create_local_env(path: Path) -> None:
         "KOLOVIBE_IDENTITY_URL=http://127.0.0.1:8001",
         "KOLOVIBE_CONTENT_URL=http://127.0.0.1:8002",
         "KOLOVIBE_CREATORS_URL=http://127.0.0.1:8003",
+        "KOLOVIBE_ENGAGEMENT_URL=http://127.0.0.1:8004",
     ))
     descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     try:
