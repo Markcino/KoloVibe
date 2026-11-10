@@ -17,3 +17,8 @@ if settings.LOCAL_STREAM_ENABLED:
     from .stream_ingest import stream_ingest
 
     urlpatterns.append(path("internal/videos/stream/<slug:operation>", stream_ingest, name="internal-stream-ingest"))
+
+if settings.LOCAL_MODERATION_ENABLED:
+    from .moderation import moderation_video
+
+    urlpatterns.append(path("internal/videos/moderation/<slug:operation>", moderation_video, name="internal-video-moderation"))

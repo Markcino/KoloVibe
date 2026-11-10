@@ -18,7 +18,7 @@ The identity service has internal account/session operations; the gateway contai
 | Content and playback | `/videos`, `/videos/{video_id}/upload-intents`, `/videos/{video_id}/publish`, `/videos/{video_id}/playback` | The local Cloudflare Stream candidate uses Creators eligibility, signed processing callbacks and short-lived playback for published public videos. Provider activation, moderation publication and Flutter wiring remain open. Do not infer publication from a timer or local state. |
 | Engagement | `/videos/{video_id}/like`, `/engagement/watch-events` | Implement authenticated requests and server-side deduplication. Client actions must not award points. |
 | Lone Stars | `/creators/me/points`, `/creators/me/points/entries` | The append-only ledger scaffold and local mutation/reversal tests exist. No public balance/history API or mobile dashboard is connected. Resolve ADR-019 before implementing award calculations. |
-| Reports and restrictions | `/reports`, `/moderation/reports` | Implement report submission, moderation decisions and appeal contracts with server authorization and audit. |
+| Reports and restrictions | `/reports`, `/moderation/reports` | The local DEC-005 backend supports signed-in reports, MFA-protected reviewer decisions and independent appeals. Staging activation and Flutter wiring remain pending. |
 | Profile and settings | `/me`, `PATCH /creators/me` | Authenticated account read via `/me` exists. Profile updates, preferences, privacy requests, data export/deletion and retention contracts remain open under ADR-020. |
 
 ## Integration rule

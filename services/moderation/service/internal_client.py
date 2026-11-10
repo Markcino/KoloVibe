@@ -11,7 +11,7 @@ import ssl
 import time
 from pathlib import Path
 from urllib.parse import urlsplit
-from urllib.request import HTTPSHandler, HTTPRedirectHandler, Request, build_opener
+from urllib.request import HTTPHandler, HTTPSHandler, HTTPRedirectHandler, Request, build_opener
 
 class _NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, request, fp, code, msg, headers, newurl):
@@ -19,12 +19,15 @@ class _NoRedirect(HTTPRedirectHandler):
 
 def signed_internal_request(audience, path, *, method="GET", payload=b"", timeout=5):
     sender = os.environ["KOLOVIBE_SERVICE_NAME"]
-    peers = json.loads(Path(os.environ["KOLOVIBE_TRUSTED_PEERS_FILE"]).read_text())
+    local = os.environ.get("KOLOVIBE_ENV") == "local"
+    peers = ({"content": os.environ.get("KOLOVIBE_CONTENT_URL")} if local else
+             json.loads(Path(os.environ["KOLOVIBE_TRUSTED_PEERS_FILE"]).read_text()))
     base = peers.get(audience)
     if not isinstance(base, str):
         raise ValueError("Unapproved service audience")
     root = urlsplit(base)
-    if root.scheme != "https" or not root.hostname or root.username or root.password:
+    loopback = local and root.scheme == "http" and root.hostname == "127.0.0.1"
+    if not (root.scheme == "https" or loopback) or not root.hostname or root.username or root.password:
         raise ValueError("Internal service destination must use authenticated TLS")
     if root.path not in ("", "/") or root.query or root.fragment:
         raise ValueError("Peer base URL must be an HTTPS origin without a path")
@@ -32,7 +35,8 @@ def signed_internal_request(audience, path, *, method="GET", payload=b"", timeou
         raise ValueError("Only canonical internal service paths are permitted")
     if not isinstance(payload, bytes):
         raise TypeError("Payload must be pre-serialized bytes")
-    key = Path(os.environ["KOLOVIBE_OUTBOUND_KEY_FILE"]).read_text().strip()
+    key = (os.environ.get("KOLOVIBE_MODERATION_OUTBOUND_KEY", "") if local else
+           Path(os.environ["KOLOVIBE_OUTBOUND_KEY_FILE"]).read_text().strip())
     if len(key) < 32:
         raise RuntimeError("Service signing credential is invalid")
     nonce = secrets.token_urlsafe(24)
@@ -50,5 +54,6 @@ def signed_internal_request(audience, path, *, method="GET", payload=b"", timeou
                       data=payload if method != "GET" else None, method=method)
     ca = os.environ.get("KOLOVIBE_INTERNAL_CA_FILE")
     context = ssl.create_default_context(cafile=ca if ca else None)
-    opener = build_opener(HTTPSHandler(context=context), _NoRedirect())
+    handler = HTTPHandler() if loopback else HTTPSHandler(context=context)
+    opener = build_opener(handler, _NoRedirect())
     return opener.open(request, timeout=timeout)

@@ -71,6 +71,20 @@ def environment_for(service: str, values: dict[str, str]) -> dict[str, str]:
                 env[f"KOLOVIBE_{name.upper()}_URL"] = url
     elif service in ("identity", "content", "creators") and len(gateway_key) >= 32:
         env["KOLOVIBE_CALLER_GATEWAY_KEY"] = gateway_key
+    if service in ("gateway", "content", "moderation") and values.get("KOLOVIBE_LOCAL_MODERATION_ENABLED") == "1":
+        moderation_key = values.get("KOLOVIBE_MODERATION_OUTBOUND_KEY", "")
+        if len(moderation_key) < 32 or moderation_key == gateway_key:
+            raise ValueError("Local moderation requires a distinct outbound key")
+        env["KOLOVIBE_LOCAL_MODERATION_ENABLED"] = "1"
+        if service == "gateway":
+            env["KOLOVIBE_MODERATION_URL"] = values.get("KOLOVIBE_MODERATION_URL", "")
+        elif service == "content":
+            env["KOLOVIBE_CALLER_MODERATION_KEY"] = moderation_key
+        else:
+            env["KOLOVIBE_MODERATION_OUTBOUND_KEY"] = moderation_key
+            env["KOLOVIBE_CONTENT_URL"] = values.get("KOLOVIBE_CONTENT_URL", "")
+            if len(gateway_key) >= 32:
+                env["KOLOVIBE_CALLER_GATEWAY_KEY"] = gateway_key
     if service in ("gateway", "content") and values.get("KOLOVIBE_LOCAL_STREAM_ENABLED") == "1":
         env["KOLOVIBE_LOCAL_STREAM_ENABLED"] = "1"
         if service == "content":

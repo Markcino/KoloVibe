@@ -47,3 +47,21 @@ if settings.LOCAL_STREAM_ENABLED:
         path("api/v1/videos/<uuid:video_id>/playback", video_playback, name="api-video-playback"),
         path("api/v1/webhooks/cloudflare-stream", cloudflare_stream_webhook, name="api-stream-webhook"),
     ]
+
+if settings.LOCAL_MODERATION_ENABLED:
+    from .moderation import moderation_endpoint
+
+    urlpatterns += [
+        path("api/v1/reports", moderation_endpoint, {"operation": "report"}, name="submit-video-report"),
+        path("api/v1/videos/<uuid:target_id>/appeals", moderation_endpoint,
+             {"operation": "appeal"}, name="submit-video-appeal"),
+        path("api/v1/moderation/videos", moderation_endpoint, {"operation": "review_queue"}, name="review-video-queue"),
+        path("api/v1/moderation/reports", moderation_endpoint, {"operation": "reports"}, name="moderation-reports"),
+        path("api/v1/moderation/appeals", moderation_endpoint, {"operation": "appeals"}, name="moderation-appeals"),
+        path("api/v1/moderation/videos/<uuid:target_id>/decisions", moderation_endpoint,
+             {"operation": "video_decision"}, name="decide-video"),
+        path("api/v1/moderation/reports/<uuid:target_id>/decisions", moderation_endpoint,
+             {"operation": "report_decision"}, name="decide-video-report"),
+        path("api/v1/moderation/appeals/<uuid:target_id>/decisions", moderation_endpoint,
+             {"operation": "appeal_decision"}, name="decide-video-appeal"),
+    ]

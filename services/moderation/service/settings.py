@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 ENVIRONMENT = os.environ.get("KOLOVIBE_ENV")
+LOCAL_MODERATION_ENABLED = ENVIRONMENT == "local" and os.environ.get("KOLOVIBE_LOCAL_MODERATION_ENABLED") == "1"
 if ENVIRONMENT not in ("local", "staging"):
     raise RuntimeError("Production settings are not authorized; explicit local or staging profile required.")
 if ENVIRONMENT == "staging":
@@ -15,7 +16,7 @@ if not SECRET_KEY or len(SECRET_KEY) < 32:
 DEBUG = os.environ.get("DJANGO_DEBUG", "0") == "1"
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "testserver"]
 ROOT_URLCONF = "service.urls"
-INSTALLED_APPS = []
+INSTALLED_APPS = ["service"]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "service.service_auth.ServiceAuthMiddleware",

@@ -33,6 +33,9 @@ def _valid_summary(item, *, account_id=None):
 
 
 def _valid_response(operation, data, target):
+    if operation == "ownership":
+        return (isinstance(data, dict) and set(data) == {"creator_id"}
+                and str(UUID(data["creator_id"])) == data["creator_id"])
     if operation == "eligibility":
         return (isinstance(data, dict) and set(data) == {"upload_eligible", "creator_id"}
                 and type(data["upload_eligible"]) is bool
@@ -73,7 +76,7 @@ def _forward(operation, actor, role, data):
     return _error("Creator service unavailable", 503)
 
 
-def _actor(request, *, require_verified_email):
+def authenticated_actor(request, *, require_verified_email):
     account = current_account(request, require_verified_email=require_verified_email)
     if account.status_code != 200:
         return account
@@ -88,8 +91,12 @@ def _actor(request, *, require_verified_email):
     return actor, roles[0]
 
 
+def creator_ownership(actor, role):
+    return _forward("ownership", actor, role, {})
+
+
 def creator_eligibility(request):
-    actor = _actor(request, require_verified_email=True)
+    actor = authenticated_actor(request, require_verified_email=True)
     if isinstance(actor, JsonResponse):
         return actor
     return _forward("eligibility", *actor, {})
@@ -103,7 +110,7 @@ def creator_onboarding(request, operation, account_id=None):
         if request.GET or request.body:
             return _error("Invalid creator request", 400)
         return creator_eligibility(request)
-    actor = _actor(request, require_verified_email=operation in SELF_OPERATIONS)
+    actor = authenticated_actor(request, require_verified_email=operation in SELF_OPERATIONS)
     if isinstance(actor, JsonResponse):
         return actor
 

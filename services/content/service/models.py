@@ -29,6 +29,7 @@ class Video(models.Model):
     visibility = models.CharField(max_length=16, choices=Visibility.choices, default=Visibility.PRIVATE)
     stream_upload_id = models.UUIDField(null=True, blank=True, unique=True)
     provider_asset_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
+    moderation_revision = models.PositiveIntegerField(default=0)
     moderation_approved_at = models.DateTimeField(null=True, blank=True)
     duration_seconds = models.PositiveIntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -49,3 +50,10 @@ class Video(models.Model):
                 name="published_requires_approved_provider_asset",
             ),
         ]
+
+
+class ModerationReceipt(models.Model):
+    action_id = models.UUIDField(primary_key=True)
+    video_id = models.UUIDField()
+    action = models.CharField(max_length=16)
+    previous_revision = models.PositiveIntegerField()
