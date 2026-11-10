@@ -37,6 +37,8 @@ def dispatch_one(celery_app):
             if row is None:
                 return False
             ident, event_type, payload = row
+            if isinstance(payload, str):
+                payload = json.loads(payload)
             if event_type == QUALIFIED_VIEW:
                 task_name, queue = "kolovibe.points.event", "kolovibe.points"
             else:
