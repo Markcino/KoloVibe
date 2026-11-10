@@ -854,7 +854,9 @@ paths:
     put:
       tags:
       - Engagement
+      x-implementation: local-only
       summary: Like video once per user
+      description: Available to authenticated viewer and creator accounts for public, published videos.
       operationId: put__videos_video_id_like
       responses:
         '401':
@@ -870,9 +872,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/Like'
         '400':
-          description: Invalid request; application/problem+json
-        '409':
-          $ref: '#/components/responses/Conflict'
+          description: Invalid request. Like operations accept no request body or query parameters.
+        '404':
+          description: Published video not found
+        '503':
+          description: Required service unavailable
         '500':
           description: Unexpected server error; no internal details exposed
       parameters:
@@ -883,7 +887,9 @@ paths:
     delete:
       tags:
       - Engagement
+      x-implementation: local-only
       summary: Remove like
+      description: Available to authenticated viewer and creator accounts for their own likes.
       operationId: delete__videos_video_id_like
       responses:
         '401':
@@ -895,9 +901,9 @@ paths:
         '204':
           description: Success; no response body
         '400':
-          description: Invalid request; application/problem+json
-        '409':
-          $ref: '#/components/responses/Conflict'
+          description: Invalid request. Like operations accept no request body or query parameters.
+        '503':
+          description: Required service unavailable
         '500':
           description: Unexpected server error; no internal details exposed
       parameters:
