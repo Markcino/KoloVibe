@@ -24,7 +24,7 @@ class VideoLikeGatewayTests(SimpleTestCase):
     @patch("service.likes.read_public_video")
     @patch("service.likes.current_account")
     def test_like_requires_a_public_video_and_uses_the_verified_account(self, account, video, engagement):
-        account.return_value = JsonResponse({"id": self.account_id})
+        account.return_value = JsonResponse({"id": self.account_id, "roles": ["viewer"]})
         video.return_value = JsonResponse({"detail": "Not found"}, status=404)
         self.assertEqual(self.client.put(self.url, data=b"").status_code, 404)
         engagement.assert_not_called()
@@ -44,3 +44,28 @@ class VideoLikeGatewayTests(SimpleTestCase):
             self.url, data=b'{"account_id":"override"}', content_type="application/json",
         ).status_code, 400)
         engagement.assert_not_called()
+
+    @patch("service.likes.signed_internal_request")
+    @patch("service.likes.read_public_video")
+    @patch("service.likes.current_account")
+    def test_non_engagement_roles_cannot_like_or_unlike(self, account, video, engagement):
+        for roles in ([], ["moderator"], ["administrator"], ["admin"], ["support"], ["finance"],
+                      ["worker"], ["viewer", "moderator"], ["unrecognized"]):
+            with self.subTest(roles=roles):
+                account.return_value = JsonResponse({"id": self.account_id, "roles": roles})
+                self.assertEqual(self.client.put(self.url, data=b"").status_code, 403)
+                self.assertEqual(self.client.delete(self.url, data=b"").status_code, 403)
+        video.assert_not_called()
+        engagement.assert_not_called()
+
+    @patch("service.likes.signed_internal_request")
+    @patch("service.likes.current_account")
+    def test_creator_can_remove_a_like(self, account, engagement):
+        account.return_value = JsonResponse({"id": self.account_id, "roles": ["creator"]})
+        response = Response(b"")
+        response.status = 204
+        engagement.return_value = response
+        self.assertEqual(self.client.delete(self.url, data=b"").status_code, 204)
+        self.assertEqual(json.loads(engagement.call_args.kwargs["payload"]), {
+            "video_id": self.video_id, "account_id": self.account_id, "liked": False,
+        })

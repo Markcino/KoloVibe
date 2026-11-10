@@ -17,6 +17,15 @@ def video_like(request, video_id):
     if account.status_code != 200:
         return account
 
+    try:
+        profile = json.loads(account.content)
+        account_id = str(UUID(profile["id"]))
+        roles = profile["roles"]
+    except (ValueError, KeyError, TypeError, AttributeError):
+        return JsonResponse({"detail": "Identity unavailable"}, status=503)
+    if roles not in (["viewer"], ["creator"]):
+        return JsonResponse({"detail": "Forbidden"}, status=403)
+
     if request.body or request.GET:
         return JsonResponse({"detail": "Invalid like request"}, status=400)
 
@@ -26,9 +35,8 @@ def video_like(request, video_id):
         if video.status_code != 200:
             return video
 
+    payload = json.dumps({"video_id": str(video_id), "account_id": account_id, "liked": liked}).encode()
     try:
-        account_id = str(UUID(json.loads(account.content)["id"]))
-        payload = json.dumps({"video_id": str(video_id), "account_id": account_id, "liked": liked}).encode()
         with signed_internal_request("engagement", "/internal/likes", method="POST", payload=payload) as response:
             if not liked and response.status == 204:
                 return HttpResponse(status=204)
@@ -39,6 +47,6 @@ def video_like(request, video_id):
                     if (isinstance(result, dict) and set(result) == {"video_id", "liked"}
                             and result["video_id"] == str(video_id) and result["liked"] is True):
                         return JsonResponse(result)
-    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+    except (OSError, ValueError):
         pass
     return JsonResponse({"detail": "Engagement service unavailable"}, status=503)
