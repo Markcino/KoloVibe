@@ -65,11 +65,11 @@ def environment_for(service: str, values: dict[str, str]) -> dict[str, str]:
     if service == "gateway":
         if len(gateway_key) >= 32:
             env["KOLOVIBE_GATEWAY_OUTBOUND_KEY"] = gateway_key
-        for name in ("identity", "content", "creators"):
+        for name in ("identity", "content", "creators", "engagement"):
             url = values.get(f"KOLOVIBE_{name.upper()}_URL")
             if url:
                 env[f"KOLOVIBE_{name.upper()}_URL"] = url
-    elif service in ("identity", "content", "creators") and len(gateway_key) >= 32:
+    elif service in ("identity", "content", "creators", "engagement") and len(gateway_key) >= 32:
         env["KOLOVIBE_CALLER_GATEWAY_KEY"] = gateway_key
     if service == "identity":
         for name in ("KOLOVIBE_SMTP_HOST", "KOLOVIBE_SMTP_PORT",

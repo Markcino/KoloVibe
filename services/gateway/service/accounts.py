@@ -138,7 +138,7 @@ def me(request):
     return current_account(request)
 
 
-def current_account(request, *, require_verified_email=False):
+def current_account(request):
     token = _bearer(request)
     if token is None:
         return _json({"detail": "Unauthorized"}, 401)
