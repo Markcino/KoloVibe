@@ -104,6 +104,16 @@ class PasswordReset(models.Model):
     used_at = models.DateTimeField(null=True, blank=True)
 
 
+class ReauthenticationToken(models.Model):
+    """Short-lived, single-use proof bound to one account and login session."""
+
+    digest = models.CharField(max_length=64, primary_key=True)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE)
+    session = models.ForeignKey(LoginSession, on_delete=models.CASCADE)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+
+
 class NotificationPreferences(models.Model):
     """Account-owned delivery choices; no delivery is enabled by this record."""
 
@@ -120,14 +130,22 @@ class PrivacyRequest(models.Model):
         ACCESS = "access", "Access"
         DELETION = "deletion", "Deletion"
 
+    class Status(models.TextChoices):
+        RECEIVED = "received", "Received"
+        IN_REVIEW = "in_review", "In review"
+        COMPLETED = "completed", "Completed"
+        DECLINED = "declined", "Declined"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     account = models.ForeignKey(Account, on_delete=models.PROTECT)
     kind = models.CharField(max_length=8, choices=Kind.choices)
-    status = models.CharField(max_length=16, default="received", editable=False)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.RECEIVED, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        constraints = [models.UniqueConstraint(fields=["account", "kind"], name="unique_privacy_request_kind")]
+        constraints = [models.UniqueConstraint(
+            fields=["account", "kind"], condition=models.Q(status__in=["received", "in_review"]),
+            name="unique_open_privacy_request_kind")]
 
 
 class TotpFactor(models.Model):

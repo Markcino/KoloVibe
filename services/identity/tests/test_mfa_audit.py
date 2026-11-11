@@ -1,10 +1,12 @@
 from datetime import timedelta
+import base64
 import json
 import os
 from pathlib import Path
 import secrets
 import tempfile
 from unittest.mock import patch
+from datetime import datetime, timezone as datetime_timezone
 
 from cryptography.fernet import Fernet
 from django.core.management import call_command, CommandError
@@ -22,6 +24,15 @@ from service.models import (Account, AuditDelivery, LoginSession, MfaChallenge,
 @override_settings(STAGING_PRIVILEGED=True)
 class MfaAuditTests(TestCase):
     def setUp(self):
+        # The replay assertions must use the same TOTP step, even across a slow
+        # full-suite run. Freeze both issuer and verifier clocks, never the result
+        # of factor verification. Production's replay checks remain exercised.
+        self.now = datetime(2026, 11, 11, 12, 0, 10, tzinfo=datetime_timezone.utc)
+        for clock, value in (("service.mfa.time.time", self.now.timestamp()),
+                             ("django.utils.timezone.now", self.now)):
+            mocked_clock = patch(clock, return_value=value)
+            mocked_clock.start()
+            self.addCleanup(mocked_clock.stop)
         self.factory = RequestFactory()
         self.password = secrets.token_urlsafe(32)
         self.account = Account.objects.create_user("reviewer@example.test", self.password, "Reviewer")
@@ -36,7 +47,7 @@ class MfaAuditTests(TestCase):
         self.environment = patch.dict(os.environ, {"KOLOVIBE_MFA_ENCRYPTION_KEY_FILE": str(key_path)})
         self.environment.start()
         self.addCleanup(self.environment.stop)
-        self.factor = pyotp.random_base32()
+        self.factor = base64.b32encode(b"test-only KoloVibe TOTP factor").decode()
         TotpFactor.objects.create(account=self.account,
                                   encrypted_secret=Fernet(key).encrypt(self.factor.encode()).decode())
 
@@ -53,7 +64,7 @@ class MfaAuditTests(TestCase):
 
     def verify(self, raw, code=None):
         return self.post(verify_mfa, {"challenge_token": raw,
-                                     "code": code or pyotp.TOTP(self.factor).now()})
+                                     "code": code if code is not None else pyotp.TOTP(self.factor).at(self.now)})
 
     def test_password_is_insufficient_and_mfa_challenge_is_one_use(self):
         challenge = self.challenge()
@@ -66,6 +77,15 @@ class MfaAuditTests(TestCase):
         self.assertEqual(self.verify(self.challenge()).status_code, 401)
         self.assertTrue(SecurityEvent.objects.filter(kind="mfa.succeeded").exists())
         self.assertEqual(SecurityEvent.objects.count(), AuditDelivery.objects.count())
+
+    def test_consumed_totp_stays_rejected_after_clock_advances_but_new_step_works(self):
+        code = pyotp.TOTP(self.factor).at(self.now)
+        self.assertEqual(self.verify(self.challenge(), code).status_code, 200)
+        next_challenge = self.challenge()
+        next_time = self.now + timedelta(seconds=30)
+        with patch("service.mfa.time.time", return_value=next_time.timestamp()):
+            self.assertEqual(self.verify(next_challenge, code).status_code, 401)
+            self.assertEqual(self.verify(next_challenge, pyotp.TOTP(self.factor).at(next_time)).status_code, 200)
 
     def test_challenge_expiry_role_changes_and_attempt_limit(self):
         challenge = self.challenge()
@@ -155,7 +175,7 @@ class MfaAuditTests(TestCase):
         TotpFactor.objects.all().delete()
         base = Path(self.temporary.name)
         secret_file, code_file = base / "factor", base / "code"
-        for path, value in ((secret_file, self.factor), (code_file, pyotp.TOTP(self.factor).now())):
+        for path, value in ((secret_file, self.factor), (code_file, pyotp.TOTP(self.factor).at(self.now))):
             path.touch(mode=0o600)
             path.write_text(value)
         output = base / "recovery"

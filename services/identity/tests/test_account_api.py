@@ -10,7 +10,8 @@ from django.test import RequestFactory, TestCase, override_settings
 from django.utils import timezone
 
 from service import accounts
-from service.models import Account, EmailVerification, LoginSession, PasswordReset, UsedRefreshToken
+from service.models import (Account, AuditDelivery, EmailVerification, LoginSession, PasswordReset,
+                            ReauthenticationToken, SecurityEvent, UsedRefreshToken)
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
@@ -20,6 +21,10 @@ class AccountApiTests(TestCase):
         account = self.register_and_verify()
         login = self.post(accounts.login, {"email": account.email, "password": self.password})
         session = json.loads(login.content)
+        second = json.loads(self.post(accounts.login,
+            {"email": account.email, "password": self.password}).content)
+        proof = json.loads(self.post(accounts.reauthenticate, {
+            "access_token": session["access_token"], "current_password": self.password}).content)["reauth_token"]
         self.assertEqual(self.post(accounts.request_password_reset,
                                    {"email": "missing@example.test"}).status_code, 204)
         self.assertEqual(self.post(accounts.request_password_reset,
@@ -37,6 +42,13 @@ class AccountApiTests(TestCase):
             {"access_token": session["access_token"]}).status_code, 401)
         self.assertEqual(self.post(accounts.refresh,
             {"refresh_token": session["refresh_token"]}).status_code, 401)
+        self.assertEqual(self.post(accounts.validate_access,
+            {"access_token": second["access_token"]}).status_code, 401)
+        self.assertEqual(self.post(accounts.refresh,
+            {"refresh_token": second["refresh_token"]}).status_code, 401)
+        self.assertFalse(ReauthenticationToken.objects.filter(
+            digest=accounts._digest("reauth:" + proof), used_at__isnull=True).exists())
+        self.assertTrue(AuditDelivery.objects.filter(event__kind="account.password_reset").exists())
         self.assertEqual(self.post(accounts.login,
             {"email": account.email, "password": self.password}).status_code, 401)
         self.assertEqual(self.post(accounts.login,
@@ -55,7 +67,7 @@ class AccountApiTests(TestCase):
             "access_token": session["access_token"],
             "current_password": secrets.token_urlsafe(28),
             "new_password": secrets.token_urlsafe(28),
-        }).status_code, 401)
+        }).status_code, 400)
         self.assertEqual(self.post(accounts.validate_access,
             {"access_token": session["access_token"]}).status_code, 200)
         self.assertEqual(self.post(accounts.change_password, {
@@ -64,7 +76,30 @@ class AccountApiTests(TestCase):
             "new_password": secrets.token_urlsafe(28),
         }).status_code, 204)
         self.assertEqual(self.post(accounts.validate_access,
-            {"access_token": session["access_token"]}).status_code, 401)
+            {"access_token": session["access_token"]}).status_code, 200)
+
+    def test_password_change_preserves_current_session_and_revokes_others_immediately(self):
+        account = self.register_and_verify()
+        current, other = [json.loads(self.post(accounts.login, {
+            "email": account.email, "password": self.password}).content) for _ in range(2)]
+        proof = self.post(accounts.reauthenticate, {
+            "access_token": current["access_token"], "current_password": self.password})
+        self.assertEqual(proof.status_code, 200)
+        password = secrets.token_urlsafe(28)
+        self.assertEqual(self.post(accounts.change_password, {
+            "access_token": current["access_token"], "current_password": self.password,
+            "new_password": password}).status_code, 204)
+        for tokens, expected in ((current, 200), (other, 401)):
+            self.assertEqual(self.post(accounts.validate_access,
+                {"access_token": tokens["access_token"]}).status_code, expected)
+            self.assertEqual(self.post(accounts.refresh,
+                {"refresh_token": tokens["refresh_token"]}).status_code, expected)
+        self.assertFalse(ReauthenticationToken.objects.filter(used_at__isnull=True).exists())
+        self.assertEqual(self.post(accounts.login, {
+            "email": account.email, "password": self.password}).status_code, 401)
+        self.assertEqual(self.post(accounts.login, {
+            "email": account.email, "password": password}).status_code, 200)
+        self.assertTrue(AuditDelivery.objects.filter(event__kind="account.password_changed").exists())
 
     def test_profile_update_is_owned_and_rejects_client_role(self):
         account = self.register_and_verify()
@@ -91,6 +126,36 @@ class AccountApiTests(TestCase):
         self.assertEqual(response.status_code, 503)
         self.assertFalse(Account.objects.exists())
         self.assertFalse(EmailVerification.objects.exists())
+
+    def test_reset_delivery_failure_is_generic_and_preserves_previous_code(self):
+        account = self.register_and_verify()
+        self.post(accounts.request_password_reset, {"email": account.email})
+        previous = PasswordReset.objects.get()
+        PasswordReset.objects.filter(pk=previous.pk).update(
+            expires_at=timezone.now() + timedelta(minutes=accounts.RESET_MINUTES - 3))
+        with patch("service.accounts.send_mail", side_effect=smtplib.SMTPException), \
+                self.assertLogs("service.accounts", level="ERROR"):
+            response = self.post(accounts.request_password_reset, {"email": account.email})
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.content, b"")
+        self.assertEqual(PasswordReset.objects.count(), 1)
+        previous.refresh_from_db()
+        self.assertIsNone(previous.used_at)
+        unknown = self.post(accounts.request_password_reset, {"email": "unknown@example.test"})
+        self.assertEqual((response.status_code, response.content), (unknown.status_code, unknown.content))
+
+    def test_resend_delivery_failure_preserves_previous_code_and_does_not_disclose_account(self):
+        self.post(accounts.register, {"email": "viewer@example.test", "password": self.password,
+                                       "display_name": "Viewer"})
+        code = mail.outbox[-1].body.split(": ", 1)[1]
+        EmailVerification.objects.update(expires_at=timezone.now() + timedelta(hours=23))
+        with patch("service.accounts.send_mail", side_effect=smtplib.SMTPException), \
+                self.assertLogs("service.accounts", level="ERROR"):
+            response = self.post(accounts.resend_verification, {"email": "viewer@example.test"})
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(EmailVerification.objects.count(), 1)
+        self.assertIsNone(EmailVerification.objects.get().used_at)
+        self.assertEqual(self.post(accounts.verify_email, {"code": code}).status_code, 200)
 
     def test_expired_verification_cannot_activate_account(self):
         self.post(accounts.register, {"email": "user@example.test",
@@ -215,11 +280,42 @@ class AccountApiTests(TestCase):
 
     def test_logout_revokes_access(self):
         self.register_and_verify()
-        token = json.loads(self.post(accounts.login, {"email": "user@example.test",
-                                                     "password": self.password}).content)["access_token"]
+        tokens = json.loads(self.post(accounts.login, {"email": "user@example.test",
+                                                     "password": self.password}).content)
+        token = tokens["access_token"]
         self.assertEqual(self.post(accounts.revoke, {"access_token": token}).status_code, 204)
         self.assertEqual(self.post(accounts.validate_access,
                                    {"access_token": token}).status_code, 401)
+        self.assertEqual(self.post(accounts.refresh,
+            {"refresh_token": tokens["refresh_token"]}).status_code, 401)
+        self.assertTrue(AuditDelivery.objects.filter(event__kind="session.revoked").exists())
+
+    def test_logout_by_refresh_also_revokes_access_and_has_no_body(self):
+        account = self.register_and_verify()
+        tokens = json.loads(self.post(accounts.login, {
+            "email": account.email, "password": self.password}).content)
+        response = self.post(accounts.revoke, {"refresh_token": tokens["refresh_token"]})
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.content, b"")
+        self.assertEqual(self.post(accounts.validate_access,
+            {"access_token": tokens["access_token"]}).status_code, 401)
+        self.assertEqual(self.post(accounts.refresh,
+            {"refresh_token": tokens["refresh_token"]}).status_code, 401)
+
+    def test_security_actions_have_matching_secret_free_audit_deliveries(self):
+        account = self.register_and_verify()
+        tokens = json.loads(self.post(accounts.login, {
+            "email": account.email, "password": self.password}).content)
+        access = {"access_token": tokens["access_token"]}
+        self.post(accounts.update_profile, {**access, "display_name": "Updated Name"})
+        self.post(accounts.manage_sessions, access)
+        self.post(accounts.revoke, access)
+        expected = {"account.registered", "account.verified", "login.succeeded",
+                    "account.profile_updated", "session.listed", "session.revoked"}
+        self.assertEqual(set(SecurityEvent.objects.values_list("kind", flat=True)), expected)
+        self.assertEqual(SecurityEvent.objects.count(), AuditDelivery.objects.count())
+        self.assertTrue(all(actor == account.id for actor in
+                            SecurityEvent.objects.values_list("actor_id", flat=True)))
 
     def test_failed_login_is_throttled(self):
         self.register_and_verify()

@@ -7,8 +7,9 @@ from django.db import transaction
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 
-from .accounts import _body, _error, _session_for_access
-from .models import Account, LoginSession, NotificationPreferences, PrivacyRequest
+from .accounts import (_body, _consume_reauthentication, _error, _locked_account,
+                       _reauthenticate_password, _session_for_access)
+from .models import NotificationPreferences, PrivacyRequest
 from .security_audit import record
 
 
@@ -45,6 +46,8 @@ def preferences(request):
         return JsonResponse(_preferences(row) if row else {
             "email_notifications": False, "push_notifications": False})
     with transaction.atomic():
+        if _locked_account(session) is None:
+            return _error("Unauthorized", 401)
         row, _ = NotificationPreferences.objects.select_for_update().get_or_create(
             account_id=session.account_id)
         row.email_notifications = data["email_notifications"]
@@ -57,33 +60,48 @@ def preferences(request):
 @require_POST
 def privacy_requests(request):
     try:
-        data = _body(request, {"access_token", "operation", "kind", "current_password"})
+        data = _body(request, {"access_token", "operation", "kind", "current_password", "reauth_token"})
         if data.get("operation") not in {"list", "create"}:
             raise ValueError
         if data["operation"] == "list":
             if set(data) != {"access_token", "operation"}:
                 raise ValueError
-        elif (set(data) != {"access_token", "operation", "kind", "current_password"}
-              or data["kind"] not in PrivacyRequest.Kind.values
-              or not isinstance(data["current_password"], str)
-              or not 1 <= len(data["current_password"]) <= 128):
-            raise ValueError
+        else:
+            if data["kind"] not in PrivacyRequest.Kind.values or not (
+                {"current_password", "reauth_token"} & set(data)
+            ):
+                raise ValueError
+            for field, minimum in (("current_password", 1), ("reauth_token", 32)):
+                if field in data and (not isinstance(data[field], str)
+                                      or not minimum <= len(data[field]) <= 128):
+                    raise ValueError
         session = _session_for_access(data["access_token"])
     except (ValueError, KeyError, TypeError):
         return _error("Invalid privacy request")
     if session is None:
         return _error("Unauthorized", 401)
     if data["operation"] == "list":
-        rows = PrivacyRequest.objects.filter(account_id=session.account_id).order_by("created_at")
+        rows = PrivacyRequest.objects.filter(account_id=session.account_id).order_by("-created_at", "-id")[:40]
         return JsonResponse({"items": [_request(row) for row in rows]})
     with transaction.atomic():
-        account = Account.objects.select_for_update().get(pk=session.account_id)
-        active = LoginSession.objects.filter(
-            pk=session.id, account_id=account.id, revoked_at__isnull=True).exists()
-        if not active or not account.check_password(data["current_password"]):
-            return _error("Reauthentication failed", 401)
-        row, created = PrivacyRequest.objects.get_or_create(
-            account_id=session.account_id, kind=data["kind"])
-        if created:
-            record("account.privacy_request_received", session.account_id)
-    return JsonResponse(_request(row), status=201 if created else 200)
+        account = _locked_account(session)
+        if account is None:
+            return _error("Unauthorized", 401)
+        if "reauth_token" in data:
+            # A supplied token always takes precedence; never fall back after a bad proof.
+            if not _consume_reauthentication(account, session, data["reauth_token"]):
+                record("account.reauthentication_failed", account.id)
+                return _error("Reauthentication failed")
+        else:
+            error = _reauthenticate_password(account, data["current_password"])
+            if error is not None:
+                return error
+            record("account.reauthenticated", account.id)
+        if PrivacyRequest.objects.filter(
+            account=account, kind=data["kind"],
+            status__in=(PrivacyRequest.Status.RECEIVED, PrivacyRequest.Status.IN_REVIEW),
+        ).exists():
+            return JsonResponse({"detail": "An open request already exists", "code": "request_open"}, status=409)
+        row = PrivacyRequest.objects.create(account=account, kind=data["kind"])
+        record("account.privacy_request_received", account.id)
+    return JsonResponse(_request(row), status=201)

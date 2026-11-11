@@ -49,10 +49,12 @@ class PreferencesPrivacyTests(TestCase):
         fields = {"access_token": self.first, "operation": "create",
                   "kind": "deletion", "current_password": self.password}
         self.assertEqual(self._post(preferences_privacy.privacy_requests,
-                                    {**fields, "current_password": "wrong"}).status_code, 401)
+                                    {**fields, "current_password": "wrong"}).status_code, 400)
         first = self._post(preferences_privacy.privacy_requests, fields)
         self.assertEqual(first.status_code, 201)
-        self.assertEqual(self._post(preferences_privacy.privacy_requests, fields).status_code, 200)
+        duplicate = self._post(preferences_privacy.privacy_requests, fields)
+        self.assertEqual(duplicate.status_code, 409)
+        self.assertEqual(json.loads(duplicate.content)["code"], "request_open")
         self.assertEqual(PrivacyRequest.objects.count(), 1)
         self.assertEqual(PrivacyRequest.objects.get().status, "received")
         self.assertEqual(Account.objects.count(), 2)

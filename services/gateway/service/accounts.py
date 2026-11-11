@@ -4,6 +4,7 @@ import json
 from urllib.error import HTTPError, URLError
 
 from django.http import HttpResponse, JsonResponse
+from django.utils.dateparse import parse_datetime
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 
@@ -55,7 +56,11 @@ def _invoke(path, data, success_statuses):
                 raise ValueError("Invalid identity error")
         except (ValueError, TypeError, UnicodeError):
             return _json({"detail": "Identity unavailable"}, 503)
-        return _json({"detail": detail}, error.code)
+        payload = {"detail": detail}
+        if (error.code == 409 and path == "/internal/auth/privacy-requests"
+                and result.get("code") == "request_open"):
+            payload["code"] = "request_open"
+        return _json(payload, error.code)
     except (URLError, TimeoutError, OSError, KeyError, ValueError, TypeError, UnicodeError):
         return _json({"detail": "Identity unavailable"}, 503)
 
@@ -127,6 +132,38 @@ def reset_password(request):
 
 
 @never_cache
+@require_POST
+def reauthenticate(request):
+    token = _bearer(request)
+    if token is None:
+        return _json({"detail": "Unauthorized"}, 401)
+    try:
+        data = _body(request, {"current_password"})
+        if (set(data) != {"current_password"} or not isinstance(data["current_password"], str)
+                or not 1 <= len(data["current_password"]) <= 128):
+            raise ValueError
+    except (ValueError, UnicodeError):
+        return _json({"detail": "Reauthentication failed"}, 400)
+    result = _invoke("/internal/auth/reauthenticate", {"access_token": token, **data}, {200})
+    if result.status_code != 200:
+        return result
+    try:
+        payload = json.loads(result.content)
+        if (set(payload) != {"reauth_token", "expires_at"}
+                or not isinstance(payload["reauth_token"], str)
+                or not 32 <= len(payload["reauth_token"]) <= 128
+                or not isinstance(payload["expires_at"], str)
+                or len(payload["expires_at"]) > 64):
+            raise ValueError
+        expiry = parse_datetime(payload["expires_at"])
+        if expiry is None or expiry.tzinfo is None:
+            raise ValueError
+    except (KeyError, ValueError, TypeError):
+        return _json({"detail": "Identity unavailable"}, 503)
+    return result
+
+
+@never_cache
 @require_http_methods(["PATCH"])
 def change_password(request):
     token = _bearer(request)
@@ -168,6 +205,7 @@ def refresh(request):
     return _invoke("/internal/auth/refresh", data, {200})
 
 
+@never_cache
 @require_POST
 def logout(request):
     token = _bearer(request)
@@ -201,6 +239,7 @@ def revoke_session(request, session_id):
                    {"access_token": token, "session_id": str(session_id)}, {204})
 
 
+@never_cache
 @require_http_methods(["GET", "PATCH"])
 def me(request):
     if request.method == "PATCH":
@@ -231,7 +270,13 @@ def me(request):
     return current_account(request)
 
 
+@never_cache
 def current_account(request, *, require_verified_email=False):
+    """Validate every protected request against identity's live session state.
+
+    No positive-result cache: revocation applies to the next request even while
+    the signed access credential remains inside its 300-second lifetime.
+    """
     token = _bearer(request)
     if token is None:
         return _json({"detail": "Unauthorized"}, 401)

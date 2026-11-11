@@ -118,7 +118,7 @@ paths:
       operationId: requestPasswordReset
       x-implementation: local
       summary: Request a single-use password reset code
-      description: Unknown, verified and throttled accounts receive the same empty response. Privileged account recovery requires a separate reviewed workflow.
+      description: Unknown, eligible and throttled accounts receive the same empty response, including delivery failure. Privileged account recovery requires a separate reviewed workflow.
       security: []
       requestBody:
         required: true
@@ -275,7 +275,7 @@ paths:
       operationId: post__auth_logout
       x-implementation: local
       security: []
-      description: Revokes by bearer access token or JSON refresh token. No response body.
+      description: Revokes by bearer access token or JSON refresh token. No response body. Both access and refresh credentials are rejected on the next protected request; the gateway checks live identity session state without caching.
       requestBody:
         required: false
         content:
@@ -344,10 +344,22 @@ paths:
       tags: [Identity]
       operationId: listMyPrivacyRequests
       x-implementation: local
-      summary: List own received privacy requests
+      summary: List up to 40 most recent own privacy request receipts
       security: [{bearerAuth: []}]
       responses:
-        '200': {description: Own privacy request records}
+        '200':
+          description: Own privacy request records, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    maxItems: 40
+                    items: {$ref: '#/components/schemas/PrivacyRequestReceipt'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '503': {$ref: '#/components/responses/LocalUnavailable'}
     post:
@@ -355,7 +367,15 @@ paths:
       operationId: requestMyPrivacyAction
       x-implementation: local
       summary: Receive an access or deletion request without executing it
-      description: Requires current-password reauthentication. Processing and deletion remain closed until ADR-020 approval.
+      description: >-
+        Consume a five-minute, single-use reauth_token bound to this account and
+        current login session. current_password remains accepted for compatibility,
+        with the same account-wide reauthentication attempt budget. If both are
+        supplied, the token takes precedence with no password fallback. A valid
+        token is consumed even when an open request returns 409. Only received or
+        in_review requests block another request of the same kind. Existing
+        received receipts retain their status. Deletion is intake-only under
+        ADR-020; this operation never disables accounts or purges data.
       security: [{bearerAuth: []}]
       requestBody:
         required: true
@@ -364,15 +384,68 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required: [kind, current_password]
+              required: [kind]
+              anyOf:
+              - required: [reauth_token]
+              - required: [current_password]
               properties:
                 kind: {type: string, enum: [access, deletion]}
+                reauth_token: {type: string, minLength: 32, maxLength: 128}
+                current_password: {type: string, minLength: 1, maxLength: 128, deprecated: true}
+      responses:
+        '201':
+          description: Request received without performing the requested action
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PrivacyRequestReceipt'}
+        '400': {description: Invalid request or generic reauthentication failure}
+        '409':
+          description: Another open request of this kind exists for the account
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [detail, code]
+                properties:
+                  detail: {type: string}
+                  code: {const: request_open}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '503': {$ref: '#/components/responses/LocalUnavailable'}
+  /me/reauthenticate:
+    post:
+      tags: [Identity]
+      operationId: reauthenticateMyAccount
+      x-implementation: local
+      summary: Confirm the current password for one sensitive request
+      description: >-
+        Issues a random token stored only as a keyed digest, bound to the account
+        and current login session. Expires after five minutes and is single-use.
+        All attempts, including successful issuance, share an account-wide limit
+        of five attempts per fifteen minutes with the legacy privacy password
+        path and password changes. Success records account.reauthenticated in the identity audit outbox.
+        No password or token is included in audit events.
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [current_password]
+              properties:
                 current_password: {type: string, minLength: 1, maxLength: 128}
       responses:
-        '201': {description: Request received}
-        '200': {description: Existing received request returned}
-        '400': {description: Invalid request}
+        '200':
+          description: Session-bound reauthentication proof; response must not be cached
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ReauthenticationResponse'}
+        '400': {description: Generic reauthentication failure; no credential detail disclosed}
         '401': {$ref: '#/components/responses/Unauthorized'}
+        '429': {$ref: '#/components/responses/RateLimited'}
         '503': {$ref: '#/components/responses/LocalUnavailable'}
   /me/sessions:
     get:
@@ -410,7 +483,14 @@ paths:
       tags: [Identity]
       operationId: changeMyPassword
       x-implementation: local
-      summary: Change the signed-in account password and revoke all sessions
+      summary: Change the signed-in account password and revoke other sessions
+      description: >-
+        Requires the current password. Preserves the current login session and
+        revokes every other session. Outstanding reauthentication proofs are
+        invalidated. Reset-password recovery separately revokes all sessions.
+        Gateway checks live identity session state on each protected request;
+        revoked access and refresh tokens are rejected immediately, even inside
+        the signed access token's 300-second lifetime.
       security: [{bearerAuth: []}]
       requestBody:
         required: true
@@ -424,8 +504,9 @@ paths:
                 current_password: {type: string, minLength: 1, maxLength: 128}
                 new_password: {type: string, minLength: 1, maxLength: 128}
       responses:
-        '204': {description: Password changed and all sessions revoked}
+        '204': {description: Password changed and other sessions revoked}
         '400': {description: Invalid password change}
+        '429': {$ref: '#/components/responses/RateLimited'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '503': {$ref: '#/components/responses/LocalUnavailable'}
   /me/sessions/{session_id}:
@@ -1956,6 +2037,22 @@ components:
           minLength: 32
           maxLength: 128
       required: [refresh_token]
+    ReauthenticationResponse:
+      type: object
+      additionalProperties: false
+      required: [reauth_token, expires_at]
+      properties:
+        reauth_token: {type: string, minLength: 32, maxLength: 128}
+        expires_at: {type: string, format: date-time}
+    PrivacyRequestReceipt:
+      type: object
+      additionalProperties: false
+      required: [id, kind, status, created_at]
+      properties:
+        id: {type: string, format: uuid}
+        kind: {type: string, enum: [access, deletion]}
+        status: {type: string, enum: [received, in_review, completed, declined]}
+        created_at: {type: string, format: date-time}
     User:
       type: object
       additionalProperties: false

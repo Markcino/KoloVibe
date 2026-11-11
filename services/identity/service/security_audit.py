@@ -5,10 +5,11 @@ KINDS = {
     "account.registered", "account.verified", "account.verification_resent",
     "account.password_reset_requested", "account.password_reset", "account.password_changed",
     "account.profile_updated", "account.preferences_updated", "account.privacy_request_received",
+    "account.reauthenticated", "account.reauthentication_failed", "account.reauthentication_throttled",
     "login.failed", "login.throttled",
     "login.succeeded", "mfa.challenge", "mfa.failed", "mfa.enrolled",
     "mfa.succeeded", "mfa.recovery_used", "session.rotated", "session.replay",
-    "session.revoked",
+    "session.revoked", "session.listed",
 }
 
 
