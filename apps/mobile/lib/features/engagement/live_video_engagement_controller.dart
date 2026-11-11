@@ -8,6 +8,8 @@ class LiveVideoEngagementController extends ChangeNotifier {
   final LiveVideoEngagementRepository repository;
   final String videoId;
   bool? liked;
+  int? get likeCount => repository.likeCounts[videoId];
+  Object? likeFailure, playbackFailure;
   bool likeBusy = false;
   String? likeError;
   bool playbackBusy = false;
@@ -23,11 +25,13 @@ class LiveVideoEngagementController extends ChangeNotifier {
 
   Future<void> loadLike() async {
     likeError = null;
+    likeFailure = null;
     likeBusy = true;
     _update();
     try {
       liked = await repository.likeState(videoId);
     } on ApiFailure catch (failure) {
+      likeFailure = failure;
       likeError = failure.status == 401
           ? 'Sign in to like this original.'
           : failure.message;
@@ -43,10 +47,12 @@ class LiveVideoEngagementController extends ChangeNotifier {
     if (likeBusy || liked == null) return;
     likeBusy = true;
     likeError = null;
+    likeFailure = null;
     _update();
     try {
       liked = await repository.setLiked(videoId, !liked!);
     } on ApiFailure catch (failure) {
+      likeFailure = failure;
       likeError = failure.status == 401
           ? 'Your session expired. Sign in again.'
           : failure.message;
@@ -62,12 +68,14 @@ class LiveVideoEngagementController extends ChangeNotifier {
     if (playbackBusy) return null;
     playbackBusy = true;
     playbackError = null;
+    playbackFailure = null;
     _update();
     try {
       grant = await repository.startPlayback(videoId);
       _reportedPosition = 0;
       return grant;
     } on ApiFailure catch (failure) {
+      playbackFailure = failure;
       playbackError = failure.status == 401
           ? 'Sign in to watch this original.'
           : failure.message;

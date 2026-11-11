@@ -1,8 +1,42 @@
 import '../../core/network/api_client.dart';
 import '../account/live_account_repository.dart';
+import '../engagement/live_video_engagement_repository.dart';
+
+const videoCategories = {
+  'hipco',
+  'afrobeats',
+  'comedy',
+  'skits',
+  'short_films',
+  'culture',
+  'documentaries'
+};
+Uri? mediaPoster(Object? value) {
+  if (value == null) return null;
+  if (value is! String) throw const FormatException('Invalid poster');
+  final url = Uri.tryParse(value);
+  if (url == null ||
+      url.scheme != 'https' ||
+      url.host.isEmpty ||
+      url.userInfo.isNotEmpty ||
+      url.hasFragment) {
+    throw const FormatException('Invalid poster');
+  }
+  return url;
+}
 
 class LiveVideo {
-  const LiveVideo(this.id, this.creatorId, this.title, this.description);
+  const LiveVideo(this.id, this.creatorId, this.title, this.description,
+      {this.category,
+      this.posterUrl,
+      this.likeCount,
+      this.publishedAt,
+      this.tags = const []});
+  final String? category;
+  final Uri? posterUrl;
+  final int? likeCount;
+  final DateTime? publishedAt;
+  final List<String> tags;
   final String id, creatorId, title, description;
 
   factory LiveVideo.fromJson(Map<String, dynamic> data) {
@@ -21,7 +55,29 @@ class LiveVideo {
       throw const FormatException('Invalid video');
     }
 
-    return LiveVideo(id, creator, title, description);
+    final category = data['category'],
+        count = data['like_count'],
+        tags = data['tags'] ?? [];
+    final published = data['published_at'];
+    if (category != null && !videoCategories.contains(category) ||
+        count != null && (count is! int || count < 0) ||
+        tags is! List ||
+        tags.length > 5 ||
+        tags.any((tag) =>
+            tag is! String || !RegExp(r'^[a-z0-9_]{1,30}$').hasMatch(tag)) ||
+        data['visibility'] != null && data['visibility'] != 'public' ||
+        data['deleted_at'] != null ||
+        published != null &&
+            (published is! String || DateTime.tryParse(published) == null)) {
+      throw const FormatException('Invalid public video metadata');
+    }
+    return LiveVideo(id, creator, title, description,
+        category: category as String?,
+        posterUrl: mediaPoster(data['poster_url']),
+        likeCount: count as int?,
+        tags: tags.cast<String>(),
+        publishedAt:
+            published == null ? null : DateTime.parse(published as String));
   }
 }
 
@@ -66,11 +122,31 @@ class LiveVideoRepository {
 
   Future<LiveVideoPage> page(
       {String? cursor, String? creatorId, String? query}) async {
+    return filteredPage(cursor: cursor, creatorId: creatorId, query: query);
+  }
+
+  Future<LiveVideoPage> filteredPage(
+      {String? cursor,
+      String? creatorId,
+      String? query,
+      String? category,
+      String sort = 'recent'}) async {
+    if (category != null && !videoCategories.contains(category) ||
+        !{'recent', 'trending'}.contains(sort) ||
+        sort == 'trending' && cursor != null ||
+        query != null &&
+            (query.trim().isEmpty ||
+                query.length > 100 ||
+                query.codeUnits.any((c) => c < 32))) {
+      throw const FormatException('Invalid filter');
+    }
     if (cursor != null && !isApiId(cursor) ||
         creatorId != null && !isApiId(creatorId)) {
       throw const FormatException('Invalid video filter');
     }
     final response = await api.request('/videos', query: {
+      if (category != null) 'category': category,
+      if (sort == 'trending') 'sort': sort,
       if (cursor != null) 'cursor': cursor,
       if (query != null) 'q': query,
       if (creatorId != null) 'creator_id': creatorId,
@@ -88,6 +164,8 @@ class LiveVideoRepository {
     final next = response['next_cursor'];
     if (!response.containsKey('next_cursor') ||
         videos.map((video) => video.id).toSet().length != videos.length ||
+        sort == 'trending' && next != null ||
+        category != null && videos.any((video) => video.category != category) ||
         creatorId != null &&
             videos.any((video) => video.creatorId != creatorId) ||
         next != null &&
@@ -99,6 +177,16 @@ class LiveVideoRepository {
       throw const FormatException('Invalid video page');
     }
     return LiveVideoPage(videos, next as String?);
+  }
+
+  Future<PlaybackGrant> playback(String id,
+      {LiveAccountRepository? account}) async {
+    if (!isApiId(id)) throw const FormatException('Invalid video identifier');
+    return PlaybackGrant.fromJson(
+        account == null
+            ? await api.request('/videos/$id/playback')
+            : await account.authenticatedRequest('/videos/$id/playback'),
+        tracked: false);
   }
 
   Future<LiveVideo> detail(String id) async {

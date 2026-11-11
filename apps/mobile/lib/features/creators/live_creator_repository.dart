@@ -1,7 +1,13 @@
 import '../../core/network/api_client.dart';
 
 class LiveCreator {
-  const LiveCreator(this.id, this.userId, this.handle, this.bio);
+  const LiveCreator(this.id, this.userId, this.handle, this.bio,
+      {this.displayName = '',
+      this.location = '',
+      this.followerCount,
+      this.publishedVideoCount});
+  final String displayName, location;
+  final int? followerCount, publishedVideoCount;
   final String id, userId, handle, bio;
 
   factory LiveCreator.fromJson(Map<String, dynamic> data) {
@@ -18,7 +24,22 @@ class LiveCreator {
         !RegExp(r'^[a-zA-Z0-9_-]{1,40}$').hasMatch(handle)) {
       throw const FormatException('Invalid creator');
     }
-    return LiveCreator(id, userId, handle, bio);
+    final name = data['display_name'] ?? '', location = data['location'] ?? '';
+    final followers = data['follower_count'],
+        videos = data['published_video_count'];
+    if (name is! String ||
+        name.length > 80 ||
+        location is! String ||
+        location.length > 80 ||
+        followers != null && (followers is! int || followers < 0) ||
+        videos != null && (videos is! int || videos < 0)) {
+      throw const FormatException('Invalid creator counts');
+    }
+    return LiveCreator(id, userId, handle, bio,
+        displayName: name,
+        location: location,
+        followerCount: followers as int?,
+        publishedVideoCount: videos as int?);
   }
 }
 
@@ -28,6 +49,11 @@ class LiveCreatorRepository {
 
   Future<({List<LiveCreator> items, String? nextCursor})> search(String query,
       {String? cursor}) async {
+    if (query.trim().isEmpty ||
+        query.length > 100 ||
+        cursor != null && !isApiId(cursor)) {
+      throw const FormatException('Invalid creator search');
+    }
     final data = await api.request('/creators/search', query: {
       'q': query,
       if (cursor != null) 'cursor': cursor,
