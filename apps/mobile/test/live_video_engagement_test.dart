@@ -70,6 +70,7 @@ void main() {
                   jsonEncode({
                     'video_id': videoId,
                     'liked': request.method == 'PUT',
+                    'like_count': request.method == 'PUT' ? 1 : 0,
                   }),
                   200);
         })),

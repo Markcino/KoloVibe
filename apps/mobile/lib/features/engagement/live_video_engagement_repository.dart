@@ -39,8 +39,38 @@ class PlaybackGrant {
 }
 
 class LiveVideoEngagementRepository {
-  const LiveVideoEngagementRepository(this.account);
+  LiveVideoEngagementRepository(this.account);
   final LiveAccountRepository account;
+  final Map<String, int?> likeCounts = {};
+  void _count(String id, Map<String, dynamic> result) {
+    if (result.length != 3 || !result.containsKey('like_count')) {
+      throw const FormatException('Invalid like response');
+    }
+    final count = result['like_count'];
+    if (count != null && (count is! int || count < 0)) {
+      throw const FormatException('Invalid like count');
+    }
+    likeCounts[id] = count as int?;
+  }
+
+  Future<Uri> share(String videoId) async {
+    final data = await account.authenticatedRequest('${_path(videoId)}/shares',
+        method: 'POST');
+    final raw = data['share_url'];
+    final url = raw is String ? Uri.tryParse(raw) : null;
+    if (data.length != 2 ||
+        data['video_id'] != videoId ||
+        url == null ||
+        url.scheme != 'https' ||
+        url.host.isEmpty ||
+        url.userInfo.isNotEmpty ||
+        url.hasFragment ||
+        url.hasQuery ||
+        url.path != '/videos/$videoId') {
+      throw const FormatException('Invalid share response');
+    }
+    return url;
+  }
 
   String _path(String id) {
     if (!isApiId(id)) throw const FormatException('Invalid video identifier');
@@ -52,6 +82,7 @@ class LiveVideoEngagementRepository {
     if (result['video_id'] != videoId || result['liked'] is! bool) {
       throw const FormatException('Invalid like state');
     }
+    _count(videoId, result);
     return result['liked'] as bool;
   }
 
@@ -62,6 +93,7 @@ class LiveVideoEngagementRepository {
     if (result['video_id'] != videoId || result['liked'] != liked) {
       throw const FormatException('Invalid like result');
     }
+    _count(videoId, result);
     return liked;
   }
 
