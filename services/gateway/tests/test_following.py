@@ -35,6 +35,22 @@ class FollowingFeedTests(SimpleTestCase):
                 "title": "Original", "description": "", "state": "published",
                 "created_at": "2026-11-11T00:00:00+00:00", **metadata()}
 
+    def test_bounded_scan_rejects_malformed_like_counts_without_a_server_error(self):
+        account = JsonResponse({"id": self.account_id, "roles": ["viewer"]})
+        page_number = 0
+        def peer(audience, path, **_):
+            nonlocal page_number
+            if audience == "content":
+                items = [self.video(page_number * 20 + i) for i in range(20)]
+                page_number += 1
+                return Response({"items": items, "next_cursor": items[-1]["id"]})
+            return Response({"creator_ids": []})
+        with patch("service.following.current_account", return_value=account), \
+                patch("service.following.signed_internal_request", side_effect=peer), \
+                patch("service.engagement_client.like_counts", return_value={"unrequested": 1}):
+            self.assertEqual(self.client.get(reverse("api-following-videos")).status_code, 503)
+        self.assertEqual(page_number, 10)
+
     def test_requires_session(self):
         self.assertEqual(self.client.get(reverse("api-following-videos")).status_code, 401)
 

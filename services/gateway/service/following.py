@@ -87,5 +87,8 @@ def following_videos(request):
     except (OSError, ValueError, TypeError, KeyError, AttributeError):
         pass
     else:
-        return JsonResponse({"items": _with_likes(matches), "next_cursor": cursor})
+        try:
+            return JsonResponse({"items": _with_likes(matches), "next_cursor": cursor})
+        except (ValueError, TypeError, KeyError, AttributeError):
+            pass
     return JsonResponse({"detail": "Following feed unavailable"}, status=503)

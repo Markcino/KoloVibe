@@ -55,7 +55,7 @@ export PYTHONPATH=/workspace/scratch/7d4e52b069cd/kolovibe-dec003/deps:/workspac
 | --- | --- |
 | `(cd services/content && python3 manage.py test tests --verbosity 1)` | 48 passed; includes real FFmpeg encode/JPEG extraction for short and longer clips, end-frame covers and network-free SigV4 JPEG signing. |
 | `(cd services/creators && python3 manage.py test tests --verbosity 1)` | 17 passed. |
-| `(cd services/gateway && python3 manage.py test tests --verbosity 1)` | 86 passed. |
+| `(cd services/gateway && python3 manage.py test tests --verbosity 1)` | 87 passed. |
 | `(cd services/content && python3 manage.py makemigrations --check --dry-run)` | Passed; no changes detected. |
 | `(cd services/creators && python3 manage.py makemigrations --check --dry-run)` | Passed; no changes detected. |
 | `python3 -c "import yaml; from openapi_spec_validator import validate_spec; validate_spec(yaml.safe_load(open('docs/architecture/DOC-205_OpenAPI_3_1_DRAFT.yaml'))); print('DOC-205 OpenAPI 3.1: PASS')"` | Passed. Duplicate YAML keys and updated JSON schemas were also checked. |
@@ -63,7 +63,7 @@ export PYTHONPATH=/workspace/scratch/7d4e52b069cd/kolovibe-dec003/deps:/workspac
 | `git diff --check` | Passed. |
 | `scripts/test_*media*.py` inventory | No matching script files in this baseline; no script suite was skipped. Service media/poster suites ran above. |
 
-151 tests passed. Coverage includes ownership denials, case-insensitive handle collisions, nullable legacy data, metadata bounds, state filters, publication review guards, soft-delete read/worker/moderation safety, retry reservations, public lookup ordering, unavailable engagement, capability gates and strict response validators including large Unicode metadata pages.
+152 tests passed. Coverage includes ownership denials, case-insensitive handle collisions, nullable legacy data, metadata bounds, state filters, publication review guards, soft-delete read/worker/moderation safety, retry reservations, public lookup ordering, unavailable engagement, capability gates and strict response validators including large Unicode metadata pages and bounded following scans.
 
 ## Cross-ownership changes and remaining limits
 
