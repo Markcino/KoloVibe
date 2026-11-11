@@ -20,13 +20,13 @@ class _NoRedirect(HTTPRedirectHandler):
 def signed_internal_request(audience, path, *, method="GET", payload=b"", timeout=5):
     sender = os.environ["KOLOVIBE_SERVICE_NAME"]
     local = os.environ.get("KOLOVIBE_ENV") == "local"
-    peers = ({"content": os.environ.get("KOLOVIBE_CONTENT_URL")} if local else
+    peers = ({"content": os.environ.get("KOLOVIBE_CONTENT_URL"), "audit": os.environ.get("KOLOVIBE_AUDIT_URL")} if local else
              json.loads(Path(os.environ["KOLOVIBE_TRUSTED_PEERS_FILE"]).read_text()))
     base = peers.get(audience)
     if not isinstance(base, str):
         raise ValueError("Unapproved service audience")
     root = urlsplit(base)
-    loopback = local and root.scheme == "http" and root.hostname == "127.0.0.1"
+    loopback = local and audience == "content" and root.scheme == "http" and root.hostname == "127.0.0.1"
     if not (root.scheme == "https" or loopback) or not root.hostname or root.username or root.password:
         raise ValueError("Internal service destination must use authenticated TLS")
     if root.path not in ("", "/") or root.query or root.fragment:

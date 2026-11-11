@@ -38,6 +38,11 @@ class ServiceAuthMiddleware:
             return _deny()
         try:
             authorized = json.loads(Path(secret_file).read_text())
+            producers = {"identity", "moderation", "creators", "content", "points"}
+            if (not isinstance(authorized, dict) or set(authorized) - producers
+                    or any(not isinstance(value, str) or len(value) < 32 for value in authorized.values())
+                    or len(set(authorized.values())) != len(authorized)):
+                return _deny()
             key = authorized.get(caller)
             if not isinstance(key, str) or len(key) < 32:
                 return _deny()

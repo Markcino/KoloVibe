@@ -2,16 +2,19 @@
 
 import json
 import re
+import time
 from urllib.error import HTTPError
 from uuid import UUID, uuid5
 
 from django.db import DatabaseError, IntegrityError, transaction
+from django.db.models import OuterRef, Q, Subquery
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .internal_client import signed_internal_request
 from .models import Appeal, ModerationAction, Report
+from .security_audit import record as audit_record
 
 
 REVIEWERS = {"moderator", "administrator"}
@@ -28,6 +31,7 @@ FIELDS = {
     "review_queue": {"cursor"}, "reports": {"cursor"}, "appeals": {"cursor"},
     "own_reports": {"cursor"}, "own_appeals": {"cursor"},
     "own_report": {"target_id"}, "own_appeal": {"target_id"},
+    "notice": {"video_id", "creator_id"}, "standing": {"creator_id"},
     **{operation: {"target_id", "action", "reason", "key"} for operation in DECISIONS},
 }
 
@@ -43,7 +47,7 @@ def _error(detail, status):
 def _content(operation, payload):
     try:
         with signed_internal_request("content", f"/internal/videos/moderation/{operation}",
-                                     method="POST", payload=json.dumps(payload).encode()) as response:
+                                     method="POST", payload=json.dumps(payload).encode(), timeout=2) as response:
             raw = response.read(65537)
             if response.status != 200 or len(raw) > 65536:
                 raise ValueError("Unexpected Content response")
@@ -103,12 +107,22 @@ def _report(actor, data):
     report_id = uuid5(actor, "report:" + _key(data["key"]))
     report = Report.objects.filter(pk=report_id).first()
     if report is None:
+        if Report.objects.filter(video_id=video_id, reporter_id=actor, status="open").exists():
+            return JsonResponse({"detail": "An open report already exists", "code": "already_reported"}, status=409)
         snapshot = _content("inspect", {"video_id": str(video_id)})
         if snapshot is None or (snapshot["state"], snapshot["visibility"]) != ("published", "public"):
             return _error("Video not found", 404)
-        report, created = Report.objects.get_or_create(id=report_id, defaults={
-            "video_id": video_id, "reporter_id": actor, "reason": reason, "details": details,
-        })
+        try:
+            with transaction.atomic():
+                report, created = Report.objects.get_or_create(id=report_id, defaults={
+                    "video_id": video_id, "reporter_id": actor, "reason": reason, "details": details,
+                })
+                if created:
+                    audit_record("moderation.report_created", actor, "report", report.id)
+        except IntegrityError:
+            if Report.objects.filter(video_id=video_id, reporter_id=actor, status="open").exists():
+                return JsonResponse({"detail": "An open report already exists", "code": "already_reported"}, status=409)
+            raise
     else:
         created = False
     if (report.video_id, report.reason, report.details) != (video_id, reason, details):
@@ -128,7 +142,10 @@ def _appeal(actor, data):
     ).first()
     if removal is None:
         return _error("Video has no current removal to appeal", 409)
-    appeal, created = Appeal.objects.get_or_create(removal=removal, defaults={"appellant_id": actor, "reason": reason})
+    with transaction.atomic():
+        appeal, created = Appeal.objects.get_or_create(removal=removal, defaults={"appellant_id": actor, "reason": reason})
+        if created:
+            audit_record("moderation.appeal_created", actor, "appeal", appeal.id)
     if appeal.appellant_id != actor or appeal.reason != reason:
         return _error("An appeal already exists for this removal", 409)
     return JsonResponse(_appeal_data(appeal), status=201 if created else 200)
@@ -172,6 +189,9 @@ def _reserve(operation, actor, data):
     target, action, reason = UUID(data["target_id"]), data["action"], _text(data["reason"])
     if not isinstance(action, str) or action not in DECISIONS[operation]:
         raise ValueError("Invalid decision action")
+    reason_code = data.get("reason_code", "REVIEWED_" + action.upper())
+    if not isinstance(reason_code, str) or not re.fullmatch(r"[A-Z][A-Z0-9_]{1,63}", reason_code):
+        raise ValueError("Invalid reason code")
     action_id = uuid5(actor, "decision:" + _key(data["key"]))
     with transaction.atomic():
         existing = ModerationAction.objects.select_for_update().filter(pk=action_id).first()
@@ -179,7 +199,7 @@ def _reserve(operation, actor, data):
             recorded_target = existing.report_id or existing.appeal_id or existing.video_id
             recorded_operation = ("report_decision" if existing.report_id else
                                   "appeal_decision" if existing.appeal_id else "video_decision")
-            if (recorded_operation, recorded_target, existing.action, existing.reason) != (operation, target, action, reason):
+            if (recorded_operation, recorded_target, existing.action, existing.reason) != (operation, target, action, reason) or (existing.reason_code != reason_code and not (existing.reason_code is None and "reason_code" not in data)):
                 return _error("Idempotency key already used", 409)
             return existing
         report = appeal = None
@@ -201,22 +221,26 @@ def _reserve(operation, actor, data):
             video_id = appeal.removal.video_id
         else:
             video_id = target
-        revision = None
+        revision = creator_id = None
         if action not in ("dismiss", "deny"):
             snapshot = _content("inspect", {"video_id": str(video_id)})
             if snapshot is None:
                 return _error("Video not found", 404)
             revision = snapshot["revision"]
+            creator_id = UUID(snapshot["creator_id"])
             if appeal and (snapshot["state"] != "removed" or revision != appeal.removal.revision + 1):
                 return _error("Video no longer matches the appealed removal", 409)
         record, created = ModerationAction.objects.get_or_create(pk=action_id, defaults={
             "video_id": video_id, "reviewer_id": actor, "action": action, "reason": reason,
             "revision": revision, "report": report, "appeal": appeal,
+            "creator_id": creator_id, "reason_code": reason_code, "owner_lookup_completed": creator_id is not None,
         })
-        if not created and (record.video_id, record.action, record.reason, record.report_id, record.appeal_id) != (
+        if not created and ((record.video_id, record.action, record.reason, record.report_id, record.appeal_id) != (
             video_id, action, reason, report.id if report else None, appeal.id if appeal else None,
-        ):
+        ) or record.reason_code != reason_code):
             return _error("Idempotency key already used", 409)
+        if created:
+            audit_record("moderation.decision_recorded", actor, "moderation_action", record.id)
     return record
 
 
@@ -237,6 +261,8 @@ def _decide(operation, actor, data):
                 record.status = "applied" if applied else "conflict"
                 record.finished_at = timezone.now()
                 record.save(update_fields=["status", "finished_at"])
+                audit_record("moderation.decision_applied" if applied else "moderation.decision_conflicted",
+                                    actor, "moderation_action", record.id)
                 if applied and record.report_id:
                     Report.objects.filter(pk=record.report_id).update(
                         status="dismissed" if record.action == "dismiss" else "resolved",
@@ -251,23 +277,97 @@ def _decide(operation, actor, data):
                          "action": record.action, "status": record.status})
 
 
+VIDEO_ACTIONS = {"reject", "remove", "restrict", "restore", "publish"}
+
+
+def _latest(video_id):
+    return ModerationAction.objects.filter(video_id=video_id, status="applied", action__in=VIDEO_ACTIONS).order_by(
+        "-finished_at", "-created_at", "-id").first()
+
+
+def _notice_data(actor, video_id, action, snapshot=None):
+    appeal = Appeal.objects.filter(removal=action, appellant_id=actor).first() if action else None
+    decision = {"reject": "rejected", "remove": "removed", "restrict": "restricted", "restore": "restored"}.get(
+        action.action if action else None, "none")
+    return {"video_id": str(video_id), "decision": decision,
+            "reason_code": action.reason_code if action and decision != "none" else None,
+            "decided_at": (action.finished_at or action.created_at).isoformat() if action else None,
+            "appealable": bool(action and action.action == "remove" and appeal is None and not Appeal.objects.filter(removal=action).exists() and snapshot
+                               and action.revision is not None and snapshot["state"] == "removed"
+                               and snapshot["revision"] == action.revision + 1),
+            "appeal": _appeal_data(appeal, reviewer=True) if appeal else None}
+
+
+def _notice(actor, data):
+    video, creator = UUID(data["video_id"]), UUID(data["creator_id"])
+    snapshot = _content("inspect", {"video_id": str(video)})
+    if snapshot is None or UUID(snapshot["creator_id"]) != creator:
+        return _error("Video not found", 404)
+    return JsonResponse(_notice_data(actor, video, _latest(video), snapshot))
+
+
+def _standing(actor, data):
+    if data["creator_id"] is None:
+        return JsonResponse({"notices": []})
+    creator = UUID(data["creator_id"])
+    deadline = time.monotonic() + 8
+    def inspect(video_id):
+        if time.monotonic() >= deadline:
+            raise ContentUnavailable
+        return _content("inspect", {"video_id": str(video_id)})
+    latest = ModerationAction.objects.filter(video_id=OuterRef("video_id"), status="applied",
+              action__in=VIDEO_ACTIONS).order_by("-finished_at", "-created_at", "-id").values("id")[:1]
+    actions = ModerationAction.objects.filter(status="applied", id=Subquery(latest)).exclude(action="publish")
+    # Older actions predate attribution. Verify their current owner through Content
+    # rather than inventing ownership or exposing another creator's notices.
+    legacy = list(actions.filter(creator_id__isnull=True, owner_lookup_completed=False).order_by("-created_at", "-id")[:21])
+    if len(legacy) > 20:
+        raise ContentUnavailable  # bounded; deployers must backfill legacy ownership
+    legacy_owned = []
+    for action in legacy:
+        snapshot = inspect(action.video_id)
+        if snapshot is not None and UUID(snapshot["creator_id"]) == creator:
+            legacy_owned.append(action.id)
+    rows = list(actions.filter(Q(creator_id=creator) | Q(id__in=legacy_owned)).order_by(
+        "-finished_at", "-created_at", "-id")[:20])
+    notices = []
+    for action in rows:
+        if action.action == "publish":
+            continue
+        snapshot = inspect(action.video_id)
+        if snapshot is not None and UUID(snapshot["creator_id"]) == creator:
+            notices.append(_notice_data(actor, action.video_id, action, snapshot))
+    if time.monotonic() > deadline:
+        raise ContentUnavailable
+    return JsonResponse({"notices": notices})
+
+
 @require_POST
 def moderation_workflow(request, operation):
     if getattr(request, "service_caller", None) != "gateway":
         return _error("Forbidden", 403)
     try:
-        if len(request.body) > 16384:
+        if request.GET or len(request.body) > 16384:
             raise ValueError("Request too large")
         envelope = json.loads(request.body)
-        if not isinstance(envelope, dict) or set(envelope) != {"actor_id", "role", "data"}:
+        if not isinstance(envelope, dict) or not {"actor_id", "role", "data"} <= set(envelope) or set(envelope) - {"actor_id", "role", "data", "mfa_verified"}:
             raise ValueError("Invalid moderation envelope")
         actor, role, data = UUID(envelope["actor_id"]), envelope["role"], envelope["data"]
-        if not isinstance(role, str) or operation not in FIELDS or not isinstance(data, dict) or set(data) != FIELDS[operation]:
+        expected = FIELDS.get(operation)
+        if (not isinstance(role, str) or expected is None or not isinstance(data, dict)
+                or not expected <= set(data) or set(data) - expected - ({"reason_code"} if operation in DECISIONS else set())):
             raise ValueError("Invalid moderation operation")
-        allowed = (VIEWERS if operation in ("appeal", "own_appeals", "own_appeal") else
+        allowed = ({"creator"} if operation == "notice" else VIEWERS | REVIEWERS if operation == "standing" else VIEWERS if operation in ("appeal", "own_appeals", "own_appeal") else
                    VIEWERS | REVIEWERS if operation in ("report", "own_reports", "own_report") else REVIEWERS)
         if role not in allowed:
             return _error("Forbidden", 403)
+        if operation in DECISIONS or operation in {"review_queue", "reports", "appeals"}:
+            if envelope.get("mfa_verified") is not True:
+                return _error("MFA-verified reviewer session required", 403)
+        if operation == "notice":
+            return _notice(actor, data)
+        if operation == "standing":
+            return _standing(actor, data)
         if operation == "report":
             return _report(actor, data)
         if operation == "appeal":
