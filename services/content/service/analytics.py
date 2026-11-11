@@ -24,12 +24,12 @@ def content_analytics(request, operation):
             raise ValueError
         creator_id = UUID(data["creator_id"])
         if operation == "video":
-            video = Video.objects.filter(pk=UUID(data["video_id"]), creator_id=creator_id).first()
+            video = Video.objects.filter(pk=UUID(data["video_id"]), creator_id=creator_id, deleted_at__isnull=True).first()
             if video is None:
                 return JsonResponse({"detail": "Video not found"}, status=404)
             return JsonResponse({"video_id": str(video.id), "state": video.state})
         counts = {state: 0 for state in Video.State.values}
-        for row in Video.objects.filter(creator_id=creator_id).values("state").annotate(count=Count("id")):
+        for row in Video.objects.filter(creator_id=creator_id, deleted_at__isnull=True).values("state").annotate(count=Count("id")):
             counts[row["state"]] = row["count"]
         return JsonResponse({"total_videos": sum(counts.values()), "videos_by_state": counts})
     except (ValueError, TypeError, AttributeError, UnicodeError):

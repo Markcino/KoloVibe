@@ -40,7 +40,7 @@ def _submit(actor, data):
     if data["adult_attested"] is not True or data["rights_attested"] is not True:
         return _error("Both pilot attestations are required", 400)
     handle = data["handle"]
-    if not isinstance(handle, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,40}", handle):
+    if not isinstance(handle, str) or not re.fullmatch(r"[a-z0-9_]{3,30}", handle):
         return _error("Invalid creator handle", 400)
 
     with transaction.atomic():
@@ -57,7 +57,7 @@ def _submit(actor, data):
             handle = handle.lower()
             if CreatorProfile.objects.filter(handle__iexact=handle).exists():
                 return _error("Creator handle is unavailable", 409)
-            profile = CreatorProfile.objects.create(user_id=actor, handle=handle)
+            profile = CreatorProfile.objects.create(user_id=actor, handle=handle, display_name=handle)
         elif (profile.handle.lower() != handle.lower() or profile.restricted_at is not None
               or profile.status not in (CreatorProfile.Status.PENDING, CreatorProfile.Status.ACTIVE)):
             return _error("Existing creator profile cannot be changed by onboarding", 409)

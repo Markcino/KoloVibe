@@ -8,6 +8,7 @@ from django.test import RequestFactory, SimpleTestCase
 from service.media import (issue_video_upload, manage_own_video, own_video_library, own_video_detail,
                            video_item, video_playback, video_upload_status)
 from .test_videos import Response
+from .video_fixtures import metadata
 
 
 class MediaGatewayTests(SimpleTestCase):
@@ -21,7 +22,7 @@ class MediaGatewayTests(SimpleTestCase):
         content.return_value = Response(json.dumps({
             "id": str(video_id), "creator_id": str(creator_id), "title": "Removed video",
             "description": "", "state": "removed", "created_at": "2026-11-10T20:00:00+00:00",
-            "revision": 2,
+            "revision": 2, **metadata("private"),
         }).encode())
         response = own_video_detail(RequestFactory().get("/api/v1/creators/me/videos/id"), video_id)
         self.assertEqual(response.status_code, 200)
@@ -49,6 +50,7 @@ class MediaGatewayTests(SimpleTestCase):
         content.return_value = Response(json.dumps({
             "id": str(video_id), "creator_id": str(creator_id), "title": "Edited",
             "description": "Story", "state": "draft", "created_at": "2026-11-10T20:00:00+00:00",
+            **metadata("private"),
         }).encode())
         request = RequestFactory().patch("/videos", json.dumps({"title": "Edited", "description": "Story"}),
                                          content_type="application/json")

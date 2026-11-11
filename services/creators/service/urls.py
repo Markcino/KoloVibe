@@ -2,7 +2,7 @@ from django.conf import settings
 from django.urls import path
 from django.http import JsonResponse
 from .health import liveness
-from .profiles import internal_profile, internal_search
+from .profiles import internal_profile, internal_search, own_profile
 from .onboarding import onboarding
 
 urlpatterns = [
@@ -10,6 +10,7 @@ urlpatterns = [
     path("internal/probe", lambda request: JsonResponse({"status":"ok"}), name="internal-probe"),
     path("internal/creators/search", internal_search, name="internal-search"),
     path("internal/creators/profile", internal_profile, name="internal-profile"),
+    path("internal/creators/me", own_profile, name="internal-own-profile"),
 ]
 
 if settings.ENVIRONMENT == "local" or getattr(settings, "STAGING_CREATOR_ONBOARDING", False):

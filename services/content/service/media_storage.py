@@ -9,6 +9,7 @@ from urllib.parse import parse_qs, urlsplit
 
 
 MAX_BYTES = 50 * 1024 * 1024
+MAX_POSTER_BYTES = 1024 * 1024
 CONTENT_TYPE = "video/mp4"
 
 
@@ -42,7 +43,7 @@ def _signed_url(method, key, seconds, headers):
     bucket = os.environ.get("KOLOVIBE_R2_MEDIA_BUCKET", "")
     if (not re.fullmatch(r"[0-9a-f]{32}", account)
             or not re.fullmatch(r"[a-z0-9][a-z0-9-]{1,61}[a-z0-9]", bucket)
-            or not re.fullmatch(r"(?:originals/[0-9a-f-]{36}|playback/[0-9a-f-]{36}/[0-9a-f-]{36})\.mp4", key)):
+            or not re.fullmatch(r"(?:originals/[0-9a-f-]{36}\.mp4|playback/[0-9a-f-]{36}/[0-9a-f-]{36}\.(?:mp4|jpg))", key)):
         raise StorageUnavailable
     host = f"{account}.r2.cloudflarestorage.com"
     try:
@@ -132,7 +133,18 @@ def download_upload(key, etag, expected_bytes, path):
 
 
 def put_playback(key, path):
+    if not 0 < path.stat().st_size <= MAX_BYTES:
+        raise StorageUnavailable
     headers = {"Content-Type": CONTENT_TYPE, "Content-Length": str(path.stat().st_size),
+               "Cache-Control": "private, no-store", "If-None-Match": "*"}
+    with path.open("rb") as body, _request("PUT", key, headers, body):
+        pass
+
+
+def put_poster(key, path):
+    if not 0 < path.stat().st_size <= MAX_POSTER_BYTES:
+        raise StorageUnavailable
+    headers = {"Content-Type": "image/jpeg", "Content-Length": str(path.stat().st_size),
                "Cache-Control": "private, no-store", "If-None-Match": "*"}
     with path.open("rb") as body, _request("PUT", key, headers, body):
         pass

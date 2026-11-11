@@ -12,7 +12,7 @@ class CreatorOnboardingTests(TestCase):
         self.factory = RequestFactory()
         self.applicant = uuid4()
         self.reviewer = uuid4()
-        self.attestations = {"handle": "Pilot_One", "adult_attested": True, "rights_attested": True}
+        self.attestations = {"handle": "pilot_one", "adult_attested": True, "rights_attested": True}
 
     def call(self, operation, actor, role, data=None, caller="gateway"):
         request = self.factory.post("/internal/creators/onboarding/" + operation, {
