@@ -1,4 +1,5 @@
 import json
+from .video_fixtures import metadata
 from unittest.mock import patch
 from uuid import UUID
 
@@ -32,7 +33,7 @@ class FollowingFeedTests(SimpleTestCase):
     def video(self, index):
         return {"id": str(UUID(int=index + 1)), "creator_id": self.creator_id,
                 "title": "Original", "description": "", "state": "published",
-                "created_at": "2026-11-11T00:00:00+00:00"}
+                "created_at": "2026-11-11T00:00:00+00:00", **metadata()}
 
     def test_requires_session(self):
         self.assertEqual(self.client.get(reverse("api-following-videos")).status_code, 401)

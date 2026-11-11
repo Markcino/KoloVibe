@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from django.test import SimpleTestCase
 from django.urls import reverse
+from .video_fixtures import metadata
 
 
 class Response:
@@ -81,12 +82,12 @@ class VideoGatewayTests(SimpleTestCase):
         creator_id = uuid.uuid4()
         payload = {"id": str(video_id), "creator_id": str(creator_id),
                    "title": "Original", "description": "", "state": "published",
-                   "created_at": "2026-10-31T00:00:00+00:00"}
+                   "created_at": "2026-10-31T00:00:00+00:00", **metadata()}
         with patch("service.videos.signed_internal_request") as call:
             call.return_value = Response(json.dumps(payload).encode())
             response = self.client.get(reverse("api-video-detail", args=[video_id]))
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), payload)
+        self.assertEqual(response.json(), payload | {"like_count": None})
         self.assertEqual(json.loads(call.call_args.kwargs["payload"]), {"video_id": str(video_id)})
 
     def test_detail_rejects_mismatched_record(self):

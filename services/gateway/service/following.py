@@ -10,7 +10,7 @@ from django.views.decorators.http import require_GET
 
 from .accounts import current_account
 from .internal_client import signed_internal_request
-from .videos import _valid_item
+from .videos import _valid_item, _with_likes
 
 
 def _read_page(audience, path, payload, limit):
@@ -75,10 +75,10 @@ def following_videos(request):
                     matches.append(video)
                 if len(matches) == 20:
                     has_more = index < len(videos) - 1 or next_cursor is not None
-                    return JsonResponse({"items": matches,
+                    return JsonResponse({"items": _with_likes(matches),
                                          "next_cursor": video["id"] if has_more else None})
             if next_cursor is None:
-                return JsonResponse({"items": matches, "next_cursor": None})
+                return JsonResponse({"items": _with_likes(matches), "next_cursor": None})
             cursor = next_cursor
     except HTTPError as error:
         error.close()
@@ -87,5 +87,5 @@ def following_videos(request):
     except (OSError, ValueError, TypeError, KeyError, AttributeError):
         pass
     else:
-        return JsonResponse({"items": matches, "next_cursor": cursor})
+        return JsonResponse({"items": _with_likes(matches), "next_cursor": cursor})
     return JsonResponse({"detail": "Following feed unavailable"}, status=503)

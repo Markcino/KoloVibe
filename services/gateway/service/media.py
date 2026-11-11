@@ -4,7 +4,6 @@ from datetime import datetime
 import json
 import re
 from urllib.error import HTTPError
-from urllib.parse import urlsplit
 from uuid import UUID
 
 from django.http import HttpResponseNotAllowed, JsonResponse
@@ -15,18 +14,12 @@ from .accounts import current_account
 from .creator_onboarding import authenticated_actor, creator_eligibility, creator_ownership
 from .internal_client import signed_internal_request
 from .videos import list_videos, video_detail
+from .video_validation import (FAILURES, LIBRARY_STATES, checked_metadata, safe_url as _safe_url,
+                               valid_video)
 
 
 def _error(detail, status):
     return JsonResponse({"detail": detail}, status=status)
-
-
-def _safe_url(value):
-    if not isinstance(value, str) or len(value) > 4096:
-        return False
-    url = urlsplit(value)
-    return (url.scheme == "https" and bool(re.fullmatch(r"[0-9a-f]{32}\.r2\.cloudflarestorage\.com", url.netloc))
-            and url.path.endswith(".mp4") and bool(url.query) and not url.fragment)
 
 
 def _valid_result(operation, data, payload):
@@ -37,20 +30,23 @@ def _valid_result(operation, data, payload):
         next_cursor = data.get("next_cursor")
         return (set(data) == {"items", "next_cursor"} and isinstance(items, list)
                 and len(items) <= 20 and all(_valid_owned_item(item, payload) for item in items)
+                and all(payload.get("state", "all") == "all"
+                        or item["state"] in ({"uploading", "processing"} if payload["state"] == "in_progress"
+                                              else {payload["state"]}) for item in items)
                 and len({item["id"] for item in items}) == len(items)
                 and (next_cursor is None or len(items) == 20 and next_cursor == items[-1]["id"]))
     if operation == "detail":
-        return (set(data) == {"id", "creator_id", "title", "description", "state", "created_at", "revision"}
-                and _valid_owned_item({key: value for key, value in data.items() if key != "revision"}, payload)
-                and data["id"] == payload["video_id"]
-                and type(data["revision"]) is int and 0 <= data["revision"] <= 2_147_483_647)
+        return (valid_video(data, creator_id=payload["creator_id"], revision=True)
+                and data["id"] == payload["video_id"])
     if operation == "delete":
         return (set(data) == {"video_id", "deleted"}
                 and data["video_id"] == payload["video_id"] and data["deleted"] is True)
-    if operation == "edit":
+    if operation in {"edit", "publish", "unpublish"}:
         return (_valid_owned_item(data, payload) and data["id"] == payload["video_id"]
-                and data["state"] == "draft" and data["title"] == payload["title"].strip()
-                and data["description"] == payload["description"])
+                and (operation != "edit" or all(data[key] == value for key, value in payload.items()
+                                                if key not in {"creator_id", "video_id"}))
+                and (operation == "edit" or data["state"] == "published"
+                     and data["visibility"] == ("public" if operation == "publish" else "private")))
     if operation in ("watch", "watch-check"):
         metadata = {"creator_id", "duration_ms", "revision"}
         expected = metadata | ({"playback_url", "expires_at"} if operation == "watch" else set())
@@ -66,13 +62,16 @@ def _valid_result(operation, data, payload):
         return (set(data) == {"playback_url", "expires_at"} and _safe_url(data["playback_url"])
                 and datetime.fromisoformat(data["expires_at"]).tzinfo is not None)
     if operation == "draft":
-        return (set(data) == {"id", "creator_id", "title", "description", "state", "created_at"}
-                and str(UUID(data["id"])) == data["id"] and data["creator_id"] == payload["creator_id"]
-                and data["title"] == payload["title"].strip() and data["description"] == payload["description"]
-                and data["state"] == "draft" and datetime.fromisoformat(data["created_at"]).tzinfo is not None)
+        return (_valid_owned_item(data, payload) and data["state"] == "draft" and data["visibility"] == "private"
+                and all(data[key] == value for key, value in payload.items() if key != "creator_id"))
     if operation in ("complete", "status"):
-        return (set(data) == {"video_id", "state"} and data["video_id"] == payload["video_id"]
-                and data["state"] in ("draft", "uploading", "processing", "failed", "review", "published", "rejected", "removed"))
+        return (set(data) == {"video_id", "state", "failure_reason", "retryable"}
+                and data["video_id"] == payload["video_id"]
+                and data["state"] in ("draft", "uploading", "processing", "failed", "review", "published", "rejected", "removed")
+                and (data["failure_reason"] is None or data["failure_reason"] in FAILURES)
+                and type(data["retryable"]) is bool
+                and data["retryable"] == (data["state"] in {"draft", "uploading", "failed"}
+                     or data["state"] == "processing" and data["failure_reason"] is not None))
     return (set(data) == {"video_id", "upload_id", "upload_url", "upload_headers", "expires_at", "max_bytes"}
             and data["video_id"] == payload["video_id"] and str(UUID(data["upload_id"])) == data["upload_id"]
             and _safe_url(data["upload_url"])
@@ -83,16 +82,7 @@ def _valid_result(operation, data, payload):
 
 
 def _valid_owned_item(item, payload):
-    if (not isinstance(item, dict) or set(item) != {
-        "id", "creator_id", "title", "description", "state", "created_at"
-    } or item["creator_id"] != payload["creator_id"]
-            or item["state"] not in {"draft", "uploading", "processing", "failed", "review",
-                                   "published", "rejected", "removed"}
-            or not isinstance(item["title"], str) or not 1 <= len(item["title"]) <= 160
-            or not isinstance(item["description"], str) or len(item["description"]) > 2000):
-        return False
-    return (str(UUID(item["id"])) == item["id"]
-            and datetime.fromisoformat(item["created_at"]).tzinfo is not None)
+    return valid_video(item, creator_id=payload["creator_id"])
 
 
 def forward_media(operation, data, success):
@@ -102,8 +92,8 @@ def forward_media(operation, data, success):
             payload=json.dumps(data, separators=(",", ":")).encode(), timeout=8,
         ) as response:
             if response.status in success:
-                raw = response.read(32769)
-                if len(raw) <= 32768:
+                raw = response.read(1000001)
+                if len(raw) <= 1000000:
                     result = json.loads(raw)
                     if _valid_result(operation, result, data):
                         return JsonResponse(result, status=response.status)
@@ -113,8 +103,12 @@ def forward_media(operation, data, success):
                 try:
                     raw = error.read(513)
                     result = json.loads(raw) if len(raw) <= 512 else None
-                    if isinstance(result, dict) and set(result) == {"detail"} and isinstance(result["detail"], str):
-                        return _error(result["detail"], error.code)
+                    if (isinstance(result, dict) and set(result) <= {"detail", "code"}
+                            and isinstance(result.get("detail"), str)):
+                        response = {"detail": result["detail"]}
+                        if error.code == 409 and result.get("code") == "review_required":
+                            response["code"] = "review_required"
+                        return JsonResponse(response, status=error.code)
                 except (OSError, ValueError, TypeError, AttributeError):
                     pass
     except (OSError, ValueError, TypeError, KeyError, AttributeError, RuntimeError):
@@ -151,11 +145,16 @@ def own_video_library(request):
     creator_id, error = _owned_creator(request)
     if error is not None:
         return error
-    if request.body or set(request.GET) - {"cursor"} or len(request.GET.getlist("cursor")) > 1:
+    if (request.body or set(request.GET) - {"cursor", "state"}
+            or any(len(request.GET.getlist(key)) != 1 for key in request.GET)):
         return _error("Invalid library query", 400)
     try:
         cursor = request.GET.get("cursor")
         data = {"creator_id": creator_id, "cursor": str(UUID(cursor)) if cursor else None}
+        if "state" in request.GET:
+            if request.GET["state"] not in LIBRARY_STATES:
+                raise ValueError
+            data["state"] = request.GET["state"]
     except (ValueError, TypeError):
         return _error("Invalid cursor", 400)
     return forward_media("library", data, (200,))
@@ -184,9 +183,7 @@ def manage_own_video(request, video_id):
     data = {"creator_id": creator_id, "video_id": str(video_id)}
     if request.method == "PATCH":
         try:
-            fields = json.loads(request.body)
-            if not isinstance(fields, dict) or set(fields) != {"title", "description"}:
-                raise ValueError("Invalid metadata")
+            fields = checked_metadata(json.loads(request.body))
             data.update(fields)
         except (ValueError, TypeError, UnicodeError):
             return _error("Invalid video metadata", 400)
@@ -216,13 +213,27 @@ def create_video_draft(request):
     try:
         if request.GET or len(request.body) > 32768:
             raise ValueError("Invalid draft")
-        data = json.loads(request.body)
-        if not isinstance(data, dict) or "title" not in data or set(data) - {"title", "description"}:
-            raise ValueError("Invalid draft")
+        data = checked_metadata(json.loads(request.body), creating=True)
     except (ValueError, UnicodeError):
         return _error("Invalid video draft", 400)
-    return forward_media("draft", {"creator_id": creator_id, "title": data["title"],
-                              "description": data.get("description", "")}, (201,))
+    return forward_media("draft", {"creator_id": creator_id, "description": "", **data}, (201,))
+
+
+@never_cache
+@require_POST
+def video_visibility(request, video_id, operation):
+    creator_id, error = _owned_creator(request)
+    if error is not None:
+        return error
+    if request.GET or request.body:
+        return _error("Invalid video request", 400)
+    if operation == "publish":
+        eligible, error = _eligible_creator(request)
+        if error is not None:
+            return error
+        if eligible != creator_id:
+            return _error("Creator ownership changed", 403)
+    return forward_media(operation, {"creator_id": creator_id, "video_id": str(video_id)}, (200,))
 
 
 @never_cache
@@ -249,7 +260,7 @@ def issue_video_upload(request, video_id):
 def video_upload_status(request, video_id):
     if request.method not in ("POST", "GET"):
         return HttpResponseNotAllowed(["POST", "GET"])
-    creator_id, error = _eligible_creator(request)
+    creator_id, error = (_eligible_creator(request) if request.method == "POST" else _owned_creator(request))
     if error is not None:
         return error
     if request.GET or request.body:

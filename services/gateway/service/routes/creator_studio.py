@@ -20,16 +20,20 @@ def patterns():
                  {"operation": "eligibility"}, name="creator-upload-eligibility"),
         ]
     if enabled("media"):
+        from ..creators import own_creator
         from ..media import (issue_video_upload, own_video_detail, own_video_library,
-                             video_playback, video_upload_status)
+                             video_playback, video_upload_status, video_visibility)
 
         routes += [
+            path("api/v1/creators/me", own_creator, name="api-own-creator"),
             path("api/v1/creators/me/videos", own_video_library, name="api-own-videos"),
             path("api/v1/creators/me/videos/<uuid:video_id>", own_video_detail, name="api-own-video-detail"),
             path("api/v1/videos/<uuid:video_id>/upload-intents", issue_video_upload, name="api-video-upload"),
             path("api/v1/videos/<uuid:video_id>/playback", video_playback, name="api-video-playback"),
             path("api/v1/videos/<uuid:video_id>/upload-status", video_upload_status,
                  name="api-video-upload-status"),
+            path("api/v1/videos/<uuid:video_id>/publish", video_visibility, {"operation": "publish"}, name="api-video-publish"),
+            path("api/v1/videos/<uuid:video_id>/unpublish", video_visibility, {"operation": "unpublish"}, name="api-video-unpublish"),
         ]
     if enabled("analytics"):
         from ..analytics import creator_analytics, creator_video_analytics

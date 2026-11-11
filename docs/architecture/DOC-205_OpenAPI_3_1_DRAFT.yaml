@@ -671,24 +671,36 @@ paths:
         '503': {description: Required service unavailable}
   /creators/me/application:
     get:
-      tags: [Creators]
+      tags:
+      - Creators
       summary: Read own pilot application
       operationId: get_own_creator_application
       x-implementation: staging-gated
-      x-required-roles: [viewer, creator]
+      x-required-roles:
+      - viewer
+      - creator
       responses:
-        '200': {$ref: '#/components/responses/PilotCreatorApplication'}
-        '400': {description: Unexpected request data}
-        '404': {description: Application or invitation not found}
-        '401': {description: Missing or invalid session}
-        '403': {description: Role or creator eligibility requirements not met}
-        '503': {description: Required service unavailable}
+        '200':
+          $ref: '#/components/responses/PilotCreatorApplication'
+        '400':
+          description: Unexpected request data
+        '404':
+          description: Application or invitation not found
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Role or creator eligibility requirements not met
+        '503':
+          description: Required service unavailable
     post:
-      tags: [Creators]
+      tags:
+      - Creators
       summary: Submit own invited application with verified email
       operationId: post_own_creator_application
       x-implementation: staging-gated
-      x-required-roles: [viewer, creator]
+      x-required-roles:
+      - viewer
+      - creator
       requestBody:
         required: true
         content:
@@ -696,19 +708,33 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required: [handle, adult_attested, rights_attested]
+              required:
+              - handle
+              - adult_attested
+              - rights_attested
               properties:
-                handle: {type: string, pattern: '^[A-Za-z0-9_-]{1,40}$'}
-                adult_attested: {const: true}
-                rights_attested: {const: true}
+                handle:
+                  type: string
+                  pattern: ^[a-z0-9_]{3,30}$
+                adult_attested:
+                  const: true
+                rights_attested:
+                  const: true
       responses:
-        '201': {$ref: '#/components/responses/PilotCreatorApplication'}
-        '200': {$ref: '#/components/responses/PilotCreatorApplication'}
-        '400': {description: Invalid handle or missing attestations}
-        '409': {description: Application or handle conflict}
-        '401': {description: Missing or invalid session}
-        '403': {description: Role or creator eligibility requirements not met}
-        '503': {description: Required service unavailable}
+        '201':
+          $ref: '#/components/responses/PilotCreatorApplication'
+        '200':
+          $ref: '#/components/responses/PilotCreatorApplication'
+        '400':
+          description: Invalid handle or missing attestations
+        '409':
+          description: Application or handle conflict
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Role or creator eligibility requirements not met
+        '503':
+          description: Required service unavailable
   /creators/me/upload-eligibility:
     get:
       tags: [Creators]
@@ -737,7 +763,7 @@ paths:
       tags:
       - Creators
       operationId: searchCreators
-      summary: Search reviewed active creator handles
+      summary: Search reviewed active creator handles and display names
       description: Case-insensitive substring search. Reuse the same query for each page.
       x-implementation: local
       security: []
@@ -762,15 +788,19 @@ paths:
               schema:
                 type: object
                 additionalProperties: false
-                required: [items, next_cursor]
+                required:
+                - items
+                - next_cursor
                 properties:
                   items:
                     type: array
                     maxItems: 20
                     items:
-                      $ref: '#/components/schemas/Creator'
+                      $ref: '#/components/schemas/CreatorSearchItem'
                   next_cursor:
-                    type: [string, 'null']
+                    type:
+                    - string
+                    - 'null'
                     format: uuid
         '400':
           description: Invalid query or cursor
@@ -781,6 +811,7 @@ paths:
       tags:
       - Creators
       summary: Get public creator profile
+      description: Includes display_name, location, a live Content count of published public non-deleted videos, and follower_count (null when engagement is unavailable).
       operationId: get__creators_creator_id
       x-implementation: local
       responses:
@@ -864,30 +895,67 @@ paths:
         '403': {description: Role not permitted}
         '503': {description: Required service unavailable}
   /creators/me:
+    get:
+      tags:
+      - Creators
+      summary: Read own active creator profile
+      operationId: getMyCreatorProfile
+      x-implementation: local
+      x-capability: media
+      x-required-roles:
+      - creator
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnCreator'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Creator role required or profile restricted/suspended
+        '404':
+          description: Own profile not found
+        '503':
+          $ref: '#/components/responses/LocalUnavailable'
     patch:
       tags:
       - Creators
       summary: Edit own creator profile
       operationId: patch__creators_me
       responses:
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '429':
-          $ref: '#/components/responses/RateLimited'
         '200':
           description: Success
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Creator'
+                $ref: '#/components/schemas/OwnCreator'
         '400':
-          description: Invalid request; application/problem+json
+          description: Invalid profile fields
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Creator role required or profile restricted/suspended
+        '404':
+          description: Own profile not found
+        '503':
+          $ref: '#/components/responses/LocalUnavailable'
         '409':
-          $ref: '#/components/responses/Conflict'
-        '500':
-          description: Unexpected server error; no internal details exposed
+          description: Handle is already taken, case-insensitively
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - detail
+                - code
+                properties:
+                  detail:
+                    type: string
+                  code:
+                    const: handle_taken
       requestBody:
         required: true
         content:
@@ -896,6 +964,8 @@ paths:
               $ref: '#/components/schemas/CreatorUpdate'
       x-required-roles:
       - creator
+      x-implementation: local
+      x-capability: media
   /creators/me/analytics:
     get:
       tags: [Content]
@@ -939,59 +1009,84 @@ paths:
         '503': {$ref: '#/components/responses/LocalUnavailable'}
   /creators/me/videos:
     get:
-      tags: [Content]
-      summary: List the signed-in creator's videos in all states
+      tags:
+      - Content
+      summary: List own non-deleted videos filtered by state
       operationId: get_own_videos
-      x-implementation: local-only
+      x-implementation: local
       parameters:
       - name: cursor
         in: query
         required: false
-        schema: {type: string, format: uuid}
+        schema:
+          type: string
+          format: uuid
+      - name: state
+        in: query
+        schema:
+          type: string
+          default: all
+          enum:
+          - all
+          - draft
+          - in_progress
+          - review
+          - published
+          - rejected
+          - removed
+          - failed
+        description: in_progress groups uploading and processing. Reuse the same state when following a cursor.
       responses:
         '200':
-          description: Up to twenty creator-owned videos, newest first
+          description: Up to twenty owned videos, newest first
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: false
-                required: [items, next_cursor]
-                properties:
-                  items:
-                    type: array
-                    maxItems: 20
-                    items: {$ref: '#/components/schemas/Video'}
-                  next_cursor:
-                    type: [string, 'null']
-                    format: uuid
-        '400': {description: Invalid cursor}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '503': {$ref: '#/components/responses/LocalUnavailable'}
+                $ref: '#/components/schemas/PageOwnVideos'
+        '400':
+          description: Invalid cursor
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/LocalUnavailable'
+      x-capability: media
   /creators/me/videos/{video_id}:
     get:
-      tags: [Content]
+      tags:
+      - Content
       summary: Read own video metadata, state and moderation revision
       operationId: get_own_video_detail
-      x-implementation: local-only
-      x-required-roles: [viewer, creator]
+      x-implementation: local
+      x-required-roles:
+      - viewer
+      - creator
       parameters:
       - name: video_id
         in: path
         required: true
-        schema: {type: string, format: uuid}
+        schema:
+          type: string
+          format: uuid
       responses:
         '200':
           description: Creator-owned video in any state
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/OwnVideoDetail'}
-        '400': {description: Unexpected request data}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '404': {description: Video missing or owned by another creator}
-        '503': {$ref: '#/components/responses/LocalUnavailable'}
+              schema:
+                $ref: '#/components/schemas/OwnVideoDetail'
+        '400':
+          description: Unexpected request data
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Video missing or owned by another creator
+        '503':
+          $ref: '#/components/responses/LocalUnavailable'
+      x-capability: media
   /videos:
     post:
       tags:
@@ -999,7 +1094,7 @@ paths:
       summary: Create private draft video metadata
       description: Requires current approved creator eligibility from DEC-004.
       operationId: post__videos
-      x-implementation: local-only
+      x-implementation: local
       responses:
         '401':
           $ref: '#/components/responses/Unauthorized'
@@ -1008,11 +1103,11 @@ paths:
         '429':
           $ref: '#/components/responses/RateLimited'
         '201':
-          description: Success
+          description: Private draft created with required category
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Video'
+                $ref: '#/components/schemas/OwnVideo'
         '400':
           description: Invalid request; application/problem+json
         '409':
@@ -1025,16 +1120,11 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/VideoCreate'
-      x-required-roles: [viewer, creator]
+      x-required-roles:
+      - viewer
+      - creator
       x-required-creator-eligibility: true
-      parameters:
-      - name: Idempotency-Key
-        in: header
-        required: true
-        schema:
-          type: string
-          minLength: 16
-          maxLength: 128
+      x-capability: media
     get:
       tags:
       - Content
@@ -1072,7 +1162,8 @@ paths:
           format: uuid
       - name: q
         in: query
-        description: Case-insensitive substring in the title or description of published videos. Reuse the same filters when paginating.
+        description: Case-insensitive substring in the title or description of published videos. Reuse the same filters
+          when paginating.
         required: false
         schema:
           type: string
@@ -1084,6 +1175,30 @@ paths:
         schema:
           type: string
           format: uuid
+      - name: category
+        in: query
+        schema:
+          type: string
+          enum:
+          - hipco
+          - afrobeats
+          - comedy
+          - skits
+          - short_films
+          - culture
+          - documentaries
+      - name: sort
+        in: query
+        schema:
+          type: string
+          enum:
+          - recent
+          - trending
+          default: recent
+      description: Public catalogue; category filters retain cursor semantics. Trending reads at most twenty ranked
+        engagement IDs, looks up only currently public non-deleted videos, preserves ranking and applies q/creator_id/category
+        filters. Trending does not accept cursor and always returns next_cursor null. Returns 503 when ranked IDs
+        or Content lookup are unavailable; unavailable like counts are null.
   /videos/following:
     get:
       tags: [Discovery]
@@ -1141,89 +1256,126 @@ paths:
       - name: video_id
         in: path
         required: true
-        schema: *id001
-      description: Only approved public published metadata is readable locally. All other records return 404. No playback credentials are returned.
+        schema:
+          type: string
+          format: uuid
+      description: Only approved public published metadata is readable locally. All other records return 404. No playback
+        credentials are returned.
     patch:
       tags:
       - Content
-      summary: Edit metadata of an owned private draft without reserved media
+      summary: Edit owned video metadata
       operationId: patch__videos_video_id
-      x-implementation: local-only
-      responses:
-        '404':
-          description: Video is not owned by this creator
-        '503':
-          $ref: '#/components/responses/LocalUnavailable'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Video'
-        '400':
-          description: Invalid request; application/problem+json
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '500':
-          description: Unexpected server error; no internal details exposed
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/VideoCreate'
+      x-implementation: local
+      x-capability: media
       x-required-roles:
+      - viewer
       - creator
       parameters:
       - name: video_id
         in: path
         required: true
-        schema: *id001
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnVideo'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Video is missing, deleted or owned by another creator
+        '409':
+          description: Video state does not permit this operation
+        '503':
+          $ref: '#/components/responses/LocalUnavailable'
+      description: 'Allowed for draft, failed, rejected and published videos. M-054 in studio.json says Save changes
+        and does not require another review: publication and approval are preserved while revision advances. Changing
+        cover_time_ms clears any stale poster; re-rendering processed media is deferred, so poster_url remains null
+        until media is processed again.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VideoUpdate'
     delete:
-      tags: [Content]
-      summary: Delete an owned private draft without reserved media
-      operationId: delete_own_draft_video
-      x-implementation: local-only
+      tags:
+      - Content
+      summary: Soft delete an owned video in any state
+      operationId: delete_own_video
+      x-implementation: local
+      x-capability: media
+      x-required-roles:
+      - viewer
+      - creator
       parameters:
       - name: video_id
         in: path
         required: true
-        schema: *id001
+        schema:
+          type: string
+          format: uuid
       responses:
         '200':
-          description: Deleted draft identifier
+          description: Video hidden without storage purge
           content:
             application/json:
               schema:
                 type: object
                 additionalProperties: false
-                required: [video_id, deleted]
+                required:
+                - video_id
+                - deleted
                 properties:
-                  video_id: *id001
-                  deleted: {type: boolean, enum: [true]}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '404': {description: Video is not owned by this creator}
-        '409': {$ref: '#/components/responses/Conflict'}
-        '503': {$ref: '#/components/responses/LocalUnavailable'}
+                  video_id:
+                    type: string
+                    format: uuid
+                  deleted:
+                    const: true
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Video is missing, deleted or owned by another creator
+        '503':
+          $ref: '#/components/responses/LocalUnavailable'
+      description: 'ADR-020 intake-safe removal: set deleted_at, hide from all reads, cancel active upload reservations
+        and prevent background/moderation completion. Media objects and metadata are retained; no storage or personal-data
+        purge occurs. Previously issued playback/poster URLs can remain valid for 300 seconds; upload PUT URLs can
+        remain valid for 600 seconds but cannot complete a deleted or replaced reservation.'
   /videos/{video_id}/upload-intents:
     post:
       tags:
       - Content
       summary: Reserve a conditional direct R2 upload
       operationId: post__videos_video_id_upload-intents
-      x-implementation: local-only
+      x-implementation: local
       requestBody:
         required: true
         content:
           application/json:
-            schema: {type: object, additionalProperties: false, required: [size_bytes], properties: {size_bytes: {type: integer, minimum: 1, maximum: 52428800}}}
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - size_bytes
+              properties:
+                size_bytes:
+                  type: integer
+                  minimum: 1
+                  maximum: 52428800
       responses:
         '401':
           $ref: '#/components/responses/Unauthorized'
@@ -1247,13 +1399,17 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           description: Unexpected server error; no internal details exposed
-      x-required-roles: [viewer, creator]
+      x-required-roles:
+      - viewer
+      - creator
       x-required-creator-eligibility: true
       parameters:
       - name: video_id
         in: path
         required: true
-        schema: *id001
+        schema:
+          type: string
+          format: uuid
       - name: Idempotency-Key
         in: header
         required: true
@@ -1261,118 +1417,164 @@ paths:
           type: string
           minLength: 16
           maxLength: 128
-      description: Requires current approved creator eligibility and ownership of the private draft.
-        Reusing the same idempotency key and size returns a link for the same object until expiry.
+      description: Requires current approved creator eligibility and ownership. Reservations can be replaced for draft,
+        uploading or failed videos. A new Idempotency-Key replaces the old reservation without purging its private
+        object. The same key and size reuse an unexpired uploading reservation; expired/failed reservations require
+        a fresh key. Old signed PUT URLs cannot complete a replacement reservation.
+      x-capability: media
   /videos/{video_id}/upload-status:
     parameters:
     - name: video_id
       in: path
       required: true
-      schema: {type: string, format: uuid}
+      schema:
+        type: string
+        format: uuid
     get:
-      tags: [Content]
+      tags:
+      - Content
       summary: Read own upload or processing state
       operationId: get_video_upload_status
-      x-implementation: local-only
+      x-implementation: local
       responses:
-        '200': {$ref: '#/components/responses/VideoUploadStatus'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '404': {description: Video not found}
-        '503': {description: Media temporarily unavailable}
+        '200':
+          $ref: '#/components/responses/VideoUploadStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Video not found
+        '503':
+          description: Media temporarily unavailable
+      x-capability: media
     post:
-      tags: [Content]
+      tags:
+      - Content
       summary: Confirm own upload and enqueue processing
       operationId: post_video_upload_complete
-      x-implementation: local-only
+      x-implementation: local
       responses:
-        '200': {$ref: '#/components/responses/VideoUploadStatus'}
-        '202': {$ref: '#/components/responses/VideoUploadStatus'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '404': {description: Video not found}
-        '409': {description: Upload not available or does not match its reservation}
-        '503': {description: Retry the same completion request if media or queue is temporarily unavailable}
+        '200':
+          $ref: '#/components/responses/VideoUploadStatus'
+        '202':
+          $ref: '#/components/responses/VideoUploadStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Video not found
+        '409':
+          description: Upload not available or does not match its reservation
+        '503':
+          description: Retry the same completion request if media or queue is temporarily unavailable
+      x-capability: media
   /videos/{video_id}/publish:
     post:
       tags:
       - Content
-      summary: Request publication after processing/moderation
-      x-implementation: gated
-      description: Pilot publication uses the DEC-005 reviewer decision route.
+      summary: Republish an approved private video
       operationId: post__videos_video_id_publish
-      responses:
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Video'
-        '400':
-          description: Invalid request; application/problem+json
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '500':
-          description: Unexpected server error; no internal details exposed
+      x-implementation: local
+      x-capability: media
       x-required-roles:
+      - viewer
       - creator
       parameters:
       - name: video_id
         in: path
         required: true
-        schema: *id001
-      - name: Idempotency-Key
-        in: header
-        required: true
         schema:
           type: string
-          minLength: 16
-          maxLength: 128
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnVideo'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Video is missing, deleted or owned by another creator
+        '409':
+          description: Moderation review is required
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - detail
+                - code
+                properties:
+                  detail:
+                    type: string
+                  code:
+                    const: review_required
+        '503':
+          $ref: '#/components/responses/LocalUnavailable'
+      description: Owner visibility change; publication requires private visibility and otherwise returns review_required.
+        State remains published and prior moderation approval is required. Current approved creator eligibility is
+        rechecked; restricted/suspended creators cannot publish. This cannot approve a draft or rejected video.
   /videos/{video_id}/unpublish:
     post:
       tags:
       - Content
-      summary: Unpublish owned video
+      summary: Make an owned published video private
       operationId: post__videos_video_id_unpublish
-      responses:
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Video'
-        '400':
-          description: Invalid request; application/problem+json
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '500':
-          description: Unexpected server error; no internal details exposed
+      x-implementation: local
+      x-capability: media
       x-required-roles:
+      - viewer
       - creator
       parameters:
       - name: video_id
         in: path
         required: true
-        schema: *id001
-      - name: Idempotency-Key
-        in: header
-        required: true
         schema:
           type: string
-          minLength: 16
-          maxLength: 128
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnVideo'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Video is missing, deleted or owned by another creator
+        '409':
+          description: Moderation review is required
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - detail
+                - code
+                properties:
+                  detail:
+                    type: string
+                  code:
+                    const: review_required
+        '503':
+          $ref: '#/components/responses/LocalUnavailable'
+      description: Idempotent owner visibility change. State remains published and prior moderation approval is required.
+        Unpublishing remains available to the owner without upload eligibility, including a restricted creator.
   /videos/{video_id}/playback:
     get:
       tags:
@@ -2216,44 +2418,90 @@ components:
     Creator:
       type: object
       additionalProperties: false
-      properties:
-        id: *id001
-        user_id: *id001
-        handle:
-          type: string
-          pattern: '^[a-zA-Z0-9_-]{1,40}$'
-        bio:
-          type: string
-          maxLength: 500
-        status:
-          type: string
-          enum:
-          - active
-          - restricted
-          - suspended
       required:
       - id
       - user_id
       - handle
+      - display_name
       - bio
+      - location
       - status
-    CreatorUpdate:
-      type: object
-      additionalProperties: false
+      - published_video_count
+      - follower_count
       properties:
-        bio:
+        id:
           type: string
-          maxLength: 500
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        handle:
+          type: string
+          pattern: ^[a-zA-Z0-9_-]{1,40}$
+          description: Existing handles are preserved; new handles and updates must match ^[a-z0-9_]{3,30}$.
         display_name:
           type: string
           maxLength: 80
-      required: []
+        bio:
+          type: string
+          maxLength: 500
+        location:
+          type: string
+          maxLength: 80
+        status:
+          type: string
+          enum:
+          - active
+        published_video_count:
+          type: integer
+          minimum: 0
+        follower_count:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          description: Null when engagement counts are unavailable.
+    CreatorUpdate:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        display_name:
+          type: string
+          maxLength: 80
+        bio:
+          type: string
+          maxLength: 500
+        location:
+          type: string
+          maxLength: 80
+        handle:
+          type: string
+          pattern: ^[a-z0-9_]{3,30}$
     Video:
       type: object
       additionalProperties: false
+      required:
+      - id
+      - creator_id
+      - title
+      - description
+      - category
+      - tags
+      - cover_time_ms
+      - state
+      - visibility
+      - created_at
+      - published_at
+      - poster_url
+      - like_count
       properties:
-        id: *id001
-        creator_id: *id001
+        id:
+          type: string
+          format: uuid
+        creator_id:
+          type: string
+          format: uuid
         title:
           type: string
           minLength: 1
@@ -2261,6 +2509,130 @@ components:
         description:
           type: string
           maxLength: 2000
+        category:
+          type:
+          - string
+          - 'null'
+          enum:
+          - hipco
+          - afrobeats
+          - comedy
+          - skits
+          - short_films
+          - culture
+          - documentaries
+          - null
+          description: Null only for existing rows without a category.
+        tags:
+          type: array
+          maxItems: 5
+          uniqueItems: true
+          items:
+            type: string
+            pattern: ^[a-z0-9_]{1,30}$
+          description: 'Stored lowercase without a leading #; trim, normalize and deduplicate input while preserving
+            order.'
+        cover_time_ms:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          maximum: 300000
+          description: Must not exceed known duration_ms. Unknown draft duration is checked during processing.
+        state:
+          const: published
+        visibility:
+          const: public
+        created_at:
+          type: string
+          format: date-time
+        published_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        poster_url:
+          type:
+          - string
+          - 'null'
+          format: uri
+          maxLength: 4096
+          description: Private R2 JPEG signed for at most 300 seconds, or null. Never persist this URL.
+        duration_seconds:
+          type: integer
+          minimum: 0
+          maximum: 300
+        duration_ms:
+          type: integer
+          minimum: 1
+          maximum: 300000
+        like_count:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          description: Null when engagement counts are unavailable.
+    OwnVideoDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - creator_id
+      - title
+      - description
+      - category
+      - tags
+      - cover_time_ms
+      - state
+      - visibility
+      - created_at
+      - published_at
+      - poster_url
+      - revision
+      properties:
+        id:
+          type: string
+          format: uuid
+        creator_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 160
+        description:
+          type: string
+          maxLength: 2000
+        category:
+          type:
+          - string
+          - 'null'
+          enum:
+          - hipco
+          - afrobeats
+          - comedy
+          - skits
+          - short_films
+          - culture
+          - documentaries
+          - null
+          description: Null only for existing rows without a category.
+        tags:
+          type: array
+          maxItems: 5
+          uniqueItems: true
+          items:
+            type: string
+            pattern: ^[a-z0-9_]{1,30}$
+          description: 'Stored lowercase without a leading #; trim, normalize and deduplicate input while preserving
+            order.'
+        cover_time_ms:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          maximum: 300000
+          description: Must not exceed known duration_ms. Unknown draft duration is checked during processing.
         state:
           type: string
           enum:
@@ -2272,29 +2644,38 @@ components:
           - published
           - rejected
           - removed
+        visibility:
+          type: string
+          enum:
+          - private
+          - public
+          - unlisted
+        created_at:
+          type: string
+          format: date-time
+        published_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        poster_url:
+          type:
+          - string
+          - 'null'
+          format: uri
+          maxLength: 4096
+          description: Private R2 JPEG signed for at most 300 seconds, or null. Never persist this URL.
         duration_seconds:
           type: integer
           minimum: 0
-        created_at: *id002
-      required:
-      - id
-      - creator_id
-      - title
-      - description
-      - state
-      - created_at
-    OwnVideoDetail:
-      type: object
-      additionalProperties: false
-      required: [id, creator_id, title, description, state, created_at, revision]
-      properties:
-        id: {type: string, format: uuid}
-        creator_id: {type: string, format: uuid}
-        title: {type: string, minLength: 1, maxLength: 160}
-        description: {type: string, maxLength: 2000}
-        state: {type: string, enum: [draft, uploading, processing, failed, review, published, rejected, removed]}
-        created_at: {type: string, format: date-time}
-        revision: {type: integer, minimum: 0}
+          maximum: 300
+        duration_ms:
+          type: integer
+          minimum: 1
+          maximum: 300000
+        revision:
+          type: integer
+          minimum: 0
     CreatorContentAnalytics:
       type: object
       additionalProperties: false
@@ -2326,6 +2707,9 @@ components:
     VideoCreate:
       type: object
       additionalProperties: false
+      required:
+      - title
+      - category
       properties:
         title:
           type: string
@@ -2334,8 +2718,31 @@ components:
         description:
           type: string
           maxLength: 2000
-      required:
-      - title
+        category:
+          type: string
+          enum:
+          - hipco
+          - afrobeats
+          - comedy
+          - skits
+          - short_films
+          - culture
+          - documentaries
+        tags:
+          type: array
+          maxItems: 5
+          items:
+            type: string
+            maxLength: 64
+          description: 'Trim each input tag, remove one optional leading #, lowercase and deduplicate. Each normalized
+            value must match ^[a-z0-9_]{1,30}$.'
+        cover_time_ms:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          maximum: 300000
+          description: Must not exceed known duration_ms. Unknown draft duration is checked during processing.
     UploadIntent:
       type: object
       additionalProperties: false
@@ -2357,10 +2764,42 @@ components:
     VideoUploadStatus:
       type: object
       additionalProperties: false
-      required: [video_id, state]
+      required:
+      - video_id
+      - state
+      - failure_reason
+      - retryable
       properties:
-        video_id: {type: string, format: uuid}
-        state: {type: string, enum: [draft, uploading, processing, failed, review, published, rejected, removed]}
+        video_id:
+          type: string
+          format: uuid
+        state:
+          type: string
+          enum:
+          - draft
+          - uploading
+          - processing
+          - failed
+          - review
+          - published
+          - rejected
+          - removed
+        failure_reason:
+          type:
+          - string
+          - 'null'
+          enum:
+          - null
+          - invalid_media
+          - cover_out_of_range
+          - processing_unavailable
+          - poster_failed
+          - upload_missing
+          - upload_changed
+        retryable:
+          type: boolean
+          description: Upload may be retried for draft/uploading/failed; transient processing failure permits completion
+            to be retried.
     Playback:
       type: object
       additionalProperties: false
@@ -2532,6 +2971,9 @@ components:
     PageVideos:
       type: object
       additionalProperties: false
+      required:
+      - items
+      - next_cursor
       properties:
         items:
           type: array
@@ -2539,11 +2981,234 @@ components:
           items:
             $ref: '#/components/schemas/Video'
         next_cursor:
-          type: [string, 'null']
+          type:
+          - string
+          - 'null'
           format: uuid
+    OwnCreator:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - user_id
+      - handle
+      - display_name
+      - bio
+      - location
+      - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        handle:
+          type: string
+          pattern: ^[a-zA-Z0-9_-]{1,40}$
+          description: Existing handles are preserved; new handles and updates must match ^[a-z0-9_]{3,30}$.
+        display_name:
+          type: string
+          maxLength: 80
+        bio:
+          type: string
+          maxLength: 500
+        location:
+          type: string
+          maxLength: 80
+        status:
+          type: string
+          enum:
+          - active
+    CreatorSearchItem:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - user_id
+      - handle
+      - display_name
+      - bio
+      - location
+      - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        handle:
+          type: string
+          pattern: ^[a-zA-Z0-9_-]{1,40}$
+          description: Existing handles are preserved; new handles and updates must match ^[a-z0-9_]{3,30}$.
+        display_name:
+          type: string
+          maxLength: 80
+        bio:
+          type: string
+          maxLength: 500
+        location:
+          type: string
+          maxLength: 80
+        status:
+          type: string
+          enum:
+          - active
+    OwnVideo:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - creator_id
+      - title
+      - description
+      - category
+      - tags
+      - cover_time_ms
+      - state
+      - visibility
+      - created_at
+      - published_at
+      - poster_url
+      properties:
+        id:
+          type: string
+          format: uuid
+        creator_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 160
+        description:
+          type: string
+          maxLength: 2000
+        category:
+          type:
+          - string
+          - 'null'
+          enum:
+          - hipco
+          - afrobeats
+          - comedy
+          - skits
+          - short_films
+          - culture
+          - documentaries
+          - null
+          description: Null only for existing rows without a category.
+        tags:
+          type: array
+          maxItems: 5
+          uniqueItems: true
+          items:
+            type: string
+            pattern: ^[a-z0-9_]{1,30}$
+          description: 'Stored lowercase without a leading #; trim, normalize and deduplicate input while preserving
+            order.'
+        cover_time_ms:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          maximum: 300000
+          description: Must not exceed known duration_ms. Unknown draft duration is checked during processing.
+        state:
+          type: string
+          enum:
+          - draft
+          - uploading
+          - processing
+          - failed
+          - review
+          - published
+          - rejected
+          - removed
+        visibility:
+          type: string
+          enum:
+          - private
+          - public
+          - unlisted
+        created_at:
+          type: string
+          format: date-time
+        published_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        poster_url:
+          type:
+          - string
+          - 'null'
+          format: uri
+          maxLength: 4096
+          description: Private R2 JPEG signed for at most 300 seconds, or null. Never persist this URL.
+        duration_seconds:
+          type: integer
+          minimum: 0
+          maximum: 300
+        duration_ms:
+          type: integer
+          minimum: 1
+          maximum: 300000
+    VideoUpdate:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 160
+        description:
+          type: string
+          maxLength: 2000
+        category:
+          type: string
+          enum:
+          - hipco
+          - afrobeats
+          - comedy
+          - skits
+          - short_films
+          - culture
+          - documentaries
+        tags:
+          type: array
+          maxItems: 5
+          items:
+            type: string
+            maxLength: 64
+          description: 'Trim each input tag, remove one optional leading #, lowercase and deduplicate. Each normalized
+            value must match ^[a-z0-9_]{1,30}$.'
+        cover_time_ms:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          maximum: 300000
+          description: Must not exceed known duration_ms. Unknown draft duration is checked during processing.
+    PageOwnVideos:
+      type: object
+      additionalProperties: false
       required:
       - items
       - next_cursor
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/OwnVideo'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          format: uuid
   responses:
     VideoUploadStatus:
       description: Current owner-visible upload or processing state
