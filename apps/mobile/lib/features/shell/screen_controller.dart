@@ -72,7 +72,8 @@ class ScreenController extends ChangeNotifier {
 
   static bool isSensitiveField(String key) =>
       key.toLowerCase().contains('password') ||
-      key.toLowerCase().contains('code');
+      key.toLowerCase().contains('code') ||
+      key.toLowerCase().contains('token');
 
   @override
   void dispose() {

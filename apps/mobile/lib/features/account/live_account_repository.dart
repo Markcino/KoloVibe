@@ -1,8 +1,46 @@
 import 'package:flutter/services.dart';
+
 import '../../core/network/api_client.dart';
 import '../../core/presentation/feature_repository.dart';
 import '../../core/security/credential_store.dart';
 import 'account_repository.dart';
+
+/// Ephemeral account/session-bound proof. Never persist in route arguments or storage.
+/// Taking the proof clears this object's token even if delivery subsequently fails.
+class Reauthentication {
+  Reauthentication(String token, this.expiresAt) : _token = token;
+  String? _token;
+  final DateTime expiresAt;
+  bool get available => _token != null && DateTime.now().isBefore(expiresAt);
+
+  factory Reauthentication.fromJson(Map<String, dynamic> data) {
+    final token = data['reauth_token'], expires = data['expires_at'];
+    if (data.length != 2 ||
+        token is! String ||
+        !RegExp(r'^[A-Za-z0-9_-]{32,128}$').hasMatch(token) ||
+        expires is! String ||
+        !RegExp(r'(Z|[+-]\d\d:\d\d)$').hasMatch(expires)) {
+      throw const FormatException('Invalid identity verification response');
+    }
+    final stamp = DateTime.tryParse(expires);
+    if (stamp == null || !stamp.isAfter(DateTime.now())) {
+      throw const FormatException('Expired identity verification response');
+    }
+    return Reauthentication(token, stamp);
+  }
+
+  String take() {
+    final valid = available;
+    final value = _token;
+    _token = null;
+    if (!valid || value == null) {
+      throw const ApiFailure(400, 'Confirm your identity again to continue.');
+    }
+    return value;
+  }
+
+  void dispose() => _token = null;
+}
 
 class LiveAccount {
   const LiveAccount(this.id, this.email, this.displayName, this.roles);
@@ -46,7 +84,11 @@ class AccountSession {
       throw const FormatException('Invalid session');
     }
     return AccountSession(
-        id, DateTime.parse(created), DateTime.parse(expires), current);
+      id,
+      DateTime.parse(created),
+      DateTime.parse(expires),
+      current,
+    );
   }
 }
 
@@ -79,11 +121,24 @@ class LiveAccountRepository implements AccountRepository {
 
   Future<LiveAccount?> currentAccount() => _serialized(_currentAccount);
 
+  /// A missing credential is a fresh start; a rejected saved session is M-101.
+  Future<LiveAccount?> restoreSession() => _serialized(() async {
+        if (_accessToken == null && await store.readRefreshToken() == null) {
+          return null;
+        }
+        return LiveAccount.fromJson(await _sessionRequest('/me'));
+      });
+
   Future<bool> _refresh() async {
     final refresh = await store.readRefreshToken();
     if (refresh == null) return false;
-    await _accept(await api.request('/auth/refresh',
-        method: 'POST', body: {'refresh_token': refresh}));
+    await _accept(
+      await api.request(
+        '/auth/refresh',
+        method: 'POST',
+        body: {'refresh_token': refresh},
+      ),
+    );
     return true;
   }
 
@@ -96,31 +151,37 @@ class LiveAccountRepository implements AccountRepository {
     }
   }
 
-  Future<Map<String, dynamic>> _sessionRequest(String path,
-      {String method = 'GET',
-      Map<String, String>? query,
-      Map<String, Object?>? body,
-      String? idempotencyKey}) async {
+  Future<Map<String, dynamic>> _sessionRequest(
+    String path, {
+    String method = 'GET',
+    Map<String, String>? query,
+    Map<String, Object?>? body,
+    String? idempotencyKey,
+  }) async {
     const expired = ApiFailure(401, 'Sign in again to manage sessions.');
     try {
       final restored = _accessToken == null;
       if (restored && !await _refresh()) throw expired;
       try {
-        return await api.request(path,
-            method: method,
-            accessToken: _accessToken,
-            query: query,
-            body: body,
-            idempotencyKey: idempotencyKey);
+        return await api.request(
+          path,
+          method: method,
+          accessToken: _accessToken,
+          query: query,
+          body: body,
+          idempotencyKey: idempotencyKey,
+        );
       } on ApiFailure catch (error) {
         if (error.status != 401 || restored) rethrow;
         if (!await _refresh()) throw expired;
-        return await api.request(path,
-            method: method,
-            accessToken: _accessToken,
-            query: query,
-            body: body,
-            idempotencyKey: idempotencyKey);
+        return await api.request(
+          path,
+          method: method,
+          accessToken: _accessToken,
+          query: query,
+          body: body,
+          idempotencyKey: idempotencyKey,
+        );
       }
     } on ApiFailure catch (error) {
       if (error.status != 401) rethrow;
@@ -146,109 +207,191 @@ class LiveAccountRepository implements AccountRepository {
         await _sessionRequest('/me/sessions/$id', method: 'DELETE');
       });
 
-  Future<Map<String, dynamic>> authenticatedRequest(String path,
-          {String method = 'GET',
-          Map<String, String>? query,
-          Map<String, Object?>? body,
-          String? idempotencyKey}) =>
-      _serialized(() => _sessionRequest(path,
+  Future<Map<String, dynamic>> authenticatedRequest(
+    String path, {
+    String method = 'GET',
+    Map<String, String>? query,
+    Map<String, Object?>? body,
+    String? idempotencyKey,
+  }) =>
+      _serialized(
+        () => _sessionRequest(
+          path,
           method: method,
           query: query,
           body: body,
-          idempotencyKey: idempotencyKey));
+          idempotencyKey: idempotencyKey,
+        ),
+      );
 
   @override
   Future<UiResult> execute(UiRequest request) =>
       _serialized(() => _execute(request));
 
+  /// Typed failures for live flows; the legacy execute adapter remains compatible.
+  Future<UiResult> executeChecked(UiRequest request) =>
+      _serialized(() => _perform(request));
+
+  Future<Reauthentication> reauthenticate(String currentPassword) =>
+      _serialized(() async {
+        if (currentPassword.isEmpty || currentPassword.length > 128) {
+          throw const ApiFailure(400, 'Enter your current password.');
+        }
+        return Reauthentication.fromJson(
+          await _sessionRequest(
+            '/me/reauthenticate',
+            method: 'POST',
+            body: {'current_password': currentPassword},
+          ),
+        );
+      });
+
+  Future<void> clearSession() => _serialized(() async {
+        _accessToken = null;
+        await store.clearRefreshToken();
+      });
+
+  Future<void> signOut() => _serialized(_signOut);
+
+  Future<void> _signOut() async {
+    try {
+      final refresh = await store.readRefreshToken();
+      if (refresh != null) {
+        await api.request(
+          '/auth/logout',
+          method: 'POST',
+          body: {'refresh_token': refresh},
+        );
+      }
+    } finally {
+      _accessToken = null;
+      await store.clearRefreshToken();
+    }
+  }
+
   Future<UiResult> _execute(UiRequest request) async {
     try {
-      final fields = request.fields;
-      switch (request.operation) {
-        case UiOperation.register:
-          await api.request('/auth/register', method: 'POST', body: {
-            'email': fields['Email address'] ?? '',
-            'password': fields['Password'] ?? '',
-            'display_name': fields['Full name'] ?? fields['Display name'] ?? '',
-          });
-          return const UiResult.success(
-              message: 'Check your email for a verification code.');
-        case UiOperation.requestCode:
-          await api.request('/auth/verification/resend', method: 'POST', body: {
-            'email': fields['Email address'] ?? '',
-          });
-          return const UiResult.success(
-              message: 'If eligible, you will receive a new code by email.');
-        case UiOperation.verifyEmail:
-          await api.request('/auth/verify',
-              method: 'POST', body: {'code': fields['verificationCode'] ?? ''});
-          return const UiResult.success(
-              message: 'Email verified. You can sign in.');
-        case UiOperation.requestReset:
-          await api
-              .request('/auth/password/reset-request', method: 'POST', body: {
-            'email': fields['Email address'] ?? '',
-          });
-          return const UiResult.success(
-              message:
-                  'If the account is eligible, reset instructions will arrive by email.');
-        case UiOperation.resetPassword:
-          final newPassword = fields['New password'] ?? '';
-          if (fields.containsKey('Current password')) {
-            await _sessionRequest('/me/password', method: 'PATCH', body: {
-              'current_password': fields['Current password'] ?? '',
-              'new_password': newPassword,
-            });
-          } else {
-            await api.request('/auth/password/reset', method: 'POST', body: {
-              'code': fields['Reset code'] ?? '',
-              'new_password': newPassword,
-            });
-          }
-          _accessToken = null;
-          await store.clearRefreshToken();
-          return const UiResult.success(
-              message: 'Password updated. Sign in again.');
-        case UiOperation.saveProfile:
-          await _sessionRequest('/me', method: 'PATCH', body: {
-            'display_name': fields['Display name'] ?? '',
-          });
-          return const UiResult.success(message: 'Profile updated.');
-        case UiOperation.signIn:
-          await _accept(await api.request('/auth/login', method: 'POST', body: {
-            'email': fields['Email address'] ?? '',
-            'password': fields['Password'] ?? '',
-          }));
-          return const UiResult.success(message: 'Signed in.');
-        case UiOperation.signOut:
-          final refresh = await store.readRefreshToken();
-          var revocationConfirmed = true;
-          if (refresh != null) {
-            try {
-              await api.request('/auth/logout',
-                  method: 'POST', body: {'refresh_token': refresh});
-            } on ApiFailure {
-              revocationConfirmed = false;
-            }
-          }
-          _accessToken = null;
-          await store.clearRefreshToken();
-          if (!revocationConfirmed) {
-            return const UiResult.failure(
-                'Signed out on this device. Server session revocation could not be confirmed.');
-          }
-          return const UiResult.success(message: 'Signed out.');
-        default:
-          return const UiResult.unavailable();
-      }
+      return await _perform(request);
     } on ApiFailure catch (error) {
       return UiResult.failure(error.message);
     } on PlatformException {
       return const UiResult.failure(
-          'Secure credential storage is unavailable.');
+        'Secure credential storage is unavailable.',
+      );
     } on FormatException {
       return const UiResult.failure(
-          'The service returned an invalid response.');
+        'The service returned an invalid response.',
+      );
+    }
+  }
+
+  Future<UiResult> _perform(UiRequest request) async {
+    final fields = request.fields;
+    switch (request.operation) {
+      case UiOperation.register:
+        await api.request(
+          '/auth/register',
+          method: 'POST',
+          body: {
+            'email': fields['Email address'] ?? '',
+            'password': fields['Password'] ?? '',
+            'display_name': fields['Full name'] ?? fields['Display name'] ?? '',
+          },
+        );
+        return const UiResult.success(
+          message: 'Check your email for a verification code.',
+        );
+      case UiOperation.requestCode:
+        await api.request(
+          '/auth/verification/resend',
+          method: 'POST',
+          body: {'email': fields['Email address'] ?? ''},
+        );
+        return const UiResult.success(
+          message: 'If eligible, you will receive a new code by email.',
+        );
+      case UiOperation.verifyEmail:
+        await api.request(
+          '/auth/verify',
+          method: 'POST',
+          body: {'code': fields['verificationCode'] ?? ''},
+        );
+        return const UiResult.success(
+          message: 'Email verified. You can sign in.',
+        );
+      case UiOperation.requestReset:
+        await api.request(
+          '/auth/password/reset-request',
+          method: 'POST',
+          body: {'email': fields['Email address'] ?? ''},
+        );
+        return const UiResult.success(
+          message:
+              'If the account is eligible, reset instructions will arrive by email.',
+        );
+      case UiOperation.resetPassword:
+        final newPassword = fields['New password'] ?? '';
+        if (fields.containsKey('Current password')) {
+          await _sessionRequest(
+            '/me/password',
+            method: 'PATCH',
+            body: {
+              'current_password': fields['Current password'] ?? '',
+              'new_password': newPassword,
+            },
+          );
+          return const UiResult.success(
+            message: 'Password updated. Other sessions have been signed out.',
+          );
+        }
+        await api.request(
+          '/auth/password/reset',
+          method: 'POST',
+          body: {
+            'code': fields['Reset code'] ?? '',
+            'new_password': newPassword,
+          },
+        );
+        _accessToken = null;
+        await store.clearRefreshToken();
+        return const UiResult.success(
+          message: 'Password updated. Sign in again.',
+        );
+      case UiOperation.saveProfile:
+        await _sessionRequest(
+          '/me',
+          method: 'PATCH',
+          body: {'display_name': fields['Display name'] ?? ''},
+        );
+        return const UiResult.success(message: 'Profile updated.');
+      case UiOperation.signIn:
+        final response = await api.request(
+          '/auth/login',
+          method: 'POST',
+          body: {
+            'email': fields['Email address'] ?? '',
+            'password': fields['Password'] ?? '',
+          },
+        );
+        if (response['mfa_required'] == true) {
+          throw const ApiFailure(
+            403,
+            'This account requires an MFA sign-in flow.',
+          );
+        }
+        await _accept(response);
+        return const UiResult.success(message: 'Signed in.');
+      case UiOperation.signOut:
+        try {
+          await _signOut();
+          return const UiResult.success(message: 'Signed out.');
+        } on ApiFailure {
+          return const UiResult.failure(
+            'Signed out on this device. Server session revocation could not be confirmed.',
+          );
+        }
+      default:
+        return const UiResult.unavailable();
     }
   }
 }
