@@ -3,10 +3,42 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+enum FailureKind {
+  offline,
+  expired,
+  forbidden,
+  notFound,
+  conflict,
+  rateLimited,
+  invalid,
+  unavailable,
+}
+
 class ApiFailure implements Exception {
-  const ApiFailure(this.status, this.message);
+  const ApiFailure(this.status, this.message,
+      {this.code, this.offline = false});
   final int status;
   final String message;
+
+  /// Optional stable machine-readable reason from the gateway, e.g.
+  /// `already_reported` or `review_required`.
+  final String? code;
+  final bool offline;
+
+  FailureKind get kind => offline
+      ? FailureKind.offline
+      : switch (status) {
+          401 => FailureKind.expired,
+          403 => FailureKind.forbidden,
+          404 || 410 => FailureKind.notFound,
+          409 => FailureKind.conflict,
+          429 => FailureKind.rateLimited,
+          400 || 413 || 422 => FailureKind.invalid,
+          _ => FailureKind.unavailable,
+        };
+
+  @override
+  String toString() => 'ApiFailure($status${code == null ? '' : ', $code'})';
 }
 
 bool isApiId(Object? value) =>
@@ -81,19 +113,23 @@ class ApiClient {
       if (streamed.statusCode >= 200 && streamed.statusCode < 300) {
         return decoded;
       }
-      final detail = decoded['detail'];
+      final detail = decoded['detail'], code = decoded['code'];
       throw ApiFailure(
           streamed.statusCode,
           detail is String && detail.length <= 160
               ? detail
-              : 'The request could not be completed.');
+              : 'The request could not be completed.',
+          code: code is String && RegExp(r'^[a-z_]{1,64}$').hasMatch(code)
+              ? code
+              : null);
     } on ApiFailure {
       rethrow;
     } on TimeoutException {
       throw const ApiFailure(503, 'The service timed out. Please try again.');
     } on http.ClientException {
       throw const ApiFailure(
-          503, 'The service is unavailable. Please try again.');
+          503, 'The service is unavailable. Please try again.',
+          offline: true);
     } on FormatException {
       throw const ApiFailure(503, 'The service returned an invalid response.');
     }

@@ -1,0 +1,34 @@
+"""Reports, appeals, and reviewer moderation routes."""
+from django.urls import path
+
+from ..capabilities import enabled
+
+
+def patterns():
+    if not enabled("moderation"):
+        return []
+    from ..moderation import moderation_endpoint
+
+    return [
+        path("api/v1/reports", moderation_endpoint, {"operation": "report"}, name="submit-video-report"),
+        path("api/v1/me/reports", moderation_endpoint, {"operation": "own_reports"}, name="own-reports"),
+        path("api/v1/me/reports/<uuid:target_id>", moderation_endpoint,
+             {"operation": "own_report"}, name="own-report-detail"),
+        path("api/v1/me/appeals", moderation_endpoint, {"operation": "own_appeals"}, name="own-appeals"),
+        path("api/v1/me/appeals/<uuid:target_id>", moderation_endpoint,
+             {"operation": "own_appeal"}, name="own-appeal-detail"),
+        path("api/v1/videos/<uuid:target_id>/appeals", moderation_endpoint,
+             {"operation": "appeal"}, name="submit-video-appeal"),
+        path("api/v1/moderation/videos", moderation_endpoint, {"operation": "review_queue"},
+             name="review-video-queue"),
+        path("api/v1/moderation/reports", moderation_endpoint, {"operation": "reports"},
+             name="moderation-reports"),
+        path("api/v1/moderation/appeals", moderation_endpoint, {"operation": "appeals"},
+             name="moderation-appeals"),
+        path("api/v1/moderation/videos/<uuid:target_id>/decisions", moderation_endpoint,
+             {"operation": "video_decision"}, name="decide-video"),
+        path("api/v1/moderation/reports/<uuid:target_id>/decisions", moderation_endpoint,
+             {"operation": "report_decision"}, name="decide-video-report"),
+        path("api/v1/moderation/appeals/<uuid:target_id>/decisions", moderation_endpoint,
+             {"operation": "appeal_decision"}, name="decide-video-appeal"),
+    ]

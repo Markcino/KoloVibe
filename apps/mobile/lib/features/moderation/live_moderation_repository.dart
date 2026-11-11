@@ -27,8 +27,9 @@ class ModerationReceipt {
       throw const FormatException('Invalid moderation receipt');
     }
     final timestamp = DateTime.tryParse(created);
-    if (timestamp == null)
+    if (timestamp == null) {
       throw const FormatException('Invalid moderation date');
+    }
     return ModerationReceipt(id, videoId, status, timestamp);
   }
 }
@@ -54,8 +55,9 @@ class LiveModerationRepository {
         idempotencyKey: key,
         body: {'video_id': videoId, 'reason': reason, 'details': details});
     final receipt = ModerationReceipt.fromJson(data);
-    if (receipt.videoId != videoId)
+    if (receipt.videoId != videoId) {
       throw const FormatException('Mismatched report');
+    }
     return receipt;
   }
 
@@ -69,8 +71,9 @@ class LiveModerationRepository {
     final data = await account.authenticatedRequest('/videos/$videoId/appeals',
         method: 'POST', body: {'reason': reason.trim()});
     final receipt = ModerationReceipt.fromJson(data);
-    if (receipt.videoId != videoId)
+    if (receipt.videoId != videoId) {
       throw const FormatException('Mismatched appeal');
+    }
     return receipt;
   }
 
@@ -80,8 +83,9 @@ class LiveModerationRepository {
       _own('appeals', cursor);
 
   Future<List<ModerationReceipt>> _own(String kind, String? cursor) async {
-    if (cursor != null && !isApiId(cursor))
+    if (cursor != null && !isApiId(cursor)) {
       throw const FormatException('Invalid cursor');
+    }
     final data = await account.authenticatedRequest('/me/$kind',
         query: {if (cursor != null) 'cursor': cursor});
     final items = data['items'];
@@ -91,8 +95,9 @@ class LiveModerationRepository {
       throw const FormatException('Invalid moderation list');
     }
     return items.map((item) {
-      if (item is! Map<String, dynamic>)
+      if (item is! Map<String, dynamic>) {
         throw const FormatException('Invalid moderation item');
+      }
       return ModerationReceipt.fromJson({
         'id': item['id'],
         'video_id': item['video_id'],

@@ -15,7 +15,8 @@ class PlatformCredentialStore implements CredentialStore {
   Future<String?> readRefreshToken() => _storage.read(key: _key);
 
   @override
-  Future<void> writeRefreshToken(String token) => _storage.write(key: _key, value: token);
+  Future<void> writeRefreshToken(String token) =>
+      _storage.write(key: _key, value: token);
 
   @override
   Future<void> clearRefreshToken() => _storage.delete(key: _key);

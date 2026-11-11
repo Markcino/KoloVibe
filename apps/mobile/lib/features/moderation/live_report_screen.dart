@@ -72,14 +72,16 @@ class _LiveReportScreenState extends State<LiveReportScreen> {
       if ({73, 75}.contains(widget.route.screen)) {
         final reports = await widget.moderation.ownReports();
         final matches = reports.where((report) => report.videoId == id);
-        if (mounted && matches.isNotEmpty)
+        if (mounted && matches.isNotEmpty) {
           setState(() => receipt = matches.first);
+        }
       }
     } catch (failure) {
-      if (mounted)
+      if (mounted) {
         setState(() => error = failure is ApiFailure
             ? failure.message
             : 'The report service is unavailable.');
+      }
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -103,10 +105,11 @@ class _LiveReportScreenState extends State<LiveReportScreen> {
       details.clear();
       if (mounted) setState(() => receipt = value);
     } catch (failure) {
-      if (mounted)
+      if (mounted) {
         setState(() => error = failure is ApiFailure
             ? failure.message
             : 'The report was not confirmed. Check your connection and retry.');
+      }
     } finally {
       if (mounted) setState(() => submitting = false);
     }

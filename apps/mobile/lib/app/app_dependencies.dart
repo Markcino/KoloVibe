@@ -1,6 +1,7 @@
 import '../core/presentation/feature_repository.dart';
 import 'service_repositories.dart';
 import '../core/network/api_client.dart';
+import '../core/platform/device_bridge.dart';
 import '../core/security/credential_store.dart';
 import '../features/account/live_account_repository.dart';
 import '../features/discovery/live_video_repository.dart';
@@ -15,13 +16,22 @@ class AppDependencies {
         liveVideos = null,
         liveCreators = null,
         livePoints = null,
-        liveContent = null;
+        liveContent = null,
+        api = null,
+        device = const PlatformDeviceBridge();
 
-  const AppDependencies._(this.services, this.liveAccount, this.liveVideos,
-      this.liveCreators, this.livePoints, this.liveContent);
+  const AppDependencies._(
+      this.services,
+      this.liveAccount,
+      this.liveVideos,
+      this.liveCreators,
+      this.livePoints,
+      this.liveContent,
+      this.api,
+      this.device);
 
   factory AppDependencies.live(String baseUrl,
-      {CredentialStore? credentialStore}) {
+      {CredentialStore? credentialStore, DeviceBridge? device}) {
     final api = ApiClient(baseUrl);
     final account = LiveAccountRepository(
         api, credentialStore ?? const PlatformCredentialStore());
@@ -41,6 +51,8 @@ class AppDependencies {
       LiveCreatorRepository(api),
       LivePointsRepository(account),
       LiveContentRepository(account),
+      api,
+      device ?? const PlatformDeviceBridge(),
     );
   }
 
@@ -50,5 +62,9 @@ class AppDependencies {
   final LiveCreatorRepository? liveCreators;
   final LivePointsRepository? livePoints;
   final LiveContentRepository? liveContent;
+
+  /// Public gateway client for unauthenticated reads; null when unavailable.
+  final ApiClient? api;
+  final DeviceBridge device;
   FeatureRepository get repository => RepositoryDispatcher(services);
 }
