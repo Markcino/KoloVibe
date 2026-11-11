@@ -176,3 +176,30 @@ Historical design-capture evidence above is preserved. The following table recor
 | M-106 · Destructive-Action Confirmation | Native/reusable | — | Explicit destructive confirmation dialog, used for session revocation. |
 | M-107 · Success Notification | Native/reusable | — | Success notification after acknowledged mutation. |
 | M-108 · Application Update / Compatibility Notice | Live/native | GET /app/compatibility?platform=&version= | Installed DeviceBridge version; required blocks, available dismisses, unknown/errors never block; HTTPS store action. |
+
+
+## FL-B discovery/playback binding — 11 November 2026
+
+Historical capture evidence is preserved. Current live/native states and endpoint boundaries: [FL-B acceptance](engineering/FL-B_discovery_playback_acceptance.md).
+
+| Screen | Mode | Endpoint/native condition | Result |
+|---|---|---|---|
+| M-017 | Live | GET /videos/following; GET /videos?sort=trending; GET /videos | Separate real sections; independent empty/error states and sign-in prompt. |
+| M-018 | Live | GET /videos/following?cursor= | Own following feed; preserved cursor on outage; signed-out prompt. |
+| M-019 | Live | GET /videos?category= | Seven category chips plus All; real empty state; search entry. |
+| M-020 | Live | GET /videos?sort=trending | Server ordering; no fabricated rankings or popularity numbers. |
+| M-021 | Live | GET /videos?q=; GET /creators/search?q= | Entered query opens M-022; no fabricated recent searches. |
+| M-022 | Live | GET /videos?q=&category=; GET /creators/search?q= | Video and creator results; independent cursors and creator-only retry; reusable M-098 empty state. |
+| M-023 | Native/live | GET /videos?q=&category= | Category sheet applies/reset real query; selected category preserved. |
+| M-024 | Live/native | GET /videos; GET /videos/{id}; GET /videos/{id}/playback | Vertical PageView; only visible item mounts video_player; swiping disposes previous player. |
+| M-025 | Live/native | GET /videos/{id}; GET /videos/{id}/playback | Poster, metadata, server counts, player, creator link; report to route 71 with video id. |
+| M-026 | Live | GET /creators/{id}; GET /creators/{id}/follow | Actual display_name, handle, location, bio and nullable counts; public route 26. |
+| M-027 | Live | GET /videos?creator_id=&cursor= | Published public creator-filtered paging; generic title, no sample creator. |
+| M-028 | Live | PUT/DELETE /creators/{id}/follow | Optimistic state/count, authoritative result validation and rollback; 401 routes sign-in. |
+| M-029 | Live | GET/PUT/DELETE /videos/{id}/like | Server like_count; idempotent state requests; failures retain prior count/state; 401 sign-in. |
+| M-030 | Live/native | POST /videos/{id}/shares; DeviceBridge.share | Record first, strict HTTPS public share URL, actual native sheet; unavailable feedback. |
+| M-031 | Live state | HTTP 404 | Unavailable state M-031; Explore action; no fabricated alternative video. |
+| M-032 | Native state | video_player initialization/buffering | M-032 only during actual pending playback/buffering. |
+| M-033 | Native state | video_player initialization/runtime error | M-033 playback error; retry obtains a fresh signed grant/controller. |
+| M-034 | Native state | Buffering longer than 5 seconds | M-034 slow connection; no claimed rendition or fake quality switch. |
+| M-035 | Live state | HTTP 403 | M-035 restriction; Explore/guidelines actions; no bypass. |
