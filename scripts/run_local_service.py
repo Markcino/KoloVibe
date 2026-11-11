@@ -114,6 +114,13 @@ def environment_for(service: str, values: dict[str, str]) -> dict[str, str]:
                 raise ValueError(f"Local points require PostgreSQL for {service}")
             if service == "points":
                 env["KOLOVIBE_CALLER_GATEWAY_KEY"] = gateway_key
+    if service == "audit" and values.get("KOLOVIBE_AUDIT_CALLER_KEYS_FILE"):
+        env["KOLOVIBE_CALLER_KEYS_FILE"] = values["KOLOVIBE_AUDIT_CALLER_KEYS_FILE"]
+    if service == "moderation" and values.get("KOLOVIBE_LOCAL_MODERATION_ENABLED") == "1":
+        if values.get("KOLOVIBE_AUDIT_URL"):
+            env["KOLOVIBE_AUDIT_URL"] = values["KOLOVIBE_AUDIT_URL"]
+        if values.get("KOLOVIBE_INTERNAL_CA_FILE"):
+            env["KOLOVIBE_INTERNAL_CA_FILE"] = values["KOLOVIBE_INTERNAL_CA_FILE"]
     if service == "identity":
         for name in ("KOLOVIBE_SMTP_HOST", "KOLOVIBE_SMTP_PORT",
                      "KOLOVIBE_SMTP_USER", "KOLOVIBE_SMTP_PASSWORD", "KOLOVIBE_FROM_EMAIL"):

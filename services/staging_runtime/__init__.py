@@ -81,6 +81,9 @@ def configure(settings):
     if any(name not in SERVICES or not isinstance(key, str) or len(key) < 32
            for name, key in callers.items()):
         raise RuntimeError("Invalid staging caller credentials")
+    if service == "audit" and (set(callers) - {"identity", "moderation", "creators", "content", "points"}
+                               or len(set(callers.values())) != len(callers)):
+        raise RuntimeError("Audit producers require distinct caller credentials")
     if service in ("identity", "content", "creators") and "gateway" not in callers:
         raise RuntimeError("Staging peer requires an approved gateway credential")
     settings["STAGING_PROBE_TOKEN"] = secret("KOLOVIBE_PROBE_TOKEN_FILE")
