@@ -23,6 +23,9 @@ class Response:
 
 
 class CreatorGatewayTests(SimpleTestCase):
+    def setUp(self):
+        self.enterContext(patch("service.engagement_client.follower_count", return_value=None))
+
     def test_public_profile_is_validated(self):
         creator_id = uuid.uuid4()
         payload = {"id": str(creator_id), "user_id": str(uuid.uuid4()),

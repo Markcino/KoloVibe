@@ -51,13 +51,13 @@ class CreatorFollowGatewayTests(SimpleTestCase):
              patch("service.follows.read_creator", return_value=self.creator), \
              patch("service.follows.signed_internal_request") as peer:
             peer.return_value = Response(200, json.dumps({
-                "creator_id": str(self.creator_id), "following": True,
+                "creator_id": str(self.creator_id), "following": True, "follower_count": 1,
             }).encode())
             self.assertEqual(self.client.put(self.url).status_code, 200)
             self.assertEqual(json.loads(peer.call_args.kwargs["payload"]), {
                 "account_id": str(self.account_id), "creator_id": str(self.creator_id),
                 "operation": "follow",
             })
-            peer.return_value = Response(204)
-            self.assertEqual(self.client.delete(self.url).status_code, 204)
+            peer.return_value = Response(200, json.dumps({"creator_id": str(self.creator_id), "following": False, "follower_count": 0}).encode())
+            self.assertEqual(self.client.delete(self.url).status_code, 200)
             self.assertEqual(json.loads(peer.call_args.kwargs["payload"])["operation"], "unfollow")

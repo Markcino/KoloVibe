@@ -13,6 +13,7 @@ class VideoLikeGatewayTests(SimpleTestCase):
     def setUp(self):
         self.video_id = str(uuid4())
         self.account_id = str(uuid4())
+        self.creator_id = str(uuid4())
         self.url = reverse("api-video-like", args=[self.video_id])
 
     @patch("service.likes.signed_internal_request")
@@ -29,14 +30,14 @@ class VideoLikeGatewayTests(SimpleTestCase):
         self.assertEqual(self.client.put(self.url, data=b"").status_code, 404)
         engagement.assert_not_called()
 
-        video.return_value = JsonResponse({"id": self.video_id})
-        expected = {"video_id": self.video_id, "liked": True}
+        video.return_value = JsonResponse({"id": self.video_id, "creator_id": self.creator_id})
+        expected = {"video_id": self.video_id, "liked": True, "like_count": 1}
         engagement.return_value = Response(json.dumps(expected).encode())
         response = self.client.put(self.url, data=b"")
         self.assertEqual(response.json(), expected)
         self.assertEqual(engagement.call_args.args, ("engagement", "/internal/likes"))
         self.assertEqual(json.loads(engagement.call_args.kwargs["payload"]), {
-            **expected, "account_id": self.account_id,
+            "video_id": self.video_id, "liked": True, "account_id": self.account_id, "creator_id": self.creator_id,
         })
 
         engagement.reset_mock()
@@ -62,10 +63,9 @@ class VideoLikeGatewayTests(SimpleTestCase):
     @patch("service.likes.current_account")
     def test_creator_can_remove_a_like(self, account, engagement):
         account.return_value = JsonResponse({"id": self.account_id, "roles": ["creator"]})
-        response = Response(b"")
-        response.status = 204
+        response = Response(json.dumps({"video_id": self.video_id, "liked": False, "like_count": 0}).encode())
         engagement.return_value = response
-        self.assertEqual(self.client.delete(self.url, data=b"").status_code, 204)
+        self.assertEqual(self.client.delete(self.url, data=b"").status_code, 200)
         self.assertEqual(json.loads(engagement.call_args.kwargs["payload"]), {
             "video_id": self.video_id, "account_id": self.account_id, "liked": False,
         })
@@ -75,9 +75,9 @@ class VideoLikeGatewayTests(SimpleTestCase):
     @patch("service.likes.current_account")
     def test_status_reads_only_signed_in_viewers_own_state(self, account, video, engagement):
         account.return_value = JsonResponse({"id": self.account_id, "roles": ["viewer"]})
-        video.return_value = JsonResponse({"id": self.video_id})
+        video.return_value = JsonResponse({"id": self.video_id, "creator_id": self.creator_id})
         engagement.return_value = Response(json.dumps({
-            "video_id": self.video_id, "liked": False,
+            "video_id": self.video_id, "liked": False, "like_count": 0,
         }).encode())
         result = self.client.get(self.url)
         self.assertEqual(result.status_code, 200)

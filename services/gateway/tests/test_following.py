@@ -35,6 +35,29 @@ class FollowingFeedTests(SimpleTestCase):
                 "title": "Original", "description": "", "state": "published",
                 "created_at": "2026-11-11T00:00:00+00:00", **metadata()}
 
+    def test_two_requests_paginate_mixed_membership_without_duplicates_or_lost_items(self):
+        account = JsonResponse({"id": self.account_id, "roles": ["viewer"]})
+        other = "00000000-0000-4000-8000-000000000300"
+        catalog = [self.video(index) | {"creator_id": self.creator_id if index % 2 == 0 else other} for index in range(60)]
+        def peer(audience, path, *, payload, **_):
+            data = json.loads(payload)
+            if audience == "content":
+                start = UUID(data["cursor"]).int if data.get("cursor") else 0
+                items = catalog[start:start+20]
+                return Response({"items": items, "next_cursor": items[-1]["id"] if start+20 < len(catalog) else None})
+            return Response({"creator_ids": [self.creator_id] if self.creator_id in data["creator_ids"] else []})
+        with patch("service.following.current_account", return_value=account), \
+                patch("service.following.signed_internal_request", side_effect=peer), \
+                patch("service.engagement_client.like_counts", side_effect=lambda ids: {value: 0 for value in ids}):
+            first = self.client.get(reverse("api-following-videos")).json()
+            second = self.client.get(reverse("api-following-videos"), {"cursor": first["next_cursor"]}).json()
+        self.assertEqual((len(first["items"]), len(second["items"])), (20, 10))
+        ids = [item["id"] for item in first["items"] + second["items"]]
+        self.assertEqual(ids, [item["id"] for item in catalog if item["creator_id"] == self.creator_id])
+        self.assertEqual(len(ids), len(set(ids)))
+        self.assertIsNone(second["next_cursor"])
+        self.assertTrue(all(item["like_count"] == 0 for item in first["items"] + second["items"]))
+
     def test_bounded_scan_rejects_malformed_like_counts_without_a_server_error(self):
         account = JsonResponse({"id": self.account_id, "roles": ["viewer"]})
         page_number = 0
