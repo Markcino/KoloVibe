@@ -3,8 +3,8 @@
 import json
 from uuid import UUID
 
-from django.db import DatabaseError
-from django.http import HttpResponse, JsonResponse
+from django.db import DatabaseError, transaction
+from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 
 from .models import CreatorFollow
@@ -54,12 +54,13 @@ def follow_api(request):
     except (ValueError, TypeError, AttributeError):
         return JsonResponse({"detail": "Invalid follow request"}, status=400)
     try:
-        matches = CreatorFollow.objects.filter(account_id=account_id, creator_id=creator_id)
-        if operation == "follow":
-            CreatorFollow.objects.get_or_create(account_id=account_id, creator_id=creator_id)
-        elif operation == "unfollow":
-            matches.delete()
-            return HttpResponse(status=204)
-        return JsonResponse({"creator_id": str(creator_id), "following": matches.exists()})
+        with transaction.atomic():
+            matches = CreatorFollow.objects.filter(account_id=account_id, creator_id=creator_id)
+            if operation == "follow":
+                CreatorFollow.objects.get_or_create(account_id=account_id, creator_id=creator_id)
+            elif operation == "unfollow":
+                matches.delete()
+            return JsonResponse({"creator_id": str(creator_id), "following": matches.exists(),
+                                 "follower_count": CreatorFollow.objects.filter(creator_id=creator_id).count()})
     except DatabaseError:
         return JsonResponse({"detail": "Engagement service unavailable"}, status=503)

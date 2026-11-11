@@ -4,13 +4,13 @@ from datetime import timedelta
 import json
 from uuid import UUID, uuid4
 
-from django.db import DatabaseError, transaction
+from django.db import DatabaseError, models, transaction
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .events import QUALIFIED_VIEW, record_event
-from .models import WatchSession
+from .models import QualifiedWatch, WatchSession
 
 
 SESSION_TTL = timedelta(seconds=90)
@@ -81,10 +81,23 @@ def progress(data):
         qualified = not already_qualified and min(position, elapsed_ms) >= threshold
         if qualified:
             watch.qualified_at = now
+            QualifiedWatch.objects.create(
+                session_id=watch.session_id, account_id=watch.account_id, video_id=watch.video_id,
+                creator_user_id=watch.creator_user_id, qualified_at=now, duration_ms=watch.duration_ms,
+                watched_ms=min(position, elapsed_ms),
+            )
             record_event(QUALIFIED_VIEW, {
                 "creator_user_id": str(watch.creator_user_id),
                 "qualified_at": now.isoformat(),
             })
+        elif already_qualified and watch.qualified_at >= watch.started_at:
+            # Renewal inside the 24-hour dedupe window must not turn a replay
+            # into another play or overwrite the original session's watch time.
+            QualifiedWatch.objects.filter(
+                session_id=watch.session_id, account_id=watch.account_id, video_id=watch.video_id,
+                qualified_at=watch.qualified_at,
+            ).filter(models.Q(watched_ms__isnull=True) | models.Q(watched_ms__lt=min(position, elapsed_ms))).update(
+                watched_ms=min(position, elapsed_ms))
         watch.save(update_fields=["position_ms", "last_sample_at", "qualified_at"])
     return JsonResponse({"qualified": already_qualified or qualified})
 

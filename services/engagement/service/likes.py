@@ -3,8 +3,8 @@
 import json
 from uuid import UUID
 
-from django.db import DatabaseError
-from django.http import HttpResponse, JsonResponse
+from django.db import DatabaseError, transaction
+from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 
 from .models import VideoLike
@@ -26,9 +26,10 @@ def read_like(request):
         return JsonResponse({"detail": "Invalid like request"}, status=400)
     try:
         liked = VideoLike.objects.filter(video_id=video_id, account_id=account_id).exists()
+        count = VideoLike.objects.filter(video_id=video_id).count()
     except DatabaseError:
         return JsonResponse({"detail": "Engagement service unavailable"}, status=503)
-    return JsonResponse({"video_id": str(video_id), "liked": liked})
+    return JsonResponse({"video_id": str(video_id), "liked": liked, "like_count": count})
 
 
 @require_POST
@@ -40,20 +41,28 @@ def update_like(request):
         if len(request.body) > 256:
             raise ValueError("Request too large")
         data = json.loads(request.body)
-        if not isinstance(data, dict) or set(data) != {"video_id", "account_id", "liked"}:
+        if (not isinstance(data, dict) or not {"video_id", "account_id", "liked"} <= set(data)
+                or set(data) - {"video_id", "account_id", "liked", "creator_id"}):
             raise ValueError("Invalid like")
         if type(data["liked"]) is not bool:
             raise ValueError("Invalid like state")
         video_id = UUID(data["video_id"])
         account_id = UUID(data["account_id"])
+        creator_id = UUID(data["creator_id"]) if "creator_id" in data else None
     except (ValueError, TypeError, AttributeError):
         return JsonResponse({"detail": "Invalid like"}, status=400)
 
     try:
-        if data["liked"]:
-            VideoLike.objects.get_or_create(video_id=video_id, account_id=account_id)
-            return JsonResponse({"video_id": str(video_id), "liked": True})
-        VideoLike.objects.filter(video_id=video_id, account_id=account_id).delete()
+        with transaction.atomic():
+            if data["liked"]:
+                row, _ = VideoLike.objects.get_or_create(video_id=video_id, account_id=account_id,
+                                                        defaults={"creator_id": creator_id})
+                if creator_id is not None and row.creator_id != creator_id:
+                    row.creator_id = creator_id
+                    row.save(update_fields=["creator_id"])
+            else:
+                VideoLike.objects.filter(video_id=video_id, account_id=account_id).delete()
+            count = VideoLike.objects.filter(video_id=video_id).count()
     except DatabaseError:
         return JsonResponse({"detail": "Engagement service unavailable"}, status=503)
-    return HttpResponse(status=204)
+    return JsonResponse({"video_id": str(video_id), "liked": data["liked"], "like_count": count})

@@ -27,8 +27,8 @@ class VideoLikeTests(TestCase):
         self.assertEqual(self.write_like(True, other_account).status_code, 200)
         self.assertEqual(VideoLike.objects.count(), 2)
 
-        self.assertEqual(self.write_like(False).status_code, 204)
-        self.assertEqual(self.write_like(False).status_code, 204)
+        self.assertEqual(self.write_like(False).status_code, 200)
+        self.assertEqual(self.write_like(False).status_code, 200)
         self.assertEqual(str(VideoLike.objects.get().account_id), other_account)
 
     def test_only_gateway_can_write_and_the_intent_must_be_boolean(self):
