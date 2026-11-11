@@ -7,6 +7,15 @@ from django.db.models import Q
 
 
 class Video(models.Model):
+    class Category(models.TextChoices):
+        HIPCO = "hipco", "Hipco"
+        AFROBEATS = "afrobeats", "Afrobeats"
+        COMEDY = "comedy", "Comedy"
+        SKITS = "skits", "Skits"
+        SHORT_FILMS = "short_films", "Short films"
+        CULTURE = "culture", "Culture"
+        DOCUMENTARIES = "documentaries", "Documentaries"
+
     class State(models.TextChoices):
         DRAFT = "draft", "Draft"
         UPLOADING = "uploading", "Uploading"
@@ -26,6 +35,12 @@ class Video(models.Model):
     creator_id = models.UUIDField()
     title = models.CharField(max_length=160)
     description = models.TextField(blank=True, max_length=2000)
+    category = models.CharField(max_length=16, choices=Category.choices, null=True, blank=True)
+    tags = models.JSONField(default=list, blank=True)
+    cover_time_ms = models.PositiveIntegerField(null=True, blank=True)
+    poster_asset_id = models.CharField(max_length=255, null=True, blank=True)
+    failure_reason = models.CharField(max_length=32, null=True, blank=True)
+    deleted_at = models.DateTimeField(null=True, blank=True, db_index=True)
     state = models.CharField(max_length=16, choices=State.choices, default=State.DRAFT)
     visibility = models.CharField(max_length=16, choices=Visibility.choices, default=Visibility.PRIVATE)
     provider_asset_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
@@ -39,6 +54,9 @@ class Video(models.Model):
     class Meta:
         indexes = [models.Index(fields=["-created_at", "-id"])]
         constraints = [
+            models.CheckConstraint(
+                condition=Q(cover_time_ms__isnull=True) | Q(duration_ms__isnull=True)
+                | Q(cover_time_ms__lte=models.F("duration_ms")), name="cover_within_video_duration"),
             models.CheckConstraint(
                 condition=(
                     ~Q(state="published")

@@ -43,7 +43,7 @@ class R2MediaTests(TestCase):
         self.assertEqual(self.call("edit", edit | {"video_id": str(other.id)}).status_code, 404)
         self.assertEqual(self.call("delete", owner | {"video_id": str(other.id)}).status_code, 404)
         self.assertEqual(self.call("delete", owner | {"video_id": str(self.video.id)}).status_code, 200)
-        self.assertFalse(Video.objects.filter(pk=self.video.id).exists())
+        self.assertIsNotNone(Video.objects.get(pk=self.video.id).deleted_at)
         self.assertTrue(Video.objects.filter(pk=other.id).exists())
 
     def test_owned_detail_includes_state_and_revision_without_cross_creator_access(self):
@@ -58,16 +58,15 @@ class R2MediaTests(TestCase):
                          ("removed", 2))
         self.assertEqual(self.call("detail", payload | {"video_id": str(other.id)}).status_code, 404)
 
-    def test_draft_with_reserved_media_or_publication_cannot_be_edited_or_deleted(self):
+    def test_reserved_draft_can_be_edited_and_soft_deleted_without_purging_media(self):
         payload = {"creator_id": str(self.creator), "video_id": str(self.video.id)}
         MediaUpload.objects.create(id=uuid4(), video=self.video, expected_bytes=10,
                                    expires_at=timezone.now())
-        self.assertEqual(self.call("delete", payload).status_code, 409)
-        self.assertEqual(self.call("edit", payload | {"title": "New", "description": ""}).status_code, 409)
-        MediaUpload.objects.filter(video=self.video).delete()
-        self.video.state = Video.State.REVIEW
-        self.video.save(update_fields=["state"])
-        self.assertEqual(self.call("delete", payload).status_code, 409)
+        self.assertEqual(self.call("edit", payload | {"title": "New", "description": ""}).status_code, 200)
+        self.assertEqual(self.call("delete", payload).status_code, 200)
+        self.assertTrue(MediaUpload.objects.filter(video=self.video).exists())
+        self.assertIsNotNone(Video.objects.get(pk=self.video.id).deleted_at)
+        self.assertEqual(self.call("detail", payload).status_code, 404)
 
     def test_owned_library_paginates_without_leaking_another_creators_video(self):
         for index in range(22):
@@ -109,11 +108,13 @@ class R2MediaTests(TestCase):
         self.assertEqual(self.call("complete", payload).status_code, 202)
         self.assertEqual(MediaUpload.objects.get().source_etag, '"example"')
 
+    @patch("service.media_encoding.render_poster")
+    @patch("service.media_storage.put_poster")
     @patch("service.media_storage.put_playback")
     @patch("service.media_encoding.encode")
     @patch("service.media_storage.download_upload")
     @patch("service.media_storage.sign_playback")
-    def test_worker_keeps_rendition_private_until_publication(self, sign, download, encode, put):
+    def test_worker_keeps_rendition_private_until_publication(self, sign, download, encode, put, put_poster, render):
         self.video.state = Video.State.PROCESSING
         self.video.save(update_fields=["state"])
         reservation = MediaUpload.objects.create(id=uuid4(), video=self.video, expected_bytes=10,
@@ -123,10 +124,13 @@ class R2MediaTests(TestCase):
         process(self.video.id)
         download.assert_called_once()
         put.assert_called_once()
+        put_poster.assert_called_once()
+        self.assertEqual(render.call_args.args[2:], (1000, 1900))
         self.video.refresh_from_db()
         self.assertEqual((self.video.state, self.video.visibility), ("review", "private"))
         self.assertEqual((self.video.duration_seconds, self.video.duration_ms), (2, 1900))
         self.assertTrue(self.video.provider_asset_id.startswith(f"playback/{reservation.id}/"))
+        self.assertTrue(self.video.poster_asset_id.endswith(".jpg"))
         self.assertEqual(self.call("playback", {"video_id": str(self.video.id)}).status_code, 404)
         sign.assert_not_called()
         now = timezone.now()
@@ -165,6 +169,9 @@ class R2MediaTests(TestCase):
                 "KOLOVIBE_R2_ACCOUNT_ID": "a" * 32, "KOLOVIBE_R2_MEDIA_BUCKET": "local-fixture",
             }):
                 url = media_storage.sign_upload(f"originals/{uuid4()}.mp4", 1234, 60)
+                poster = media_storage.sign_playback(f"playback/{uuid4()}/{uuid4()}.jpg", 300)
         query = parse_qs(urlsplit(url).query)
         self.assertEqual(query["X-Amz-SignedHeaders"], ["content-length;content-type;host;if-none-match"])
         self.assertEqual(query["X-Amz-Expires"], ["60"])
+        self.assertEqual(parse_qs(urlsplit(poster).query)["X-Amz-Expires"], ["300"])
+        self.assertTrue(urlsplit(poster).path.endswith(".jpg"))

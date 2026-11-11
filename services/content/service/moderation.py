@@ -27,7 +27,7 @@ def _apply(video_id, action_id, action, revision):
     if not isinstance(action, str) or action not in TRANSITIONS or type(revision) is not int or revision < 0:
         raise ValueError("Invalid moderation transition")
     with transaction.atomic():
-        video = Video.objects.select_for_update().filter(pk=video_id).first()
+        video = Video.objects.select_for_update().filter(pk=video_id, deleted_at__isnull=True).first()
         if video is None:
             return _error("Video not found", 404)
         receipt = ModerationReceipt.objects.filter(pk=action_id).first()
@@ -71,7 +71,8 @@ def moderation_video(request, operation):
         if operation not in fields or not isinstance(data, dict) or set(data) != fields[operation]:
             raise ValueError("Invalid moderation request")
         if operation == "queue":
-            videos = Video.objects.filter(state=Video.State.REVIEW, visibility=Video.Visibility.PRIVATE).order_by("id")
+            videos = Video.objects.filter(state=Video.State.REVIEW, visibility=Video.Visibility.PRIVATE,
+                                           deleted_at__isnull=True).order_by("id")
             if data["cursor"] is not None:
                 videos = videos.filter(id__gt=UUID(data["cursor"]))
             page = list(videos[:21])
@@ -80,7 +81,7 @@ def moderation_video(request, operation):
         video_id = UUID(data["video_id"])
         if operation == "apply":
             return _apply(video_id, UUID(data["action_id"]), data["action"], data["revision"])
-        video = Video.objects.filter(pk=video_id).first()
+        video = Video.objects.filter(pk=video_id, deleted_at__isnull=True).first()
         if video is None:
             return _error("Video not found", 404)
         return JsonResponse({"creator_id": str(video.creator_id), "state": video.state,

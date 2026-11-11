@@ -5,12 +5,13 @@ import math
 import os
 import subprocess
 
-from .media_storage import MAX_BYTES
+from .media_storage import MAX_BYTES, MAX_POSTER_BYTES
 
 
 MAX_DURATION = 300
 PROBE_TIMEOUT = 15
 ENCODE_TIMEOUT = 120
+POSTER_TIMEOUT = 15
 SAFE_ENV = {"PATH": os.defpath, "LANG": "C"}
 
 
@@ -73,3 +74,25 @@ def encode(source, destination):
     if abs(rendition_duration - duration) > 1:
         raise InvalidMedia
     return max(1, math.floor(rendition_duration * 1000))
+
+
+def render_poster(source, destination, cover_time_ms, duration_ms):
+    if (type(cover_time_ms) is not int or not 0 <= cover_time_ms <= duration_ms
+            or not 0 < duration_ms <= MAX_DURATION * 1000):
+        raise InvalidMedia
+    # An inclusive cover at the duration boundary uses the last decodable frame.
+    seek_ms = min(cover_time_ms, max(0, duration_ms - 100))
+    _run([
+        "ffmpeg", "-v", "error", "-nostdin", "-max_alloc", "67108864",
+        "-filter_threads", "1", "-protocol_whitelist", "file,pipe", "-f", "mov", "-enable_drefs", "0",
+        "-threads", "1", "-i", str(source), "-ss", f"{seek_ms / 1000:.3f}",
+        "-map", "0:v:0", "-map_metadata", "-1", "-frames:v", "1", "-an",
+        "-vf", r"scale=w=min(640\,iw):h=min(640\,ih):force_original_aspect_ratio=decrease",
+        "-c:v", "mjpeg", "-q:v", "3", "-threads", "1", "-fs", str(MAX_POSTER_BYTES),
+        "-f", "image2", str(destination),
+    ], POSTER_TIMEOUT)
+    if not destination.is_file() or not 0 < destination.stat().st_size <= MAX_POSTER_BYTES:
+        raise InvalidMedia
+    with destination.open("rb") as image:
+        if image.read(2) != b"\xff\xd8":
+            raise InvalidMedia
