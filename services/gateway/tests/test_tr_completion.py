@@ -5,7 +5,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from django.http import JsonResponse
-from django.test import RequestFactory, SimpleTestCase
+from django.test import RequestFactory, SimpleTestCase, override_settings
 
 from service.moderation import moderation_endpoint
 from service.pilot_points import creator_points
@@ -156,3 +156,18 @@ class StandingGatewayTests(SimpleTestCase):
         with patch("service.standing._invoke", return_value=JsonResponse({"account_id": self.account, "account_status": "active", "email_verified": True, "mfa_verified": 1})) as peer:
             self.assertEqual(identity_context(request).status_code, 503)
             self.assertEqual(peer.call_args.args[1], {"access_token": "signed-token"})
+
+
+class ExistingPublicCreatorDependencyTests(SimpleTestCase):
+    @override_settings(KOLOVIBE_SERVICE_NAME="content", STAGING_ACCOUNTS=False,
+                       STAGING_PRIVILEGED=False, STAGING_CREATOR_ONBOARDING=False)
+    def test_staging_allows_only_the_private_post_count_read_needed_by_existing_creator_detail(self):
+        from staging_runtime.middleware import RestrictedStagingMiddleware
+        middleware = RestrictedStagingMiddleware(lambda request: JsonResponse({"next_auth_boundary": True}))
+        factory = RequestFactory()
+        self.assertEqual(middleware(factory.post("/internal/videos/published-count", {}, secure=True)).status_code, 200)
+        for method, path in (("get", "/internal/videos/published-count"),
+                             ("post", "/internal/videos/lookup"),
+                             ("post", "/internal/videos/media/publish"),
+                             ("post", "/api/v1/videos")):
+            self.assertEqual(middleware(getattr(factory, method)(path, secure=True)).status_code, 403)
