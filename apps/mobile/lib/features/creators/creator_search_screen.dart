@@ -76,7 +76,7 @@ class _CreatorSearchScreenState extends State<CreatorSearchScreen> {
                       title: Text('@${creator.handle}'),
                       subtitle: creator.bio.isEmpty ? null : Text(creator.bio),
                       onTap: () {
-                        final route = ScreenRoute(38, entityId: creator.id);
+                        final route = ScreenRoute(26, entityId: creator.id);
                         Navigator.of(context)
                             .pushNamed(route.name, arguments: route);
                       },

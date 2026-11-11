@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import '../../app/screen_route.dart';
 import '../../core/network/api_client.dart';
+import '../../core/platform/device_bridge.dart';
+import '../system/system_ui.dart';
 import '../../core/presentation/design_node.dart';
 import '../../core/theme/kolovibe_theme.dart';
 import '../shell/main_shell.dart';
@@ -226,16 +229,26 @@ class _LiveVideoScreenState extends State<LiveVideoScreen> {
 
 class LiveVideoDetailScreen extends StatefulWidget {
   const LiveVideoDetailScreen(
-      {super.key, required this.id, required this.repository, this.engagement});
+      {super.key,
+      required this.id,
+      required this.repository,
+      this.engagement,
+      this.fullScreen = false,
+      this.playerFactory,
+      this.device = const PlatformDeviceBridge()});
   final String id;
   final LiveVideoRepository repository;
   final LiveVideoEngagementRepository? engagement;
+  final DeviceBridge device;
+  final bool fullScreen;
+  final VideoPlayerController Function(Uri)? playerFactory;
 
   @override
   State<LiveVideoDetailScreen> createState() => _LiveVideoDetailScreenState();
 }
 
-class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen> {
+class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
+    with WidgetsBindingObserver {
   LiveVideo? item;
   Object? error;
   bool loading = true;
@@ -243,10 +256,116 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen> {
   VideoPlayerController? player;
   String? playerError;
   bool? shownPlaying;
+  bool buffering = false, slow = false, starting = false, sharing = false;
+  Timer? bufferTimer;
+  Object? playbackFailure;
+  void navigate(int screen, [String? id]) {
+    player?.pause();
+    final route = ScreenRoute(screen, entityId: id);
+    Navigator.of(context).pushNamed(route.name, arguments: route);
+  }
+
+  void setBuffering(bool value) {
+    if (buffering == value) return;
+    bufferTimer?.cancel();
+    buffering = value;
+    slow = false;
+    if (value) {
+      bufferTimer = Timer(const Duration(seconds: 5), () {
+        if (mounted && buffering) setState(() => slow = true);
+      });
+    }
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) player?.pause();
+  }
+
+  Future<void> toggleLike() async {
+    final controller = engagementController;
+    if (controller == null) {
+      navigate(4);
+      return;
+    }
+    await controller.toggleLike();
+    if (!mounted) return;
+    final failure = controller.likeFailure;
+    if (failure is ApiFailure && failure.status == 401) navigate(4);
+  }
+
+  Future<void> share() async {
+    if (sharing) return;
+    if (widget.engagement == null) {
+      navigate(4);
+      return;
+    }
+    setState(() => sharing = true);
+    try {
+      final url = await widget.engagement!.share(widget.id);
+      if (!mounted) return;
+      final opened = await widget.device.share(url.toString());
+      if (!mounted || opened) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Native sharing is not available on this device.')));
+    } catch (failure) {
+      if (!mounted) return;
+      if (failure is ApiFailure && failure.status == 401) {
+        navigate(4);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+                'Sharing is unavailable right now. No share link was opened.')));
+      }
+    } finally {
+      if (mounted) setState(() => sharing = false);
+    }
+  }
+
+  Widget playbackState(Object failure,
+      {bool media = false, bool metadata = false}) {
+    final status = failure is ApiFailure ? failure.status : null;
+    if (status == 401) {
+      return FilledButton(
+          onPressed: () => navigate(4), child: const Text('Sign in to watch'));
+    }
+    if (status == 403 || status == 404 || media) {
+      return Column(
+          key: ValueKey(status == 403
+              ? 'M-035'
+              : status == 404
+                  ? 'M-031'
+                  : 'M-033'),
+          children: [
+            Text(status == 403
+                ? 'This video is restricted.'
+                : status == 404
+                    ? 'This original is not available for public viewing.'
+                    : 'Playback paused. We couldn’t load this video.'),
+            if (status != 403 && status != 404)
+              TextButton(
+                  onPressed: _startPlayback,
+                  child: const Text('Retry playback')),
+            TextButton(
+                onPressed: () => navigate(19),
+                child: const Text('Explore other originals')),
+            if (status == 403)
+              TextButton(
+                  onPressed: () => navigate(87),
+                  child: const Text('Read community guidelines')),
+          ]);
+    }
+    return SystemFailureView(
+        error: failure,
+        onRetry: metadata ? load : _startPlayback,
+        onSignIn: () => navigate(4));
+  }
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     if (widget.engagement != null) {
       engagementController =
           LiveVideoEngagementController(widget.engagement!, widget.id)
@@ -262,6 +381,8 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    bufferTimer?.cancel();
     player?.removeListener(_onPlaybackChanged);
     player?.dispose();
     engagementController?.removeListener(_refresh);
@@ -273,7 +394,9 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen> {
     final current = player;
     if (current == null || !mounted) return;
     final value = current.value;
+    setBuffering(value.isBuffering);
     if (value.hasError) {
+      setBuffering(false);
       if (playerError == null) {
         setState(() => playerError = 'Playback could not continue. Try again.');
       }
@@ -289,11 +412,37 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen> {
   }
 
   Future<void> _startPlayback() async {
-    final controller = engagementController;
-    if (controller == null) return;
-    setState(() => playerError = null);
-    final grant = await controller.startPlayback();
-    if (!mounted || grant == null) return;
+    if (starting) return;
+    setState(() {
+      starting = true;
+      playerError = null;
+      playbackFailure = null;
+    });
+    setBuffering(true);
+    PlaybackGrant? grant;
+    try {
+      if (engagementController != null) {
+        await widget.repository
+            .playback(widget.id, account: widget.engagement!.account);
+        grant = await engagementController!.startPlayback();
+        if (grant == null) {
+          throw engagementController!.playbackFailure ??
+              const FormatException('Invalid playback');
+        }
+      } else {
+        grant = await widget.repository.playback(widget.id);
+      }
+    } catch (failure) {
+      if (mounted) {
+        setBuffering(false);
+        setState(() {
+          playbackFailure = failure;
+          starting = false;
+        });
+      }
+      return;
+    }
+    if (!mounted) return;
     final previous = player;
     player = null;
     shownPlaying = null;
@@ -302,21 +451,28 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen> {
       await previous.dispose();
     }
     if (!mounted) return;
-    final next = VideoPlayerController.networkUrl(grant.url);
+    final next = widget.playerFactory?.call(grant.url) ??
+        VideoPlayerController.networkUrl(grant.url);
     try {
-      await next.initialize();
+      await next.initialize().timeout(const Duration(seconds: 15));
       if (!mounted) {
         await next.dispose();
         return;
       }
       player = next..addListener(_onPlaybackChanged);
       setState(() {});
+      setBuffering(false);
+      setState(() => starting = false);
       await next.play();
     } catch (_) {
       if (identical(player, next)) player = null;
       await next.dispose();
       if (mounted) {
-        setState(() => playerError = 'Playback could not start. Try again.');
+        setBuffering(false);
+        setState(() {
+          starting = false;
+          playerError = 'Playback could not start. Try again.';
+        });
       }
     }
   }
@@ -328,7 +484,10 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen> {
     });
     try {
       final value = await widget.repository.detail(widget.id);
-      if (mounted) setState(() => item = value);
+      if (mounted) {
+        setState(() => item = value);
+        if (widget.fullScreen) _startPlayback();
+      }
     } on ApiFailure catch (failure) {
       if (mounted) setState(() => error = failure);
     } on FormatException catch (failure) {
@@ -338,45 +497,145 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen> {
     }
   }
 
+  Widget fullScreen(LiveVideo video) {
+    final current = player;
+    final controller = engagementController;
+    return ColoredBox(
+        color: Colors.black,
+        child: Stack(fit: StackFit.expand, children: [
+          if (current != null && current.value.isInitialized)
+            Center(
+                child: AspectRatio(
+                    aspectRatio: current.value.aspectRatio,
+                    child: VideoPlayer(current)))
+          else if (video.posterUrl != null)
+            Image.network(video.posterUrl.toString(),
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const SizedBox()),
+          if (buffering)
+            Center(
+                child: Card(
+                    child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            key: ValueKey(slow ? 'M-034' : 'M-032'),
+                            children: [
+                              Text(slow
+                                  ? 'Slow connection. No lower-data rendition is available to select.'
+                                  : 'Preparing playback…'),
+                              const LinearProgressIndicator(),
+                            ])))),
+          if (playbackFailure != null || playerError != null)
+            Center(
+                child: Card(
+                    child: playbackState(
+                        playbackFailure ?? StateError('Playback failed'),
+                        media: playerError != null))),
+          Align(
+              alignment: Alignment.bottomCenter,
+              child: Container(
+                  color: Colors.black87,
+                  padding: const EdgeInsets.all(16),
+                  child: SingleChildScrollView(
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Text(video.title,
+                        style:
+                            const TextStyle(color: Colors.white, fontSize: 22)),
+                    Text(
+                        '${controller?.likeCount ?? video.likeCount ?? 'Unavailable'} likes',
+                        style: const TextStyle(color: Colors.white)),
+                    Wrap(children: [
+                      TextButton(
+                          onPressed: () => navigate(26, video.creatorId),
+                          child: const Text('View creator')),
+                      TextButton(
+                          onPressed: controller?.liked == null
+                              ? () => navigate(4)
+                              : controller!.likeBusy
+                                  ? null
+                                  : toggleLike,
+                          child: Text(
+                              controller?.liked == true ? 'Unlike' : 'Like')),
+                      TextButton(
+                          onPressed: sharing ? null : share,
+                          child: const Text('Share')),
+                      TextButton(
+                          onPressed: () => navigate(
+                              widget.engagement == null ? 4 : 71,
+                              widget.engagement == null ? null : video.id),
+                          child: const Text('Report video')),
+                      if (current != null && current.value.isInitialized)
+                        TextButton(
+                            onPressed: () => current.value.isPlaying
+                                ? current.pause()
+                                : current.play(),
+                            child: Text(
+                                current.value.isPlaying ? 'Pause' : 'Play')),
+                    ]),
+                  ])))),
+        ]));
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Original')),
+        appBar: AppBar(title: const Text('Original'), actions: [
+          PopupMenuButton<String>(
+              onSelected: (_) => navigate(widget.engagement == null ? 4 : 71,
+                  widget.engagement == null ? null : widget.id),
+              itemBuilder: (_) => [
+                    const PopupMenuItem(
+                        value: 'report', child: Text('Report video'))
+                  ])
+        ]),
         body: SafeArea(child: Builder(
           builder: (context) {
             if (loading) {
               return const Center(child: CircularProgressIndicator());
             }
             if (error != null) {
-              final failure = error;
-              final missing = failure is ApiFailure && failure.status == 404;
-              return Center(
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Semantics(
-                    liveRegion: true,
-                    child: Text(missing
-                        ? 'This original is not available for public viewing.'
-                        : 'Videos are temporarily unavailable.')),
-                if (!missing)
-                  OutlinedButton(
-                    onPressed: load,
-                    child: const Text('Try again'),
-                  ),
-              ]));
+              return playbackState(error!, metadata: true);
             }
             final video = item!;
+            if (widget.fullScreen) return fullScreen(video);
             return ListView(padding: const EdgeInsets.all(24), children: [
               Text(video.title,
                   style: Theme.of(context).textTheme.headlineMedium),
               const SizedBox(height: 16),
+              if (video.posterUrl != null && player == null)
+                Image.network(video.posterUrl.toString(),
+                    height: 220,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) =>
+                        const Icon(Icons.movie_outlined)),
               Text(video.description),
+              Text(
+                  '${video.category ?? 'Original'} ${video.tags.map((t) => '#$t').join(' ')}'),
+              if (video.publishedAt != null)
+                Text(
+                    'Published ${video.publishedAt!.toUtc().toIso8601String()}'),
+              Text(
+                  '${engagementController?.likeCount ?? video.likeCount ?? 'Unavailable'} likes'),
+              OutlinedButton(
+                  onPressed: sharing ? null : share,
+                  child: const Text('Share')),
+              if (buffering)
+                Column(key: ValueKey(slow ? 'M-034' : 'M-032'), children: [
+                  Text(slow
+                      ? 'Playback is taking longer on this connection. No lower-data rendition is available to select.'
+                      : 'Preparing playback…'),
+                  const LinearProgressIndicator(),
+                ]),
+              if (playbackFailure != null) playbackState(playbackFailure!),
+              if (playerError != null)
+                playbackState(StateError('Playback failed'), media: true),
               if (engagementController case final controller?) ...[
                 const SizedBox(height: 16),
                 if (controller.likeBusy && controller.liked == null)
                   const LinearProgressIndicator(),
                 if (controller.liked != null)
                   OutlinedButton.icon(
-                    onPressed:
-                        controller.likeBusy ? null : controller.toggleLike,
+                    onPressed: controller.likeBusy ? null : toggleLike,
                     icon: Icon(controller.liked!
                         ? Icons.favorite
                         : Icons.favorite_border),
@@ -386,24 +645,20 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen> {
                   Semantics(liveRegion: true, child: Text(message)),
                 if (controller.liked == null && !controller.likeBusy)
                   TextButton(
-                    onPressed: controller.loadLike,
-                    child: const Text('Retry like state'),
-                  ),
+                      onPressed: () => controller.likeFailure is ApiFailure &&
+                              (controller.likeFailure as ApiFailure).status ==
+                                  401
+                          ? navigate(4)
+                          : controller.loadLike(),
+                      child: const Text('Like')),
               ],
               const SizedBox(height: 16),
               TextButton(
-                  onPressed: () {
-                    final route = ScreenRoute(38, entityId: video.creatorId);
-                    Navigator.of(context)
-                        .pushNamed(route.name, arguments: route);
-                  },
+                  onPressed: () => navigate(26, video.creatorId),
                   child: const Text('View creator')),
               if (engagementController != null)
                 TextButton.icon(
-                  onPressed: () {
-                    final route = ScreenRoute(71, entityId: video.id);
-                    Navigator.of(context).pushNamed(route.name, arguments: route);
-                  },
+                  onPressed: () => navigate(71, video.id),
                   icon: const Icon(Icons.flag_outlined),
                   label: const Text('Report this video'),
                 ),
@@ -443,7 +698,13 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen> {
                 if (playerError case final message?)
                   Semantics(liveRegion: true, child: Text(message)),
               ] else
-                const Text('Sign in to watch this original.'),
+                FilledButton(
+                    onPressed: starting ? null : _startPlayback,
+                    child: const Text('Play original')),
+              if (widget.engagement == null)
+                TextButton(
+                    onPressed: () => navigate(4),
+                    child: const Text('Sign in to like')),
             ]);
           },
         )),
