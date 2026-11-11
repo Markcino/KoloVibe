@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../core/presentation/design_node.dart';
 import '../core/theme/kolovibe_theme.dart';
 import '../features/shell/mobile_screen.dart';
@@ -7,6 +8,8 @@ import '../features/explore/explore_screen.dart';
 import '../features/create/create_screen.dart';
 import '../features/videos/video_feed_screen.dart';
 import '../features/profile/profile_screen.dart';
+import '../features/system/compatibility.dart';
+import '../features/system/system_ui.dart';
 import 'app_dependencies.dart';
 import 'app_session.dart';
 import 'screen_route.dart';
@@ -35,6 +38,8 @@ class _KoloVibeAppState extends State<KoloVibeApp> {
   late final Future<DesignCatalog> catalog;
   final session = AppSession();
   Future<int>? _initialScreenFuture;
+  Future<CompatibilityPolicy>? _compatibility;
+  bool _updateDismissed = false;
   @override
   void initState() {
     super.initState();
@@ -42,6 +47,12 @@ class _KoloVibeAppState extends State<KoloVibeApp> {
         ? DesignCatalog.load()
         : Future.value(widget.catalog);
     _initialScreenFuture = _restoreInitialScreen();
+    if (widget.initialScreen == 1 && widget.dependencies.api != null) {
+      _compatibility = CompatibilityRepository(
+        widget.dependencies.api!,
+        widget.dependencies.device,
+      ).check();
+    }
   }
 
   @override
@@ -53,7 +64,7 @@ class _KoloVibeAppState extends State<KoloVibeApp> {
   Future<int>? _restoreInitialScreen() {
     final account = widget.dependencies.liveAccount;
     if (account == null || widget.initialScreen != 1) return null;
-    return account.currentAccount().then(
+    return account.restoreSession().then(
           (user) => user == null ? widget.initialScreen : 17,
         );
   }
@@ -73,6 +84,42 @@ class _KoloVibeAppState extends State<KoloVibeApp> {
             debugShowCheckedModeBanner: false,
             theme: KoloVibeTheme.light(),
             themeMode: ThemeMode.light,
+            builder: (context, child) => FutureBuilder<CompatibilityPolicy>(
+              future: _compatibility,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Scaffold(body: SafeArea(child: SystemLoading()));
+                }
+                final policy =
+                    snapshot.data ?? const CompatibilityPolicy.unknown();
+                if (policy.required) {
+                  return CompatibilityScreen(
+                    policy: policy,
+                    device: widget.dependencies.device,
+                    onRetry: () => setState(() {
+                      _compatibility = CompatibilityRepository(
+                              widget.dependencies.api!,
+                              widget.dependencies.device)
+                          .check();
+                    }),
+                  );
+                }
+                if (policy.available && !_updateDismissed) {
+                  return Column(
+                    children: [
+                      OptionalUpdateNotice(
+                        policy: policy,
+                        device: widget.dependencies.device,
+                        onDismiss: () =>
+                            setState(() => _updateDismissed = true),
+                      ),
+                      Expanded(child: child!),
+                    ],
+                  );
+                }
+                return child!;
+              },
+            ),
             onGenerateRoute: (settings) {
               final route = settings.arguments is ScreenRoute
                   ? settings.arguments as ScreenRoute
@@ -100,27 +147,19 @@ class _KoloVibeAppState extends State<KoloVibeApp> {
       );
     }
     if (startup.connectionState == ConnectionState.waiting || !design.hasData) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: SafeArea(child: SystemLoading()));
     }
     if (startup.hasError) {
       return Scaffold(
         body: SafeArea(
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('Your session could not be checked.'),
-                FilledButton(
-                  onPressed: () {
-                    setState(
-                        () => _initialScreenFuture = _restoreInitialScreen());
-                  },
-                  child: const Text('Retry'),
-                ),
-              ],
-            ),
+          child: SystemFailureView(
+            error: startup.error!,
+            onSignIn: () => setState(() {
+              _initialScreenFuture = Future.value(4);
+            }),
+            onRetry: () => setState(() {
+              _initialScreenFuture = _restoreInitialScreen();
+            }),
           ),
         ),
       );
@@ -138,10 +177,11 @@ class _KoloVibeAppState extends State<KoloVibeApp> {
 
   Widget featureScreen(ScreenRoute route, DesignCatalog catalog) {
     final context = RouteContext(
-        route: route,
-        catalog: catalog,
-        dependencies: widget.dependencies,
-        session: session);
+      route: route,
+      catalog: catalog,
+      dependencies: widget.dependencies,
+      session: session,
+    );
     for (final build in domainRoutes) {
       final screen = build(context);
       if (screen != null) return screen;
@@ -150,28 +190,34 @@ class _KoloVibeAppState extends State<KoloVibeApp> {
       17 => HomeScreen(
           catalog: catalog,
           dependencies: widget.dependencies,
-          session: session),
+          session: session,
+        ),
       19 => ExploreScreen(
           catalog: catalog,
           dependencies: widget.dependencies,
-          session: session),
+          session: session,
+        ),
       37 => CreateScreen(
           catalog: catalog,
           dependencies: widget.dependencies,
-          session: session),
+          session: session,
+        ),
       24 => VideoFeedScreen(
           catalog: catalog,
           dependencies: widget.dependencies,
-          session: session),
+          session: session,
+        ),
       79 => ProfileScreen(
           catalog: catalog,
           dependencies: widget.dependencies,
-          session: session),
+          session: session,
+        ),
       _ => MobileScreen(
           route: route,
           catalog: catalog,
           dependencies: widget.dependencies,
-          session: session),
+          session: session,
+        ),
     };
   }
 }

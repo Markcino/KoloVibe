@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
+
 import '../../app/screen_route.dart';
 import '../../core/presentation/design_node.dart';
-import '../../core/presentation/feature_repository.dart';
+import '../system/system_ui.dart';
+import '../../core/network/api_client.dart';
 import '../shell/main_shell.dart';
 import 'live_account_repository.dart';
 
 class LiveAccountScreen extends StatefulWidget {
-  const LiveAccountScreen(
-      {super.key, required this.repository, required this.catalog});
+  const LiveAccountScreen({
+    super.key,
+    required this.repository,
+    required this.catalog,
+  });
   final LiveAccountRepository repository;
   final DesignCatalog catalog;
 
@@ -33,57 +38,94 @@ class _LiveAccountScreenState extends State<LiveAccountScreen> {
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: const Text('My account')),
         body: SafeArea(
-            child: FutureBuilder<LiveAccount?>(
-          future: account,
-          builder: (context, snapshot) {
-            if (!snapshot.hasData &&
-                !snapshot.hasError &&
-                snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
-              return const Center(
-                  child: Text('Account service is temporarily unavailable.'));
-            }
-            final user = snapshot.data;
-            if (user == null) {
-              return Center(
-                  child: FilledButton(
-                      onPressed: () => navigate(4),
-                      child: const Text('Sign in')));
-            }
-            return ListView(padding: const EdgeInsets.all(24), children: [
-              Text(user.displayName,
-                  style: Theme.of(context).textTheme.headlineMedium),
-              const SizedBox(height: 8),
-              Text(user.email),
-              const SizedBox(height: 24),
-              ListTile(
-                title: const Text('Active sessions'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  const route = ScreenRoute(83);
-                  Navigator.of(context).pushNamed(route.name, arguments: route);
-                },
-              ),
-              ListTile(
-                title: const Text('Lone Stars'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  const route = ScreenRoute(61);
-                  Navigator.of(context).pushNamed(route.name, arguments: route);
-                },
-              ),
-              FilledButton(
-                  onPressed: () async {
-                    await widget.repository
-                        .execute(const UiRequest(UiOperation.signOut));
-                    if (mounted) navigate(2);
-                  },
-                  child: const Text('Sign out')),
-            ]);
-          },
-        )),
+          child: FutureBuilder<LiveAccount?>(
+            future: account,
+            builder: (context, snapshot) {
+              if (!snapshot.hasData &&
+                  !snapshot.hasError &&
+                  snapshot.connectionState != ConnectionState.done) {
+                return const SystemLoading();
+              }
+              if (snapshot.hasError) {
+                return SystemFailureView(
+                  error: snapshot.error!,
+                  onRetry: () => setState(() {
+                    account = widget.repository.currentAccount();
+                  }),
+                  onSignIn: () => navigate(4),
+                );
+              }
+              final user = snapshot.data;
+              if (user == null) {
+                return SystemFailureView(
+                  error: const ApiFailure(401, 'Sign in again.'),
+                  onSignIn: () => navigate(4),
+                );
+              }
+              return ListView(
+                padding: const EdgeInsets.all(24),
+                children: [
+                  Text(
+                    user.displayName,
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(user.email),
+                  Text('Roles: ${user.roles.join(', ')}'),
+                  ListTile(
+                    title: const Text('Edit personal profile'),
+                    onTap: () => navigate(80),
+                  ),
+                  ListTile(
+                    title: const Text('Account settings'),
+                    onTap: () => navigate(81),
+                  ),
+                  ListTile(
+                    title: const Text('Help & Support'),
+                    onTap: () => navigate(89),
+                  ),
+                  if (user.roles.contains('creator')) ...[
+                    ListTile(
+                        title: const Text('Create a video'),
+                        onTap: () => navigate(37)),
+                    ListTile(
+                      title: const Text('Creator studio'),
+                      onTap: () => navigate(38),
+                    ),
+                  ] else
+                    ListTile(
+                      title: const Text('Become a creator'),
+                      onTap: () => navigate(14),
+                    ),
+                  const SizedBox(height: 24),
+                  ListTile(
+                    title: const Text('Active sessions'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      const route = ScreenRoute(83);
+                      Navigator.of(context)
+                          .pushNamed(route.name, arguments: route);
+                    },
+                  ),
+                  if (user.roles.contains('creator'))
+                    ListTile(
+                      title: const Text('Lone Stars'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        const route = ScreenRoute(61);
+                        Navigator.of(context)
+                            .pushNamed(route.name, arguments: route);
+                      },
+                    ),
+                  FilledButton(
+                    onPressed: () => navigate(90),
+                    child: const Text('Sign out'),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
         bottomNavigationBar: MainShell(
           navigation: widget.catalog[79].named('Primary navigation')!,
           screen: 79,
