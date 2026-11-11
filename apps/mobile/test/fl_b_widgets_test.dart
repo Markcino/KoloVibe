@@ -428,6 +428,35 @@ void main() {
     }
   }
 
+  for (final status in [401, 403, 404, 409, 429, 503, 0]) {
+    testWidgets(
+        'initial follow state failure $status preserves public profile and shows recovery',
+        (tester) async {
+      final fixture = AccountFixture(handler: (_) async {
+        if (status == 0) throw http.ClientException('Offline');
+        return jsonResponse({}, status);
+      });
+      await tester.pumpWidget(app(LiveCreatorScreen(
+          id: accountId,
+          repository: CreatorFixture(fixture.account.api),
+          account: fixture.account)));
+      await settle(tester);
+      expect(find.text('@mark · Monrovia'), findsOneWidget);
+      if (status == 401) {
+        await tap(tester, 'Follow');
+        expect(find.text('Destination /mobile/M-004'), findsOneWidget);
+      } else {
+        final id = {
+              403: 'M-100',
+              429: 'M-103',
+              503: 'M-102',
+              0: 'M-095'
+            }[status] ??
+            'M-099';
+        expect(find.byKey(ValueKey(id)), findsOneWidget);
+      }
+    });
+  }
   test('public creator routing leaves route 38 to the owner studio', () {
     final deps = AppDependencies.live('https://api.example.test/api/v1');
     final session = AppSession();

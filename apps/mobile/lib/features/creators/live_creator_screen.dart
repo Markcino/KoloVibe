@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/network/api_client.dart';
 import '../../app/screen_route.dart';
+import '../system/system_ui.dart';
 import '../account/live_account_repository.dart';
 import 'live_creator_repository.dart';
 
@@ -158,6 +159,13 @@ class _LiveCreatorScreenState extends State<LiveCreatorScreen> {
               OutlinedButton(
                   onPressed: () => go(27),
                   child: const Text('Published videos')),
+              if (followFailure != null &&
+                  !(followFailure is ApiFailure &&
+                      (followFailure as ApiFailure).status == 401))
+                SystemFailureView(
+                    error: followFailure!,
+                    onRetry: load,
+                    onSignIn: () => go(4)),
               FilledButton(
                   onPressed: updatingFollow
                       ? null

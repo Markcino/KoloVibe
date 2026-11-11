@@ -34,7 +34,7 @@ No backend, native platform, dependency, startup, home/explore recipe-wrapper, o
 
 - Public video pages are `{items,next_cursor}`, at most 20 unique published/public records; category matching and creator matching are validated. Trending preserves server order and requires a null cursor. Following pagination allows the server scan cursor to differ from the last returned item.
 - Nullable category, poster_url, like_count and published_at remain honest unknowns for legacy rows. Tags are normalized server-side and validated on read. Signed poster URLs use HTTPS; invalid fields, mismatched identifiers/cursors, duplicates and unsafe URLs fail closed. Current gateway creator ids/user ids and active status remain required for public creator records.
-- Creator detail includes display_name/location/bio and nullable follower_count/published_video_count. Follow responses are exactly `{creator_id,following,follower_count}` with nonnegative integer count; successful mutations must confirm the requested state. Like responses include `{video_id,liked,like_count}`. Legacy empty 204 unlike remains compatible with an unavailable count.
+- Creator detail includes display_name/location/bio and nullable follower_count/published_video_count. Follow responses are exactly `{creator_id,following,follower_count}` with nonnegative integer count; successful mutations must confirm the requested state. Like responses include `{video_id,liked,like_count}`. Legacy empty 204 unlike remains compatible without a fresh count.
 - Playback uses the gateway's HTTPS signed URL and expiry. Authenticated playback creates an account-bound watch session with the existing POST `/videos/{id}/watch-sessions` contract; progress POST `/engagement/watch-events` carries only video_id, session_id and observed position_ms. Qualification and points remain entirely server-owned. Self/restricted tracking may fall back only through the existing authorized playback endpoint.
 - The CURRENT gateway requires authentication for GET `/videos/{id}/playback`. Public metadata remains browseable while signed out; the server's 401 prompts sign-in for playback. Anonymous streaming would require a backend contract change, not a client bypass.
 - Only the visible vertical page plays. Controller/session lifecycle is reset on retry, disposed when swiping away, and paused on app background or navigation through creator/report actions. Initialization has a 15-second timeout. Buffering uses actual player state and a five-second threshold; there is no alternate rendition or quality-control API, and none is claimed.
@@ -48,11 +48,11 @@ Flutter commands run from `apps/mobile`; script/diff checks run from the reposit
 | Exact command | Result |
 |---|---|
 | `FX=/tmp/fl-a-fx; $FX analyze` | PASS — zero issues. |
-| `FX=/tmp/fl-a-fx; $FX test --reporter expanded` | PASS — 582 tests, including all 108 unavailable-dependency design captures. |
+| `FX=/tmp/fl-a-fx; $FX test --reporter expanded` | PASS — 589 tests, including all 108 unavailable-dependency design captures. |
 | `python scripts/check_mobile_design.py` | PASS — 108 entries, 150 assets, valid routes/source slots. |
 | `git diff --check` | PASS. |
 
-The 157 new tests cover filters/queries, strict parsing, failure statuses 401/403/404/409/429/503/offline, paging recovery, signed-out prompts, follow rollback, server like counts, share URLs and native delegation, route 26/27/71 entity ids, route-38 ownership, visible-player disposal, buffering/slow/error states and actual-position watch events without client qualification or points. The original 425-test suite also remains passing.
+The 164 new tests cover filters/queries, strict parsing, failure statuses 401/403/404/409/429/503/offline, paging recovery, signed-out prompts, follow rollback, server like counts, share URLs and native delegation, route 26/27/71 entity ids, route-38 ownership, visible-player disposal, buffering/slow/error states and actual-position watch events without client qualification or points. The original 425-test suite also remains passing.
 
 Toolchain: Flutter 3.47.8 / Dart 3.13.7. FX=/tmp/fl-a-fx invokes the pinned SDK with CI=true BOT=true FLUTTER_SUPPRESS_ANALYTICS=true, preventing metadata probing and suppressing analytics. HTTP and native/player fixtures exercise real repository parsing and controller behavior; no deployed-backend, signed media byte delivery, or physical-device acceptance is claimed.
 
