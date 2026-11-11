@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../core/network/api_client.dart';
+import '../../app/screen_route.dart';
+import '../system/system_ui.dart';
 import 'live_account_repository.dart';
 
 class AccountSessionsScreen extends StatefulWidget {
@@ -15,6 +16,7 @@ class AccountSessionsScreen extends StatefulWidget {
 class _AccountSessionsScreenState extends State<AccountSessionsScreen> {
   late Future<List<AccountSession>> _sessions;
   bool _revoking = false;
+  Object? _failure;
 
   @override
   void initState() {
@@ -22,42 +24,37 @@ class _AccountSessionsScreenState extends State<AccountSessionsScreen> {
     _sessions = widget.repository.sessions();
   }
 
-  void _reload() => setState(() => _sessions = widget.repository.sessions());
+  void _reload() => setState(() {
+        _failure = null;
+        _sessions = widget.repository.sessions();
+      });
 
   Future<void> _revoke(AccountSession session) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('End this session?'),
-        content: const Text('The other device will need to sign in again.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('End session'),
-          ),
-        ],
-      ),
+    final confirmed = await confirmDestructive(
+      context,
+      title: 'End this session?',
+      message: 'The other device will need to sign in again.',
+      confirmLabel: 'End session',
     );
-    if (!mounted || confirmed != true) return;
+    if (!mounted || !confirmed) return;
     setState(() => _revoking = true);
     try {
       await widget.repository.revokeSession(session.id);
-    } on ApiFailure catch (failure) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(failure.message)),
-        );
-      }
-    } finally {
-      if (mounted) {
-        _revoking = false;
+        notifySuccess(context, 'Session ended.');
         _reload();
       }
+    } catch (failure) {
+      if (mounted) setState(() => _failure = failure);
+    } finally {
+      if (mounted) setState(() => _revoking = false);
     }
+  }
+
+  void signIn() {
+    const route = ScreenRoute(4);
+    Navigator.of(context)
+        .pushNamedAndRemoveUntil(route.name, (_) => false, arguments: route);
   }
 
   @override
@@ -68,21 +65,13 @@ class _AccountSessionsScreenState extends State<AccountSessionsScreen> {
             future: _sessions,
             builder: (context, snapshot) {
               if (snapshot.connectionState != ConnectionState.done) {
-                return const Center(child: CircularProgressIndicator());
+                return const SystemLoading();
               }
-              if (snapshot.hasError) {
-                final error = snapshot.error;
-                return Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(error is ApiFailure
-                          ? error.message
-                          : 'Could not load sessions.'),
-                      TextButton(
-                          onPressed: _reload, child: const Text('Try again')),
-                    ],
-                  ),
+              if (_failure != null || snapshot.hasError) {
+                return SystemFailureView(
+                  error: _failure ?? snapshot.error!,
+                  onRetry: _reload,
+                  onSignIn: signIn,
                 );
               }
               final sessions = snapshot.data!;
@@ -94,11 +83,14 @@ class _AccountSessionsScreenState extends State<AccountSessionsScreen> {
                 children: [
                   for (final session in sessions)
                     ListTile(
-                      title: Text(session.current
-                          ? 'Current session'
-                          : 'Signed-in session'),
+                      title: Text(
+                        session.current
+                            ? 'Current session'
+                            : 'Signed-in session',
+                      ),
                       subtitle: Text(
-                          'Started ${locale.formatMediumDate(session.createdAt.toLocal())}'),
+                        'Started ${locale.formatMediumDate(session.createdAt.toLocal())}',
+                      ),
                       trailing: session.current
                           ? null
                           : TextButton(

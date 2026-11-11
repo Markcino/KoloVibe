@@ -1,3 +1,4 @@
+import 'package:http/http.dart' as http;
 import '../core/presentation/feature_repository.dart';
 import 'service_repositories.dart';
 import '../core/network/api_client.dart';
@@ -31,8 +32,10 @@ class AppDependencies {
       this.device);
 
   factory AppDependencies.live(String baseUrl,
-      {CredentialStore? credentialStore, DeviceBridge? device}) {
-    final api = ApiClient(baseUrl);
+      {CredentialStore? credentialStore,
+      DeviceBridge? device,
+      http.Client? client}) {
+    final api = ApiClient(baseUrl, client: client);
     final account = LiveAccountRepository(
         api, credentialStore ?? const PlatformCredentialStore());
     return AppDependencies._(
