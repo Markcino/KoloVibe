@@ -159,6 +159,40 @@ def verify(request):
                   status=400 if status == 400 else 503)
 
 
+def password_reset_request(request):
+    if request.method == "GET":
+        return render(request, "form.html", {"title": "Reset your password", "kind": "reset_request"})
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["GET", "POST"])
+    status, payload = _api("/auth/password/reset-request", method="POST",
+                           data={"email": request.POST.get("email", "")})
+    if status == 204:
+        return render(request, "status.html", {
+            "title": "If your account is eligible, check your email for a reset code."
+        })
+    return render(request, "form.html", {"title": "Reset your password", "kind": "reset_request",
+                                          "error": payload.get("detail", "Password reset unavailable")},
+                  status=400 if status == 400 else 503)
+
+
+def password_reset(request):
+    if request.method == "GET":
+        return render(request, "form.html", {"title": "Enter your reset code", "kind": "reset"})
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["GET", "POST"])
+    status, payload = _api("/auth/password/reset", method="POST", data={
+        "code": request.POST.get("code", ""),
+        "new_password": request.POST.get("new_password", ""),
+    })
+    if status == 204:
+        response = redirect("login")
+        _clear_credentials(response)
+        return response
+    return render(request, "form.html", {"title": "Enter your reset code", "kind": "reset",
+                                          "error": payload.get("detail", "Password reset unavailable")},
+                  status=400 if status == 400 else 503)
+
+
 def login(request):
     if request.method == "GET":
         return render(request, "form.html", {"title": "Sign in", "kind": "login"})
@@ -188,6 +222,182 @@ def account(request):
             _set_credentials(response, rotated)
         return response
     response = render(request, "account.html", {"account": payload})
+    if rotated:
+        _set_credentials(response, rotated)
+    return response
+
+
+def _account_access(request):
+    status, account_data, rotated = _own_account(request)
+    if status == 200:
+        token = rotated["access_token"] if rotated else request.COOKIES.get(ACCESS_COOKIE)
+        return account_data, token, rotated, None
+    response = redirect("login") if status == 401 else render(
+        request, "status.html", {"title": "Account unavailable"}, status=503)
+    if status == 401:
+        _clear_credentials(response)
+    elif rotated:
+        _set_credentials(response, rotated)
+    return None, None, None, response
+
+
+def profile_edit(request):
+    if request.method not in ("GET", "POST"):
+        return HttpResponseNotAllowed(["GET", "POST"])
+    account_data, token, rotated, blocked = _account_access(request)
+    if blocked is not None:
+        return blocked
+    if request.method == "GET":
+        response = render(request, "form.html", {
+            "title": "Edit profile", "kind": "profile", "account": account_data,
+        })
+    else:
+        status, payload = _api("/me", method="PATCH", token=token,
+                               data={"display_name": request.POST.get("display_name", "")})
+        if status == 200 and payload.get("id") == account_data.get("id"):
+            response = redirect("account")
+        else:
+            response = render(request, "form.html", {
+                "title": "Edit profile", "kind": "profile", "account": account_data,
+                "error": payload.get("detail", "Profile update unavailable"),
+            }, status=400 if status == 400 else 503)
+    if rotated:
+        _set_credentials(response, rotated)
+    return response
+
+
+def password_change(request):
+    if request.method not in ("GET", "POST"):
+        return HttpResponseNotAllowed(["GET", "POST"])
+    account_data, token, rotated, blocked = _account_access(request)
+    if blocked is not None:
+        return blocked
+    if request.method == "GET":
+        response = render(request, "form.html", {"title": "Change password", "kind": "change_password"})
+    else:
+        status, payload = _api("/me/password", method="PATCH", token=token, data={
+            "current_password": request.POST.get("current_password", ""),
+            "new_password": request.POST.get("new_password", ""),
+        })
+        if status == 204:
+            response = redirect("login")
+            _clear_credentials(response)
+            return response
+        response = render(request, "form.html", {
+            "title": "Change password", "kind": "change_password",
+            "error": payload.get("detail", "Password change unavailable"),
+        }, status=400 if status == 400 else 401 if status == 401 else 503)
+    if rotated:
+        _set_credentials(response, rotated)
+    return response
+
+
+@require_GET
+def sessions(request):
+    account_data, token, rotated, blocked = _account_access(request)
+    if blocked is not None:
+        return blocked
+    status, payload = _api("/me/sessions", token=token)
+    items = payload.get("items")
+    if status == 200 and (not isinstance(items, list) or len(items) > 40 or any(
+            not isinstance(item, dict) or set(item) != {"id", "created_at", "expires_at", "current"}
+            or not valid_id(item["id"]) or not isinstance(item["current"], bool)
+            or not all(isinstance(item[key], str) for key in ("created_at", "expires_at"))
+            for item in items)):
+        status = 503
+    if status == 200:
+        response = render(request, "sessions.html", {"items": items})
+    else:
+        response = render(request, "status.html", {"title": "Sessions unavailable"}, status=503)
+    if rotated:
+        _set_credentials(response, rotated)
+    return response
+
+
+@require_POST
+def revoke_session(request, session_id):
+    account_data, token, rotated, blocked = _account_access(request)
+    if blocked is not None:
+        return blocked
+    status, payload = _api("/me/sessions/" + str(session_id), method="DELETE", token=token)
+    if status == 204:
+        response = redirect("sessions")
+    else:
+        response = render(request, "status.html", {
+            "title": payload.get("detail", "Session could not be ended"),
+        }, status=409 if status == 409 else 404 if status == 404 else 503)
+    if rotated:
+        _set_credentials(response, rotated)
+    return response
+
+
+def preferences(request):
+    if request.method not in ("GET", "POST"):
+        return HttpResponseNotAllowed(["GET", "POST"])
+    account_data, token, rotated, blocked = _account_access(request)
+    if blocked is not None:
+        return blocked
+    if request.method == "GET":
+        status, payload = _api("/me/preferences", token=token)
+    else:
+        status, payload = _api("/me/preferences", method="PATCH", token=token, data={
+            "email_notifications": "email_notifications" in request.POST,
+            "push_notifications": "push_notifications" in request.POST,
+        })
+    if status == 200 and (set(payload) != {"email_notifications", "push_notifications"}
+                          or any(type(value) is not bool for value in payload.values())):
+        status = 503
+    if status == 200:
+        response = render(request, "preferences.html", {"preferences": payload})
+    else:
+        response = render(request, "status.html", {"title": "Preferences unavailable"}, status=503)
+    if rotated:
+        _set_credentials(response, rotated)
+    return response
+
+
+def _valid_privacy_receipt(item):
+    return (isinstance(item, dict)
+            and set(item) == {"id", "kind", "status", "created_at"}
+            and valid_id(item["id"])
+            and item["kind"] in {"access", "deletion"}
+            and item["status"] == "received"
+            and isinstance(item["created_at"], str)
+            and len(item["created_at"]) <= 64)
+
+
+def privacy_requests(request):
+    if request.method not in ("GET", "POST"):
+        return HttpResponseNotAllowed(["GET", "POST"])
+    account_data, token, rotated, blocked = _account_access(request)
+    if blocked is not None:
+        return blocked
+    if request.method == "POST":
+        kind = request.POST.get("kind", "")
+        if kind not in {"access", "deletion"}:
+            response = render(request, "privacy_requests.html", {
+                "error": "Select a valid request type", "items": [],
+            }, status=400)
+        else:
+            status, payload = _api("/me/privacy-requests", method="POST", token=token, data={
+                "kind": kind, "current_password": request.POST.get("current_password", ""),
+            })
+            if status in (200, 201) and _valid_privacy_receipt(payload):
+                response = render(request, "privacy_requests.html", {
+                    "receipt": payload, "items": [payload],
+                })
+            else:
+                response = render(request, "privacy_requests.html", {
+                    "error": payload.get("detail", "Privacy request unavailable"), "items": [],
+                }, status=401 if status == 401 else 400 if status == 400 else 503)
+    else:
+        status, payload = _api("/me/privacy-requests", token=token)
+        items = payload.get("items")
+        if status == 200 and (not isinstance(items, list) or len(items) > 2
+                              or any(not _valid_privacy_receipt(item) for item in items)):
+            status = 503
+        response = (render(request, "privacy_requests.html", {"items": items}) if status == 200
+                    else render(request, "status.html", {"title": "Privacy requests unavailable"}, status=503))
     if rotated:
         _set_credentials(response, rotated)
     return response

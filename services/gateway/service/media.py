@@ -39,6 +39,11 @@ def _valid_result(operation, data, payload):
                 and len(items) <= 20 and all(_valid_owned_item(item, payload) for item in items)
                 and len({item["id"] for item in items}) == len(items)
                 and (next_cursor is None or len(items) == 20 and next_cursor == items[-1]["id"]))
+    if operation == "detail":
+        return (set(data) == {"id", "creator_id", "title", "description", "state", "created_at", "revision"}
+                and _valid_owned_item({key: value for key, value in data.items() if key != "revision"}, payload)
+                and data["id"] == payload["video_id"]
+                and type(data["revision"]) is int and 0 <= data["revision"] <= 2_147_483_647)
     if operation == "delete":
         return (set(data) == {"video_id", "deleted"}
                 and data["video_id"] == payload["video_id"] and data["deleted"] is True)
@@ -154,6 +159,17 @@ def own_video_library(request):
     except (ValueError, TypeError):
         return _error("Invalid cursor", 400)
     return forward_media("library", data, (200,))
+
+
+@never_cache
+@require_GET
+def own_video_detail(request, video_id):
+    creator_id, error = _owned_creator(request)
+    if error is not None:
+        return error
+    if request.GET or request.body:
+        return _error("Invalid video request", 400)
+    return forward_media("detail", {"creator_id": creator_id, "video_id": str(video_id)}, (200,))
 
 
 @never_cache

@@ -140,13 +140,6 @@ jobs:
           mkdir -p security-reports
           cyclonedx-py requirements requirements-dev.txt --output-format JSON --output-file security-reports/python-sbom.json
           python -m json.tool security-reports/python-sbom.json >/dev/null
-      - name: Publish security reports
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: python-security-reports
-          path: security-reports/
-          if-no-files-found: warn
   flutter:
     name: Flutter static and widget tests
     if: >-
@@ -174,19 +167,24 @@ jobs:
       - name: Check generated package drift
         run: git diff --exit-code -- apps/mobile/pubspec.lock
   osv:
-    name: Python and Flutter dependency advisories
+    name: Python and Flutter dependency advisories / osv-scan
     if: github.event_name != 'workflow_dispatch' || inputs.operation == 'ci'
-    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
-    with:
-      upload-sarif: false
-      fail-on-vuln: true
-      scan-args: |-
-        --lockfile=requirements.txt:requirements-dev.txt
-        --lockfile=apps/mobile/pubspec.lock
+    runs-on: ubuntu-latest
     permissions:
       contents: read
-      actions: read
-      security-events: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      # The upstream reusable workflow always uploads SARIF to Actions artifacts,
+      # even when its code-scanning upload is disabled. Direct scanning retains
+      # the nonzero vulnerability exit without consuming artifact quota.
+      - name: Scan locked Python and Flutter dependencies
+        uses: google/osv-scanner-action/osv-scanner-action@0a65f82af05cd58cf587827b0bb0489548c18346 # v2.7.0
+        with:
+          scan-args: |-
+            --lockfile=requirements.txt:requirements-dev.txt
+            --lockfile=apps/mobile/pubspec.lock
   image-build:
     name: Build and scan shared service image
     if: >-
@@ -232,6 +230,12 @@ jobs:
           output-file: image-sbom.json
           upload-artifact: false
           upload-release-assets: false
+      - name: Preserve Python dependency SBOM
+        run: |
+          set -euo pipefail
+          python -m pip install --require-hashes -r requirements-ci.txt
+          cyclonedx-py requirements requirements-dev.txt --output-format JSON --output-file python-sbom.json
+          python -m json.tool python-sbom.json >/dev/null
       - name: Preserve the verified image
         run: |
           set -euo pipefail
@@ -247,6 +251,7 @@ jobs:
           Path("verified-image/services.json").write_text(json.dumps(list(SERVICES)))
           PY
           cp image-sbom.json verified-image/image-sbom.json
+          cp python-sbom.json verified-image/python-sbom.json
           (cd verified-image && sha256sum image.tar > image.tar.sha256)
       - name: Upload the verified image
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -254,7 +259,7 @@ jobs:
           name: verified-image-${{ github.sha }}
           path: verified-image/
           compression-level: 0
-          retention-days: 3
+          retention-days: 1
           if-no-files-found: error
   build-and-verify:
     name: Image build and security / ${{ matrix.service }}
@@ -390,6 +395,7 @@ jobs:
             verified-image/revision.txt
             verified-image/services.json
             verified-image/image-sbom.json
+            verified-image/python-sbom.json
           if-no-files-found: error
   generate:
     name: Generate dependency locks

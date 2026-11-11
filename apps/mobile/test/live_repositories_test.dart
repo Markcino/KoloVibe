@@ -9,6 +9,7 @@ import 'package:kolovibe/core/security/credential_store.dart';
 import 'package:kolovibe/features/account/live_account_repository.dart';
 import 'package:kolovibe/features/discovery/live_video_repository.dart';
 import 'package:kolovibe/features/creators/live_creator_repository.dart';
+import 'package:kolovibe/features/content/live_content_repository.dart';
 import 'package:kolovibe/features/points/live_points_repository.dart';
 
 class MemoryCredentials implements CredentialStore {
@@ -22,33 +23,117 @@ class MemoryCredentials implements CredentialStore {
 }
 
 void main() {
-  test('points reads use the current session and validate ledger records', () async {
+  test('owned draft management uses bearer and rejects a mismatched edit',
+      () async {
+    const id = '00000000-0000-4000-8000-000000000001';
+    const creator = '00000000-0000-4000-8000-000000000002';
+    final store = MemoryCredentials()..value = 'test-refresh';
+    var mismatched = false;
+    final video = {
+      'id': id,
+      'creator_id': creator,
+      'title': 'Original',
+      'description': '',
+      'state': 'draft',
+      'created_at': '2026-11-11T10:00:00+00:00',
+    };
+    final api = ApiClient('https://api.example.test/api/v1',
+        client: MockClient((request) async {
+      if (request.url.path.endsWith('/auth/refresh')) {
+        return http.Response(
+            jsonEncode({
+              'access_token': 'short-access',
+              'refresh_token': 'next-refresh',
+            }),
+            200);
+      }
+      expect(request.headers['Authorization'], 'Bearer short-access');
+      if (request.method == 'GET') {
+        expect(request.url.path, '/api/v1/creators/me/videos');
+        return http.Response(
+            jsonEncode({
+              'items': [video],
+              'next_cursor': null
+            }),
+            200);
+      }
+      expect(request.url.path, '/api/v1/videos/$id');
+      if (request.method == 'PATCH') {
+        expect(jsonDecode(request.body),
+            {'title': 'Updated', 'description': 'A story'});
+        return http.Response(
+            jsonEncode({
+              ...video,
+              'title': 'Updated',
+              'description': 'A story',
+              if (mismatched)
+                'creator_id': '00000000-0000-4000-8000-000000000003',
+            }),
+            200);
+      }
+      expect(request.method, 'DELETE');
+      return http.Response(jsonEncode({'video_id': id, 'deleted': true}), 200);
+    }));
+    final repository = LiveContentRepository(LiveAccountRepository(api, store));
+    final page = await repository.library();
+    expect(page.items.single.title, 'Original');
+    expect(page.nextCursor, isNull);
+    final edited = await repository.editDraft(page.items.single,
+        title: ' Updated ', description: 'A story');
+    expect(edited.title, 'Updated');
+    mismatched = true;
+    await expectLater(
+        repository.editDraft(page.items.single,
+            title: 'Updated', description: 'A story'),
+        throwsFormatException);
+    await repository.deleteDraft(page.items.single);
+    expect(store.value, 'next-refresh');
+  });
+
+  test('points reads use the current session and validate ledger records',
+      () async {
     const creator = '00000000-0000-4000-8000-000000000001';
     const entry = '00000000-0000-4000-8000-000000000002';
     final credentials = MemoryCredentials()..value = 'refresh';
     final api = ApiClient('https://api.example.test/api/v1',
         client: MockClient((request) async {
       if (request.url.path.endsWith('/auth/refresh')) {
-        return http.Response(jsonEncode({
-          'access_token': 'access', 'refresh_token': 'rotated',
-        }), 200);
+        return http.Response(
+            jsonEncode({
+              'access_token': 'access',
+              'refresh_token': 'rotated',
+            }),
+            200);
       }
       expect(request.headers['Authorization'], 'Bearer access');
       if (request.url.path.endsWith('/points')) {
-        return http.Response(jsonEncode({
-          'creator_id': creator, 'balance': 1, 'currency': 'POINTS',
-          'as_of': '2026-11-11T12:00:00Z',
-        }), 200);
+        return http.Response(
+            jsonEncode({
+              'creator_id': creator,
+              'balance': 1,
+              'currency': 'POINTS',
+              'as_of': '2026-11-11T12:00:00Z',
+            }),
+            200);
       }
-      return http.Response(jsonEncode({
-        'items': [{
-          'id': entry, 'creator_id': creator, 'amount': 1,
-          'kind': 'award', 'rule_version': 'DEC-003-v1',
-          'created_at': '2026-11-11T12:00:00Z',
-        }], 'next_cursor': null,
-      }), 200);
+      return http.Response(
+          jsonEncode({
+            'items': [
+              {
+                'id': entry,
+                'creator_id': creator,
+                'amount': 1,
+                'kind': 'award',
+                'rule_version': 'DEC-003-v1',
+                'created_at': '2026-11-11T12:00:00Z',
+              }
+            ],
+            'next_cursor': null,
+          }),
+          200);
     }));
-    final repository = LivePointsRepository(LiveAccountRepository(api, credentials));
+    final repository =
+        LivePointsRepository(LiveAccountRepository(api, credentials));
     expect((await repository.balance()).balance, 1);
     expect((await repository.entries()).items.single.kind, 'award');
     expect(credentials.value, 'rotated');

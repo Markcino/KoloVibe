@@ -91,6 +91,22 @@ class WorkflowTests(unittest.TestCase):
         self.assertFalse(matches(condition, "workflow_dispatch", operation="dependency-locks"))
         self.assertFalse(matches(condition, "workflow_dispatch", operation="staging-security"))
 
+    def test_dependency_scan_does_not_depend_on_artifact_quota(self):
+        osv = self.jobs["osv"]
+        self.assertEqual(osv["name"], "Python and Flutter dependency advisories / osv-scan")
+        self.assertEqual(osv["permissions"], {"contents": "read"})
+        scanner = next(step for step in osv["steps"] if step.get("name") == "Scan locked Python and Flutter dependencies")
+        self.assertIn("google/osv-scanner-action/osv-scanner-action@", scanner["uses"])
+        self.assertIn("--lockfile=requirements.txt:requirements-dev.txt", scanner["with"]["scan-args"])
+        self.assertIn("--lockfile=apps/mobile/pubspec.lock", scanner["with"]["scan-args"])
+        self.assertFalse(any(step.get("uses", "").startswith("actions/upload-artifact@")
+                             for step in osv["steps"] + self.jobs["security"]["steps"]))
+        image_steps = self.jobs["image-build"]["steps"]
+        sbom = next(step for step in image_steps if step.get("name") == "Preserve Python dependency SBOM")
+        self.assertIn("cyclonedx-py requirements requirements-dev.txt", sbom["run"])
+        self.assertIn("python-sbom.json", next(step for step in image_steps
+                                              if step.get("name") == "Preserve the verified image")["run"])
+
     def test_publish_requires_every_quality_job_without_status_bypass(self):
         publish = self.jobs["publish"]
         self.assertEqual(set(publish["needs"]), QUALITY)
@@ -226,7 +242,7 @@ class WorkflowTests(unittest.TestCase):
         checks = json.loads((ROOT / ".github/branch-protection/main.json").read_text())
         required = {check["context"] for check in checks["required_status_checks"]["checks"]}
         provided = {self.jobs[job]["name"] for job in ("python", "security", "flutter")}
-        provided.add(self.jobs["osv"]["name"] + " / osv-scan")
+        provided.add(self.jobs["osv"]["name"])
         provided.update(self.jobs["build-and-verify"]["name"].replace("${{ matrix.service }}", service)
                         for service in SERVICES)
         self.assertEqual(provided, required)

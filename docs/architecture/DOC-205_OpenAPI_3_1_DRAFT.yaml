@@ -297,6 +297,83 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           description: Unexpected server error; no internal details exposed
+  /me/preferences:
+    get:
+      tags: [Identity]
+      operationId: getMyPreferences
+      x-implementation: local
+      summary: Read the signed-in account notification preferences
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: Own notification preferences
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [email_notifications, push_notifications]
+                properties:
+                  email_notifications: {type: boolean}
+                  push_notifications: {type: boolean}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '503': {$ref: '#/components/responses/LocalUnavailable'}
+    patch:
+      tags: [Identity]
+      operationId: updateMyPreferences
+      x-implementation: local
+      summary: Replace own notification preferences; delivery requires separate activation
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email_notifications, push_notifications]
+              properties:
+                email_notifications: {type: boolean}
+                push_notifications: {type: boolean}
+      responses:
+        '200': {description: Updated own preferences}
+        '400': {description: Invalid preference fields}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '503': {$ref: '#/components/responses/LocalUnavailable'}
+  /me/privacy-requests:
+    get:
+      tags: [Identity]
+      operationId: listMyPrivacyRequests
+      x-implementation: local
+      summary: List own received privacy requests
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: Own privacy request records}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '503': {$ref: '#/components/responses/LocalUnavailable'}
+    post:
+      tags: [Identity]
+      operationId: requestMyPrivacyAction
+      x-implementation: local
+      summary: Receive an access or deletion request without executing it
+      description: Requires current-password reauthentication. Processing and deletion remain closed until ADR-020 approval.
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [kind, current_password]
+              properties:
+                kind: {type: string, enum: [access, deletion]}
+                current_password: {type: string, minLength: 1, maxLength: 128}
+      responses:
+        '201': {description: Request received}
+        '200': {description: Existing received request returned}
+        '400': {description: Invalid request}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '503': {$ref: '#/components/responses/LocalUnavailable'}
   /me/sessions:
     get:
       tags: [Identity]
@@ -738,6 +815,47 @@ paths:
               $ref: '#/components/schemas/CreatorUpdate'
       x-required-roles:
       - creator
+  /creators/me/analytics:
+    get:
+      tags: [Content]
+      summary: Count own videos by current state
+      operationId: get_own_creator_analytics
+      x-implementation: local-only
+      x-required-roles: [viewer, creator]
+      responses:
+        '200':
+          description: Counts from creator-owned Content records
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CreatorContentAnalytics'}
+        '400': {description: Unexpected request data}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '503': {$ref: '#/components/responses/LocalUnavailable'}
+  /creators/me/videos/{video_id}/analytics:
+    get:
+      tags: [Content, Engagement]
+      summary: Read own video state and current engagement counts
+      description: Qualified viewers counts distinct viewer accounts with a recorded qualified watch for this video; it is not a playback or event total.
+      operationId: get_own_video_analytics
+      x-implementation: local-only
+      x-required-roles: [viewer, creator]
+      parameters:
+      - name: video_id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Owned video state and server-counted engagement
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/VideoEngagementAnalytics'}
+        '400': {description: Unexpected request data}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Video missing or owned by another creator}
+        '503': {$ref: '#/components/responses/LocalUnavailable'}
   /creators/me/videos:
     get:
       tags: [Content]
@@ -769,6 +887,29 @@ paths:
         '400': {description: Invalid cursor}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '503': {$ref: '#/components/responses/LocalUnavailable'}
+  /creators/me/videos/{video_id}:
+    get:
+      tags: [Content]
+      summary: Read own video metadata, state and moderation revision
+      operationId: get_own_video_detail
+      x-implementation: local-only
+      x-required-roles: [viewer, creator]
+      parameters:
+      - name: video_id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Creator-owned video in any state
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OwnVideoDetail'}
+        '400': {description: Unexpected request data}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Video missing or owned by another creator}
         '503': {$ref: '#/components/responses/LocalUnavailable'}
   /videos:
     post:
@@ -1252,6 +1393,27 @@ paths:
         '409': {description: 'Session expired, playback progress rejected, or publication changed'}
         '503': {description: A required service is unavailable}
   /videos/{video_id}/like:
+    get:
+      tags: [Engagement]
+      x-implementation: local-only
+      summary: Read own like state for a public published video
+      operationId: get__videos_video_id_like
+      responses:
+        '200':
+          description: Own like state
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Like'}
+        '400': {description: Query or request body is not accepted}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Published video not found}
+        '503': {description: Required service unavailable}
+      parameters:
+      - name: video_id
+        in: path
+        required: true
+        schema: *id001
     put:
       tags:
       - Engagement
@@ -1393,6 +1555,90 @@ paths:
         '403': {description: Role or independence requirement not met}
         '404': {description: Resource not found}
         '409': {description: State or idempotency conflict}
+        '503': {description: Moderation temporarily unavailable}
+  /me/reports:
+    get:
+      tags: [Moderation]
+      summary: List reports submitted by the authenticated account
+      operationId: get_own_reports
+      x-implementation: local-only
+      x-required-roles: [viewer, creator, moderator, administrator]
+      parameters:
+      - name: cursor
+        in: query
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Account-owned reports, including closed reports
+          content:
+            application/json:
+              schema: {type: object, additionalProperties: false, required: [items, next_cursor], properties: {items: {type: array, maxItems: 20, items: {$ref: '#/components/schemas/OwnReport'}}, next_cursor: {type: [string, 'null'], format: uuid}}}
+        '400': {description: Invalid query or cursor}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '503': {description: Moderation temporarily unavailable}
+  /me/reports/{report_id}:
+    get:
+      tags: [Moderation]
+      summary: Read one report submitted by the authenticated account
+      operationId: get_own_report
+      x-implementation: local-only
+      x-required-roles: [viewer, creator, moderator, administrator]
+      parameters:
+      - name: report_id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Account-owned report
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OwnReport'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {description: Report missing or owned by another account}
+        '503': {description: Moderation temporarily unavailable}
+  /me/appeals:
+    get:
+      tags: [Moderation]
+      summary: List appeals submitted by the authenticated account
+      operationId: get_own_appeals
+      x-implementation: local-only
+      x-required-roles: [viewer, creator]
+      parameters:
+      - name: cursor
+        in: query
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Account-owned appeals, including closed appeals
+          content:
+            application/json:
+              schema: {type: object, additionalProperties: false, required: [items, next_cursor], properties: {items: {type: array, maxItems: 20, items: {$ref: '#/components/schemas/OwnAppeal'}}, next_cursor: {type: [string, 'null'], format: uuid}}}
+        '400': {description: Invalid query or cursor}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '503': {description: Moderation temporarily unavailable}
+  /me/appeals/{appeal_id}:
+    get:
+      tags: [Moderation]
+      summary: Read one appeal submitted by the authenticated account
+      operationId: get_own_appeal
+      x-implementation: local-only
+      x-required-roles: [viewer, creator]
+      parameters:
+      - name: appeal_id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Account-owned appeal
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OwnAppeal'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Appeal missing or owned by another account}
         '503': {description: Moderation temporarily unavailable}
   /moderation/reports:
     get:
@@ -1890,6 +2136,46 @@ components:
       - description
       - state
       - created_at
+    OwnVideoDetail:
+      type: object
+      additionalProperties: false
+      required: [id, creator_id, title, description, state, created_at, revision]
+      properties:
+        id: {type: string, format: uuid}
+        creator_id: {type: string, format: uuid}
+        title: {type: string, minLength: 1, maxLength: 160}
+        description: {type: string, maxLength: 2000}
+        state: {type: string, enum: [draft, uploading, processing, failed, review, published, rejected, removed]}
+        created_at: {type: string, format: date-time}
+        revision: {type: integer, minimum: 0}
+    CreatorContentAnalytics:
+      type: object
+      additionalProperties: false
+      required: [total_videos, videos_by_state]
+      properties:
+        total_videos: {type: integer, minimum: 0}
+        videos_by_state:
+          type: object
+          additionalProperties: false
+          required: [draft, uploading, processing, failed, review, published, rejected, removed]
+          properties:
+            draft: {type: integer, minimum: 0}
+            uploading: {type: integer, minimum: 0}
+            processing: {type: integer, minimum: 0}
+            failed: {type: integer, minimum: 0}
+            review: {type: integer, minimum: 0}
+            published: {type: integer, minimum: 0}
+            rejected: {type: integer, minimum: 0}
+            removed: {type: integer, minimum: 0}
+    VideoEngagementAnalytics:
+      type: object
+      additionalProperties: false
+      required: [video_id, state, current_likes, qualified_viewers]
+      properties:
+        video_id: {type: string, format: uuid}
+        state: {type: string, enum: [draft, uploading, processing, failed, review, published, rejected, removed]}
+        current_likes: {type: integer, minimum: 0}
+        qualified_viewers: {type: integer, minimum: 0}
     VideoCreate:
       type: object
       additionalProperties: false
@@ -2036,6 +2322,27 @@ components:
       - id
       - video_id
       - status
+    OwnReport:
+      type: object
+      additionalProperties: false
+      required: [id, video_id, status, created_at, reason, details]
+      properties:
+        id: {type: string, format: uuid}
+        video_id: {type: string, format: uuid}
+        status: {type: string, enum: [open, triaged, resolved, dismissed]}
+        created_at: {type: string, format: date-time}
+        reason: {type: string, enum: [spam, harassment, copyright, harmful, other]}
+        details: {type: string, maxLength: 2000}
+    OwnAppeal:
+      type: object
+      additionalProperties: false
+      required: [id, video_id, status, created_at, reason]
+      properties:
+        id: {type: string, format: uuid}
+        video_id: {type: string, format: uuid}
+        status: {type: string, enum: [open, denied, restored]}
+        created_at: {type: string, format: date-time}
+        reason: {type: string, minLength: 10, maxLength: 2000}
     PilotModerationAction:
       type: object
       additionalProperties: false

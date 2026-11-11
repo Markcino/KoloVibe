@@ -104,6 +104,32 @@ class PasswordReset(models.Model):
     used_at = models.DateTimeField(null=True, blank=True)
 
 
+class NotificationPreferences(models.Model):
+    """Account-owned delivery choices; no delivery is enabled by this record."""
+
+    account = models.OneToOneField(Account, on_delete=models.CASCADE, primary_key=True)
+    email_notifications = models.BooleanField(default=False)
+    push_notifications = models.BooleanField(default=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class PrivacyRequest(models.Model):
+    """Receipt only. Processing awaits the approved retention/deletion policy."""
+
+    class Kind(models.TextChoices):
+        ACCESS = "access", "Access"
+        DELETION = "deletion", "Deletion"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    account = models.ForeignKey(Account, on_delete=models.PROTECT)
+    kind = models.CharField(max_length=8, choices=Kind.choices)
+    status = models.CharField(max_length=16, default="received", editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["account", "kind"], name="unique_privacy_request_kind")]
+
+
 class TotpFactor(models.Model):
     account = models.OneToOneField(Account, on_delete=models.CASCADE)
     encrypted_secret = models.TextField()

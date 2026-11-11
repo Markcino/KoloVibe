@@ -1,5 +1,5 @@
 # Local/CI and restricted staging image; production remains gated.
-FROM python:3.12-alpine3.23@sha256:a4ad86fc2eaa4f9a5c3153776c9fb56e502dbd8e23dfa855d164308f376a6dd2
+FROM python:3.12.16-alpine3.23@sha256:20d13dc88e7bc1adf6e18cdddeb4cd53a7e0fdc3825bfe05f00c7563d4cdf102
 WORKDIR /app
 ENV PYTHONPATH=/app/services
 

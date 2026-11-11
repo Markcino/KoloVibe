@@ -12,6 +12,14 @@ import '../features/account/live_account_screen.dart';
 import '../features/discovery/live_video_screen.dart';
 import '../features/creators/live_creator_screen.dart';
 import '../features/points/live_points_screen.dart';
+import '../features/content/live_content_screen.dart';
+import '../features/content/live_create_original_screen.dart';
+import '../features/creators/live_creator_onboarding_repository.dart';
+import '../features/settings/live_settings_repository.dart';
+import '../features/settings/live_settings_screen.dart';
+import '../features/moderation/live_moderation_repository.dart';
+import '../features/moderation/live_report_screen.dart';
+import '../features/engagement/live_video_engagement_repository.dart';
 import 'app_dependencies.dart';
 import 'app_session.dart';
 import 'screen_route.dart';
@@ -143,7 +151,12 @@ class _KoloVibeAppState extends State<KoloVibeApp> {
             when widget.dependencies.liveVideos != null &&
                 route.entityId != null =>
           LiveVideoDetailScreen(
-              id: route.entityId!, repository: widget.dependencies.liveVideos!),
+              id: route.entityId!,
+              repository: widget.dependencies.liveVideos!,
+              engagement: widget.dependencies.liveAccount == null
+                  ? null
+                  : LiveVideoEngagementRepository(
+                      widget.dependencies.liveAccount!)),
         38
             when widget.dependencies.liveCreators != null &&
                 route.entityId != null =>
@@ -151,11 +164,51 @@ class _KoloVibeAppState extends State<KoloVibeApp> {
               id: route.entityId!,
               repository: widget.dependencies.liveCreators!,
               account: widget.dependencies.liveAccount),
+        37 ||
+        40 when widget.dependencies.liveContent != null =>
+          LiveContentScreen(
+              route: route,
+              catalog: catalog,
+              repository: widget.dependencies.liveContent!,
+              onboarding:
+                  route.screen == 37 && widget.dependencies.liveAccount != null
+                      ? LiveCreatorOnboardingRepository(
+                          widget.dependencies.liveAccount!)
+                      : null),
+        41
+            when widget.dependencies.liveContent != null &&
+                widget.dependencies.liveAccount != null =>
+          LiveCreateOriginalScreen(
+              content: widget.dependencies.liveContent!,
+              onboarding: LiveCreatorOnboardingRepository(
+                  widget.dependencies.liveAccount!)),
         >= 61 && <= 69 when widget.dependencies.livePoints != null =>
           LivePointsScreen(
               route: route, repository: widget.dependencies.livePoints!),
         83 when widget.dependencies.liveAccount != null =>
           AccountSessionsScreen(repository: widget.dependencies.liveAccount!),
+        71 || 72 || 73 || 74 || 75
+            when widget.dependencies.liveAccount != null &&
+                widget.dependencies.liveVideos != null &&
+                route.entityId != null =>
+          LiveReportScreen(
+              route: route,
+              catalog: catalog,
+              videos: widget.dependencies.liveVideos!,
+              moderation: LiveModerationRepository(widget.dependencies.liveAccount!)),
+        84 ||
+        85 ||
+        86 ||
+        91 ||
+        92 ||
+        93 ||
+        94 when widget.dependencies.liveAccount != null =>
+          LiveSettingsScreen(
+              route: route,
+              catalog: catalog,
+              repository:
+                  LiveSettingsRepository(widget.dependencies.liveAccount!),
+              account: widget.dependencies.liveAccount!),
         79 when widget.dependencies.liveAccount != null => LiveAccountScreen(
             repository: widget.dependencies.liveAccount!, catalog: catalog),
         17 => HomeScreen(

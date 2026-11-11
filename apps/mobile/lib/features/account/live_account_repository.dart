@@ -99,7 +99,8 @@ class LiveAccountRepository implements AccountRepository {
   Future<Map<String, dynamic>> _sessionRequest(String path,
       {String method = 'GET',
       Map<String, String>? query,
-      Map<String, Object?>? body}) async {
+      Map<String, Object?>? body,
+      String? idempotencyKey}) async {
     const expired = ApiFailure(401, 'Sign in again to manage sessions.');
     try {
       final restored = _accessToken == null;
@@ -109,7 +110,8 @@ class LiveAccountRepository implements AccountRepository {
             method: method,
             accessToken: _accessToken,
             query: query,
-            body: body);
+            body: body,
+            idempotencyKey: idempotencyKey);
       } on ApiFailure catch (error) {
         if (error.status != 401 || restored) rethrow;
         if (!await _refresh()) throw expired;
@@ -117,7 +119,8 @@ class LiveAccountRepository implements AccountRepository {
             method: method,
             accessToken: _accessToken,
             query: query,
-            body: body);
+            body: body,
+            idempotencyKey: idempotencyKey);
       }
     } on ApiFailure catch (error) {
       if (error.status != 401) rethrow;
@@ -144,8 +147,15 @@ class LiveAccountRepository implements AccountRepository {
       });
 
   Future<Map<String, dynamic>> authenticatedRequest(String path,
-          {String method = 'GET', Map<String, String>? query}) =>
-      _serialized(() => _sessionRequest(path, method: method, query: query));
+          {String method = 'GET',
+          Map<String, String>? query,
+          Map<String, Object?>? body,
+          String? idempotencyKey}) =>
+      _serialized(() => _sessionRequest(path,
+          method: method,
+          query: query,
+          body: body,
+          idempotencyKey: idempotencyKey));
 
   @override
   Future<UiResult> execute(UiRequest request) =>

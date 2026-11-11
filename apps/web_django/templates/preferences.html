@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title %}Notification preferences · KoloVibe{% endblock %}
+{% block content %}
+<section class="panel"><h1>Notification preferences</h1>
+{% if error %}<div class="notice error" role="alert">{{ error }}</div>{% endif %}
+<form method="post">{% csrf_token %}
+  <label><input type="checkbox" name="email_notifications" {% if preferences.email_notifications %}checked{% endif %}> Email notifications</label>
+  <label><input type="checkbox" name="push_notifications" {% if preferences.push_notifications %}checked{% endif %}> Push notifications</label>
+  <button type="submit">Save preferences</button>
+</form>
+<p><a href="{% url 'account' %}">Back to account</a></p>
+</section>
+{% endblock %}

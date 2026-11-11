@@ -86,3 +86,12 @@ class WatchTests(TestCase):
         self.assertIsNone(WatchSession.objects.get().qualified_at)
         self.event.side_effect = None
         self.assertEqual(json.loads(self.progress(session, 2501).content), {"qualified": True})
+
+    def test_late_duplicate_progress_cannot_invalidate_qualified_session(self):
+        session = self.start()
+        self.now += timedelta(seconds=3)
+        self.assertEqual(json.loads(self.progress(session, 2501).content), {"qualified": True})
+        self.now += timedelta(seconds=30)
+        self.assertEqual(json.loads(self.progress(session, 2501).content), {"qualified": True})
+        self.assertFalse(WatchSession.objects.get().invalidated)
+        self.event.assert_called_once()

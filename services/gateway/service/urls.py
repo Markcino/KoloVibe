@@ -4,12 +4,13 @@ from django.http import JsonResponse
 from .health import liveness
 from .videos import list_videos, video_detail
 from . import accounts
+from .preferences_privacy import preferences, privacy_requests
 from .creators import creator_detail, search_creators
 
 from .creator_onboarding import creator_onboarding
 
 if settings.LOCAL_MEDIA_ENABLED:
-    from .media import (issue_video_upload, own_video_library,
+    from .media import (issue_video_upload, own_video_library, own_video_detail,
                         video_collection, video_item, video_playback, video_upload_status)
 else:
     video_collection = list_videos
@@ -31,6 +32,8 @@ urlpatterns = [
     path("api/v1/auth/logout", accounts.logout, name="logout"),
     path("api/v1/me/sessions", accounts.sessions, name="account-sessions"),
     path("api/v1/me/password", accounts.change_password, name="change-password"),
+    path("api/v1/me/preferences", preferences, name="account-preferences"),
+    path("api/v1/me/privacy-requests", privacy_requests, name="account-privacy-requests"),
     path("api/v1/me/sessions/<uuid:session_id>", accounts.revoke_session, name="revoke-account-session"),
     path("api/v1/me", accounts.me, name="me"),
     path("api/v1/creators/search", search_creators, name="api-creator-search"),
@@ -53,16 +56,32 @@ if settings.ENVIRONMENT == "local" or getattr(settings, "STAGING_CREATOR_ONBOARD
 if settings.LOCAL_MEDIA_ENABLED:
     urlpatterns += [
         path("api/v1/creators/me/videos", own_video_library, name="api-own-videos"),
+        path("api/v1/creators/me/videos/<uuid:video_id>", own_video_detail, name="api-own-video-detail"),
         path("api/v1/videos/<uuid:video_id>/upload-intents", issue_video_upload, name="api-video-upload"),
         path("api/v1/videos/<uuid:video_id>/playback", video_playback, name="api-video-playback"),
         path("api/v1/videos/<uuid:video_id>/upload-status", video_upload_status, name="api-video-upload-status"),
     ]
+
+    if settings.ENVIRONMENT == "local":
+        from .analytics import creator_analytics, creator_video_analytics
+
+        urlpatterns += [
+            path("api/v1/creators/me/analytics", creator_analytics, name="api-creator-analytics"),
+            path("api/v1/creators/me/videos/<uuid:video_id>/analytics", creator_video_analytics,
+                 name="api-creator-video-analytics"),
+        ]
 
 if settings.LOCAL_MODERATION_ENABLED:
     from .moderation import moderation_endpoint
 
     urlpatterns += [
         path("api/v1/reports", moderation_endpoint, {"operation": "report"}, name="submit-video-report"),
+        path("api/v1/me/reports", moderation_endpoint, {"operation": "own_reports"}, name="own-reports"),
+        path("api/v1/me/reports/<uuid:target_id>", moderation_endpoint,
+             {"operation": "own_report"}, name="own-report-detail"),
+        path("api/v1/me/appeals", moderation_endpoint, {"operation": "own_appeals"}, name="own-appeals"),
+        path("api/v1/me/appeals/<uuid:target_id>", moderation_endpoint,
+             {"operation": "own_appeal"}, name="own-appeal-detail"),
         path("api/v1/videos/<uuid:target_id>/appeals", moderation_endpoint,
              {"operation": "appeal"}, name="submit-video-appeal"),
         path("api/v1/moderation/videos", moderation_endpoint, {"operation": "review_queue"}, name="review-video-queue"),

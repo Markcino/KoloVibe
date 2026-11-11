@@ -97,15 +97,19 @@ class _LiveCreatorScreenState extends State<LiveCreatorScreen> {
                               '/creators/${widget.id}/follow',
                               method: following! ? 'DELETE' : 'PUT',
                             );
-                            if (mounted)
+                            if (mounted) {
                               setState(() => following = !following!);
+                            }
                           } on ApiFailure catch (failure) {
-                            if (mounted)
+                            if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(content: Text(failure.message)),
                               );
+                            }
                           } finally {
-                            if (mounted) setState(() => updatingFollow = false);
+                            if (mounted) {
+                              setState(() => updatingFollow = false);
+                            }
                           }
                         },
                   child: Text(following! ? 'Unfollow' : 'Follow'),

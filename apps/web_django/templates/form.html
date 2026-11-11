@@ -11,11 +11,22 @@
 {% elif kind == 'login' %}
   <label>Email<input type="email" name="email" autocomplete="email" required></label>
   <label>Password<input type="password" name="password" autocomplete="current-password" required></label>
+{% elif kind == 'reset_request' %}
+  <label>Email<input type="email" name="email" autocomplete="email" maxlength="254" required></label>
+{% elif kind == 'reset' %}
+  <label>Reset code<input name="code" autocomplete="one-time-code" minlength="32" maxlength="128" required></label>
+  <label>New password<input type="password" name="new_password" autocomplete="new-password" minlength="12" maxlength="128" required></label>
+{% elif kind == 'profile' %}
+  <label>Display name<input name="display_name" autocomplete="name" minlength="2" maxlength="80" value="{{ account.display_name }}" required></label>
+{% elif kind == 'change_password' %}
+  <label>Current password<input type="password" name="current_password" autocomplete="current-password" required></label>
+  <label>New password<input type="password" name="new_password" autocomplete="new-password" minlength="12" maxlength="128" required></label>
 {% else %}
   <label>Verification code<input name="code" autocomplete="one-time-code" required></label>
 {% endif %}
   <button type="submit">Continue</button>
 </form>
-{% if kind == 'login' %}<p><a href="{% url 'register' %}">Create an account</a></p>{% endif %}
+{% if kind == 'login' %}<p><a href="{% url 'register' %}">Create an account</a> · <a href="{% url 'password-reset-request' %}">Forgot password?</a></p>{% endif %}
+{% if kind == 'reset_request' %}<p><a href="{% url 'password-reset' %}">I have a reset code</a></p>{% endif %}
 </section>
 {% endblock %}

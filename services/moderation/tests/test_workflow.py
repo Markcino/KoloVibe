@@ -67,3 +67,39 @@ class PilotModerationTests(TestCase):
         self.assertEqual(self.call("video_decision", self.reviewer, "moderator", decision).status_code, 200)
         self.assertEqual(content.call_args_list[1], content.call_args_list[2])
         self.assertEqual(ModerationAction.objects.get().status, "applied")
+
+    def test_report_status_reads_are_owner_scoped_and_paginated(self):
+        foreign = Report.objects.create(id=uuid4(), video_id=uuid4(), reporter_id=uuid4(),
+                                        reason="spam", details="Private report details")
+        owned = [Report.objects.create(id=uuid4(), video_id=uuid4(), reporter_id=self.viewer,
+                                       reason="spam", details="My report details") for _ in range(21)]
+        first = self.call("own_reports", self.viewer, "viewer", {"cursor": None})
+        self.assertEqual(first.status_code, 200)
+        page = json.loads(first.content)
+        self.assertEqual(len(page["items"]), 20)
+        self.assertIsNotNone(page["next_cursor"])
+        second = self.call("own_reports", self.viewer, "viewer", {"cursor": page["next_cursor"]})
+        self.assertEqual(len(json.loads(second.content)["items"]), 1)
+        self.assertEqual(json.loads(second.content)["next_cursor"], None)
+        self.assertEqual(self.call("own_report", self.viewer, "viewer",
+                                   {"target_id": str(foreign.id)}).status_code, 404)
+        self.assertEqual(self.call("own_report", self.viewer, "viewer",
+                                   {"target_id": str(owned[0].id)}).status_code, 200)
+        self.assertEqual(self.call("own_reports", self.viewer, "viewer",
+                                   {"cursor": "invalid"}).status_code, 400)
+        self.assertEqual(self.call("own_reports", self.viewer, "viewer",
+                                   {"cursor": None}, caller="content").status_code, 403)
+
+    def test_appeal_status_reads_hide_other_accounts_records(self):
+        removal = ModerationAction.objects.create(id=uuid4(), video_id=uuid4(), reviewer_id=self.reviewer,
+                                                  action="remove", reason="Removed after review",
+                                                  revision=1, status="applied")
+        foreign = Appeal.objects.create(removal=removal, appellant_id=uuid4(), reason="Private appeal")
+        self.assertEqual(self.call("own_appeal", self.viewer, "viewer",
+                                   {"target_id": str(foreign.id)}).status_code, 404)
+        self.assertEqual(json.loads(self.call("own_appeals", self.viewer, "viewer",
+                                              {"cursor": None}).content)["items"], [])
+        self.assertEqual(self.call("own_appeal", foreign.appellant_id, "creator",
+                                   {"target_id": str(foreign.id)}).status_code, 200)
+        self.assertEqual(self.call("own_appeals", self.reviewer, "moderator",
+                                   {"cursor": None}).status_code, 403)

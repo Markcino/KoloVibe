@@ -34,6 +34,9 @@ def verify(directory, revision):
     sbom = json.loads((directory / "image-sbom.json").read_text())
     if sbom.get("bomFormat") != "CycloneDX" or not isinstance(sbom.get("components"), list):
         raise ValueError("Missing or invalid image CycloneDX SBOM")
+    python_sbom = json.loads((directory / "python-sbom.json").read_text())
+    if python_sbom.get("bomFormat") != "CycloneDX" or not isinstance(python_sbom.get("components"), list):
+        raise ValueError("Missing or invalid Python CycloneDX SBOM")
     return image_id
 
 

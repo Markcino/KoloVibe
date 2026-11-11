@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:video_player/video_player.dart';
 import '../../app/screen_route.dart';
 import '../../core/network/api_client.dart';
 import '../../core/presentation/design_node.dart';
@@ -7,6 +8,8 @@ import '../shell/main_shell.dart';
 import '../creators/live_creator_repository.dart';
 import '../creators/creator_search_screen.dart';
 import '../account/live_account_repository.dart';
+import '../engagement/live_video_engagement_controller.dart';
+import '../engagement/live_video_engagement_repository.dart';
 import 'live_video_repository.dart';
 
 class LiveVideoScreen extends StatefulWidget {
@@ -223,9 +226,10 @@ class _LiveVideoScreenState extends State<LiveVideoScreen> {
 
 class LiveVideoDetailScreen extends StatefulWidget {
   const LiveVideoDetailScreen(
-      {super.key, required this.id, required this.repository});
+      {super.key, required this.id, required this.repository, this.engagement});
   final String id;
   final LiveVideoRepository repository;
+  final LiveVideoEngagementRepository? engagement;
 
   @override
   State<LiveVideoDetailScreen> createState() => _LiveVideoDetailScreenState();
@@ -235,11 +239,86 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen> {
   LiveVideo? item;
   Object? error;
   bool loading = true;
+  LiveVideoEngagementController? engagementController;
+  VideoPlayerController? player;
+  String? playerError;
+  bool? shownPlaying;
 
   @override
   void initState() {
     super.initState();
+    if (widget.engagement != null) {
+      engagementController =
+          LiveVideoEngagementController(widget.engagement!, widget.id)
+            ..addListener(_refresh);
+      engagementController!.loadLike();
+    }
     load();
+  }
+
+  void _refresh() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    player?.removeListener(_onPlaybackChanged);
+    player?.dispose();
+    engagementController?.removeListener(_refresh);
+    engagementController?.dispose();
+    super.dispose();
+  }
+
+  void _onPlaybackChanged() {
+    final current = player;
+    if (current == null || !mounted) return;
+    final value = current.value;
+    if (value.hasError) {
+      if (playerError == null) {
+        setState(() => playerError = 'Playback could not continue. Try again.');
+      }
+    } else {
+      if (value.isPlaying || value.isCompleted) {
+        engagementController?.reportProgress(value.position,
+            completed: value.isCompleted);
+      }
+      if (shownPlaying != value.isPlaying) {
+        setState(() => shownPlaying = value.isPlaying);
+      }
+    }
+  }
+
+  Future<void> _startPlayback() async {
+    final controller = engagementController;
+    if (controller == null) return;
+    setState(() => playerError = null);
+    final grant = await controller.startPlayback();
+    if (!mounted || grant == null) return;
+    final previous = player;
+    player = null;
+    shownPlaying = null;
+    if (previous != null) {
+      previous.removeListener(_onPlaybackChanged);
+      await previous.dispose();
+    }
+    if (!mounted) return;
+    final next = VideoPlayerController.networkUrl(grant.url);
+    try {
+      await next.initialize();
+      if (!mounted) {
+        await next.dispose();
+        return;
+      }
+      player = next..addListener(_onPlaybackChanged);
+      setState(() {});
+      await next.play();
+    } catch (_) {
+      if (identical(player, next)) player = null;
+      await next.dispose();
+      if (mounted) {
+        setState(() => playerError = 'Playback could not start. Try again.');
+      }
+    }
   }
 
   Future<void> load() async {
@@ -290,6 +369,27 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen> {
                   style: Theme.of(context).textTheme.headlineMedium),
               const SizedBox(height: 16),
               Text(video.description),
+              if (engagementController case final controller?) ...[
+                const SizedBox(height: 16),
+                if (controller.likeBusy && controller.liked == null)
+                  const LinearProgressIndicator(),
+                if (controller.liked != null)
+                  OutlinedButton.icon(
+                    onPressed:
+                        controller.likeBusy ? null : controller.toggleLike,
+                    icon: Icon(controller.liked!
+                        ? Icons.favorite
+                        : Icons.favorite_border),
+                    label: Text(controller.liked! ? 'Unlike' : 'Like'),
+                  ),
+                if (controller.likeError case final message?)
+                  Semantics(liveRegion: true, child: Text(message)),
+                if (controller.liked == null && !controller.likeBusy)
+                  TextButton(
+                    onPressed: controller.loadLike,
+                    child: const Text('Retry like state'),
+                  ),
+              ],
               const SizedBox(height: 16),
               TextButton(
                   onPressed: () {
@@ -298,9 +398,52 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen> {
                         .pushNamed(route.name, arguments: route);
                   },
                   child: const Text('View creator')),
+              if (engagementController != null)
+                TextButton.icon(
+                  onPressed: () {
+                    final route = ScreenRoute(71, entityId: video.id);
+                    Navigator.of(context).pushNamed(route.name, arguments: route);
+                  },
+                  icon: const Icon(Icons.flag_outlined),
+                  label: const Text('Report this video'),
+                ),
               const SizedBox(height: 24),
-              const Text(
-                  'Playback is awaiting an approved streaming provider.'),
+              if (player case final current?
+                  when current.value.isInitialized) ...[
+                AspectRatio(
+                  aspectRatio: current.value.aspectRatio,
+                  child: VideoPlayer(current),
+                ),
+                const SizedBox(height: 8),
+                TextButton.icon(
+                  onPressed: () => current.value.isPlaying
+                      ? current.pause()
+                      : current.play(),
+                  icon: Icon(
+                      current.value.isPlaying ? Icons.pause : Icons.play_arrow),
+                  label: Text(current.value.isPlaying ? 'Pause' : 'Play'),
+                ),
+                if (playerError case final message?) ...[
+                  Semantics(liveRegion: true, child: Text(message)),
+                  TextButton(
+                    onPressed: _startPlayback,
+                    child: const Text('Retry playback'),
+                  ),
+                ],
+              ] else if (engagementController case final controller?) ...[
+                FilledButton.icon(
+                  onPressed: controller.playbackBusy ? null : _startPlayback,
+                  icon: const Icon(Icons.play_arrow),
+                  label: Text(controller.playbackBusy
+                      ? 'Loading playback…'
+                      : 'Play original'),
+                ),
+                if (controller.playbackError case final message?)
+                  Semantics(liveRegion: true, child: Text(message)),
+                if (playerError case final message?)
+                  Semantics(liveRegion: true, child: Text(message)),
+              ] else
+                const Text('Sign in to watch this original.'),
             ]);
           },
         )),

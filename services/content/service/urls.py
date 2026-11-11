@@ -15,8 +15,10 @@ urlpatterns = [
 
 if settings.LOCAL_MEDIA_ENABLED:
     from .media_api import media_api
+    from .analytics import content_analytics
 
     urlpatterns.append(path("internal/videos/media/<slug:operation>", media_api, name="internal-media"))
+    urlpatterns.append(path("internal/videos/analytics/<slug:operation>", content_analytics, name="internal-analytics"))
 
 if settings.LOCAL_MODERATION_ENABLED:
     from .moderation import moderation_video

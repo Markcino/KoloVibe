@@ -26,6 +26,8 @@ FIELDS = {
     "report": {"video_id", "reason", "details", "key"},
     "appeal": {"video_id", "creator_id", "reason"},
     "review_queue": {"cursor"}, "reports": {"cursor"}, "appeals": {"cursor"},
+    "own_reports": {"cursor"}, "own_appeals": {"cursor"},
+    "own_report": {"target_id"}, "own_appeal": {"target_id"},
     **{operation: {"target_id", "action", "reason", "key"} for operation in DECISIONS},
 }
 
@@ -150,6 +152,22 @@ def _queue(operation, cursor):
     return JsonResponse({"items": items, "next_cursor": items[-1]["id"] if len(rows) > 20 else None})
 
 
+def _own_records(operation, actor, data):
+    is_report = operation in ("own_reports", "own_report")
+    query = (Report.objects.filter(reporter_id=actor) if is_report else
+             Appeal.objects.select_related("removal").filter(appellant_id=actor))
+    render = _report_data if is_report else _appeal_data
+    if operation in ("own_report", "own_appeal"):
+        record = query.filter(pk=UUID(data["target_id"])).first()
+        return JsonResponse(render(record, reviewer=True)) if record else _error("Record not found", 404)
+    cursor = data["cursor"]
+    if cursor is not None:
+        query = query.filter(id__gt=UUID(cursor))
+    rows = list(query.order_by("id")[:21])
+    items = [render(row, reviewer=True) for row in rows[:20]]
+    return JsonResponse({"items": items, "next_cursor": items[-1]["id"] if len(rows) > 20 else None})
+
+
 def _reserve(operation, actor, data):
     target, action, reason = UUID(data["target_id"]), data["action"], _text(data["reason"])
     if not isinstance(action, str) or action not in DECISIONS[operation]:
@@ -246,13 +264,16 @@ def moderation_workflow(request, operation):
         actor, role, data = UUID(envelope["actor_id"]), envelope["role"], envelope["data"]
         if not isinstance(role, str) or operation not in FIELDS or not isinstance(data, dict) or set(data) != FIELDS[operation]:
             raise ValueError("Invalid moderation operation")
-        allowed = VIEWERS if operation == "appeal" else VIEWERS | REVIEWERS if operation == "report" else REVIEWERS
+        allowed = (VIEWERS if operation in ("appeal", "own_appeals", "own_appeal") else
+                   VIEWERS | REVIEWERS if operation in ("report", "own_reports", "own_report") else REVIEWERS)
         if role not in allowed:
             return _error("Forbidden", 403)
         if operation == "report":
             return _report(actor, data)
         if operation == "appeal":
             return _appeal(actor, data)
+        if operation.startswith("own_"):
+            return _own_records(operation, actor, data)
         if operation in DECISIONS:
             return _decide(operation, actor, data)
         return _queue(operation, data["cursor"])

@@ -39,6 +39,7 @@ class WatchSession(models.Model):
     invalidated = models.BooleanField(default=False)
 
     class Meta:
+        indexes = [models.Index(fields=["video_id", "qualified_at"], name="eng_watch_video_qual_idx")]
         constraints = [
             models.UniqueConstraint(fields=["account_id", "video_id"], name="watch_account_video_unique"),
         ]

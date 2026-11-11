@@ -69,3 +69,21 @@ class VideoLikeGatewayTests(SimpleTestCase):
         self.assertEqual(json.loads(engagement.call_args.kwargs["payload"]), {
             "video_id": self.video_id, "account_id": self.account_id, "liked": False,
         })
+
+    @patch("service.likes.signed_internal_request")
+    @patch("service.likes.read_public_video")
+    @patch("service.likes.current_account")
+    def test_status_reads_only_signed_in_viewers_own_state(self, account, video, engagement):
+        account.return_value = JsonResponse({"id": self.account_id, "roles": ["viewer"]})
+        video.return_value = JsonResponse({"id": self.video_id})
+        engagement.return_value = Response(json.dumps({
+            "video_id": self.video_id, "liked": False,
+        }).encode())
+        result = self.client.get(self.url)
+        self.assertEqual(result.status_code, 200)
+        self.assertFalse(result.json()["liked"])
+        self.assertIn("no-store", result.headers["Cache-Control"])
+        self.assertEqual(engagement.call_args.args, ("engagement", "/internal/likes/status"))
+        self.assertEqual(json.loads(engagement.call_args.kwargs["payload"]), {
+            "account_id": self.account_id, "video_id": self.video_id,
+        })

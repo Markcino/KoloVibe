@@ -6,6 +6,7 @@ import '../features/account/live_account_repository.dart';
 import '../features/discovery/live_video_repository.dart';
 import '../features/creators/live_creator_repository.dart';
 import '../features/points/live_points_repository.dart';
+import '../features/content/live_content_repository.dart';
 
 class AppDependencies {
   const AppDependencies.unavailable()
@@ -13,10 +14,11 @@ class AppDependencies {
         liveAccount = null,
         liveVideos = null,
         liveCreators = null,
-        livePoints = null;
+        livePoints = null,
+        liveContent = null;
 
   const AppDependencies._(this.services, this.liveAccount, this.liveVideos,
-      this.liveCreators, this.livePoints);
+      this.liveCreators, this.livePoints, this.liveContent);
 
   factory AppDependencies.live(String baseUrl,
       {CredentialStore? credentialStore}) {
@@ -38,6 +40,7 @@ class AppDependencies {
       LiveVideoRepository(api),
       LiveCreatorRepository(api),
       LivePointsRepository(account),
+      LiveContentRepository(account),
     );
   }
 
@@ -46,5 +49,6 @@ class AppDependencies {
   final LiveVideoRepository? liveVideos;
   final LiveCreatorRepository? liveCreators;
   final LivePointsRepository? livePoints;
+  final LiveContentRepository? liveContent;
   FeatureRepository get repository => RepositoryDispatcher(services);
 }

@@ -78,6 +78,10 @@ def _owned_item(video):
             "state": video.state, "created_at": video.created_at.isoformat()}
 
 
+def _owned_detail(video):
+    return _owned_item(video) | {"revision": video.moderation_revision}
+
+
 def _library(creator_id, cursor):
     videos = Video.objects.filter(creator_id=creator_id).order_by("-created_at", "-id")
     if cursor is not None:
@@ -181,6 +185,7 @@ def media_api(request, operation):
         fields = {
             "draft": {"creator_id", "title", "description"},
             "library": {"creator_id", "cursor"},
+            "detail": {"creator_id", "video_id"},
             "edit": {"creator_id", "video_id", "title", "description"},
             "delete": {"creator_id", "video_id"},
             "intent": {"creator_id", "video_id", "idempotency_key", "size_bytes"},
@@ -204,6 +209,8 @@ def media_api(request, operation):
         if operation == "complete":
             return _complete(video_id, creator_id)
         video = Video.objects.filter(pk=video_id, creator_id=creator_id).first()
+        if operation == "detail":
+            return JsonResponse(_owned_detail(video)) if video else _error("Video not found", 404)
         return JsonResponse(_status(video)) if video else _error("Video not found", 404)
     except (storage.StorageUnavailable, storage.ObjectChanged, DatabaseError, KombuError, RuntimeError, OSError):
         return _error("Media temporarily unavailable", 503)

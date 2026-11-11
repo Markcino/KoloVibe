@@ -4,6 +4,7 @@ import json
 from uuid import UUID
 
 from django.http import HttpResponse, JsonResponse
+from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
 
 from .accounts import current_account
@@ -11,7 +12,8 @@ from .internal_client import signed_internal_request
 from .videos import read_public_video
 
 
-@require_http_methods(["PUT", "DELETE"])
+@never_cache
+@require_http_methods(["GET", "PUT", "DELETE"])
 def video_like(request, video_id):
     account = current_account(request)
     if account.status_code != 200:
@@ -30,22 +32,28 @@ def video_like(request, video_id):
         return JsonResponse({"detail": "Invalid like request"}, status=400)
 
     liked = request.method == "PUT"
-    if liked:
+    if request.method != "DELETE":
         video = read_public_video(video_id)
         if video.status_code != 200:
             return video
 
-    payload = json.dumps({"video_id": str(video_id), "account_id": account_id, "liked": liked}).encode()
+    payload_data = {"video_id": str(video_id), "account_id": account_id}
+    if request.method != "GET":
+        payload_data["liked"] = liked
+    payload = json.dumps(payload_data).encode()
+    path = "/internal/likes/status" if request.method == "GET" else "/internal/likes"
     try:
-        with signed_internal_request("engagement", "/internal/likes", method="POST", payload=payload) as response:
-            if not liked and response.status == 204:
+        with signed_internal_request("engagement", path, method="POST", payload=payload) as response:
+            if request.method == "DELETE" and response.status == 204:
                 return HttpResponse(status=204)
-            if liked and response.status == 200:
+            if request.method != "DELETE" and response.status == 200:
                 raw = response.read(257)
                 if len(raw) <= 256:
                     result = json.loads(raw)
                     if (isinstance(result, dict) and set(result) == {"video_id", "liked"}
-                            and result["video_id"] == str(video_id) and result["liked"] is True):
+                            and result["video_id"] == str(video_id)
+                            and type(result["liked"]) is bool
+                            and (request.method == "GET" or result["liked"] is True)):
                         return JsonResponse(result)
     except (OSError, ValueError):
         pass

@@ -46,6 +46,18 @@ class R2MediaTests(TestCase):
         self.assertFalse(Video.objects.filter(pk=self.video.id).exists())
         self.assertTrue(Video.objects.filter(pk=other.id).exists())
 
+    def test_owned_detail_includes_state_and_revision_without_cross_creator_access(self):
+        other = Video.objects.create(creator_id=uuid4(), title="Other creator", state=Video.State.REMOVED)
+        self.video.state = Video.State.REMOVED
+        self.video.moderation_revision = 2
+        self.video.save(update_fields=["state", "moderation_revision"])
+        payload = {"creator_id": str(self.creator), "video_id": str(self.video.id)}
+        detail = self.call("detail", payload)
+        self.assertEqual(detail.status_code, 200)
+        self.assertEqual((json.loads(detail.content)["state"], json.loads(detail.content)["revision"]),
+                         ("removed", 2))
+        self.assertEqual(self.call("detail", payload | {"video_id": str(other.id)}).status_code, 404)
+
     def test_draft_with_reserved_media_or_publication_cannot_be_edited_or_deleted(self):
         payload = {"creator_id": str(self.creator), "video_id": str(self.video.id)}
         MediaUpload.objects.create(id=uuid4(), video=self.video, expected_bytes=10,

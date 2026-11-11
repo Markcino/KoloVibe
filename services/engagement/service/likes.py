@@ -11,6 +11,27 @@ from .models import VideoLike
 
 
 @require_POST
+def read_like(request):
+    if getattr(request, "service_caller", None) != "gateway":
+        return JsonResponse({"detail": "Forbidden"}, status=403)
+    try:
+        if len(request.body) > 256:
+            raise ValueError
+        data = json.loads(request.body)
+        if not isinstance(data, dict) or set(data) != {"video_id", "account_id"}:
+            raise ValueError
+        video_id = UUID(data["video_id"])
+        account_id = UUID(data["account_id"])
+    except (ValueError, TypeError, AttributeError):
+        return JsonResponse({"detail": "Invalid like request"}, status=400)
+    try:
+        liked = VideoLike.objects.filter(video_id=video_id, account_id=account_id).exists()
+    except DatabaseError:
+        return JsonResponse({"detail": "Engagement service unavailable"}, status=503)
+    return JsonResponse({"video_id": str(video_id), "liked": liked})
+
+
+@require_POST
 def update_like(request):
     if getattr(request, "service_caller", None) != "gateway":
         return JsonResponse({"detail": "Forbidden"}, status=403)

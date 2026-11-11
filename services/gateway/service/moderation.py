@@ -13,6 +13,8 @@ from .internal_client import signed_internal_request
 
 
 QUEUES = {"review_queue", "reports", "appeals"}
+OWN_LISTS = {"own_reports", "own_appeals"}
+OWN_DETAILS = {"own_report", "own_appeal"}
 DECISIONS = {"video_decision", "report_decision", "appeal_decision"}
 
 
@@ -23,19 +25,23 @@ def _error(detail, status):
 def _valid_result(operation, result):
     if not isinstance(result, dict):
         return False
-    if operation in QUEUES:
+    if operation in QUEUES | OWN_LISTS:
         if set(result) != {"items", "next_cursor"} or not isinstance(result["items"], list) or len(result["items"]) > 20:
             return False
         fields = {
             "review_queue": {"id", "title"},
             "reports": {"id", "video_id", "status", "created_at", "reason", "details"},
             "appeals": {"id", "video_id", "status", "created_at", "reason"},
+            "own_reports": {"id", "video_id", "status", "created_at", "reason", "details"},
+            "own_appeals": {"id", "video_id", "status", "created_at", "reason"},
         }[operation]
         return (all(isinstance(item, dict) and set(item) == fields
                     and all(isinstance(value, str) for value in item.values()) for item in result["items"])
                 and (result["next_cursor"] is None or
                      bool(result["items"]) and result["items"][-1]["id"] == result["next_cursor"]))
     fields = ({"id", "video_id", "action", "status"} if operation in DECISIONS else
+              {"id", "video_id", "status", "created_at", "reason", "details"} if operation == "own_report" else
+              {"id", "video_id", "status", "created_at", "reason"} if operation == "own_appeal" else
               {"id", "video_id", "status", "created_at"})
     return set(result) == fields and all(isinstance(value, str) for value in result.values())
 
@@ -68,7 +74,7 @@ def _forward(operation, actor, role, data):
 
 @never_cache
 def moderation_endpoint(request, operation, target_id=None):
-    method = "GET" if operation in QUEUES else "POST"
+    method = "GET" if operation in QUEUES | OWN_LISTS | OWN_DETAILS else "POST"
     if request.method != method:
         return HttpResponseNotAllowed([method])
     principal = authenticated_actor(request, require_verified_email=False)
@@ -76,11 +82,15 @@ def moderation_endpoint(request, operation, target_id=None):
         return principal
     actor, role = principal
     try:
-        if operation in QUEUES:
+        if operation in QUEUES | OWN_LISTS:
             if request.body or set(request.GET) - {"cursor"} or len(request.GET.getlist("cursor")) > 1:
                 raise ValueError("Invalid queue request")
             cursor = request.GET.get("cursor")
             data = {"cursor": str(UUID(cursor)) if cursor is not None else None}
+        elif operation in OWN_DETAILS:
+            if request.body or request.GET:
+                raise ValueError("Invalid record request")
+            data = {"target_id": str(target_id)}
         else:
             if request.GET or len(request.body) > 32768:
                 raise ValueError("Invalid moderation request")

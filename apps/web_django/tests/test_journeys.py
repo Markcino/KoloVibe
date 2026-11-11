@@ -7,6 +7,109 @@ from django.urls import reverse
 
 
 class WebJourneys(SimpleTestCase):
+    def test_password_reset_request_keeps_account_state_private(self):
+        with patch("web.views._api", return_value=(204, {})) as api:
+            response = self.client.post(reverse("password-reset-request"),
+                                        {"email": "viewer@example.test"})
+        self.assertContains(response, "If your account is eligible")
+        self.assertEqual(api.call_args.args, ("/auth/password/reset-request",))
+        self.assertEqual(api.call_args.kwargs["data"], {"email": "viewer@example.test"})
+
+    def test_successful_reset_and_change_clear_browser_credentials(self):
+        self.client.cookies["kv_access"] = secrets.token_urlsafe(32)
+        self.client.cookies["kv_refresh"] = secrets.token_urlsafe(48)
+        with patch("web.views._api", return_value=(204, {})):
+            response = self.client.post(reverse("password-reset"), {
+                "code": secrets.token_urlsafe(48), "new_password": secrets.token_urlsafe(28),
+            })
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.cookies["kv_access"]["max-age"], 0)
+        self.assertEqual(response.cookies["kv_refresh"]["max-age"], 0)
+
+        self.client.cookies["kv_access"] = secrets.token_urlsafe(32)
+        self.client.cookies["kv_refresh"] = secrets.token_urlsafe(48)
+        account = {"id": str(uuid.uuid4()), "email": "viewer@example.test", "display_name": "Viewer"}
+        with patch("web.views._api", side_effect=[(200, account), (204, {})]) as api:
+            response = self.client.post(reverse("password-change"), {
+                "current_password": secrets.token_urlsafe(28),
+                "new_password": secrets.token_urlsafe(28),
+            })
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(api.call_args.args, ("/me/password",))
+        self.assertEqual(response.cookies["kv_access"]["max-age"], 0)
+        self.assertEqual(response.cookies["kv_refresh"]["max-age"], 0)
+
+    def test_profile_and_sessions_use_own_authenticated_gateway_paths(self):
+        account_id = str(uuid.uuid4())
+        account = {"id": account_id, "email": "viewer@example.test", "display_name": "Viewer"}
+        self.client.cookies["kv_access"] = secrets.token_urlsafe(32)
+        with patch("web.views._api", side_effect=[(200, account),
+                (200, {**account, "display_name": "Updated"})]) as api:
+            response = self.client.post(reverse("profile-edit"), {"display_name": "Updated"})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(api.call_args.args, ("/me",))
+        self.assertEqual(api.call_args.kwargs["method"], "PATCH")
+        session_id = str(uuid.uuid4())
+        page = {"items": [{"id": session_id, "created_at": "2026-11-11T00:00:00Z",
+                           "expires_at": "2026-12-11T00:00:00Z", "current": False}]}
+        with patch("web.views._api", side_effect=[(200, account), (200, page)]):
+            response = self.client.get(reverse("sessions"))
+        self.assertContains(response, "End session")
+        self.assertNotIn(self.client.cookies["kv_access"].value, response.content.decode())
+        with patch("web.views._api", side_effect=[(200, account), (204, {})]) as api:
+            response = self.client.post(reverse("revoke-session", args=[session_id]))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(api.call_args.args, ("/me/sessions/" + session_id,))
+        self.assertEqual(api.call_args.kwargs["method"], "DELETE")
+
+    def test_csrf_blocks_session_revocation(self):
+        client = Client(enforce_csrf_checks=True)
+        with patch("web.views._api") as api:
+            response = client.post(reverse("revoke-session", args=[uuid.uuid4()]))
+        self.assertEqual(response.status_code, 403)
+        api.assert_not_called()
+
+    def test_preferences_and_privacy_use_own_account_credentials(self):
+        account = {"id": str(uuid.uuid4()), "email": "viewer@example.test", "display_name": "Viewer"}
+        self.client.cookies["kv_access"] = secrets.token_urlsafe(32)
+        with patch("web.views._api", side_effect=[(200, account), (200, {
+                "email_notifications": True, "push_notifications": False})]) as api:
+            response = self.client.post(reverse("preferences"), {"email_notifications": "on"})
+        self.assertContains(response, "Email notifications")
+        self.assertEqual(api.call_args.args, ("/me/preferences",))
+        self.assertEqual(api.call_args.kwargs["data"], {
+            "email_notifications": True, "push_notifications": False,
+        })
+        receipt = {"id": str(uuid.uuid4()), "kind": "deletion", "status": "received",
+                   "created_at": "2026-11-11T12:00:00Z"}
+        current_password = secrets.token_urlsafe(28)
+        with patch("web.views._api", side_effect=[(200, account), (201, receipt)]) as api:
+            response = self.client.post(reverse("privacy-requests"), {
+                "kind": "deletion", "current_password": current_password,
+            })
+        self.assertContains(response, "request was received")
+        self.assertNotIn(current_password, response.content.decode())
+        self.assertEqual(api.call_args.kwargs["data"], {
+            "kind": "deletion", "current_password": current_password,
+        })
+
+    def test_privacy_request_requires_csrf_and_rejects_unknown_kind(self):
+        client = Client(enforce_csrf_checks=True)
+        with patch("web.views._api") as api:
+            response = client.post(reverse("privacy-requests"), {
+                "kind": "deletion", "current_password": secrets.token_urlsafe(28),
+            })
+        self.assertEqual(response.status_code, 403)
+        api.assert_not_called()
+        account = {"id": str(uuid.uuid4()), "email": "viewer@example.test", "display_name": "Viewer"}
+        self.client.cookies["kv_access"] = secrets.token_urlsafe(32)
+        with patch("web.views._api", return_value=(200, account)) as api:
+            response = self.client.post(reverse("privacy-requests"), {
+                "kind": "withdrawal", "current_password": secrets.token_urlsafe(28),
+            })
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(api.call_count, 1)
+
     def test_feed_paginates_and_preserves_creator_filter(self):
         creator = str(uuid.uuid4())
         items = [{"id": str(uuid.uuid4()), "creator_id": creator, "title": "Original",

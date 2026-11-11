@@ -3,7 +3,7 @@ from uuid import uuid4
 
 from django.test import RequestFactory, TestCase
 
-from service.likes import update_like
+from service.likes import read_like, update_like
 from service.models import VideoLike
 
 
@@ -35,3 +35,15 @@ class VideoLikeTests(TestCase):
         self.assertEqual(self.write_like(True, caller="identity").status_code, 403)
         self.assertEqual(self.write_like(1).status_code, 400)
         self.assertFalse(VideoLike.objects.exists())
+
+    def test_status_is_scoped_to_account_and_requires_gateway(self):
+        self.write_like(True)
+        def status(account_id, caller="gateway"):
+            request = self.factory.post("/internal/likes/status", data=json.dumps({
+                "video_id": self.video_id, "account_id": account_id,
+            }), content_type="application/json")
+            request.service_caller = caller
+            return read_like(request)
+        self.assertEqual(json.loads(status(self.account_id).content)["liked"], True)
+        self.assertEqual(json.loads(status(str(uuid4())).content)["liked"], False)
+        self.assertEqual(status(self.account_id, caller="identity").status_code, 403)

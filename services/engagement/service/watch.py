@@ -61,6 +61,8 @@ def progress(data):
             return error("Watch session unavailable", 409)
         already_qualified = watch.qualified_at is not None and watch.qualified_at > now - VIEW_WINDOW
         position = data["position_ms"]
+        if already_qualified and position <= watch.position_ms:
+            return JsonResponse({"qualified": True})
         if position < watch.position_ms:
             return JsonResponse({"qualified": already_qualified})
         interval = now - watch.last_sample_at

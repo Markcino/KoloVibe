@@ -38,9 +38,14 @@ class ApiClient {
       {String method = 'GET',
       Map<String, Object?>? body,
       String? accessToken,
+      String? idempotencyKey,
       Map<String, String>? query}) async {
     if (!path.startsWith('/') || path.contains('..') || path.contains('?')) {
       throw ArgumentError('Invalid API path');
+    }
+    if (idempotencyKey != null &&
+        !RegExp(r'^[A-Za-z0-9_-]{16,128}$').hasMatch(idempotencyKey)) {
+      throw ArgumentError('Invalid idempotency key');
     }
     final url = base.replace(path: '${base.path}$path', queryParameters: query);
     final request = http.Request(method, url)
@@ -52,6 +57,9 @@ class ApiClient {
     }
     if (accessToken != null) {
       request.headers['Authorization'] = 'Bearer $accessToken';
+    }
+    if (idempotencyKey != null) {
+      request.headers['Idempotency-Key'] = idempotencyKey;
     }
     try {
       final streamed =

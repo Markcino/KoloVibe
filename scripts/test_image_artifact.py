@@ -26,6 +26,8 @@ class ArtifactTests(unittest.TestCase):
         (self.directory / "services.json").write_text(json.dumps(list(SERVICES)))
         (self.directory / "image-sbom.json").write_text(json.dumps(
             {"bomFormat": "CycloneDX", "components": []}))
+        (self.directory / "python-sbom.json").write_text(json.dumps(
+            {"bomFormat": "CycloneDX", "components": []}))
 
     def test_correct_artifact_has_verified_identity(self):
         self.assertEqual(verify(self.directory, SHA), IMAGE_ID)
@@ -58,6 +60,11 @@ class ArtifactTests(unittest.TestCase):
             verify(self.directory, SHA)
         (self.directory / "image.tar").unlink()
         with self.assertRaises(FileNotFoundError):
+            verify(self.directory, SHA)
+
+    def test_invalid_python_sbom_cannot_publish(self):
+        (self.directory / "python-sbom.json").write_text("{}")
+        with self.assertRaises(ValueError):
             verify(self.directory, SHA)
 
 
