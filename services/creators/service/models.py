@@ -4,6 +4,7 @@ import uuid
 
 from django.db import models
 from django.db.models import Q
+from django.db.models.functions import Lower
 
 
 class CreatorProfile(models.Model):
@@ -16,6 +17,8 @@ class CreatorProfile(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user_id = models.UUIDField(unique=True)
     handle = models.SlugField(max_length=40, unique=True)
+    display_name = models.CharField(max_length=80, blank=True, default="")
+    location = models.CharField(max_length=80, blank=True, default="")
     bio = models.TextField(max_length=500, blank=True)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
     reviewed_at = models.DateTimeField(null=True, blank=True)
@@ -25,7 +28,8 @@ class CreatorProfile(models.Model):
     class Meta:
         constraints = [models.CheckConstraint(
             condition=~Q(status="active") | Q(reviewed_at__isnull=False, restricted_at__isnull=True),
-            name="creator_active_requires_review")]
+            name="creator_active_requires_review"),
+            models.UniqueConstraint(Lower("handle"), name="creator_handle_case_insensitive")]
 
 
 class CreatorApplication(models.Model):
