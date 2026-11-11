@@ -1,5 +1,6 @@
 import importlib.util
 import os
+import secrets
 from pathlib import Path
 from unittest.mock import patch
 
@@ -66,7 +67,7 @@ class AppCompatibilityTests(SimpleTestCase):
                                                      Path(gateway_settings.__file__))
         module = importlib.util.module_from_spec(spec)
         with patch.dict(os.environ, {"KOLOVIBE_ENV": "local",
-                                    "DJANGO_SECRET_KEY": "compatibility-test-key-over-32-characters", **extra}, clear=True):
+                                    "DJANGO_SECRET_KEY": secrets.token_urlsafe(48), **extra}, clear=True):
             spec.loader.exec_module(module)
         return module
 
@@ -83,8 +84,9 @@ class AppCompatibilityTests(SimpleTestCase):
                 "store_url": "https://store.example.test/app"})
 
     def test_unsafe_store_urls_and_invalid_versions_fail_settings_load(self):
+        userinfo = "user:" + secrets.token_urlsafe(12)
         for url in ("http://store.example.test/app", "javascript:alert(1)", "//store.example.test",
-                    "https:///app", "https://user:password@store.example.test/app",
+                    "https:///app", f"https://{userinfo}@store.example.test/app",
                     "https://store.example.test/\napp", "https://store.example.test\\evil/app"):
             with self.subTest(url=url), self.assertRaisesRegex(RuntimeError, "compatibility configuration"):
                 self.load_settings({"KOLOVIBE_APP_STORE_URL_IOS": url})

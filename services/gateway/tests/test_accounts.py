@@ -51,16 +51,16 @@ class AccountGatewayTests(SimpleTestCase):
             for status, detail in ((400, "Reauthentication failed"), (429, "Too many attempts")):
                 call.side_effect = HTTPError("https://identity.invalid/internal", status, "", {},
                                              BytesIO(json.dumps({"detail": detail}).encode()))
-                response = self.post("reauthenticate", {"current_password": "entered"}, **auth)
+                response = self.post("reauthenticate", {"current_password": secrets.token_urlsafe(24)}, **auth)
                 self.assertEqual(response.status_code, status)
                 self.assertEqual(response.json(), {"detail": detail})
             call.side_effect = None
             for data in ({"reauth_token": "short", "expires_at": "2026-11-11T00:00:00Z"},
                          {"reauth_token": "x" * 64, "expires_at": "bad-date"},
                          {"reauth_token": "x" * 64, "expires_at": "2026-11-11T00:00:00"},
-                         {"reauth_token": "x" * 64, "expires_at": "2026-11-11T00:00:00Z", "password": "leak"}):
+                         {"reauth_token": "x" * 64, "expires_at": "2026-11-11T00:00:00Z", "password": secrets.token_urlsafe(24)}):
                 call.return_value = Response(200, json.dumps(data).encode())
-                self.assertEqual(self.post("reauthenticate", {"current_password": "entered"}, **auth).status_code, 503)
+                self.assertEqual(self.post("reauthenticate", {"current_password": secrets.token_urlsafe(24)}, **auth).status_code, 503)
 
     def test_protected_requests_revalidate_session_every_time_and_fail_closed(self):
         auth = {"HTTP_AUTHORIZATION": "Bearer same-unexpired-access-token"}

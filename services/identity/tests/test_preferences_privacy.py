@@ -49,7 +49,7 @@ class PreferencesPrivacyTests(TestCase):
         fields = {"access_token": self.first, "operation": "create",
                   "kind": "deletion", "current_password": self.password}
         self.assertEqual(self._post(preferences_privacy.privacy_requests,
-                                    {**fields, "current_password": "wrong"}).status_code, 400)
+                                    {**fields, "current_password": self.password + "!wrong"}).status_code, 400)
         first = self._post(preferences_privacy.privacy_requests, fields)
         self.assertEqual(first.status_code, 201)
         duplicate = self._post(preferences_privacy.privacy_requests, fields)

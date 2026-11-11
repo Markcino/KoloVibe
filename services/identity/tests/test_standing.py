@@ -32,7 +32,7 @@ class StandingContextTests(TestCase):
         self.session.authenticated_role = "moderator"
         self.session.save(update_fields=["authenticated_role"])
         self.assertEqual(self.call().status_code, 401)
-        TotpFactor.objects.create(account=self.account, encrypted_secret="unused-in-session-read")
+        TotpFactor.objects.create(account=self.account, encrypted_secret=secrets.token_urlsafe(32))
         self.session.mfa_verified_at = timezone.now()
         self.session.save(update_fields=["mfa_verified_at"])
         self.assertIs(json.loads(self.call().content)["mfa_verified"], True)

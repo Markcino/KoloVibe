@@ -55,12 +55,12 @@ class ProducerTests(TestCase):
             keys = {name: name.ljust(40, "x") for name in PRODUCER_KINDS}
             keyfile.write_text(json.dumps(keys))
             middleware = ServiceAuthMiddleware(lambda req: JsonResponse({"caller": req.service_caller}))
-            def signed(caller, key):
+            def signed(caller, key, path="/internal/security-events"):
                 stamp, nonce = str(int(time.time())), str(uuid4())
                 digest = hashlib.sha256(b"{}").hexdigest()
-                canonical = "\n".join((caller, "audit", stamp, nonce, "POST", "/internal/security-events", digest))
+                canonical = "\n".join((caller, "audit", stamp, nonce, "POST", path, digest))
                 signature = hmac.new(key.encode(), canonical.encode(), hashlib.sha256).hexdigest()
-                return RequestFactory().post("/internal/security-events", b"{}", content_type="application/json",
+                return RequestFactory().post(path, b"{}", content_type="application/json",
                     HTTP_X_KOLOVIBE_CALLER=caller, HTTP_X_KOLOVIBE_TIMESTAMP=stamp,
                     HTTP_X_KOLOVIBE_NONCE=nonce, HTTP_X_KOLOVIBE_SIGNATURE=signature)
             with patch.dict(os.environ, {"KOLOVIBE_CALLER_KEYS_FILE": str(keyfile), "KOLOVIBE_SERVICE_NAME": "audit"}):
@@ -68,5 +68,12 @@ class ProducerTests(TestCase):
                     self.assertEqual(middleware(signed(caller, key)).status_code, 200)
                     wrong = keys["identity"] if caller != "identity" else keys["moderation"]
                     self.assertEqual(middleware(signed(caller, wrong)).status_code, 403)
+                # Preserve the existing diagnostic caller while keeping it unable
+                # to publish events or access any other internal route.
+                keys["gateway"] = "gateway-probe".ljust(40, "x")
+                keyfile.write_text(json.dumps(keys))
+                self.assertEqual(middleware(signed("gateway", keys["gateway"], "/internal/probe")).status_code, 200)
+                self.assertEqual(middleware(signed("gateway", keys["gateway"])).status_code, 403)
+                self.assertEqual(middleware(signed("gateway", keys["gateway"], "/internal/other")).status_code, 403)
                 keyfile.write_text(json.dumps({"identity": keys["identity"], "moderation": keys["identity"]}))
                 self.assertEqual(middleware(signed("identity", keys["identity"])).status_code, 403)

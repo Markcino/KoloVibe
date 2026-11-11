@@ -81,7 +81,7 @@ def configure(settings):
     if any(name not in SERVICES or not isinstance(key, str) or len(key) < 32
            for name, key in callers.items()):
         raise RuntimeError("Invalid staging caller credentials")
-    if service == "audit" and (set(callers) - {"identity", "moderation", "creators", "content", "points"}
+    if service == "audit" and (set(callers) - {"identity", "moderation", "creators", "content", "points", "gateway"}
                                or len(set(callers.values())) != len(callers)):
         raise RuntimeError("Audit producers require distinct caller credentials")
     if service in ("identity", "content", "creators") and "gateway" not in callers:
