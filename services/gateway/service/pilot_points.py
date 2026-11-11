@@ -103,39 +103,55 @@ def watch(request, video_id=None):
 
 
 def _balance(result, creator_id):
-    return (set(result) == {"creator_id", "balance", "currency", "as_of"}
+    return (set(result) == {"creator_id", "balance", "currency", "as_of", "confirmed", "pending", "withheld", "reversed"}
             and result["creator_id"] == creator_id and result["currency"] == "POINTS"
+            and all(type(result[key]) is int and result[key] >= 0 for key in ("confirmed", "pending", "withheld", "reversed"))
             and type(result["balance"]) is int and datetime.fromisoformat(result["as_of"]).tzinfo is not None)
 
 
-def _history(result, creator_id):
+def _entry(item, creator_id):
+    return (isinstance(item, dict)
+            and set(item) == {"id", "creator_id", "amount", "kind", "rule_version", "created_at", "status", "video_id"}
+            and str(UUID(item["id"])) == item["id"] and item["creator_id"] == creator_id
+            and type(item["amount"]) is int and item["amount"] != 0
+            and item["kind"] in ("award", "reversal", "adjustment")
+            and item["status"] in ("confirmed", "pending", "withheld", "adjustments")
+            and ((item["status"] == "adjustments") == (item["kind"] in ("reversal", "adjustment")))
+            and (item["kind"] != "award" or item["amount"] > 0)
+            and (item["kind"] != "reversal" or item["amount"] < 0)
+            and (item["video_id"] is None or str(UUID(item["video_id"])) == item["video_id"])
+            and isinstance(item["rule_version"], str) and 1 <= len(item["rule_version"]) <= 32
+            and datetime.fromisoformat(item["created_at"]).tzinfo is not None)
+
+
+def _history(result, creator_id, status="all"):
     if (set(result) != {"items", "next_cursor"} or not isinstance(result["items"], list)
             or len(result["items"]) > 20):
         return False
-    for item in result["items"]:
-        if (not isinstance(item, dict)
-                or set(item) != {"id", "creator_id", "amount", "kind", "rule_version", "created_at"}
-                or str(UUID(item["id"])) != item["id"] or item["creator_id"] != creator_id
-                or type(item["amount"]) is not int or item["kind"] not in ("award", "reversal", "adjustment")
-                or not isinstance(item["rule_version"], str) or not 1 <= len(item["rule_version"]) <= 32
-                or datetime.fromisoformat(item["created_at"]).tzinfo is None):
-            return False
-    return (result["next_cursor"] is None
-            or len(result["items"]) == 20 and result["next_cursor"] == result["items"][-1]["id"])
+    return (all(_entry(item, creator_id) and (status == "all" or item["status"] == status)
+                for item in result["items"])
+            and len({item["id"] for item in result["items"]}) == len(result["items"])
+            and (result["next_cursor"] is None
+                 or len(result["items"]) == 20 and result["next_cursor"] == result["items"][-1]["id"]))
 
 
 @never_cache
 @require_GET
-def creator_points(request, operation):
+def creator_points(request, operation, entry_id=None):
     actor = authenticated_actor(request, require_verified_email=True)
     if isinstance(actor, JsonResponse):
         return actor
     try:
-        keys = {"cursor"} if operation == "entries" else set()
-        if request.body or set(request.GET) - keys or len(request.GET.getlist("cursor")) > 1:
+        keys = {"cursor", "status"} if operation == "entries" else set()
+        if request.body or set(request.GET) - keys or any(len(request.GET.getlist(key)) > 1 for key in keys):
             raise ValueError
         cursor = request.GET.get("cursor")
-        query = {"cursor": str(UUID(cursor)) if cursor is not None else None} if keys else {}
+        status = request.GET.get("status", "all")
+        if status not in {"all", "confirmed", "pending", "adjustments"}:
+            raise ValueError
+        query = {"cursor": str(UUID(cursor)) if cursor is not None else None, "status": status} if keys else {}
+        if operation == "entry":
+            query = {"entry_id": str(UUID(str(entry_id)))}
     except (ValueError, TypeError, AttributeError):
         return error("Invalid points query", 400)
     ownership = creator_ownership(*actor)
@@ -144,7 +160,8 @@ def creator_points(request, operation):
     creator_id = json.loads(ownership.content)["creator_id"]
     if creator_id is None:
         return error("Approved creator required", 403)
-    validate = _history if operation == "entries" else _balance
+    validate = ((lambda result, owner: _history(result, owner, status)) if operation == "entries" else
+                (lambda result, owner: _entry(result, owner) and result["id"] == str(entry_id)) if operation == "entry" else _balance)
     return _forward("points", f"/internal/points/{operation}",
                     query | {"account_id": actor[0], "creator_id": creator_id},
                     lambda result: validate(result, creator_id))

@@ -1875,33 +1875,62 @@ paths:
       x-capability: engagement
   /creators/me/points:
     get:
-      tags: [Points]
+      tags:
+      - Points
       summary: Read own non-cash points balance
       operationId: get__creators_me_points
-      x-implementation: local-only
-      description: Requires a verified email and an active approved creator profile.
+      x-implementation: local
+      description: Requires verified email and ownership of the creator profile; restricted creators retain read access.
+        Account/creator scope comes from live signed identity and creator reads. All client write methods are rejected;
+        no public award or adjustment route exists.
       responses:
         '200':
           description: Own posted ledger balance
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/PointsBalance'}
-        '400': {description: Invalid query}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '503': {description: A required service is unavailable}
+              schema:
+                $ref: '#/components/schemas/PointsBalance'
+        '400':
+          description: Invalid query
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          description: A required service is unavailable
+      x-capability: points
   /creators/me/points/entries:
     get:
-      tags: [Points]
+      tags:
+      - Points
       summary: Read own points history
       operationId: get__creators_me_points_entries
-      x-implementation: local-only
-      description: Requires a verified email and an active approved creator profile.
+      x-implementation: local
+      description: Requires verified email and ownership of the creator profile; restricted creators retain read access.
+        Account/creator scope comes from live signed identity and creator reads. All client write methods are rejected;
+        no public award or adjustment route exists. all includes pending and withheld receipts alongside ledger rows;
+        confirmed includes posted awards (including subsequently reversed awards), pending includes unposted receipts,
+        and adjustments includes reversals/adjustments. Up to 20 results ordered by creation/receipt time then UUID
+        descending. Cursor must belong to the same owner and selected status; concurrent status changes can invalidate
+        a cursor. Unknown or repeated parameters are rejected.
       parameters:
       - name: cursor
         in: query
         required: false
-        schema: {type: string, format: uuid}
+        schema:
+          type: string
+          format: uuid
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - all
+          - confirmed
+          - pending
+          - adjustments
+          default: all
       responses:
         '200':
           description: Up to 20 entries in reverse chronological order
@@ -1910,337 +1939,713 @@ paths:
               schema:
                 type: object
                 additionalProperties: false
-                required: [items, next_cursor]
+                required:
+                - items
+                - next_cursor
                 properties:
                   items:
                     type: array
                     maxItems: 20
-                    items: {$ref: '#/components/schemas/PointsEntry'}
-                  next_cursor: {type: [string, 'null'], format: uuid}
-        '400': {description: Invalid query or cursor}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '503': {description: A required service is unavailable}
+                    items:
+                      $ref: '#/components/schemas/PointsEntry'
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                    format: uuid
+        '400':
+          description: Invalid query or cursor
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          description: A required service is unavailable
+      x-capability: points
   /reports:
     post:
-      tags: [Moderation]
+      tags:
+      - Moderation
       summary: Report a published video
       operationId: post__reports
-      x-implementation: local-only
-      x-required-roles: [viewer, creator, moderator, administrator]
+      x-implementation: local
+      x-required-roles:
+      - viewer
+      - creator
+      - moderator
+      - administrator
       parameters:
       - name: Idempotency-Key
         in: header
         required: true
-        schema: {type: string, pattern: '^[A-Za-z0-9_-]{16,128}$'}
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
       requestBody:
         required: true
         content:
           application/json:
-            schema: {$ref: '#/components/schemas/ReportCreate'}
+            schema:
+              $ref: '#/components/schemas/ReportCreate'
       responses:
         '201':
           description: Moderation operation accepted
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Report'}
+              schema:
+                $ref: '#/components/schemas/Report'
         '200':
           description: Moderation operation accepted
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Report'}
-        '400': {description: Invalid moderation request}
-        '401': {description: Missing or invalid session}
-        '403': {description: Role or independence requirement not met}
-        '404': {description: Resource not found}
-        '409': {description: State or idempotency conflict}
-        '503': {description: Moderation temporarily unavailable}
+              schema:
+                $ref: '#/components/schemas/Report'
+        '400':
+          description: Invalid moderation request
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Role or independence requirement not met
+        '404':
+          description: Resource not found
+        '409':
+          description: Open duplicate or idempotency conflict
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - $ref: '#/components/schemas/AlreadyReported'
+                - type: object
+                  additionalProperties: false
+                  required:
+                  - detail
+                  properties:
+                    detail:
+                      type: string
+        '503':
+          description: Moderation temporarily unavailable
+      x-capability: moderation
+      description: Only currently public published content may be reported. A new idempotency key for an already-open
+        report by this account/video returns 409 already_reported. Replaying the original key and identical payload
+        returns the original 200 response. Other idempotency conflicts retain a generic detail-only 409.
   /me/reports:
     get:
-      tags: [Moderation]
+      tags:
+      - Moderation
       summary: List reports submitted by the authenticated account
       operationId: get_own_reports
-      x-implementation: local-only
-      x-required-roles: [viewer, creator, moderator, administrator]
+      x-implementation: local
+      x-required-roles:
+      - viewer
+      - creator
+      - moderator
+      - administrator
       parameters:
       - name: cursor
         in: query
-        schema: {type: string, format: uuid}
+        schema:
+          type: string
+          format: uuid
       responses:
         '200':
           description: Account-owned reports, including closed reports
           content:
             application/json:
-              schema: {type: object, additionalProperties: false, required: [items, next_cursor], properties: {items: {type: array, maxItems: 20, items: {$ref: '#/components/schemas/OwnReport'}}, next_cursor: {type: [string, 'null'], format: uuid}}}
-        '400': {description: Invalid query or cursor}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '503': {description: Moderation temporarily unavailable}
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - items
+                - next_cursor
+                properties:
+                  items:
+                    type: array
+                    maxItems: 20
+                    items:
+                      $ref: '#/components/schemas/OwnReport'
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                    format: uuid
+        '400':
+          description: Invalid query or cursor
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          description: Moderation temporarily unavailable
+      x-capability: moderation
   /me/reports/{report_id}:
     get:
-      tags: [Moderation]
+      tags:
+      - Moderation
       summary: Read one report submitted by the authenticated account
       operationId: get_own_report
-      x-implementation: local-only
-      x-required-roles: [viewer, creator, moderator, administrator]
+      x-implementation: local
+      x-required-roles:
+      - viewer
+      - creator
+      - moderator
+      - administrator
       parameters:
       - name: report_id
         in: path
         required: true
-        schema: {type: string, format: uuid}
+        schema:
+          type: string
+          format: uuid
       responses:
         '200':
           description: Account-owned report
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/OwnReport'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '404': {description: Report missing or owned by another account}
-        '503': {description: Moderation temporarily unavailable}
+              schema:
+                $ref: '#/components/schemas/OwnReport'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Report missing or owned by another account
+        '503':
+          description: Moderation temporarily unavailable
+      x-capability: moderation
   /me/appeals:
     get:
-      tags: [Moderation]
+      tags:
+      - Moderation
       summary: List appeals submitted by the authenticated account
       operationId: get_own_appeals
-      x-implementation: local-only
-      x-required-roles: [viewer, creator]
+      x-implementation: local
+      x-required-roles:
+      - viewer
+      - creator
       parameters:
       - name: cursor
         in: query
-        schema: {type: string, format: uuid}
+        schema:
+          type: string
+          format: uuid
       responses:
         '200':
           description: Account-owned appeals, including closed appeals
           content:
             application/json:
-              schema: {type: object, additionalProperties: false, required: [items, next_cursor], properties: {items: {type: array, maxItems: 20, items: {$ref: '#/components/schemas/OwnAppeal'}}, next_cursor: {type: [string, 'null'], format: uuid}}}
-        '400': {description: Invalid query or cursor}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '503': {description: Moderation temporarily unavailable}
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - items
+                - next_cursor
+                properties:
+                  items:
+                    type: array
+                    maxItems: 20
+                    items:
+                      $ref: '#/components/schemas/OwnAppeal'
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                    format: uuid
+        '400':
+          description: Invalid query or cursor
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          description: Moderation temporarily unavailable
+      x-capability: moderation
   /me/appeals/{appeal_id}:
     get:
-      tags: [Moderation]
+      tags:
+      - Moderation
       summary: Read one appeal submitted by the authenticated account
       operationId: get_own_appeal
-      x-implementation: local-only
-      x-required-roles: [viewer, creator]
+      x-implementation: local
+      x-required-roles:
+      - viewer
+      - creator
       parameters:
       - name: appeal_id
         in: path
         required: true
-        schema: {type: string, format: uuid}
+        schema:
+          type: string
+          format: uuid
       responses:
         '200':
           description: Account-owned appeal
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/OwnAppeal'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '404': {description: Appeal missing or owned by another account}
-        '503': {description: Moderation temporarily unavailable}
+              schema:
+                $ref: '#/components/schemas/OwnAppeal'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Appeal missing or owned by another account
+        '503':
+          description: Moderation temporarily unavailable
+      x-capability: moderation
   /moderation/reports:
     get:
-      tags: [Moderation]
+      tags:
+      - Moderation
       summary: List open reports
       operationId: get__moderation_reports
-      x-implementation: local-only
-      x-required-roles: [moderator, administrator]
+      x-implementation: local
+      x-required-roles:
+      - moderator
+      - administrator
       parameters:
       - name: cursor
         in: query
-        schema: {type: string, format: uuid}
+        schema:
+          type: string
+          format: uuid
       responses:
         '200':
           description: Moderation operation accepted
           content:
             application/json:
-              schema: {type: object, additionalProperties: false, required: [items, next_cursor], properties: {items: {type: array, maxItems: 20, items: {$ref: '#/components/schemas/PilotReportQueueItem'}}, next_cursor: {type: [string, 'null'], format: uuid}}}
-        '400': {description: Invalid moderation request}
-        '401': {description: Missing or invalid session}
-        '403': {description: Role or independence requirement not met}
-        '404': {description: Resource not found}
-        '409': {description: State or idempotency conflict}
-        '503': {description: Moderation temporarily unavailable}
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - items
+                - next_cursor
+                properties:
+                  items:
+                    type: array
+                    maxItems: 20
+                    items:
+                      $ref: '#/components/schemas/PilotReportQueueItem'
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                    format: uuid
+        '400':
+          description: Invalid moderation request
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Role or independence requirement not met
+        '404':
+          description: Resource not found
+        '409':
+          description: State or idempotency conflict
+        '503':
+          description: Moderation temporarily unavailable
+      x-capability: moderation
+      x-mfa-required: true
+      description: ' Requires moderator/administrator role AND a live MFA-verified identity session. The gateway verifies
+        and binds session identity before signing its moderation envelope; password-only and expired/revoked sessions
+        are rejected. Decisions retain reviewer ID, reason text and reason_code with immutable transactional audit
+        evidence.'
   /moderation/reports/{report_id}/decisions:
     post:
-      tags: [Moderation]
+      tags:
+      - Moderation
       summary: Dismiss a report or remove its video
       operationId: post__moderation_reports_report_id_decisions
-      x-implementation: local-only
-      x-required-roles: [moderator, administrator]
+      x-implementation: local
+      x-required-roles:
+      - moderator
+      - administrator
       parameters:
       - name: report_id
         in: path
         required: true
-        schema: {type: string, format: uuid}
+        schema:
+          type: string
+          format: uuid
       - name: Idempotency-Key
         in: header
         required: true
-        schema: {type: string, pattern: '^[A-Za-z0-9_-]{16,128}$'}
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
       requestBody:
         required: true
         content:
           application/json:
-            schema: {type: object, additionalProperties: false, required: [action, reason], properties: {action: {type: string, enum: [dismiss, remove]}, reason: {type: string, minLength: 10, maxLength: 2000}}}
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - action
+              - reason
+              properties:
+                action:
+                  type: string
+                  enum:
+                  - dismiss
+                  - remove
+                reason:
+                  type: string
+                  minLength: 10
+                  maxLength: 2000
+                reason_code:
+                  type: string
+                  pattern: ^[A-Z][A-Z0-9_]{1,63}$
+                  description: Optional for compatibility; omission on a new decision records REVIEWED_<ACTION>, a
+                    technical review code rather than an invented policy finding. Historical missing codes remain
+                    null.
       responses:
         '200':
           description: Moderation operation accepted
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/PilotModerationAction'}
-        '400': {description: Invalid moderation request}
-        '401': {description: Missing or invalid session}
-        '403': {description: Role or independence requirement not met}
-        '404': {description: Resource not found}
-        '409': {description: State or idempotency conflict}
-        '503': {description: Moderation temporarily unavailable}
+              schema:
+                $ref: '#/components/schemas/PilotModerationAction'
+        '400':
+          description: Invalid moderation request
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Role or independence requirement not met
+        '404':
+          description: Resource not found
+        '409':
+          description: State or idempotency conflict
+        '503':
+          description: Moderation temporarily unavailable
+      x-capability: moderation
+      x-mfa-required: true
+      description: ' Requires moderator/administrator role AND a live MFA-verified identity session. The gateway verifies
+        and binds session identity before signing its moderation envelope; password-only and expired/revoked sessions
+        are rejected. Decisions retain reviewer ID, reason text and reason_code with immutable transactional audit
+        evidence.'
   /moderation/videos:
     get:
-      tags: [Moderation]
+      tags:
+      - Moderation
       summary: List processed videos awaiting review
       operationId: get_pilot_video_review_queue
-      x-implementation: local-only
-      x-required-roles: [moderator, administrator]
+      x-implementation: local
+      x-required-roles:
+      - moderator
+      - administrator
       parameters:
       - name: cursor
         in: query
-        schema: {type: string, format: uuid}
+        schema:
+          type: string
+          format: uuid
       responses:
         '200':
           description: Moderation operation accepted
           content:
             application/json:
-              schema: {type: object, additionalProperties: false, required: [items, next_cursor], properties: {items: {type: array, maxItems: 20, items: {type: object, additionalProperties: false, required: [id, title], properties: {id: {type: string, format: uuid}, title: {type: string}}}}, next_cursor: {type: [string, 'null'], format: uuid}}}
-        '400': {description: Invalid moderation request}
-        '401': {description: Missing or invalid session}
-        '403': {description: Role or independence requirement not met}
-        '404': {description: Resource not found}
-        '409': {description: State or idempotency conflict}
-        '503': {description: Moderation temporarily unavailable}
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - items
+                - next_cursor
+                properties:
+                  items:
+                    type: array
+                    maxItems: 20
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - id
+                      - title
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        title:
+                          type: string
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                    format: uuid
+        '400':
+          description: Invalid moderation request
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Role or independence requirement not met
+        '404':
+          description: Resource not found
+        '409':
+          description: State or idempotency conflict
+        '503':
+          description: Moderation temporarily unavailable
+      x-capability: moderation
+      x-mfa-required: true
+      description: ' Requires moderator/administrator role AND a live MFA-verified identity session. The gateway verifies
+        and binds session identity before signing its moderation envelope; password-only and expired/revoked sessions
+        are rejected. Decisions retain reviewer ID, reason text and reason_code with immutable transactional audit
+        evidence.'
   /moderation/videos/{video_id}/decisions:
     post:
-      tags: [Moderation]
+      tags:
+      - Moderation
       summary: Publish or reject a reviewed video or remove a publication
       operationId: post_pilot_video_decision
-      x-implementation: local-only
-      x-required-roles: [moderator, administrator]
+      x-implementation: local
+      x-required-roles:
+      - moderator
+      - administrator
       parameters:
       - name: video_id
         in: path
         required: true
-        schema: {type: string, format: uuid}
+        schema:
+          type: string
+          format: uuid
       - name: Idempotency-Key
         in: header
         required: true
-        schema: {type: string, pattern: '^[A-Za-z0-9_-]{16,128}$'}
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
       requestBody:
         required: true
         content:
           application/json:
-            schema: {type: object, additionalProperties: false, required: [action, reason], properties: {action: {type: string, enum: [publish, reject, remove]}, reason: {type: string, minLength: 10, maxLength: 2000}}}
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - action
+              - reason
+              properties:
+                action:
+                  type: string
+                  enum:
+                  - publish
+                  - reject
+                  - remove
+                reason:
+                  type: string
+                  minLength: 10
+                  maxLength: 2000
+                reason_code:
+                  type: string
+                  pattern: ^[A-Z][A-Z0-9_]{1,63}$
+                  description: Optional for compatibility; omission on a new decision records REVIEWED_<ACTION>, a
+                    technical review code rather than an invented policy finding. Historical missing codes remain
+                    null.
       responses:
         '200':
           description: Moderation operation accepted
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/PilotModerationAction'}
-        '400': {description: Invalid moderation request}
-        '401': {description: Missing or invalid session}
-        '403': {description: Role or independence requirement not met}
-        '404': {description: Resource not found}
-        '409': {description: State or idempotency conflict}
-        '503': {description: Moderation temporarily unavailable}
+              schema:
+                $ref: '#/components/schemas/PilotModerationAction'
+        '400':
+          description: Invalid moderation request
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Role or independence requirement not met
+        '404':
+          description: Resource not found
+        '409':
+          description: State or idempotency conflict
+        '503':
+          description: Moderation temporarily unavailable
+      x-capability: moderation
+      x-mfa-required: true
+      description: ' Requires moderator/administrator role AND a live MFA-verified identity session. The gateway verifies
+        and binds session identity before signing its moderation envelope; password-only and expired/revoked sessions
+        are rejected. Decisions retain reviewer ID, reason text and reason_code with immutable transactional audit
+        evidence.'
   /videos/{video_id}/appeals:
     post:
-      tags: [Moderation]
+      tags:
+      - Moderation
       summary: Appeal removal of own video
       operationId: post_pilot_video_appeal
-      x-implementation: local-only
-      x-required-roles: [viewer, creator]
+      x-implementation: local
+      x-required-roles:
+      - viewer
+      - creator
       parameters:
       - name: video_id
         in: path
         required: true
-        schema: {type: string, format: uuid}
+        schema:
+          type: string
+          format: uuid
       requestBody:
         required: true
         content:
           application/json:
-            schema: {type: object, additionalProperties: false, required: [reason], properties: {reason: {type: string, minLength: 10, maxLength: 2000}}}
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - reason
+              properties:
+                reason:
+                  type: string
+                  minLength: 10
+                  maxLength: 2000
       responses:
         '201':
           description: Moderation operation accepted
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/PilotAppeal'}
+              schema:
+                $ref: '#/components/schemas/PilotAppeal'
         '200':
           description: Moderation operation accepted
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/PilotAppeal'}
-        '400': {description: Invalid moderation request}
-        '401': {description: Missing or invalid session}
-        '403': {description: Role or independence requirement not met}
-        '404': {description: Resource not found}
-        '409': {description: State or idempotency conflict}
-        '503': {description: Moderation temporarily unavailable}
+              schema:
+                $ref: '#/components/schemas/PilotAppeal'
+        '400':
+          description: Invalid moderation request
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Role or independence requirement not met
+        '404':
+          description: Resource not found
+        '409':
+          description: State or idempotency conflict
+        '503':
+          description: Moderation temporarily unavailable
+      x-capability: moderation
   /moderation/appeals:
     get:
-      tags: [Moderation]
+      tags:
+      - Moderation
       summary: List open appeals
       operationId: get_pilot_appeal_queue
-      x-implementation: local-only
-      x-required-roles: [moderator, administrator]
+      x-implementation: local
+      x-required-roles:
+      - moderator
+      - administrator
       parameters:
       - name: cursor
         in: query
-        schema: {type: string, format: uuid}
+        schema:
+          type: string
+          format: uuid
       responses:
         '200':
           description: Moderation operation accepted
           content:
             application/json:
-              schema: {type: object, additionalProperties: false, required: [items, next_cursor], properties: {items: {type: array, maxItems: 20, items: {$ref: '#/components/schemas/PilotAppealQueueItem'}}, next_cursor: {type: [string, 'null'], format: uuid}}}
-        '400': {description: Invalid moderation request}
-        '401': {description: Missing or invalid session}
-        '403': {description: Role or independence requirement not met}
-        '404': {description: Resource not found}
-        '409': {description: State or idempotency conflict}
-        '503': {description: Moderation temporarily unavailable}
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - items
+                - next_cursor
+                properties:
+                  items:
+                    type: array
+                    maxItems: 20
+                    items:
+                      $ref: '#/components/schemas/PilotAppealQueueItem'
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                    format: uuid
+        '400':
+          description: Invalid moderation request
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Role or independence requirement not met
+        '404':
+          description: Resource not found
+        '409':
+          description: State or idempotency conflict
+        '503':
+          description: Moderation temporarily unavailable
+      x-capability: moderation
+      x-mfa-required: true
+      description: ' Requires moderator/administrator role AND a live MFA-verified identity session. The gateway verifies
+        and binds session identity before signing its moderation envelope; password-only and expired/revoked sessions
+        are rejected. Decisions retain reviewer ID, reason text and reason_code with immutable transactional audit
+        evidence.'
   /moderation/appeals/{appeal_id}/decisions:
     post:
-      tags: [Moderation]
+      tags:
+      - Moderation
       summary: Resolve appeal as an independent reviewer
       operationId: post_pilot_appeal_decision
-      x-implementation: local-only
-      x-required-roles: [moderator, administrator]
+      x-implementation: local
+      x-required-roles:
+      - moderator
+      - administrator
       parameters:
       - name: appeal_id
         in: path
         required: true
-        schema: {type: string, format: uuid}
+        schema:
+          type: string
+          format: uuid
       - name: Idempotency-Key
         in: header
         required: true
-        schema: {type: string, pattern: '^[A-Za-z0-9_-]{16,128}$'}
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
       requestBody:
         required: true
         content:
           application/json:
-            schema: {type: object, additionalProperties: false, required: [action, reason], properties: {action: {type: string, enum: [deny, restore]}, reason: {type: string, minLength: 10, maxLength: 2000}}}
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - action
+              - reason
+              properties:
+                action:
+                  type: string
+                  enum:
+                  - deny
+                  - restore
+                reason:
+                  type: string
+                  minLength: 10
+                  maxLength: 2000
+                reason_code:
+                  type: string
+                  pattern: ^[A-Z][A-Z0-9_]{1,63}$
+                  description: Optional for compatibility; omission on a new decision records REVIEWED_<ACTION>, a
+                    technical review code rather than an invented policy finding. Historical missing codes remain
+                    null.
       responses:
         '200':
           description: Moderation operation accepted
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/PilotModerationAction'}
-        '400': {description: Invalid moderation request}
-        '401': {description: Missing or invalid session}
-        '403': {description: Role or independence requirement not met}
-        '404': {description: Resource not found}
-        '409': {description: State or idempotency conflict}
-        '503': {description: Moderation temporarily unavailable}
+              schema:
+                $ref: '#/components/schemas/PilotModerationAction'
+        '400':
+          description: Invalid moderation request
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Role or independence requirement not met
+        '404':
+          description: Resource not found
+        '409':
+          description: State or idempotency conflict
+        '503':
+          description: Moderation temporarily unavailable
+      x-capability: moderation
+      x-mfa-required: true
+      description: ' Requires moderator/administrator role AND a live MFA-verified identity session. The gateway verifies
+        and binds session identity before signing its moderation envelope; password-only and expired/revoked sessions
+        are rejected. Decisions retain reviewer ID, reason text and reason_code with immutable transactional audit
+        evidence.'
   /app/compatibility:
     get:
       tags: [Operations]
@@ -2375,6 +2780,151 @@ paths:
                   properties:
                     detail:
                       type: string
+  /creators/me/points/entries/{entry_id}:
+    get:
+      tags:
+      - Points
+      operationId: getOwnPointsEntry
+      summary: Read own retained points entry or qualification receipt
+      x-implementation: local
+      x-capability: points
+      parameters:
+      - name: entry_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      description: Requires verified email and creator ownership. Returns 404 for foreign IDs. No request body/query
+        accepted and no client mutation route exists.
+      responses:
+        '200':
+          description: Own entry or receipt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PointsEntry'
+        '400':
+          description: Invalid or unexpected request data
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Owned record not found
+        '503':
+          description: A required service is unavailable
+  /creators/me/videos/{video_id}/notice:
+    get:
+      tags:
+      - Moderation
+      operationId: getOwnVideoNotice
+      summary: Read latest applied decision and own appeal
+      x-implementation: local
+      x-capability: moderation
+      x-required-roles:
+      - creator
+      description: Owner creator only, including restricted/suspended creators. Content verifies current owner and
+        non-deletion; foreign/deleted video returns 404. Uses latest applied publish/reject/remove/restrict/restore
+        action ordered by finish time, creation time and UUID; dismiss/deny do not replace a video decision. Initial
+        publish maps to none; no action means none with null reason/date. Historical missing reason codes remain null.
+        Only current removal with matching revision and no filed appeal is appealable; rejected content is not appealable
+        under existing DEC-005. restricted requires a real applied restrict action; this change does not add a restriction
+        decision route. Returns only this account's appeal.
+      parameters:
+      - name: video_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Latest attributable decision and own appeal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoNotice'
+        '400':
+          description: Invalid or unexpected request data
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Owned record not found
+        '503':
+          description: A required service is unavailable
+  /me/standing:
+    get:
+      tags:
+      - Moderation
+      operationId: getOwnStanding
+      summary: Read live account and creator standing
+      x-implementation: local
+      x-capability: moderation
+      description: 'Composes minimal signed identity session context, creator status/eligibility and up to 20 recent
+        latest applied video decisions. Private to the current account; no scope/body/query overrides. Current Content
+        ownership/non-deletion is rechecked before revealing notices. No creator profile means null creator_status,
+        false publishing_allowed and no notices. Legacy ownership is never guessed: up to 20 unattributed latest actions
+        are resolved via Content; larger legacy backlogs or the bounded time budget return 503 until backfill_action_owners
+        has been run. Missing/deleted legacy content can be marked checked by that command without inventing an owner.'
+      responses:
+        '200':
+          description: Live standing and private notices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountStanding'
+        '400':
+          description: Invalid or unexpected request data
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          description: A required service is unavailable
+  /internal/security-events:
+    servers:
+    - url: https://audit.internal.invalid
+      description: Private service origin placeholder; never exposed through the public gateway
+    post:
+      tags:
+      - Internal Events
+      operationId: ingestAuditEvent
+      summary: Idempotently retain immutable producer audit evidence
+      x-implementation: local
+      x-internal-only: true
+      x-authentication: Per-producer HMAC SHA-256, audience/method/path/body binding, 60-second timestamp and single-use
+        nonce
+      description: Accepts identity, moderation, creators, content and points, constrained by per-producer kind allow-lists.
+        Distinct caller keys are required. ID replay with identical payload from the same producer is 200; producer/payload
+        collision is 409. Unknown caller is 403; invalid kind/subject/shape is 400. Moderation decisions, reports
+        and appeals atomically create immutable producer events plus AuditDelivery rows; deliver_audit_events uses
+        two-second requests, bounded batches (1..1000), capped one-hour exponential retry delay, and retains failed
+        deliveries indefinitely. Other producers are accepted by ingest; this change does not add their producers/outboxes.
+      security:
+      - internalCaller: []
+        internalTimestamp: []
+        internalNonce: []
+        internalSignature: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuditInternalEvent'
+      responses:
+        '201':
+          description: Event stored
+        '200':
+          description: Identical producer event replay acknowledged
+        '400':
+          description: Invalid event or kind/subject not allowed
+        '403':
+          description: Unapproved or invalid producer signature
+        '409':
+          description: ID collision with different content or producer
 components:
   securitySchemes:
     bearerAuth:
@@ -2386,6 +2936,22 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Workload token, audience- and scope-bound; mTLS required for internal APIs.
+    internalCaller:
+      type: apiKey
+      in: header
+      name: X-KoloVibe-Caller
+    internalTimestamp:
+      type: apiKey
+      in: header
+      name: X-KoloVibe-Timestamp
+    internalNonce:
+      type: apiKey
+      in: header
+      name: X-KoloVibe-Nonce
+    internalSignature:
+      type: apiKey
+      in: header
+      name: X-KoloVibe-Signature
   schemas:
     Problem:
       type: object
@@ -3162,25 +3728,61 @@ components:
       type: object
       additionalProperties: false
       properties:
-        creator_id: *id001
+        creator_id:
+          type: string
+          format: uuid
         balance:
           type: integer
         currency:
           type: string
           enum:
           - POINTS
-        as_of: *id002
+        as_of:
+          type: string
+          format: date-time
+        confirmed:
+          type: integer
+          minimum: 0
+          description: Gross positive AWARD deltas already posted in the append-only ledger. A later reversal is reported
+            separately; no artificial confirmation delay.
+        pending:
+          type: integer
+          minimum: 0
+          description: One point per validated qualification received by Points whose durable receipt is still pending
+            posting. Does not estimate broker backlog or events not received by Points.
+        withheld:
+          type: integer
+          minimum: 0
+          description: One point per retained receipt whose award was blocked by the DEC-003 UTC daily cap. No ledger
+            mutation or award is fabricated. This flow has no restriction-withholding input, so this metric does not
+            invent restriction blocks.
+        reversed:
+          type: integer
+          minimum: 0
+          description: Absolute sum of negative REVERSAL ledger deltas. ADJUSTMENT deltas affect balance but not these
+            four category totals.
       required:
       - creator_id
       - balance
       - currency
       - as_of
+      - confirmed
+      - pending
+      - withheld
+      - reversed
+      description: Non-cash points only. balance is the signed sum of every ledger delta, including reversals and adjustments;
+        pending/withheld are not in balance. Categories are backed by retained records. Legacy discarded cap events
+        cannot be reconstructed and are not estimated.
     PointsEntry:
       type: object
       additionalProperties: false
       properties:
-        id: *id001
-        creator_id: *id001
+        id:
+          type: string
+          format: uuid
+        creator_id:
+          type: string
+          format: uuid
         amount:
           type: integer
         kind:
@@ -3191,7 +3793,23 @@ components:
           - adjustment
         rule_version:
           type: string
-        created_at: *id002
+        created_at:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+          - confirmed
+          - pending
+          - withheld
+          - adjustments
+        video_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: Null for existing DEC-003 events, whose approved two-field payload contains no video identity.
+            Never inferred from the client.
       required:
       - id
       - creator_id
@@ -3199,6 +3817,11 @@ components:
       - kind
       - rule_version
       - created_at
+      - status
+      - video_id
+      description: Posted AWARD rows are confirmed; REVERSAL/ADJUSTMENT rows are adjustments. Pending/withheld receipt
+        items describe a potential award, never a posted balance delta. New pending receipt IDs remain stable when posted.
+        Legacy rows retain their existing IDs.
     ReportCreate:
       type: object
       additionalProperties: false
@@ -3579,6 +4202,239 @@ components:
           type: string
         code:
           const: share_unavailable
+    AlreadyReported:
+      type: object
+      additionalProperties: false
+      required:
+      - detail
+      - code
+      properties:
+        detail:
+          type: string
+        code:
+          const: already_reported
+    VideoNotice:
+      type: object
+      additionalProperties: false
+      required:
+      - video_id
+      - decision
+      - reason_code
+      - decided_at
+      - appealable
+      - appeal
+      properties:
+        video_id:
+          type: string
+          format: uuid
+        decision:
+          type: string
+          enum:
+          - none
+          - rejected
+          - removed
+          - restricted
+          - restored
+        reason_code:
+          type:
+          - string
+          - 'null'
+          pattern: ^[A-Z][A-Z0-9_]{1,63}$
+        decided_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        appealable:
+          type: boolean
+        appeal:
+          oneOf:
+          - $ref: '#/components/schemas/OwnAppeal'
+          - type: 'null'
+    AccountStanding:
+      type: object
+      additionalProperties: false
+      required:
+      - account_status
+      - creator_status
+      - publishing_allowed
+      - notices
+      properties:
+        account_status:
+          const: active
+          description: Only a live active account session authenticates; inactive/revoked sessions return 401.
+        creator_status:
+          type:
+          - string
+          - 'null'
+          enum:
+          - pending
+          - active
+          - restricted
+          - suspended
+          - null
+        publishing_allowed:
+          type: boolean
+          description: Live account/email verification and viewer/creator role, approved current creator attestation,
+            active reviewed non-restricted creator profile.
+        notices:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/VideoNotice'
+    AuditInternalEvent:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - actor_id
+      - kind
+      - occurred_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        actor_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        kind:
+          type: string
+          enum:
+          - account.password_changed
+          - account.password_reset
+          - account.password_reset_requested
+          - account.preferences_updated
+          - account.privacy_request_received
+          - account.profile_updated
+          - account.reauthenticated
+          - account.reauthentication_failed
+          - account.reauthentication_throttled
+          - account.registered
+          - account.verification_resent
+          - account.verified
+          - creator.application_submitted
+          - creator.approved
+          - creator.invited
+          - creator.profile_updated
+          - creator.rejected
+          - creator.restored
+          - creator.restricted
+          - creator.suspended
+          - login.failed
+          - login.succeeded
+          - login.throttled
+          - mfa.challenge
+          - mfa.enrolled
+          - mfa.failed
+          - mfa.recovery_used
+          - mfa.succeeded
+          - moderation.appeal_created
+          - moderation.decision_applied
+          - moderation.decision_conflicted
+          - moderation.decision_recorded
+          - moderation.report_created
+          - points.adjusted
+          - points.awarded
+          - points.reversed
+          - points.withheld
+          - session.listed
+          - session.replay
+          - session.revoked
+          - session.rotated
+          - video.created
+          - video.deleted
+          - video.moderated
+          - video.processing_failed
+          - video.processing_succeeded
+          - video.published
+          - video.unpublished
+          - video.updated
+          - video.upload_completed
+          - video.upload_intent_created
+        occurred_at:
+          type: string
+          format: date-time
+        subject_type:
+          type:
+          - string
+          - 'null'
+          enum:
+          - account
+          - creator
+          - video
+          - report
+          - appeal
+          - moderation_action
+          - points_entry
+          - null
+        subject_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+      x-producer-kind-allow-lists:
+        identity:
+        - account.password_changed
+        - account.password_reset
+        - account.password_reset_requested
+        - account.preferences_updated
+        - account.privacy_request_received
+        - account.profile_updated
+        - account.reauthenticated
+        - account.reauthentication_failed
+        - account.reauthentication_throttled
+        - account.registered
+        - account.verification_resent
+        - account.verified
+        - login.failed
+        - login.succeeded
+        - login.throttled
+        - mfa.challenge
+        - mfa.enrolled
+        - mfa.failed
+        - mfa.recovery_used
+        - mfa.succeeded
+        - session.listed
+        - session.replay
+        - session.revoked
+        - session.rotated
+        moderation:
+        - moderation.appeal_created
+        - moderation.decision_applied
+        - moderation.decision_conflicted
+        - moderation.decision_recorded
+        - moderation.report_created
+        creators:
+        - creator.application_submitted
+        - creator.approved
+        - creator.invited
+        - creator.profile_updated
+        - creator.rejected
+        - creator.restored
+        - creator.restricted
+        - creator.suspended
+        content:
+        - video.created
+        - video.deleted
+        - video.moderated
+        - video.processing_failed
+        - video.processing_succeeded
+        - video.published
+        - video.unpublished
+        - video.updated
+        - video.upload_completed
+        - video.upload_intent_created
+        points:
+        - points.adjusted
+        - points.awarded
+        - points.reversed
+        - points.withheld
+      description: Caller signature selects producer, never a body field. Each configured producer has its own distinct
+        key and kind allow-list. Existing four-field identity events remain valid and keep their digest/idempotency
+        contract. Optional subject fields must be paired non-null or absent/null; no arbitrary metadata or secrets are
+        accepted.
   responses:
     VideoUploadStatus:
       description: Current owner-visible upload or processing state

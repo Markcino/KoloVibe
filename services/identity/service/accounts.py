@@ -560,3 +560,22 @@ def revoke(request):
         LoginSession.objects.filter(pk=session.id).update(revoked_at=timezone.now())
         record("session.revoked", session.account_id)
     return HttpResponse(status=204)
+
+
+@require_POST
+def standing_context(request):
+    """Minimal gateway-only live session context, without personal profile data."""
+    if getattr(request, "service_caller", None) != "gateway":
+        return _error("Forbidden", 403)
+    try:
+        data = _body(request, {"access_token"})
+        if request.GET or set(data) != {"access_token"} or not isinstance(data["access_token"], str):
+            raise ValueError
+        session = _session_for_access(data["access_token"])
+    except (ValueError, KeyError, TypeError):
+        return _error("Invalid session", 401)
+    if session is None:
+        return _error("Invalid session", 401)
+    return JsonResponse({"account_id": str(session.account_id), "account_status": "active",
+                         "mfa_verified": session.mfa_verified_at is not None,
+                         "email_verified": session.account.email_verified_at is not None})

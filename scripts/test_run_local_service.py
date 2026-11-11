@@ -11,6 +11,21 @@ from run_local_service import environment_for, read_local_env
 
 
 class LocalEnvironmentTests(unittest.TestCase):
+    def test_moderation_audit_configuration_and_caller_file_are_scoped(self):
+        services = ("moderation", "audit", "gateway", "identity")
+        values = {f"KOLOVIBE_{name.upper()}_DJANGO_SECRET_KEY": secrets.token_urlsafe(48) for name in services}
+        values.update(KOLOVIBE_LOCAL_MODERATION_ENABLED="1", KOLOVIBE_MODERATION_OUTBOUND_KEY=secrets.token_urlsafe(48),
+                      KOLOVIBE_GATEWAY_OUTBOUND_KEY=secrets.token_urlsafe(48), KOLOVIBE_AUDIT_URL="https://audit.test",
+                      KOLOVIBE_AUDIT_CALLER_KEYS_FILE="/private/audit-callers.json", KOLOVIBE_INTERNAL_CA_FILE="/private/ca.pem")
+        moderation = environment_for("moderation", values)
+        self.assertEqual(moderation["KOLOVIBE_AUDIT_URL"], "https://audit.test")
+        self.assertEqual(moderation["KOLOVIBE_INTERNAL_CA_FILE"], "/private/ca.pem")
+        self.assertEqual(environment_for("audit", values)["KOLOVIBE_CALLER_KEYS_FILE"], "/private/audit-callers.json")
+        for service in ("gateway", "identity"):
+            env = environment_for(service, values)
+            self.assertNotIn("KOLOVIBE_AUDIT_URL", env)
+            self.assertNotIn("KOLOVIBE_CALLER_KEYS_FILE", env)
+
     def test_public_web_origin_is_scoped_to_gateway(self):
         values = {f"KOLOVIBE_{name.upper()}_DJANGO_SECRET_KEY": secrets.token_urlsafe(48) for name in ("gateway", "identity")}
         values["KOLOVIBE_PUBLIC_WEB_ORIGIN"] = "https://app.example.test"

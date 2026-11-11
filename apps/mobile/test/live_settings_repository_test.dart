@@ -20,6 +20,7 @@ class _Credentials implements CredentialStore {
 void main() {
   test('preferences and privacy receipts use bearer and own account routes', () async {
     final store = _Credentials();
+    final entered = 'test input'.padRight(32, 'x');
     var requests = 0;
     final api = ApiClient('https://api.example.test/api/v1',
         client: MockClient((request) async {
@@ -44,7 +45,7 @@ void main() {
       expect(request.url.path, '/api/v1/me/privacy-requests');
       if (request.method == 'POST') {
         expect(jsonDecode(request.body), {
-          'kind': 'deletion', 'current_password': 'transient-password',
+          'kind': 'deletion', 'current_password': entered,
         });
         return http.Response(jsonEncode({
           'id': '00000000-0000-4000-8000-000000000001',
@@ -59,7 +60,7 @@ void main() {
     expect((await repository.updatePreferences(
         const NotificationChoices(true, false))).email, isTrue);
     expect((await repository.privacyRequests()), isEmpty);
-    expect((await repository.requestPrivacy('deletion', 'transient-password')).status,
+    expect((await repository.requestPrivacy('deletion', entered)).status,
         'received');
     expect(store.value, 'rotated-refresh');
     expect(requests, 4);

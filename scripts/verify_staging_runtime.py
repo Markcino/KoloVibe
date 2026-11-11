@@ -350,13 +350,17 @@ def verify():
         secret_file(code_file, pyotp.TOTP(factor_secret).now())
         identity_peers = base / "identity-audit-peers"
         secret_file(identity_peers, json.dumps({"audit": f"https://127.0.0.1:{ports['audit']}"}))
-        secret_file(callers, json.dumps({"gateway": signing, "identity": signing}))
+        identity_signing = secrets.token_urlsafe(48)
+        identity_outbound = base / "identity-outbound"
+        secret_file(identity_outbound, identity_signing)
+        secret_file(callers, json.dumps({"gateway": signing, "identity": identity_signing}))
         secret_file(approvals, json.dumps({name: "disposable-test-approval"
                                           for name in ("identity", "smtp", "credentials",
                                                        "transport", "mfa", "audit")}))
         environments["identity"].update(
             KOLOVIBE_MFA_ENCRYPTION_KEY_FILE=str(encryption_file),
-            KOLOVIBE_TRUSTED_PEERS_FILE=str(identity_peers))
+            KOLOVIBE_TRUSTED_PEERS_FILE=str(identity_peers),
+            KOLOVIBE_OUTBOUND_KEY_FILE=str(identity_outbound))
         def restart_service(service):
             environment = environments[service]
             check_environment(environment, service)
@@ -475,7 +479,7 @@ def verify():
                     else:
                         raise AssertionError("PostgreSQL permitted security evidence mutation")
         rotated = secrets.token_urlsafe(48)
-        secret_file(callers, json.dumps({"gateway": rotated, "identity": signing}))
+        secret_file(callers, json.dumps({"gateway": rotated, "identity": identity_signing}))
         assert api("gateway", "/health/ready")[0] == 503
         secret_file(outbound, rotated)
         assert api("gateway", "/health/ready") == (200, {"status": "ok"})

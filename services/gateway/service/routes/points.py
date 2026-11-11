@@ -13,6 +13,8 @@ def patterns():
             path("api/v1/creators/me/points", creator_points, {"operation": "balance"}, name="creator-points"),
             path("api/v1/creators/me/points/entries", creator_points, {"operation": "entries"},
                  name="creator-points-entries"),
+            path("api/v1/creators/me/points/entries/<uuid:entry_id>", creator_points,
+                 {"operation": "entry"}, name="creator-points-entry"),
         ]
     if enabled("watch"):
         from ..pilot_points import watch

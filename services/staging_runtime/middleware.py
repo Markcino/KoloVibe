@@ -18,7 +18,7 @@ ACCOUNTS = {
                  ("register", "verify", "login", "refresh", "validate", "revoke")},
 }
 INTERNAL = {
-    "content": {"/internal/videos", "/internal/videos/detail"},
+    "content": {"/internal/videos", "/internal/videos/detail", "/internal/videos/published-count"},
     "creators": {"/internal/creators/profile"},
     "audit": {"/internal/security-events"},
 }

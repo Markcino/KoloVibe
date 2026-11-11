@@ -1,6 +1,7 @@
 import importlib.util
 import json
 import os
+import secrets
 from pathlib import Path
 from unittest.mock import patch
 from uuid import uuid4
@@ -64,16 +65,17 @@ class VideoShareGatewayTests(SimpleTestCase):
     def load_settings(self, value):
         spec = importlib.util.spec_from_file_location("service._share_settings_test", Path(gateway_settings.__file__))
         module = importlib.util.module_from_spec(spec)
-        with patch.dict(os.environ, {"KOLOVIBE_ENV": "local", "DJANGO_SECRET_KEY": "local-share-settings-test-key-over-32-characters",
+        with patch.dict(os.environ, {"KOLOVIBE_ENV": "local", "DJANGO_SECRET_KEY": secrets.token_urlsafe(48),
                                     "KOLOVIBE_PUBLIC_WEB_ORIGIN": value}, clear=True):
             spec.loader.exec_module(module)
         return module
 
     def test_origin_is_https_only_validated_at_settings_load_and_normalized(self):
+        userinfo = "user:" + secrets.token_urlsafe(12)
         self.assertEqual(self.load_settings("https://app.example.test/").KOLOVIBE_PUBLIC_WEB_ORIGIN, "https://app.example.test")
         self.assertIsNone(self.load_settings("").KOLOVIBE_PUBLIC_WEB_ORIGIN)
         for value in ("http://app.example.test", "//app.example.test", "https://app.example.test/path",
-                      "https://user:password@app.example.test", "https://app.example.test?a=1",
+                      f"https://{userinfo}@app.example.test", "https://app.example.test?a=1",
                       "https://app.example.test/#fragment", "https://app.example.test:99999", "https://app.example.test\\evil"):
             with self.subTest(origin=value), self.assertRaises(RuntimeError):
                 self.load_settings(value)

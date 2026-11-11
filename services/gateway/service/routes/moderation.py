@@ -8,8 +8,12 @@ def patterns():
     if not enabled("moderation"):
         return []
     from ..moderation import moderation_endpoint
+    from ..standing import standing
 
     return [
+        path("api/v1/me/standing", standing, name="own-standing"),
+        path("api/v1/creators/me/videos/<uuid:target_id>/notice", moderation_endpoint,
+             {"operation": "notice"}, name="own-video-notice"),
         path("api/v1/reports", moderation_endpoint, {"operation": "report"}, name="submit-video-report"),
         path("api/v1/me/reports", moderation_endpoint, {"operation": "own_reports"}, name="own-reports"),
         path("api/v1/me/reports/<uuid:target_id>", moderation_endpoint,

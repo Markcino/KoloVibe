@@ -23,6 +23,13 @@ def _error(detail, status):
 
 
 def _valid_result(operation, result):
+    if operation in {"notice", "standing"}:
+        from .standing import valid_notice
+        if operation == "notice":
+            return valid_notice(result)
+        return (isinstance(result, dict) and set(result) == {"notices"} and isinstance(result["notices"], list)
+                and len(result["notices"]) <= 20 and all(valid_notice(item) for item in result["notices"])
+                and len({item["video_id"] for item in result["notices"]}) == len(result["notices"]))
     if not isinstance(result, dict):
         return False
     if operation in QUEUES | OWN_LISTS:
@@ -46,11 +53,12 @@ def _valid_result(operation, result):
     return set(result) == fields and all(isinstance(value, str) for value in result.values())
 
 
-def _forward(operation, actor, role, data):
+def _forward(operation, actor, role, data, *, mfa_verified=False):
     try:
         with signed_internal_request(
             "moderation", f"/internal/moderation/{operation}", method="POST", timeout=12,
-            payload=json.dumps({"actor_id": actor, "role": role, "data": data}, ensure_ascii=False).encode(),
+            payload=json.dumps({"actor_id": actor, "role": role, "data": data}
+                               | ({"mfa_verified": True} if mfa_verified else {}), ensure_ascii=False).encode(),
         ) as response:
             raw = response.read(524289)
             if len(raw) <= 524288 and response.status in (200, 201):
@@ -63,24 +71,51 @@ def _forward(operation, actor, role, data):
                 try:
                     raw = error.read(513)
                     result = json.loads(raw) if len(raw) <= 512 else None
+                    if (error.code == 409 and operation == "report" and isinstance(result, dict)
+                            and set(result) == {"detail", "code"} and isinstance(result["detail"], str)
+                            and result["code"] == "already_reported"):
+                        return JsonResponse(result, status=409)
                     if isinstance(result, dict) and set(result) == {"detail"} and isinstance(result["detail"], str):
                         return _error(result["detail"], error.code)
                 except (OSError, ValueError, TypeError, AttributeError):
                     pass
-    except (OSError, ValueError, TypeError, AttributeError, RuntimeError):
+    except (OSError, ValueError, TypeError, AttributeError, KeyError, RuntimeError):
         pass
     return _error("Moderation temporarily unavailable", 503)
 
 
 @never_cache
 def moderation_endpoint(request, operation, target_id=None):
-    method = "GET" if operation in QUEUES | OWN_LISTS | OWN_DETAILS else "POST"
+    method = "GET" if operation in QUEUES | OWN_LISTS | OWN_DETAILS | {"notice"} else "POST"
     if request.method != method:
         return HttpResponseNotAllowed([method])
     principal = authenticated_actor(request, require_verified_email=False)
     if isinstance(principal, JsonResponse):
         return principal
     actor, role = principal
+    reviewer = operation in QUEUES | DECISIONS
+    if reviewer:
+        if role not in {"moderator", "administrator"}:
+            return _error("Reviewer role required", 403)
+        from .standing import identity_context
+        context = identity_context(request)
+        if isinstance(context, JsonResponse):
+            return context
+        if context["account_id"] != actor or context["mfa_verified"] is not True:
+            return _error("MFA-verified reviewer session required", 403)
+    if operation == "notice":
+        if role != "creator":
+            return _error("Creator role required", 403)
+        if request.GET or request.body:
+            return _error("Invalid notice request", 400)
+        ownership = creator_ownership(actor, role)
+        if ownership.status_code != 200:
+            return ownership
+        result = _forward("notice", actor, role, {"video_id": str(target_id),
+                          "creator_id": json.loads(ownership.content)["creator_id"]})
+        if result.status_code == 200 and json.loads(result.content)["video_id"] != str(target_id):
+            return _error("Moderation temporarily unavailable", 503)
+        return result
     try:
         if operation in QUEUES | OWN_LISTS:
             if request.body or set(request.GET) - {"cursor"} or len(request.GET.getlist("cursor")) > 1:
@@ -102,7 +137,7 @@ def moderation_endpoint(request, operation, target_id=None):
                     raise ValueError("Invalid report")
                 data.setdefault("details", "")
             elif operation in DECISIONS:
-                if set(data) != {"action", "reason"}:
+                if not {"action", "reason"} <= set(data) or set(data) - {"action", "reason", "reason_code"}:
                     raise ValueError("Invalid decision")
                 data["target_id"] = str(target_id)
             elif set(data) != {"reason"}:
@@ -120,4 +155,4 @@ def moderation_endpoint(request, operation, target_id=None):
         if ownership.status_code != 200:
             return ownership
         data.update(video_id=str(target_id), creator_id=json.loads(ownership.content)["creator_id"])
-    return _forward(operation, actor, role, data)
+    return _forward(operation, actor, role, data, mfa_verified=reviewer)

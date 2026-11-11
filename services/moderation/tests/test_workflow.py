@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from django.test import RequestFactory, TestCase
 
-from service.models import Appeal, ModerationAction, Report
+from service.models import Appeal, AuditDelivery, AuditEvent, ModerationAction, Report
 from service.workflow import ContentUnavailable, moderation_workflow
 
 
@@ -19,7 +19,7 @@ class PilotModerationTests(TestCase):
 
     def call(self, operation, actor, role, data, caller="gateway"):
         request = self.factory.post("/internal/moderation/" + operation, {
-            "actor_id": str(actor), "role": role, "data": data,
+            "actor_id": str(actor), "role": role, "data": data, "mfa_verified": role in {"moderator", "administrator"},
         }, content_type="application/json")
         request.service_caller = caller
         return moderation_workflow(request, operation)
@@ -46,6 +46,10 @@ class PilotModerationTests(TestCase):
                                    appeal_data | {"creator_id": str(uuid4())}).status_code, 404)
         appeal = self.call("appeal", self.viewer, "viewer", appeal_data)
         self.assertEqual(appeal.status_code, 201)
+        event = AuditEvent.objects.get(kind="moderation.appeal_created")
+        self.assertEqual((event.actor_id, event.subject_type, str(event.subject_id)),
+                         (self.viewer, "appeal", json.loads(appeal.content)["id"]))
+        self.assertEqual(AuditEvent.objects.count(), AuditDelivery.objects.count())
         restoration = {"target_id": json.loads(appeal.content)["id"], "action": "restore",
                        "reason": "Rights confirmed by second reviewer.", "key": "test-restore-key-001"}
         self.assertEqual(self.call("appeal_decision", self.reviewer, "moderator", restoration).status_code, 403)

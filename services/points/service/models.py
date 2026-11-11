@@ -4,6 +4,7 @@ import uuid
 
 from django.db import models
 from django.db.models import Q
+from django.utils import timezone
 
 
 class PointsEntry(models.Model):
@@ -21,6 +22,7 @@ class PointsEntry(models.Model):
     reversal_of = models.OneToOneField("self", null=True, blank=True,
                                        on_delete=models.PROTECT, related_name="reversal")
     reason_code = models.CharField(max_length=64)
+    video_id = models.UUIDField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -54,3 +56,20 @@ class DailyAwardCount(models.Model):
             models.UniqueConstraint(fields=["creator_user_id", "day"], name="points_creator_day_unique"),
             models.CheckConstraint(condition=Q(awards__lte=100), name="points_daily_awards_lte_100"),
         ]
+
+
+class QualificationReceipt(models.Model):
+    """Durable received events; terminal outcomes never fabricate ledger entries."""
+    id = models.UUIDField(primary_key=True)
+    creator_user_id = models.UUIDField(db_index=True)
+    qualified_at = models.DateTimeField()
+    received_at = models.DateTimeField(default=timezone.now)
+    status = models.CharField(max_length=16, default="pending", choices=[
+        (value, value) for value in ("pending", "posted", "withheld", "legacy")])
+    amount = models.PositiveSmallIntegerField(default=1)
+    reason_code = models.CharField(max_length=64, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["creator_user_id", "status", "-received_at"],
+                                name="points_receipt_owner_state")]
+        constraints = [models.CheckConstraint(condition=Q(amount=1), name="points_receipt_one_point")]

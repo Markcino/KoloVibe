@@ -22,17 +22,33 @@ KINDS = {
     "session.revoked", "session.listed",
 }
 
+PRODUCER_KINDS = {
+    "identity": KINDS,
+    "moderation": {"moderation.report_created", "moderation.appeal_created", "moderation.decision_recorded",
+                   "moderation.decision_applied", "moderation.decision_conflicted"},
+    "creators": {"creator.invited", "creator.application_submitted", "creator.approved", "creator.rejected",
+                 "creator.profile_updated", "creator.restricted", "creator.suspended", "creator.restored"},
+    "content": {"video.created", "video.updated", "video.upload_intent_created", "video.upload_completed",
+                "video.processing_succeeded", "video.processing_failed", "video.deleted", "video.published",
+                "video.unpublished", "video.moderated"},
+    "points": {"points.awarded", "points.withheld", "points.reversed", "points.adjusted"},
+}
+SUBJECT_TYPES = {"account", "creator", "video", "report", "appeal", "moderation_action", "points_entry"}
+
+
 
 @require_POST
 def ingest(request):
-    if getattr(request, "service_caller", None) != "identity":
+    producer = getattr(request, "service_caller", None)
+    if producer not in PRODUCER_KINDS:
         logger.warning("Rejected unauthorized security event publisher")
         return JsonResponse({"detail": "Forbidden"}, status=403)
     try:
         if len(request.body) > 2048:
             raise ValueError("Oversized event")
         data = json.loads(request.body)
-        if not isinstance(data, dict) or set(data) != {"id", "actor_id", "kind", "occurred_at"}:
+        required = {"id", "actor_id", "kind", "occurred_at"}
+        if not isinstance(data, dict) or not required <= set(data) or set(data) - required - {"subject_type", "subject_id"}:
             raise ValueError("Invalid event")
         if (not all(isinstance(data[key], str) for key in ("id", "kind", "occurred_at"))
                 or (data["actor_id"] is not None and not isinstance(data["actor_id"], str))):
@@ -40,8 +56,15 @@ def ingest(request):
         event_id = uuid.UUID(data["id"])
         actor = uuid.UUID(data["actor_id"]) if data["actor_id"] is not None else None
         stamp = datetime.fromisoformat(data["occurred_at"])
-        if stamp.tzinfo is None or data["kind"] not in KINDS:
+        if stamp.tzinfo is None or data["kind"] not in PRODUCER_KINDS[producer]:
             raise ValueError("Invalid event")
+        subject_type, raw_subject = data.get("subject_type"), data.get("subject_id")
+        if (subject_type is None) != (raw_subject is None):
+            raise ValueError("Subject fields must be paired")
+        if subject_type is not None and (not isinstance(subject_type, str) or subject_type not in SUBJECT_TYPES
+                                         or not isinstance(raw_subject, str)):
+            raise ValueError("Invalid subject")
+        subject_id = uuid.UUID(raw_subject) if raw_subject is not None else None
         digest = hashlib.sha256(json.dumps(data, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     except (ValueError, TypeError, KeyError, UnicodeError):
         logger.warning("Rejected malformed security event")
@@ -49,8 +72,9 @@ def ingest(request):
     with transaction.atomic():
         event, created = SecurityEvent.objects.get_or_create(
             id=event_id, defaults={"actor_id": actor, "kind": data["kind"],
-                                  "occurred_at": stamp, "payload_digest": digest})
-        if event.payload_digest != digest:
+                                  "occurred_at": stamp, "payload_digest": digest, "producer": producer,
+                                  "subject_type": subject_type, "subject_id": subject_id})
+        if event.payload_digest != digest or event.producer != producer:
             logger.error("Security event identifier collision")
             return JsonResponse({"detail": "Event conflict"}, status=409)
     return JsonResponse({"status": "ok"}, status=201 if created else 200)

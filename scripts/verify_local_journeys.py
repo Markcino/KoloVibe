@@ -108,18 +108,18 @@ def seed(environment, creator_id, video_ids):
         if environment["KOLOVIBE_SERVICE_NAME"] == "creators":
             connection.execute(
                 "INSERT INTO creators.service_creatorprofile "
-                "(id,user_id,handle,bio,status,reviewed_at,created_at) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s)",
-                (creator_id, uuid.uuid4(), "fixture-creator", "", "active", now, now))
+                "(id,user_id,handle,bio,status,reviewed_at,created_at,display_name,location) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                (creator_id, uuid.uuid4(), "fixture-creator", "", "active", now, now, "Fixture creator", ""))
         else:
             for ident in video_ids:
                 connection.execute(
                     "INSERT INTO content.service_video "
                     "(id,creator_id,title,description,state,visibility,"
-                    "provider_asset_id,moderation_approved_at,created_at) "
-                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                    "provider_asset_id,moderation_approved_at,created_at,tags) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb)",
                     (ident, creator_id, "Fixture original", "", "published", "public",
-                     str(uuid.uuid4()), now, now))
+                     str(uuid.uuid4()), now, now, "[]"))
 
 
 def verify():

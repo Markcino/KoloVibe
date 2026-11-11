@@ -110,6 +110,15 @@ def _pending(cursor):
 
 
 def _status(actor, operation):
+    if operation == "standing":
+        profile = CreatorProfile.objects.filter(user_id=actor).first()
+        eligible = (profile is not None and profile.status == CreatorProfile.Status.ACTIVE
+                    and profile.reviewed_at is not None and profile.restricted_at is None
+                    and Application.objects.filter(account_id=actor, profile=profile,
+                        status=Application.Status.APPROVED, attestation_version=POLICY_VERSION).exists())
+        return JsonResponse({"creator_id": str(profile.id) if profile else None,
+                             "creator_status": profile.status if profile else None,
+                             "publishing_allowed": eligible})
     if operation == "ownership":
         profile_id = CreatorProfile.objects.filter(user_id=actor).values_list("id", flat=True).first()
         if profile_id is None:
@@ -145,11 +154,11 @@ def onboarding(request, operation):
             raise ValueError("Invalid envelope")
         required = {
             "invite": {"account_id"}, "pending": {"cursor"}, "review": {"account_id", "decision"},
-            "submit": {"handle", "adult_attested", "rights_attested"}, "status": set(), "eligibility": set(), "ownership": set(),
+            "submit": {"handle", "adult_attested", "rights_attested"}, "status": set(), "eligibility": set(), "ownership": set(), "standing": set(),
         }
         if operation not in required or set(data) != required[operation]:
             raise ValueError("Invalid creator operation")
-        allowed = REVIEWER_ROLES if operation in ("invite", "pending", "review") else APPLICANT_ROLES
+        allowed = REVIEWER_ROLES | APPLICANT_ROLES if operation == "standing" else REVIEWER_ROLES if operation in ("invite", "pending", "review") else APPLICANT_ROLES
         if role not in allowed:
             return _error("Forbidden", 403)
         if operation == "invite":
