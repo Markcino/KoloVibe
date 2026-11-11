@@ -850,50 +850,78 @@ paths:
     - name: creator_id
       in: path
       required: true
-      schema: {type: string, format: uuid}
+      schema:
+        type: string
+        format: uuid
     get:
-      tags: [Engagement]
+      tags:
+      - Engagement
       operationId: get_creator_follow_status
       summary: Read own follow state for a creator
       x-implementation: local
       responses:
         '200':
-          description: Own follow state
+          description: Current own state and aggregate count, including repeated requests
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: false
-                required: [creator_id, following]
-                properties:
-                  creator_id: {type: string, format: uuid}
-                  following: {type: boolean}
-        '401': {description: Missing or invalid session}
-        '403': {description: Role not permitted}
-        '503': {description: Required service unavailable}
+                $ref: '#/components/schemas/FollowState'
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Role not permitted
+        '503':
+          description: Required service unavailable
+      x-capability: engagement
     put:
-      tags: [Engagement]
+      tags:
+      - Engagement
       operationId: follow_creator
       summary: Follow a reviewed active creator
       x-implementation: local
       responses:
-        '200': {description: 'Following, including repeated requests'}
-        '400': {description: Unexpected request data}
-        '401': {description: Missing or invalid session}
-        '403': {description: Role not permitted or own profile}
-        '404': {description: Reviewed active creator not found}
-        '503': {description: Required service unavailable}
+        '200':
+          description: Current own state and aggregate count, including repeated requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FollowState'
+        '400':
+          description: Unexpected request data
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Role not permitted or own profile
+        '404':
+          description: Reviewed active creator not found
+        '503':
+          description: Required service unavailable
+      x-capability: engagement
     delete:
-      tags: [Engagement]
+      tags:
+      - Engagement
       operationId: unfollow_creator
       summary: Remove own follow idempotently
       x-implementation: local
       responses:
-        '204': {description: Follow removed or absent}
-        '400': {description: Unexpected request data}
-        '401': {description: Missing or invalid session}
-        '403': {description: Role not permitted}
-        '503': {description: Required service unavailable}
+        '400':
+          description: Unexpected request data
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Role not permitted
+        '503':
+          description: Required service unavailable
+        '200':
+          description: Current own state and aggregate count, including repeated requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FollowState'
+      x-capability: engagement
+      description: Idempotently remove the authenticated account state and return the resulting count. No body or
+        query parameters are accepted. Removal remains possible after the target is hidden; no engagement qualification
+        or points are emitted.
   /creators/me:
     get:
       tags:
@@ -968,45 +996,98 @@ paths:
       x-capability: media
   /creators/me/analytics:
     get:
-      tags: [Content]
-      summary: Count own videos by current state
+      tags:
+      - Content
+      summary: Read own creator state counts and range engagement analytics
       operationId: get_own_creator_analytics
-      x-implementation: local-only
-      x-required-roles: [viewer, creator]
+      x-implementation: local
+      x-required-roles:
+      - viewer
+      - creator
       responses:
         '200':
           description: Counts from creator-owned Content records
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/CreatorContentAnalytics'}
-        '400': {description: Unexpected request data}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '503': {$ref: '#/components/responses/LocalUnavailable'}
+              schema:
+                $ref: '#/components/schemas/CreatorContentAnalytics'
+        '400':
+          description: Unexpected request data
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/LocalUnavailable'
+      x-capability: analytics
+      parameters:
+      - name: range
+        in: query
+        schema:
+          type: string
+          enum:
+          - 7d
+          - 28d
+          default: 7d
+      description: Owner-only analytics; client account/creator IDs, timestamps, qualification and points fields are
+        never accepted. The 7d/28d windows cover UTC calendar dates including today; future records are excluded.
+        Plays and watch time come from retained server-qualified records; likes/follows are current rows created in
+        range, and shares are unique daily recorded intents. Missing data returns numeric zeros and empty lists. Existing
+        state/current-count fields remain available. Top videos are ranked by qualified plays, ties by ascending video
+        UUID. Titles use existing signed Content owner detail reads; missing/deleted/non-owned details are omitted.
+        With activity daily contains the complete 7/28-date zero-filled series; otherwise it is empty. Historical
+        engagement aggregates are retained even if a video is later hidden.
   /creators/me/videos/{video_id}/analytics:
     get:
-      tags: [Content, Engagement]
-      summary: Read own video state and current engagement counts
-      description: Qualified viewers counts distinct viewer accounts with a recorded qualified watch for this video; it is not a playback or event total.
+      tags:
+      - Content
+      - Engagement
+      summary: Read own video state, current counts and range analytics
+      description: Owner-only analytics; client account/creator IDs, timestamps, qualification and points fields are
+        never accepted. The 7d/28d windows cover UTC calendar dates including today; future records are excluded.
+        Plays and watch time come from retained server-qualified records; likes/follows are current rows created in
+        range, and shares are unique daily recorded intents. Missing data returns numeric zeros and empty lists. Existing
+        state/current-count fields remain available. Content ownership is checked before Engagement is queried; non-owned/deleted
+        videos return 404. since_published uses the publication timestamp from the existing Content owner detail endpoint.
+        If a legacy publication timestamp is unknown, it uses all retained activity rather than guessing a date.
       operationId: get_own_video_analytics
-      x-implementation: local-only
-      x-required-roles: [viewer, creator]
+      x-implementation: local
+      x-required-roles:
+      - viewer
+      - creator
       parameters:
       - name: video_id
         in: path
         required: true
-        schema: {type: string, format: uuid}
+        schema:
+          type: string
+          format: uuid
+      - name: range
+        in: query
+        schema:
+          type: string
+          enum:
+          - 7d
+          - since_published
+          default: 7d
       responses:
         '200':
           description: Owned video state and server-counted engagement
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/VideoEngagementAnalytics'}
-        '400': {description: Unexpected request data}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '404': {description: Video missing or owned by another creator}
-        '503': {$ref: '#/components/responses/LocalUnavailable'}
+              schema:
+                $ref: '#/components/schemas/VideoEngagementAnalytics'
+        '400':
+          description: Unexpected request data
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Video missing or owned by another creator
+        '503':
+          $ref: '#/components/responses/LocalUnavailable'
+      x-capability: analytics
   /creators/me/videos:
     get:
       tags:
@@ -1195,21 +1276,29 @@ paths:
           - recent
           - trending
           default: recent
-      description: Public catalogue; category filters retain cursor semantics. Trending reads at most twenty ranked
-        engagement IDs, looks up only currently public non-deleted videos, preserves ranking and applies q/creator_id/category
-        filters. Trending does not accept cursor and always returns next_cursor null. Returns 503 when ranked IDs
-        or Content lookup are unavailable; unavailable like counts are null.
+      description: Public catalogue with existing q/creator_id/category/cursor semantics. Trending ranks real qualified
+        plays in the preceding rolling seven days, breaks ties by ascending video UUID, then verifies current published/public/non-deleted
+        state through Content before selecting up to twenty IDs. Signed cursors hold the ranking cutoff fixed while
+        skipping hidden candidates. The client bounds candidate scans and its time budget and returns unavailable
+        rather than a partial ranking on exhaustion; unavailable ranking/lookup returns 503. Trending does not accept
+        cursor and always returns next_cursor null. Like counts are read in a signed batch and remain null when Engagement
+        is unavailable.
   /videos/following:
     get:
-      tags: [Discovery]
+      tags:
+      - Discovery
       operationId: get_following_videos
       summary: Read published videos from followed creators
-      description: Cursor advances through the public video catalog and may refer to a scanned video outside the returned items.
+      description: Account-owned following membership over a bounded public catalogue scan. Cursor advances to the
+        last consumed/scanned video, which can be outside returned matches. Following another cursor preserves remaining
+        matches without repeats. Public item like_count is batch-composed, or null when Engagement counts are unavailable.
       x-implementation: local
       parameters:
       - name: cursor
         in: query
-        schema: {type: string, format: uuid}
+        schema:
+          type: string
+          format: uuid
       responses:
         '200':
           description: Following video page
@@ -1217,10 +1306,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PageVideos'
-        '400': {description: Invalid cursor or query}
-        '401': {description: Missing or invalid session}
-        '403': {description: Role not permitted}
-        '503': {description: Required service unavailable}
+        '400':
+          description: Invalid cursor or query
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Role not permitted
+        '503':
+          description: Required service unavailable
+      x-capability: engagement
   /videos/{video_id}:
     get:
       tags:
@@ -1677,30 +1771,40 @@ paths:
         '503': {description: A required service is unavailable}
   /videos/{video_id}/like:
     get:
-      tags: [Engagement]
-      x-implementation: local-only
+      tags:
+      - Engagement
+      x-implementation: local
       summary: Read own like state for a public published video
       operationId: get__videos_video_id_like
       responses:
         '200':
-          description: Own like state
+          description: Current own state and aggregate count, including repeated requests
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Like'}
-        '400': {description: Query or request body is not accepted}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '404': {description: Published video not found}
-        '503': {description: Required service unavailable}
+              schema:
+                $ref: '#/components/schemas/Like'
+        '400':
+          description: Query or request body is not accepted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Published video not found
+        '503':
+          description: Required service unavailable
       parameters:
       - name: video_id
         in: path
         required: true
-        schema: *id001
+        schema:
+          type: string
+          format: uuid
+      x-capability: engagement
     put:
       tags:
       - Engagement
-      x-implementation: local-only
+      x-implementation: local
       summary: Like video once per user
       description: Available to authenticated viewer and creator accounts for public, published videos.
       operationId: put__videos_video_id_like
@@ -1712,7 +1816,7 @@ paths:
         '429':
           $ref: '#/components/responses/RateLimited'
         '200':
-          description: Success
+          description: Current own state and aggregate count, including repeated requests
           content:
             application/json:
               schema:
@@ -1729,13 +1833,18 @@ paths:
       - name: video_id
         in: path
         required: true
-        schema: *id001
+        schema:
+          type: string
+          format: uuid
+      x-capability: engagement
     delete:
       tags:
       - Engagement
-      x-implementation: local-only
+      x-implementation: local
       summary: Remove like
-      description: Available to authenticated viewer and creator accounts for their own likes.
+      description: Idempotently remove the authenticated account state and return the resulting count. No body or
+        query parameters are accepted. Removal remains possible after the target is hidden; no engagement qualification
+        or points are emitted.
       operationId: delete__videos_video_id_like
       responses:
         '401':
@@ -1744,19 +1853,26 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '429':
           $ref: '#/components/responses/RateLimited'
-        '204':
-          description: Success; no response body
         '400':
           description: Invalid request. Like operations accept no request body or query parameters.
         '503':
           description: Required service unavailable
         '500':
           description: Unexpected server error; no internal details exposed
+        '200':
+          description: Current own state and aggregate count, including repeated requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Like'
       parameters:
       - name: video_id
         in: path
         required: true
-        schema: *id001
+        schema:
+          type: string
+          format: uuid
+      x-capability: engagement
   /creators/me/points:
     get:
       tags: [Points]
@@ -2206,6 +2322,59 @@ paths:
           description: Unexpected server error; no internal details exposed
       security: []
       description: Not exposed publicly through Nginx; only cluster health checks.
+  /videos/{video_id}/shares:
+    post:
+      tags:
+      - Engagement
+      operationId: recordVideoShare
+      summary: Record one authenticated share intent per UTC day
+      x-implementation: local
+      x-capability: engagement
+      x-required-roles:
+      - viewer
+      - creator
+      description: Requires a currently published public non-deleted video from Content. Request body and query parameters
+        are not accepted. The gateway records at most one share per account/video/UTC day and returns KOLOVIBE_PUBLIC_WEB_ORIGIN
+        + /videos/<id>. The configured origin must be an HTTPS origin without credentials, path, query or fragment,
+        and is validated at settings load. An unconfigured origin returns 503 share_unavailable and records no share.
+        A share is an intent, not evidence of delivery to another service; it emits no points or qualification event.
+      parameters:
+      - name: video_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Canonical link; repeated same-day requests have the same result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Share'
+        '400':
+          description: Unexpected request data
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: No published public non-deleted video
+        '503':
+          description: Sharing is unconfigured or unavailable; pre-recording dependency failures retain their existing
+            unavailable response
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - $ref: '#/components/schemas/ShareUnavailable'
+                - type: object
+                  additionalProperties: false
+                  required:
+                  - detail
+                  properties:
+                    detail:
+                      type: string
 components:
   securitySchemes:
     bearerAuth:
@@ -2679,31 +2848,185 @@ components:
     CreatorContentAnalytics:
       type: object
       additionalProperties: false
-      required: [total_videos, videos_by_state]
+      required:
+      - total_videos
+      - videos_by_state
+      - range
+      - qualified_plays
+      - watch_time_seconds
+      - likes
+      - new_followers
+      - shares
+      - daily
+      - top_videos
       properties:
-        total_videos: {type: integer, minimum: 0}
+        total_videos:
+          type: integer
+          minimum: 0
         videos_by_state:
           type: object
           additionalProperties: false
-          required: [draft, uploading, processing, failed, review, published, rejected, removed]
+          required:
+          - draft
+          - uploading
+          - processing
+          - failed
+          - review
+          - published
+          - rejected
+          - removed
           properties:
-            draft: {type: integer, minimum: 0}
-            uploading: {type: integer, minimum: 0}
-            processing: {type: integer, minimum: 0}
-            failed: {type: integer, minimum: 0}
-            review: {type: integer, minimum: 0}
-            published: {type: integer, minimum: 0}
-            rejected: {type: integer, minimum: 0}
-            removed: {type: integer, minimum: 0}
+            draft:
+              type: integer
+              minimum: 0
+            uploading:
+              type: integer
+              minimum: 0
+            processing:
+              type: integer
+              minimum: 0
+            failed:
+              type: integer
+              minimum: 0
+            review:
+              type: integer
+              minimum: 0
+            published:
+              type: integer
+              minimum: 0
+            rejected:
+              type: integer
+              minimum: 0
+            removed:
+              type: integer
+              minimum: 0
+        range:
+          type: string
+          enum:
+          - 7d
+          - 28d
+        qualified_plays:
+          type: integer
+          minimum: 0
+        watch_time_seconds:
+          type: number
+          minimum: 0
+          description: Total validated sampled time on retained qualified plays, in seconds with millisecond precision.
+            Unknown legacy watch time contributes no fabricated duration.
+        likes:
+          type: integer
+          minimum: 0
+          description: Current like records created in the selected range; unknown legacy creation times are excluded.
+        new_followers:
+          type: integer
+          minimum: 0
+          description: Current follow records created in the selected range.
+        shares:
+          type: integer
+          minimum: 0
+          description: Recorded unique account/video/UTC-day share intents in the selected range.
+        daily:
+          type: array
+          maxItems: 28
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - date
+            - qualified_plays
+            - likes
+            properties:
+              date:
+                type: string
+                format: date
+              qualified_plays:
+                type: integer
+                minimum: 0
+              likes:
+                type: integer
+                minimum: 0
+        top_videos:
+          type: array
+          maxItems: 5
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - video_id
+            - title
+            - qualified_plays
+            properties:
+              video_id:
+                type: string
+                format: uuid
+              title:
+                type: string
+                minLength: 1
+                maxLength: 160
+              qualified_plays:
+                type: integer
+                minimum: 0
     VideoEngagementAnalytics:
       type: object
       additionalProperties: false
-      required: [video_id, state, current_likes, qualified_viewers]
+      required:
+      - video_id
+      - state
+      - current_likes
+      - qualified_viewers
+      - range
+      - qualified_plays
+      - watch_time_seconds
+      - likes
+      - shares
+      - average_watch_seconds
       properties:
-        video_id: {type: string, format: uuid}
-        state: {type: string, enum: [draft, uploading, processing, failed, review, published, rejected, removed]}
-        current_likes: {type: integer, minimum: 0}
-        qualified_viewers: {type: integer, minimum: 0}
+        video_id:
+          type: string
+          format: uuid
+        state:
+          type: string
+          enum:
+          - draft
+          - uploading
+          - processing
+          - failed
+          - review
+          - published
+          - rejected
+          - removed
+        current_likes:
+          type: integer
+          minimum: 0
+          description: Existing current all-time like count, including likes with unknown creation time.
+        qualified_viewers:
+          type: integer
+          minimum: 0
+          description: Existing all-time distinct currently retained watch-session account count; not the range-qualified
+            play total.
+        range:
+          type: string
+          enum:
+          - 7d
+          - since_published
+        qualified_plays:
+          type: integer
+          minimum: 0
+        watch_time_seconds:
+          type: number
+          minimum: 0
+        likes:
+          type: integer
+          minimum: 0
+        shares:
+          type: integer
+          minimum: 0
+        average_watch_seconds:
+          type: number
+          minimum: 0
+          maximum: 300
+          description: Recorded watch_time_seconds divided by qualified_plays, rounded to three decimals; zero with
+            no plays. Unknown legacy time does not create an estimated duration.
     VideoCreate:
       type: object
       additionalProperties: false
@@ -2822,14 +3145,19 @@ components:
     Like:
       type: object
       additionalProperties: false
-      properties:
-        video_id: *id001
-        liked:
-          type: boolean
-        updated_at: *id002
       required:
       - video_id
       - liked
+      - like_count
+      properties:
+        video_id:
+          type: string
+          format: uuid
+        liked:
+          type: boolean
+        like_count:
+          type: integer
+          minimum: 0
     PointsBalance:
       type: object
       additionalProperties: false
@@ -3209,6 +3537,48 @@ components:
           - string
           - 'null'
           format: uuid
+    FollowState:
+      type: object
+      additionalProperties: false
+      required:
+      - creator_id
+      - following
+      - follower_count
+      properties:
+        creator_id:
+          type: string
+          format: uuid
+        following:
+          type: boolean
+        follower_count:
+          type: integer
+          minimum: 0
+    Share:
+      type: object
+      additionalProperties: false
+      required:
+      - video_id
+      - share_url
+      properties:
+        video_id:
+          type: string
+          format: uuid
+        share_url:
+          type: string
+          format: uri
+          pattern: ^https://
+          description: Canonical configured public web origin plus /videos/<video_id>.
+    ShareUnavailable:
+      type: object
+      additionalProperties: false
+      required:
+      - detail
+      - code
+      properties:
+        detail:
+          type: string
+        code:
+          const: share_unavailable
   responses:
     VideoUploadStatus:
       description: Current owner-visible upload or processing state

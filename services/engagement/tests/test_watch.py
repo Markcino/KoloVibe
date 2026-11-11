@@ -6,7 +6,7 @@ from uuid import uuid4
 from django.db import DatabaseError
 from django.test import RequestFactory, TestCase
 
-from service.models import WatchSession
+from service.models import QualifiedWatch, WatchSession
 from service.watch import watch_api
 
 
@@ -84,8 +84,33 @@ class WatchTests(TestCase):
         self.event.side_effect = DatabaseError
         self.assertEqual(self.progress(session, 2501).status_code, 503)
         self.assertIsNone(WatchSession.objects.get().qualified_at)
+        self.assertFalse(QualifiedWatch.objects.exists())
         self.event.side_effect = None
         self.assertEqual(json.loads(self.progress(session, 2501).content), {"qualified": True})
+
+    def test_qualification_and_watch_time_are_server_owned_and_survive_session_renewal(self):
+        session = self.start()
+        self.now += timedelta(milliseconds=2100)
+        self.assertEqual(json.loads(self.progress(session, 2100).content), {"qualified": True})
+        self.assertEqual(QualifiedWatch.objects.get().watched_ms, 2100)
+        self.now += timedelta(milliseconds=401)
+        self.progress(session, 2501)
+        self.assertEqual(QualifiedWatch.objects.get().watched_ms, 2501)
+        self.now += timedelta(hours=25)
+        renewed = self.start()
+        self.now += timedelta(milliseconds=2501)
+        self.progress(renewed, 2501)
+        self.assertEqual(QualifiedWatch.objects.count(), 2)
+        self.assertEqual(self.event.call_count, 2)
+
+    def test_clients_cannot_submit_qualification_points_or_a_watch_timestamp(self):
+        for field, value in (("qualified", True), ("points", 999), ("qualified_at", self.now.isoformat()),
+                             ("watched_ms", 30000), ("amount", 1)):
+            self.assertEqual(self.call("start", self.asset | {field: value}).status_code, 400)
+        self.assertEqual(self.call("start", self.asset, caller="identity").status_code, 403)
+        self.assertFalse(WatchSession.objects.exists())
+        self.assertFalse(QualifiedWatch.objects.exists())
+        self.event.assert_not_called()
 
     def test_late_duplicate_progress_cannot_invalidate_qualified_session(self):
         session = self.start()

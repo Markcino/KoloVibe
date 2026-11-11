@@ -25,6 +25,9 @@ class Response:
 
 
 class VideoGatewayTests(SimpleTestCase):
+    def setUp(self):
+        self.enterContext(patch("service.engagement_client.like_counts", return_value=None))
+
     def test_stale_cursor_is_a_client_error(self):
         with patch("service.videos.signed_internal_request",
                    side_effect=HTTPError("http://127.0.0.1", 400, "Invalid query", {}, None)):

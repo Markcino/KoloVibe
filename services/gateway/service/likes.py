@@ -3,7 +3,7 @@
 import json
 from uuid import UUID
 
-from django.http import HttpResponse, JsonResponse
+from django.http import JsonResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
 
@@ -40,21 +40,25 @@ def video_like(request, video_id):
     payload_data = {"video_id": str(video_id), "account_id": account_id}
     if request.method != "GET":
         payload_data["liked"] = liked
+        if liked:
+            try:
+                payload_data["creator_id"] = str(UUID(json.loads(video.content)["creator_id"]))
+            except (ValueError, TypeError, KeyError, AttributeError):
+                return JsonResponse({"detail": "Content service unavailable"}, status=503)
     payload = json.dumps(payload_data).encode()
     path = "/internal/likes/status" if request.method == "GET" else "/internal/likes"
     try:
         with signed_internal_request("engagement", path, method="POST", payload=payload) as response:
-            if request.method == "DELETE" and response.status == 204:
-                return HttpResponse(status=204)
-            if request.method != "DELETE" and response.status == 200:
+            if response.status == 200:
                 raw = response.read(257)
                 if len(raw) <= 256:
                     result = json.loads(raw)
-                    if (isinstance(result, dict) and set(result) == {"video_id", "liked"}
+                    if (isinstance(result, dict) and set(result) == {"video_id", "liked", "like_count"}
                             and result["video_id"] == str(video_id)
                             and type(result["liked"]) is bool
-                            and (request.method == "GET" or result["liked"] is True)):
+                            and type(result["like_count"]) is int and result["like_count"] >= 0
+                            and (request.method == "GET" or result["liked"] is liked)):
                         return JsonResponse(result)
-    except (OSError, ValueError):
+    except (OSError, ValueError, TypeError, KeyError, AttributeError, RuntimeError):
         pass
     return JsonResponse({"detail": "Engagement service unavailable"}, status=503)

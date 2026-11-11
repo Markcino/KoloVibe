@@ -26,8 +26,8 @@ class CreatorFollowTests(TestCase):
         self.assertEqual(json.loads(self.call("follow").content)["following"], True)
         self.assertEqual(self.call("follow", account_id=other).status_code, 200)
         self.assertEqual(CreatorFollow.objects.count(), 2)
-        self.assertEqual(self.call("unfollow").status_code, 204)
-        self.assertEqual(self.call("unfollow").status_code, 204)
+        self.assertEqual(self.call("unfollow").status_code, 200)
+        self.assertEqual(self.call("unfollow").status_code, 200)
         self.assertEqual(json.loads(self.call("status").content)["following"], False)
         self.assertTrue(CreatorFollow.objects.filter(account_id=other).exists())
 

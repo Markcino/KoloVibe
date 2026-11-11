@@ -15,6 +15,8 @@ class CreatorAnalyticsGatewayTests(SimpleTestCase):
         self.factory = RequestFactory()
         self.creator = str(uuid4())
         self.video = uuid4()
+        self.owner = str(uuid4())
+        self.enterContext(patch("service.analytics.current_account", return_value=JsonResponse({"id": self.owner})))
 
     @patch("service.analytics.signed_internal_request")
     @patch("service.analytics._owned_creator")
@@ -23,12 +25,15 @@ class CreatorAnalyticsGatewayTests(SimpleTestCase):
         states = {state: 0 for state in ("draft", "uploading", "processing", "failed", "review",
                                          "published", "rejected", "removed")}
         states["draft"] = 2
-        peer.return_value = Response(json.dumps({"total_videos": 2, "videos_by_state": states}).encode())
+        peer.side_effect = [Response(json.dumps({"total_videos": 2, "videos_by_state": states}).encode()),
+            Response(json.dumps({"creator_id": self.creator, "creator_user_id": self.owner, "range": "7d",
+                "qualified_plays": 0, "watch_time_seconds": 0, "likes": 0, "new_followers": 0,
+                "shares": 0, "daily": [], "top_videos": []}).encode())]
         response = creator_analytics(self.factory.get("/api/v1/creators/me/analytics"))
         self.assertEqual(response.status_code, 200)
         self.assertIn("no-store", response["Cache-Control"])
-        self.assertEqual(peer.call_args.args, ("content", "/internal/videos/analytics/summary"))
-        self.assertEqual(json.loads(peer.call_args.kwargs["payload"]), {"creator_id": self.creator})
+        self.assertEqual(peer.call_args_list[0].args, ("content", "/internal/videos/analytics/summary"))
+        self.assertEqual(json.loads(peer.call_args_list[0].kwargs["payload"]), {"creator_id": self.creator})
 
     @patch("service.analytics.signed_internal_request")
     @patch("service.analytics._owned_creator")
@@ -37,7 +42,8 @@ class CreatorAnalyticsGatewayTests(SimpleTestCase):
         peer.side_effect = [
             Response(json.dumps({"video_id": str(self.video), "state": "published"}).encode()),
             Response(json.dumps({"video_id": str(self.video), "current_likes": 3,
-                                 "qualified_viewers": 2}).encode()),
+                                 "qualified_viewers": 2, "range": "7d", "qualified_plays": 2, "watch_time_seconds": 5.0,
+                                 "likes": 1, "shares": 0, "average_watch_seconds": 2.5}).encode()),
         ]
         response = creator_video_analytics(self.factory.get("/api/v1/creators/me/videos/id/analytics"), self.video)
         self.assertEqual(response.status_code, 200)

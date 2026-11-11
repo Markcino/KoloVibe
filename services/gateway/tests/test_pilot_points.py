@@ -22,6 +22,16 @@ class PilotGatewayTests(SimpleTestCase):
     def as_peer(self, data):
         self.peer.return_value = Response(json.dumps(data).encode())
 
+    def test_watch_rejects_client_qualification_points_and_server_metadata_before_forwarding(self):
+        base = {"video_id": str(self.video), "session_id": self.session, "position_ms": 2000}
+        with patch("service.media.forward_media") as content:
+            for field, value in (("qualified", True), ("points", 100), ("creator_user_id", self.creator_account),
+                                 ("duration_ms", 1), ("revision", 0), ("qualified_at", self.expires)):
+                response = watch(self.factory.post("/watch", base | {field: value}, content_type="application/json"))
+                self.assertEqual(response.status_code, 400)
+            content.assert_not_called()
+            self.peer.assert_not_called()
+
     @patch("service.pilot_points.read_creator")
     @patch("service.media.forward_media")
     def test_watch_uses_signed_account_and_metadata(self, media, owner):

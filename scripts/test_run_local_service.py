@@ -11,6 +11,11 @@ from run_local_service import environment_for, read_local_env
 
 
 class LocalEnvironmentTests(unittest.TestCase):
+    def test_public_web_origin_is_scoped_to_gateway(self):
+        values = {f"KOLOVIBE_{name.upper()}_DJANGO_SECRET_KEY": secrets.token_urlsafe(48) for name in ("gateway", "identity")}
+        values["KOLOVIBE_PUBLIC_WEB_ORIGIN"] = "https://app.example.test"
+        self.assertEqual(environment_for("gateway", values)["KOLOVIBE_PUBLIC_WEB_ORIGIN"], "https://app.example.test")
+        self.assertNotIn("KOLOVIBE_PUBLIC_WEB_ORIGIN", environment_for("identity", values))
     def test_app_compatibility_configuration_is_forwarded_only_to_gateway(self):
         values = {f"KOLOVIBE_{service.upper()}_DJANGO_SECRET_KEY": secrets.token_urlsafe(48)
                   for service in ("gateway", "identity")}

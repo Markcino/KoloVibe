@@ -4,7 +4,7 @@ import json
 from urllib.error import HTTPError
 from uuid import UUID
 
-from django.http import HttpResponse, JsonResponse
+from django.http import JsonResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
 
@@ -42,18 +42,17 @@ def creator_follow(request, creator_id):
     try:
         with signed_internal_request("engagement", "/internal/follows", method="POST",
                                      payload=payload) as response:
-            if request.method == "DELETE" and response.status == 204:
-                return HttpResponse(status=204)
-            if request.method != "DELETE" and response.status == 200:
+            if response.status == 200:
                 raw = response.read(257)
                 result = json.loads(raw) if len(raw) <= 256 else None
-                if (isinstance(result, dict) and set(result) == {"creator_id", "following"}
+                if (isinstance(result, dict) and set(result) == {"creator_id", "following", "follower_count"}
                         and result["creator_id"] == str(creator_id)
                         and type(result["following"]) is bool
-                        and (request.method != "PUT" or result["following"])):
+                        and type(result["follower_count"]) is int and result["follower_count"] >= 0
+                        and (request.method == "GET" or result["following"] is (request.method == "PUT"))):
                     return JsonResponse(result)
     except HTTPError as error:
         error.close()
-    except (OSError, ValueError, TypeError, KeyError):
+    except (OSError, ValueError, TypeError, KeyError, AttributeError, RuntimeError):
         pass
     return JsonResponse({"detail": "Engagement service unavailable"}, status=503)

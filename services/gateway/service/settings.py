@@ -52,6 +52,9 @@ else:
         "NAME": BASE_DIR / "local.sqlite3",
     }}
 KOLOVIBE_SERVICE_NAME = "gateway"
+from .shares import validate_public_origin
+
+KOLOVIBE_PUBLIC_WEB_ORIGIN = validate_public_origin(os.environ.get("KOLOVIBE_PUBLIC_WEB_ORIGIN"))
 from .compatibility import validate_configuration
 
 APP_COMPATIBILITY = {
