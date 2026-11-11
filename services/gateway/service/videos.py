@@ -39,10 +39,15 @@ def _valid_item(item):
 
 @require_GET
 def list_videos(request):
-    if (set(request.GET) - {"creator_id", "cursor"}
+    if (set(request.GET) - {"creator_id", "cursor", "q"}
             or any(len(request.GET.getlist(key)) != 1 for key in request.GET)):
         return JsonResponse({"detail": "Invalid query"}, status=400)
     filters = {}
+    query = request.GET.get("q")
+    if query is not None:
+        if not 1 <= len(query.strip()) <= 100 or any(ord(char) < 32 for char in query):
+            return JsonResponse({"detail": "Invalid search query"}, status=400)
+        filters["q"] = query.strip()
     for key in ("creator_id", "cursor"):
         value = request.GET.get(key)
         if value is not None:

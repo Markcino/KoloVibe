@@ -48,6 +48,28 @@ flutter build apk --debug
 flutter build ios --simulator --debug
 ```
 
+For on-device route captures and a Welcome-to-sign-in validation journey, use the
+existing simulator identifier rather than booting another device:
+
+```sh
+cd apps/mobile
+flutter drive --driver=test_driver/design_review.dart \
+  --target=integration_test/design_review_test.dart -d SIMULATOR_ID
+```
+
+The driver writes 108 current-route screenshots and `coverage.csv` to ignored
+`build/runtime-ui-review/`. The CSV distinguishes presentation routes from
+unavailable-service routes; a successful capture is not proof of a populated
+design or a live business integration. Assets are decoded before capture.
+
+The owner-supplied logo artwork is used by shared in-app branding and native
+iOS/Android launcher icons. The supplied SVG files contain embedded PNG images;
+`swift scripts/generate_mobile_brand_assets.swift` (run from the repository root
+on macOS) extracts their original pixels and regenerates the opaque launcher
+icons. It does not redraw the logo. The 1024-pixel icon is upscaled from the
+supplied 558-by-569 emblem; higher-resolution original artwork is preferable for
+final store submission.
+
 Snapshot captures are written to ignored `build/ui-review/M-001.png` through `M-108.png`. They capture the current application state for each route, including unavailable-service screens for protected routes; they do not establish visual coverage of every populated design. They are review evidence rather than committed golden baselines. See `docs/mobile-design-coverage.md` for per-design traceability and `docs/mobile-asset-manifest.json` for asset hashes and Figma slots.
 
 ## Verification record · 29 October 2026

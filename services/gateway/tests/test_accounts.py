@@ -1,5 +1,6 @@
 import json
 import secrets
+import uuid
 from unittest.mock import patch
 
 from django.test import SimpleTestCase
@@ -36,10 +37,40 @@ class AccountGatewayTests(SimpleTestCase):
         self.assertEqual(json.loads(call.call_args.kwargs["payload"]),
                          {"email": "a@example.test", "password": entered})
 
+    def test_resend_forwards_email_without_requiring_a_session(self):
+        data = {"email": "viewer@example.test"}
+        with patch("service.accounts.signed_internal_request") as call:
+            call.return_value = Response(204, b"")
+            result = self.post("verification-resend", data)
+        self.assertEqual(result.status_code, 204)
+        self.assertEqual(result.content, b"")
+        self.assertEqual(call.call_args.args, ("identity", "/internal/auth/verification/resend"))
+        self.assertEqual(json.loads(call.call_args.kwargs["payload"]), data)
+
     def test_rejects_extra_fields_before_identity_call(self):
         with patch("service.accounts.signed_internal_request") as call:
             self.assertEqual(self.post("register", {"email": "a", "role": "admin"}).status_code, 400)
             call.assert_not_called()
+
+    def test_session_management_requires_bearer_and_forwards_target(self):
+        collection = reverse("account-sessions")
+        target = uuid.uuid4()
+        detail = reverse("revoke-account-session", args=[target])
+        token = secrets.token_urlsafe(24)
+        with patch("service.accounts.signed_internal_request") as call:
+            self.assertEqual(self.client.get(collection).status_code, 401)
+            self.assertEqual(self.client.delete(detail).status_code, 401)
+            call.assert_not_called()
+            call.return_value = Response(200, b'{"items":[]}')
+            response = self.client.get(collection, HTTP_AUTHORIZATION=f"Bearer {token}")
+            self.assertEqual(response.json(), {"items": []})
+            self.assertIn("no-store", response.headers["Cache-Control"])
+            call.return_value = Response(204, b"")
+            self.assertEqual(self.client.delete(detail,
+                HTTP_AUTHORIZATION=f"Bearer {token}").status_code, 204)
+            self.assertEqual(call.call_args.args, ("identity", "/internal/auth/sessions"))
+            self.assertEqual(json.loads(call.call_args.kwargs["payload"]),
+                             {"access_token": token, "session_id": str(target)})
 
     def test_me_needs_bearer_and_strips_session_data(self):
         self.assertEqual(self.client.get(reverse("me")).status_code, 401)

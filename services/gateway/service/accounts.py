@@ -4,7 +4,8 @@ import json
 from urllib.error import HTTPError, URLError
 
 from django.http import HttpResponse, JsonResponse
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_GET, require_POST, require_http_methods
 
 from .internal_client import signed_internal_request
 
@@ -40,7 +41,7 @@ def _invoke(path, data, success_statuses):
             raise ValueError("Invalid MFA challenge response")
         return _json(result, status)
     except HTTPError as error:
-        if error.code not in {400, 401, 403, 409, 429, 503}:
+        if error.code not in {400, 401, 403, 404, 409, 429, 503}:
             return _json({"detail": "Identity unavailable"}, 503)
         try:
             raw = error.read(MAX_RESPONSE + 1)
@@ -81,6 +82,15 @@ def register(request):
     except (ValueError, UnicodeError):
         return _json({"detail": "Invalid registration"}, 400)
     return _invoke("/internal/auth/register", data, {201})
+
+
+@require_POST
+def resend_verification(request):
+    try:
+        data = _body(request, {"email"})
+    except (ValueError, UnicodeError):
+        return _json({"detail": "Invalid verification request"}, 400)
+    return _invoke("/internal/auth/verification/resend", data, {204})
 
 
 @require_POST
@@ -131,6 +141,25 @@ def logout(request):
     except (ValueError, UnicodeError):
         return _json({"detail": "Unauthorized"}, 401)
     return _invoke("/internal/auth/revoke", data, {204})
+
+
+@never_cache
+@require_GET
+def sessions(request):
+    token = _bearer(request)
+    if token is None:
+        return _json({"detail": "Unauthorized"}, 401)
+    return _invoke("/internal/auth/sessions", {"access_token": token}, {200})
+
+
+@never_cache
+@require_http_methods(["DELETE"])
+def revoke_session(request, session_id):
+    token = _bearer(request)
+    if token is None:
+        return _json({"detail": "Unauthorized"}, 401)
+    return _invoke("/internal/auth/sessions",
+                   {"access_token": token, "session_id": str(session_id)}, {204})
 
 
 @require_GET

@@ -35,19 +35,26 @@ def _item(video):
 
 @require_GET
 def list_videos(request):
-    if (set(request.GET) - {"creator_id", "cursor"}
+    if (set(request.GET) - {"creator_id", "cursor", "q"}
             or any(len(request.GET.getlist(key)) != 1 for key in request.GET)):
         return JsonResponse({"detail": "Invalid query"}, status=400)
-    return _list_videos(request.GET.get("creator_id"), request.GET.get("cursor"))
+    return _list_videos(request.GET.get("creator_id"), request.GET.get("cursor"), request.GET.get("q"))
 
 
-def _list_videos(creator, cursor):
+def _list_videos(creator, cursor, query):
     queryset = _public_videos().order_by("-created_at", "-id")
     if creator is not None:
         try:
             queryset = queryset.filter(creator_id=uuid.UUID(creator))
         except ValueError:
             return JsonResponse({"detail": "Invalid creator_id"}, status=400)
+    if query is not None:
+        if not 1 <= len(query.strip()) <= 100 or any(ord(char) < 32 for char in query):
+            return JsonResponse({"detail": "Invalid search query"}, status=400)
+        queryset = queryset.filter(
+            models.Q(title__icontains=query.strip())
+            | models.Q(description__icontains=query.strip())
+        )
     if cursor is not None:
         try:
             cursor_id = uuid.UUID(cursor)
@@ -70,17 +77,17 @@ def _list_videos(creator, cursor):
 
 @require_POST
 def internal_list_videos(request):
-    if len(request.body) > 512:
+    if len(request.body) > 1536:
         return JsonResponse({"detail": "Invalid request"}, status=400)
     try:
         filters = json.loads(request.body)
     except (ValueError, UnicodeDecodeError):
         return JsonResponse({"detail": "Invalid request"}, status=400)
-    if not isinstance(filters, dict) or set(filters) - {"creator_id", "cursor"}:
+    if not isinstance(filters, dict) or set(filters) - {"creator_id", "cursor", "q"}:
         return JsonResponse({"detail": "Invalid request"}, status=400)
     if any(value is not None and not isinstance(value, str) for value in filters.values()):
         return JsonResponse({"detail": "Invalid request"}, status=400)
-    return _list_videos(filters.get("creator_id"), filters.get("cursor"))
+    return _list_videos(filters.get("creator_id"), filters.get("cursor"), filters.get("q"))
 
 
 @require_GET

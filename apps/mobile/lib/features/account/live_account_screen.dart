@@ -48,6 +48,14 @@ class _LiveAccountScreenState extends State<LiveAccountScreen> {
           Text(user.displayName, style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 8), Text(user.email),
           const SizedBox(height: 24),
+          ListTile(
+            title: const Text('Active sessions'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              const route = ScreenRoute(83);
+              Navigator.of(context).pushNamed(route.name, arguments: route);
+            },
+          ),
           FilledButton(onPressed: () async {
             await widget.repository.execute(const UiRequest(UiOperation.signOut));
             if (mounted) navigate(2);

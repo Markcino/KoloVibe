@@ -33,6 +33,23 @@ class AccountApiTests(TestCase):
         self.assertEqual(self.post(accounts.verify_email, {"code": code}).status_code, 400)
         self.assertFalse(Account.objects.get().is_active)
 
+    def test_resend_is_generic_throttled_and_replaces_the_old_code(self):
+        email = "user@example.test"
+        self.post(accounts.register, {"email": email,
+            "password": self.password, "display_name": "Viewer"})
+        old_code = mail.outbox[0].body.split(": ", 1)[1]
+        for address in (email, "unknown@example.test"):
+            self.assertEqual(self.post(accounts.resend_verification, {"email": address}).status_code, 204)
+        self.assertEqual(len(mail.outbox), 1)
+        EmailVerification.objects.update(expires_at=timezone.now() + timedelta(hours=23))
+        self.assertEqual(self.post(accounts.resend_verification, {"email": email}).status_code, 204)
+        self.assertEqual(len(mail.outbox), 2)
+        new_code = mail.outbox[1].body.split(": ", 1)[1]
+        self.assertEqual(self.post(accounts.verify_email, {"code": old_code}).status_code, 400)
+        self.assertEqual(self.post(accounts.verify_email, {"code": new_code}).status_code, 200)
+        self.assertEqual(self.post(accounts.resend_verification, {"email": email}).status_code, 204)
+        self.assertEqual(len(mail.outbox), 2)
+
     def setUp(self):
         self.factory = RequestFactory()
         self.password = secrets.token_urlsafe(24)
@@ -64,6 +81,36 @@ class AccountApiTests(TestCase):
                                                   "password": self.password,
                                                   "display_name": "Someone Else"})
         self.assertEqual(response.status_code, 409)
+
+    def test_session_management_scopes_listing_and_revocation_to_the_owner(self):
+        account = self.register_and_verify()
+        foreign = Account.objects.create_user("other@example.test", self.password, "Other")
+        now = timezone.now()
+        current, other, outsider = [
+            LoginSession.objects.create(
+                account=owner, refresh_digest=secrets.token_hex(32),
+                expires_at=now + timedelta(days=1),
+            )
+            for owner in (account, account, foreign)
+        ]
+        token = accounts._issue(current)["access_token"]
+        other_tokens = accounts._issue(other)
+        data = {"access_token": token}
+        result = self.post(accounts.manage_sessions, data)
+        self.assertEqual(result.status_code, 200)
+        rows = json.loads(result.content)["items"]
+        self.assertEqual({row["id"]: row["current"] for row in rows},
+                         {str(current.id): True, str(other.id): False})
+        self.assertEqual(set(rows[0]), {"id", "created_at", "expires_at", "current"})
+        for session, status in ((outsider, 404), (current, 409), (other, 204)):
+            self.assertEqual(self.post(accounts.manage_sessions,
+                {**data, "session_id": str(session.id)}).status_code, status)
+        self.assertEqual(self.post(accounts.validate_access,
+            {"access_token": other_tokens["access_token"]}).status_code, 401)
+        self.assertEqual(self.post(accounts.refresh,
+            {"refresh_token": other_tokens["refresh_token"]}).status_code, 401)
+        outsider.refresh_from_db()
+        self.assertIsNone(outsider.revoked_at)
 
     def test_refresh_rotation_replay_revokes_access(self):
         self.register_and_verify()

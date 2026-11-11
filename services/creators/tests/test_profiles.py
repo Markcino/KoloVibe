@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from service.models import CreatorProfile
-from service.profiles import internal_profile
+from service.profiles import internal_profile, internal_search
 
 
 class PublicCreatorTests(TestCase):
@@ -36,3 +36,32 @@ class PublicCreatorTests(TestCase):
         request = RequestFactory().post("/internal/creators/profile",
             json.dumps({"creator_id": "bad"}), content_type="application/json")
         self.assertEqual(internal_profile(request).status_code, 400)
+
+
+    def test_search_filters_profiles_and_paginates(self):
+        for index in range(21):
+            CreatorProfile.objects.create(
+                id=uuid.UUID(int=index + 1), user_id=uuid.uuid4(),
+                handle=f"river-{index}", status=CreatorProfile.Status.ACTIVE,
+                reviewed_at=timezone.now(),
+            )
+        CreatorProfile.objects.create(user_id=uuid.uuid4(), handle="river-pending")
+        CreatorProfile.objects.create(
+            user_id=uuid.uuid4(), handle="river-restricted",
+            status=CreatorProfile.Status.RESTRICTED, restricted_at=timezone.now(),
+            reviewed_at=timezone.now(),
+        )
+
+        def search(data):
+            request = RequestFactory().post("/internal/creators/search",
+                json.dumps(data), content_type="application/json")
+            return internal_search(request)
+
+        first = json.loads(search({"q": "RIVER"}).content)
+        self.assertEqual(len(first["items"]), 20)
+        second = json.loads(search({"q": "river", "cursor": first["next_cursor"]}).content)
+        self.assertEqual([item["handle"] for item in second["items"]], ["river-20"])
+        self.assertIsNone(second["next_cursor"])
+        self.assertEqual(search({"q": "ocean", "cursor": first["next_cursor"]}).status_code, 400)
+        self.assertEqual(self.client.post(reverse("internal-search"),
+            data=json.dumps({"q": "river"}), content_type="application/json").status_code, 403)

@@ -42,3 +42,19 @@ class CreatorGatewayTests(SimpleTestCase):
             call.return_value = Response(json.dumps(payload).encode())
             result = self.client.get(reverse("api-creator-detail", args=[creator_id]))
         self.assertEqual(result.status_code, 503)
+
+    def test_search_accepts_active_results_and_fails_closed_on_restricted_results(self):
+        profile = {"id": str(uuid.uuid4()), "user_id": str(uuid.uuid4()),
+                   "handle": "river-voice", "bio": "", "status": "active"}
+        with patch("service.creators.signed_internal_request") as call:
+            url = reverse("api-creator-search")
+            self.assertEqual(self.client.get(url, {"q": ""}).status_code, 400)
+            call.assert_not_called()
+            page = {"items": [profile], "next_cursor": None}
+            call.return_value = Response(json.dumps(page).encode())
+            self.assertEqual(self.client.get(url, {"q": " river "}).json(), page)
+            self.assertEqual(call.call_args.args, ("creators", "/internal/creators/search"))
+            self.assertEqual(json.loads(call.call_args.kwargs["payload"]), {"q": "river"})
+            profile["status"] = "restricted"
+            call.return_value = Response(json.dumps(page).encode())
+            self.assertEqual(self.client.get(url, {"q": "river"}).status_code, 503)

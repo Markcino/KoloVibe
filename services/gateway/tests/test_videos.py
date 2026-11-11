@@ -47,6 +47,16 @@ class VideoGatewayTests(SimpleTestCase):
         self.assertEqual(call.call_args.args, ("content", "/internal/videos"))
         self.assertEqual(json.loads(call.call_args.kwargs["payload"]), {})
 
+    def test_search_forwards_normalized_query_and_rejects_invalid_input(self):
+        with patch("service.videos.signed_internal_request") as call:
+            url = reverse("api-videos")
+            self.assertEqual(self.client.get(url, {"q": "x" * 101}).status_code, 400)
+            self.assertEqual(self.client.get(url + "?q=river&q=sea").status_code, 400)
+            call.assert_not_called()
+            call.return_value = Response(b'{"items":[],"next_cursor":null}')
+            self.assertEqual(self.client.get(url, {"q": " River "}).status_code, 200)
+            self.assertEqual(json.loads(call.call_args.kwargs["payload"]), {"q": "River"})
+
     def test_rejects_invalid_filter_without_calling_service(self):
         with patch("service.videos.signed_internal_request") as call:
             self.assertEqual(self.client.get(reverse("videos") + "?creator_id=bad").status_code, 400)

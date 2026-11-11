@@ -26,6 +26,32 @@ class LiveCreatorRepository {
   const LiveCreatorRepository(this.api);
   final ApiClient api;
 
+  Future<({List<LiveCreator> items, String? nextCursor})> search(
+    String query, {String? cursor}
+  ) async {
+    final data = await api.request('/creators/search', query: {
+      'q': query,
+      if (cursor != null) 'cursor': cursor,
+    });
+    final raw = data['items'];
+    final next = data['next_cursor'];
+    if (raw is! List || raw.length > 20 || !data.containsKey('next_cursor')) {
+      throw const FormatException('Invalid creator search page');
+    }
+    final items = raw.map((item) {
+      if (item is! Map<String, dynamic>) {
+        throw const FormatException('Invalid creator');
+      }
+      return LiveCreator.fromJson(item);
+    }).toList(growable: false);
+    if (items.map((item) => item.id).toSet().length != items.length ||
+        next != null && (next is! String || items.length != 20 ||
+          next == cursor || next != items.last.id)) {
+      throw const FormatException('Invalid creator search cursor');
+    }
+    return (items: items, nextCursor: next as String?);
+  }
+
   Future<LiveCreator> detail(String id) async {
     if (!isApiId(id)) throw const FormatException('Invalid creator identifier');
     final data = await api.request('/creators/$id');

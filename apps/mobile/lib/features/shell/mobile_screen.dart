@@ -139,7 +139,10 @@ class _MobileScreenState extends State<MobileScreen> {
           !(form.currentState?.validate() ?? false)) {
         return;
       }
-      await navigate(target);
+      final next = target == 7 && widget.dependencies.liveAccount != null
+          ? 8
+          : target;
+      await navigate(next);
       return;
     }
     if (action == 'unavailable') {
@@ -160,6 +163,7 @@ class _MobileScreenState extends State<MobileScreen> {
       UiOperation.saveProfile,
       UiOperation.deleteAccount,
       UiOperation.requestReset,
+      UiOperation.requestCode,
       UiOperation.verifyEmail,
       UiOperation.deleteVideo,
     }.contains(operation);
@@ -181,6 +185,10 @@ class _MobileScreenState extends State<MobileScreen> {
     if (widget.dependencies.liveAccount != null) {
       switch (operation) {
         case UiOperation.register:
+          await navigate(6);
+          return;
+        case UiOperation.requestCode:
+          notify(result.message);
           await navigate(6);
           return;
         case UiOperation.verifyEmail:
@@ -498,25 +506,38 @@ class _MobileScreenState extends State<MobileScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
+              Icon(
                 Icons.cloud_off_outlined,
                 size: 48,
-                color: KoloVibeColors.navy,
+                color: screen.isDark
+                    ? KoloVibeColors.softBlue
+                    : KoloVibeColors.navy,
               ),
               const SizedBox(height: 20),
               Text(
                 'This service is not connected yet.',
-                style: Theme.of(context).textTheme.titleLarge,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: screen.isDark ? Colors.white : null,
+                    ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'Account access, content and actions become available when their secure services are connected.',
+                style: screen.isDark
+                    ? const TextStyle(color: KoloVibeColors.softBlue)
+                    : null,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
               FilledButton(
                 onPressed: () => navigate(2),
+                style: screen.isDark
+                    ? FilledButton.styleFrom(
+                        backgroundColor: KoloVibeColors.softBlue,
+                        foregroundColor: KoloVibeColors.navy,
+                      )
+                    : null,
                 child: const Text('Return to welcome'),
               ),
             ],

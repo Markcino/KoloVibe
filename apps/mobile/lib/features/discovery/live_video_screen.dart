@@ -4,6 +4,8 @@ import '../../core/network/api_client.dart';
 import '../../core/presentation/design_node.dart';
 import '../../core/theme/kolovibe_theme.dart';
 import '../shell/main_shell.dart';
+import '../creators/live_creator_repository.dart';
+import '../creators/creator_search_screen.dart';
 import 'live_video_repository.dart';
 
 class LiveVideoScreen extends StatefulWidget {
@@ -11,10 +13,12 @@ class LiveVideoScreen extends StatefulWidget {
       {super.key,
       required this.route,
       required this.catalog,
-      required this.repository});
+      required this.repository,
+      this.creators});
   final ScreenRoute route;
   final DesignCatalog catalog;
   final LiveVideoRepository repository;
+  final LiveCreatorRepository? creators;
 
   @override
   State<LiveVideoScreen> createState() => _LiveVideoScreenState();
@@ -25,6 +29,7 @@ class _LiveVideoScreenState extends State<LiveVideoScreen> {
   String? nextCursor;
   String? error;
   bool loading = false;
+  String? query;
 
   @override
   void initState() {
@@ -39,8 +44,8 @@ class _LiveVideoScreenState extends State<LiveVideoScreen> {
       error = null;
     });
     try {
-      final page =
-          await widget.repository.page(cursor: reset ? null : nextCursor);
+      final page = await widget.repository
+          .page(cursor: reset ? null : nextCursor, query: query);
       final existing = reset ? <LiveVideo>[] : videos ?? <LiveVideo>[];
       final ids = existing.map((video) => video.id).toSet();
       if (page.items.any((video) => ids.contains(video.id))) {
@@ -70,66 +75,104 @@ class _LiveVideoScreenState extends State<LiveVideoScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
+            actions: [
+              if (widget.route.screen == 19 && widget.creators != null)
+                TextButton(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(builder: (_) =>
+                      CreatorSearchScreen(repository: widget.creators!)),
+                  ),
+                  child: const Text('Find creators'),
+                ),
+            ],
             title: Text(widget.route.screen == 17
                 ? 'KoloVibe'
                 : widget.route.screen == 24
                     ? 'Videos'
                     : 'Explore')),
-        body: SafeArea(child: Builder(
-          builder: (context) {
-            if (videos == null && loading) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (videos == null) {
-              return _state(
-                  context, error ?? 'Videos are temporarily unavailable.',
-                  onRetry: () => load(reset: true));
-            }
-            final items = videos!;
-            if (items.isEmpty) {
-              return _state(context, error ?? 'No originals are available yet.',
-                  onRetry: () => load(reset: true));
-            }
-            return RefreshIndicator(
-              onRefresh: () => load(reset: true),
-              child: ListView.separated(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16),
-                itemCount: items.length + 1,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  if (index == items.length) {
-                    return Column(children: [
-                      if (error != null)
-                        Semantics(liveRegion: true, child: Text(error!)),
-                      if (loading) const CircularProgressIndicator(),
-                      if (!loading && (nextCursor != null || error != null))
-                        OutlinedButton(
-                          onPressed: () => load(reset: nextCursor == null),
-                          child:
-                              Text(error == null ? 'Load more' : 'Try again'),
-                        ),
-                    ]);
-                  }
-                  final video = items[index];
-                  return Card(
-                      child: ListTile(
-                    title: Text(video.title),
-                    subtitle: video.description.isEmpty
-                        ? null
-                        : Text(video.description),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () {
-                      final route = ScreenRoute(25, entityId: video.id);
-                      Navigator.of(context)
-                          .pushNamed(route.name, arguments: route);
-                    },
-                  ));
+        body: SafeArea(
+            child: Column(children: [
+          if (widget.route.screen == 19)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: TextField(
+                enabled: !loading,
+                maxLength: 100,
+                textInputAction: TextInputAction.search,
+                decoration: const InputDecoration(labelText: 'Search videos'),
+                onSubmitted: (value) {
+                  if (loading) return;
+                  final term = value.trim();
+                  setState(() {
+                    query = term.isEmpty ? null : term;
+                    videos = null;
+                    nextCursor = null;
+                  });
+                  load(reset: true);
                 },
               ),
-            );
-          },
-        )),
+            ),
+          Expanded(child: Builder(
+            builder: (context) {
+              if (videos == null && loading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (videos == null) {
+                return _state(
+                    context, error ?? 'Videos are temporarily unavailable.',
+                    onRetry: () => load(reset: true));
+              }
+              final items = videos!;
+              if (items.isEmpty) {
+                return _state(
+                    context,
+                    error ??
+                        (query == null
+                            ? 'No originals are available yet.'
+                            : 'No videos match your search.'),
+                    onRetry: () => load(reset: true));
+              }
+              return RefreshIndicator(
+                onRefresh: () => load(reset: true),
+                child: ListView.separated(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(16),
+                  itemCount: items.length + 1,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    if (index == items.length) {
+                      return Column(children: [
+                        if (error != null)
+                          Semantics(liveRegion: true, child: Text(error!)),
+                        if (loading) const CircularProgressIndicator(),
+                        if (!loading && (nextCursor != null || error != null))
+                          OutlinedButton(
+                            onPressed: () => load(reset: nextCursor == null),
+                            child:
+                                Text(error == null ? 'Load more' : 'Try again'),
+                          ),
+                      ]);
+                    }
+                    final video = items[index];
+                    return Card(
+                        child: ListTile(
+                      title: Text(video.title),
+                      subtitle: video.description.isEmpty
+                          ? null
+                          : Text(video.description),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        final route = ScreenRoute(25, entityId: video.id);
+                        Navigator.of(context)
+                            .pushNamed(route.name, arguments: route);
+                      },
+                    ));
+                  },
+                ),
+              );
+            },
+          )),
+        ])),
         bottomNavigationBar: MainShell(
           navigation:
               widget.catalog[widget.route.screen].named('Primary navigation')!,

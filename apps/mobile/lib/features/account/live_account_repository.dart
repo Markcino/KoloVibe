@@ -23,6 +23,33 @@ class LiveAccount {
   }
 }
 
+class AccountSession {
+  const AccountSession(this.id, this.createdAt, this.expiresAt, this.current);
+
+  final String id;
+  final DateTime createdAt, expiresAt;
+  final bool current;
+
+  factory AccountSession.fromJson(Object? value) {
+    if (value is! Map<String, dynamic>) {
+      throw const FormatException('Invalid session');
+    }
+    final id = value['id'];
+    final created = value['created_at'];
+    final expires = value['expires_at'];
+    final current = value['current'];
+    if (id is! String ||
+        !isApiId(id) ||
+        created is! String ||
+        expires is! String ||
+        current is! bool) {
+      throw const FormatException('Invalid session');
+    }
+    return AccountSession(
+        id, DateTime.parse(created), DateTime.parse(expires), current);
+  }
+}
+
 class LiveAccountRepository implements AccountRepository {
   LiveAccountRepository(this.api, this.store);
   final ApiClient api;
@@ -62,29 +89,51 @@ class LiveAccountRepository implements AccountRepository {
 
   Future<LiveAccount?> _currentAccount() async {
     try {
-      final restored = _accessToken == null;
-      if (restored && !await _refresh()) return null;
-      try {
-        return LiveAccount.fromJson(
-            await api.request('/me', accessToken: _accessToken));
-      } on ApiFailure catch (error) {
-        if (error.status != 401 || restored) rethrow;
-        if (!await _refresh()) {
-          _accessToken = null;
-          return null;
-        }
-        return LiveAccount.fromJson(
-            await api.request('/me', accessToken: _accessToken));
-      }
+      return LiveAccount.fromJson(await _sessionRequest('/me'));
     } on ApiFailure catch (error) {
-      if (error.status == 401) {
-        _accessToken = null;
-        await store.clearRefreshToken();
-        return null;
-      }
+      if (error.status == 401) return null;
       rethrow;
     }
   }
+
+  Future<Map<String, dynamic>> _sessionRequest(String path,
+      {String method = 'GET'}) async {
+    const expired = ApiFailure(401, 'Sign in again to manage sessions.');
+    try {
+      final restored = _accessToken == null;
+      if (restored && !await _refresh()) throw expired;
+      try {
+        return await api.request(path,
+            method: method, accessToken: _accessToken);
+      } on ApiFailure catch (error) {
+        if (error.status != 401 || restored) rethrow;
+        if (!await _refresh()) throw expired;
+        return await api.request(path,
+            method: method, accessToken: _accessToken);
+      }
+    } on ApiFailure catch (error) {
+      if (error.status != 401) rethrow;
+      _accessToken = null;
+      await store.clearRefreshToken();
+      throw expired;
+    }
+  }
+
+  Future<List<AccountSession>> sessions() => _serialized(() async {
+        final result = await _sessionRequest('/me/sessions');
+        final items = result['items'];
+        if (items is! List || items.length > 40) {
+          throw const FormatException('Invalid session list');
+        }
+        return items.map(AccountSession.fromJson).toList(growable: false);
+      });
+
+  Future<void> revokeSession(String id) => _serialized(() async {
+        if (!isApiId(id)) {
+          throw const FormatException('Invalid session identifier');
+        }
+        await _sessionRequest('/me/sessions/$id', method: 'DELETE');
+      });
 
   @override
   Future<UiResult> execute(UiRequest request) =>
@@ -102,6 +151,12 @@ class LiveAccountRepository implements AccountRepository {
           });
           return const UiResult.success(
               message: 'Check your email for a verification code.');
+        case UiOperation.requestCode:
+          await api.request('/auth/verification/resend', method: 'POST', body: {
+            'email': fields['Email address'] ?? '',
+          });
+          return const UiResult.success(
+              message: 'If eligible, you will receive a new code by email.');
         case UiOperation.verifyEmail:
           await api.request('/auth/verify',
               method: 'POST', body: {'code': fields['verificationCode'] ?? ''});

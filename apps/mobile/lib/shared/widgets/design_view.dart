@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../../core/presentation/design_node.dart';
 import '../../core/theme/kolovibe_theme.dart';
 import '../../features/shell/screen_controller.dart';
+import 'brand_header.dart';
 
 typedef DesignAction = void Function(String action);
 
@@ -48,6 +49,18 @@ class DesignView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (node.name == 'KoloVibe wordmark' || node.name == 'Brand') {
+      final darkBackground = node.descendants.any(
+        (child) => child.kind == 'text' && child.style['color'] == 0xffffffff,
+      );
+      return BrandHeader(darkBackground: darkBackground);
+    }
+    if (node.name == 'Brand emblem') {
+      return Image.asset('assets/images/logo.png',
+          width: node.dimension('width') ?? 35,
+          height: node.dimension('height') ?? 35,
+          semanticLabel: 'KoloVibe logo');
+    }
     if (node.name == 'Primary navigation') return const SizedBox.shrink();
     if (node.name == 'Form field') return _field(context);
     if (node.name == 'Verification code') {
@@ -63,7 +76,8 @@ class DesignView extends StatelessWidget {
         style: const TextStyle(fontSize: 16),
         onChanged: (v) => controller.update('verificationCode', v),
         validator: (v) => v != null && v.length >= 32
-            ? null : 'Enter the verification code from your email.',
+            ? null
+            : 'Enter the verification code from your email.',
       );
     }
     if (node.name == 'Report text area') {

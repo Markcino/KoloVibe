@@ -60,6 +60,34 @@ paths:
               $ref: '#/components/schemas/RegisterRequest'
       security: []
       description: Creates an inactive local account and sends a single-use verification code. Requires configured mail delivery.
+  /auth/verification/resend:
+    post:
+      tags: [Identity]
+      operationId: resendEmailVerification
+      summary: Request another email verification code
+      description: The response is identical for unknown, verified, or throttled addresses. Eligible requests replace the previous code with a two-minute resend cooldown.
+      x-implementation: local
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  maxLength: 254
+      responses:
+        '204':
+          description: Request accepted without disclosing delivery or account state
+        '400':
+          description: Invalid email or request body
+        '503':
+          $ref: '#/components/responses/LocalUnavailable'
   /auth/verify:
     post:
       tags: [Identity]
@@ -225,6 +253,60 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           description: Unexpected server error; no internal details exposed
+  /me/sessions:
+    get:
+      tags: [Identity]
+      operationId: listMySessions
+      summary: List up to 40 most recent active sessions for the signed-in account
+      x-implementation: local
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: Active sessions without credentials
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    maxItems: 40
+                    items:
+                      type: object
+                      required: [id, created_at, expires_at, current]
+                      properties:
+                        id: {type: string, format: uuid}
+                        created_at: {type: string, format: date-time}
+                        expires_at: {type: string, format: date-time}
+                        current: {type: boolean}
+        '503':
+          $ref: '#/components/responses/LocalUnavailable'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /me/sessions/{session_id}:
+    delete:
+      tags: [Identity]
+      operationId: revokeMySession
+      summary: Revoke another active session for the signed-in account
+      x-implementation: local
+      security: [{bearerAuth: []}]
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      responses:
+        '204':
+          description: Session revoked
+        '503':
+          $ref: '#/components/responses/LocalUnavailable'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Session unavailable to this account
+        '409':
+          description: Use sign out to end the current session
   /me:
     get:
       tags:
@@ -400,6 +482,50 @@ paths:
         '401': {description: Missing or invalid session}
         '403': {description: Role or creator eligibility requirements not met}
         '503': {description: Required service unavailable}
+  /creators/search:
+    get:
+      tags:
+      - Creators
+      operationId: searchCreators
+      summary: Search reviewed active creator handles
+      description: Case-insensitive substring search. Reuse the same query for each page.
+      x-implementation: local
+      security: []
+      parameters:
+      - name: q
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 100
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Up to 20 matching profiles in ascending identifier order
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items, next_cursor]
+                properties:
+                  items:
+                    type: array
+                    maxItems: 20
+                    items:
+                      $ref: '#/components/schemas/Creator'
+                  next_cursor:
+                    type: [string, 'null']
+                    format: uuid
+        '400':
+          description: Invalid query or cursor
+        '503':
+          $ref: '#/components/responses/LocalUnavailable'
   /creators/{creator_id}:
     get:
       tags:
@@ -549,6 +675,14 @@ paths:
         schema:
           type: string
           format: uuid
+      - name: q
+        in: query
+        description: Case-insensitive substring in the title or description of published videos. Reuse the same filters when paginating.
+        required: false
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 100
       - name: creator_id
         in: query
         required: false

@@ -42,6 +42,28 @@ class PublicVideoTests(TestCase):
         self.assertEqual(self.client.get(reverse("video_detail", args=[private.id])).status_code, 404)
         self.assertEqual(self.client.get(reverse("video_detail", args=[public.id])).status_code, 200)
 
+    def test_search_matches_description_without_exposing_private_videos(self):
+        self.make_video(title="River")
+        public = self.make_video(
+            description="A river story",
+            state=Video.State.PUBLISHED,
+            visibility=Video.Visibility.PUBLIC,
+            provider_asset_id=str(uuid.uuid4()),
+            moderation_approved_at=timezone.now(),
+        )
+        request = RequestFactory().post(
+            "/internal/videos", data=json.dumps({"q": " RIVER "}),
+            content_type="application/json",
+        )
+        response = internal_list_videos(request)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [item["id"] for item in json.loads(response.content)["items"]],
+            [str(public.id)],
+        )
+        response = self.client.get(reverse("videos"), {"q": " "})
+        self.assertEqual(response.status_code, 400)
+
     def test_database_rejects_publication_without_approval_and_media(self):
         with self.assertRaises(IntegrityError):
             self.make_video(state=Video.State.PUBLISHED, visibility=Video.Visibility.PUBLIC)

@@ -36,6 +36,10 @@ Current code supports local account APIs, approved-public video and creator meta
 | 7. Restricted API test wave | Permit a small tester cohort. Start with `GET /api/v1/videos` and `GET /api/v1/creators/{id}`; empty and 404 are valid without approved records. Django-native identity selection alone does not enable accounts: registration/login require real SMTP, verified ADR-013 session/MFA implementation, rate limits and secure transport. Enable remaining R1 endpoints only after their owner-approved rules and audit evidence. | Endpoint matrix records success, empty, 401/403/404/429/503, replay and cross-account cases; no seeded password or demo account. |
 | 8. Operational acceptance | Add request correlation, redacted logs, alerts, backup monitoring, capacity/load measurements, incident procedure, and a rollback and restore drill. Recheck mobile Android/iOS against the staging HTTPS hostname. | INF-07–INF-10 evidence, signed security/product acceptance and pilot go/no-go record. |
 
+## Creator search staging gate
+
+The local gateway supports `GET /api/v1/creators/search?q=…` via the signed Creators search route. Before AWS staging activation, review the gateway ingress and private service allowlists, verify search rate limits, and record cursor and restricted-profile checks against the promoted candidate. Local tests do not establish deployed acceptance.
+
 ## Immediate API test contract
 
 The first externally reachable staging cut should be read-only. It may return an empty video list and 404 for unknown creators. Do not turn an empty database into sample content. Account testing requires a configured SMTP sender and newly registered tester accounts; the application contains no test credential. The current mobile debug build can use a configured loopback gateway; device/staging builds must use a verified HTTPS gateway URL ending in `/api/v1`.

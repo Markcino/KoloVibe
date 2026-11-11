@@ -18,6 +18,28 @@
 
 See the [API test deployment roadmap](API_Test_Deployment_Roadmap.md) for deployment sequencing and earlier environment evidence. No demo data or fixed credential is part of the application.
 
+## Video search integration
+
+Flutter Explore sends a title or description search to `GET /api/v1/videos?q=…`. Gateway validates the query and Content applies it to approved public records before pagination. This implements the video search path toward M-021, M-022 and M-098. Creator search, the full search filter interface, and staging device acceptance remain open.
+
+Local verification: 12 Content video tests, 9 Gateway video tests, and Flutter discovery analysis passed. Tests cover private draft exclusion, query normalization, and invalid inputs.
+
+## Reviewed creator search
+
+Flutter Explore links to creator handle search through `GET /api/v1/creators/search`. Gateway forwards signed requests to Creators. Results include only reviewed active profiles and support cursor pagination and profile navigation. This advances M-021, M-022, M-026 and M-098. The combined search filters and deployed device acceptance remain open.
+
+Local checks passed for four Creators profile tests, three Gateway creator tests, and Flutter analysis of the affected code. Tests cover private service authentication, pending and restricted profile exclusion, pagination, and rejected upstream results.
+
+## Verification resend
+
+Flutter verification links to the resend email form. The local gateway forwards `POST /api/v1/auth/verification/resend` to Identity. The response does not disclose account or delivery status. Identity applies a two-minute cooldown, replaces the prior code after successful delivery, and records the resend in the audit outbox. AWS staging remains closed for this route pending edge throttling and SMTP acceptance.
+
+Local checks passed for resend and registration verification in Identity, the Gateway account suite, and Flutter analysis of the affected account and shell code.
+
+## Active sessions
+
+M-083 opens from Flutter My account. The local gateway lists the 40 most recent active sessions for the bearer account and supports revoking another session owned by that account. Responses omit credentials. Identity rejects both access and refresh credentials for a revoked session and records the action in the audit outbox. The current session still uses sign out. Staging activation and device acceptance remain open.
+
 ## AWS staging acceptance on 10 November 2026
 
 | Check | Status | Evidence and next action |

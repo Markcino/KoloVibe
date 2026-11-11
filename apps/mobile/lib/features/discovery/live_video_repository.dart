@@ -36,13 +36,15 @@ class LiveVideoRepository {
 
   Future<List<LiveVideo>> list() async => (await page()).items;
 
-  Future<LiveVideoPage> page({String? cursor, String? creatorId}) async {
+  Future<LiveVideoPage> page(
+      {String? cursor, String? creatorId, String? query}) async {
     if (cursor != null && !isApiId(cursor) ||
         creatorId != null && !isApiId(creatorId)) {
       throw const FormatException('Invalid video filter');
     }
     final response = await api.request('/videos', query: {
       if (cursor != null) 'cursor': cursor,
+      if (query != null) 'q': query,
       if (creatorId != null) 'creator_id': creatorId,
     });
     final items = response['items'];

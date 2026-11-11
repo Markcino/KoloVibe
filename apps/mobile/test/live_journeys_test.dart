@@ -13,7 +13,8 @@ class VideoPages extends LiveVideoRepository {
   final Future<LiveVideoPage> Function(String?) fetch;
 
   @override
-  Future<LiveVideoPage> page({String? cursor, String? creatorId}) =>
+  Future<LiveVideoPage> page(
+          {String? cursor, String? creatorId, String? query}) =>
       fetch(cursor);
 }
 

@@ -18,8 +18,9 @@ from django.contrib.auth import authenticate
 from django.core import signing
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
+from django.core.validators import validate_email
 from django.db import IntegrityError, transaction
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -89,6 +90,50 @@ def _throttle_key(email, origin):
     return _digest("login\0" + email + "\0" + origin)
 
 
+def _send_verification(account, now):
+    raw = secrets.token_urlsafe(48)
+    EmailVerification.objects.create(
+        digest=_digest(raw), account=account,
+        expires_at=now + timedelta(hours=VERIFY_HOURS),
+    )
+    send_mail("Verify your KoloVibe account",
+              "Your verification code: " + raw,
+              settings.DEFAULT_FROM_EMAIL, [account.email], fail_silently=False)
+
+
+@require_POST
+def resend_verification(request):
+    try:
+        data = _body(request, {"email"})
+        email = data.get("email")
+        if not isinstance(email, str) or len(email) > 254:
+            raise ValueError
+        email = email.strip().casefold()
+        validate_email(email)
+    except (ValueError, ValidationError):
+        return _error("Invalid email address")
+    if not settings.EMAIL_HOST or not settings.DEFAULT_FROM_EMAIL:
+        return _error("Email delivery unavailable", 503)
+    try:
+        with transaction.atomic():
+            account = Account.objects.select_for_update().filter(
+                email=email, is_active=False, email_verified_at__isnull=True,
+            ).first()
+            if account is not None:
+                now = timezone.now()
+                codes = EmailVerification.objects.filter(account=account)
+                recent = codes.filter(
+                    expires_at__gt=now + timedelta(hours=VERIFY_HOURS, minutes=-2),
+                )
+                if codes.exists() and not recent.exists():
+                    codes.filter(used_at__isnull=True).update(used_at=now)
+                    _send_verification(account, now)
+                    record("account.verification_resent", account.id)
+    except (smtplib.SMTPException, OSError):
+        logger.error("Verification resend email delivery failed")
+    return HttpResponse(status=204)
+
+
 @require_POST
 def register(request):
     try:
@@ -102,14 +147,7 @@ def register(request):
             account = Account.objects.create_user(email, password, display_name)
             account.is_active = False
             account.save(update_fields=["is_active"])
-            raw = secrets.token_urlsafe(48)
-            EmailVerification.objects.create(
-                digest=_digest(raw), account=account,
-                expires_at=timezone.now() + timedelta(hours=VERIFY_HOURS),
-            )
-            send_mail("Verify your KoloVibe account",
-                      "Your verification code: " + raw,
-                      settings.DEFAULT_FROM_EMAIL, [account.email], fail_silently=False)
+            _send_verification(account, timezone.now())
             record("account.registered", account.id)
     except (KeyError, ValueError, ValidationError, json.JSONDecodeError):
         return _error("Invalid registration")
@@ -129,16 +167,22 @@ def verify_email(request):
         if not isinstance(raw, str) or not 32 <= len(raw) <= 128:
             raise ValueError("Invalid code")
         with transaction.atomic():
-            verification = EmailVerification.objects.select_for_update().select_related("account").filter(
-                digest=_digest(raw), used_at__isnull=True, expires_at__gt=timezone.now()).first()
-            if verification is None:
+            digest = _digest(raw)
+            account_id = EmailVerification.objects.filter(digest=digest).values_list(
+                "account_id", flat=True,
+            ).first()
+            account = Account.objects.select_for_update().filter(
+                pk=account_id, is_active=False, email_verified_at__isnull=True,
+            ).first()
+            now = timezone.now()
+            if account is None or not EmailVerification.objects.filter(
+                digest=digest, account=account, used_at__isnull=True, expires_at__gt=now,
+            ).update(used_at=now):
                 return _error("Invalid or expired verification", 400)
-            verification.used_at = timezone.now()
-            verification.save(update_fields=["used_at"])
-            verification.account.is_active = True
-            verification.account.email_verified_at = verification.used_at
-            verification.account.save(update_fields=["is_active", "email_verified_at"])
-            record("account.verified", verification.account_id)
+            account.is_active = True
+            account.email_verified_at = now
+            account.save(update_fields=["is_active", "email_verified_at"])
+            record("account.verified", account.id)
     except (KeyError, ValueError, json.JSONDecodeError):
         return _error("Invalid verification")
     return JsonResponse({"verified": True})
@@ -244,6 +288,38 @@ def validate_access(request):
     if include_verification:
         result["email_verified"] = session.account.email_verified_at is not None
     return JsonResponse(result)
+
+
+@require_POST
+def manage_sessions(request):
+    try:
+        data = _body(request, {"access_token", "session_id"})
+        token = data.get("access_token")
+        if not isinstance(token, str):
+            raise ValueError
+        target = uuid.UUID(data["session_id"]) if "session_id" in data else None
+    except (ValueError, TypeError, AttributeError):
+        return _error("Invalid session request")
+    current = _session_for_access(token)
+    if current is None:
+        return _error("Invalid session", 401)
+    now = timezone.now()
+    sessions = LoginSession.objects.filter(
+        account_id=current.account_id, revoked_at__isnull=True, expires_at__gt=now,
+    )
+    if target is None:
+        return JsonResponse({"items": [
+            {"id": str(session.id), "created_at": session.created_at.isoformat(),
+             "expires_at": session.expires_at.isoformat(), "current": session.id == current.id}
+            for session in sessions.order_by("-created_at", "-id")[:40]
+        ]})
+    if target == current.id:
+        return _error("Use sign out to end this session", 409)
+    with transaction.atomic():
+        if not sessions.filter(pk=target).update(revoked_at=now):
+            return _error("Session not found", 404)
+        record("session.revoked", current.account_id)
+    return HttpResponse(status=204)
 
 
 @require_POST
