@@ -59,7 +59,7 @@ class PilotGatewayTests(SimpleTestCase):
     @patch("service.pilot_points.creator_ownership")
     def test_points_rejects_foreign_creator_and_client_account_override(self, ownership):
         ownership.return_value = JsonResponse({"creator_id": self.creator, "upload_eligible": True})
-        expected = {"creator_id": self.creator, "balance": 5, "currency": "POINTS", "as_of": self.expires}
+        expected = {"creator_id": self.creator, "balance": 5, "confirmed": 5, "pending": 0, "withheld": 0, "reversed": 0, "currency": "POINTS", "as_of": self.expires}
         self.as_peer(expected)
         request = self.factory.get("/points")
         self.assertEqual(json.loads(creator_points(request, "balance").content), expected)
