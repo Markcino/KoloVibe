@@ -4,9 +4,11 @@ from django.urls import path
 
 def patterns():
     from .. import accounts
+    from ..compatibility import compatibility
     from ..preferences_privacy import preferences, privacy_requests
 
     return [
+        path("api/v1/app/compatibility", compatibility, name="app-compatibility"),
         path("api/v1/auth/register", accounts.register, name="register"),
         path("api/v1/auth/verification/resend", accounts.resend_verification, name="verification-resend"),
         path("api/v1/auth/verify", accounts.verify_email, name="verify"),
@@ -18,6 +20,7 @@ def patterns():
         path("api/v1/auth/logout", accounts.logout, name="logout"),
         path("api/v1/me/sessions", accounts.sessions, name="account-sessions"),
         path("api/v1/me/password", accounts.change_password, name="change-password"),
+        path("api/v1/me/reauthenticate", accounts.reauthenticate, name="reauthenticate"),
         path("api/v1/me/preferences", preferences, name="account-preferences"),
         path("api/v1/me/privacy-requests", privacy_requests, name="account-privacy-requests"),
         path("api/v1/me/sessions/<uuid:session_id>", accounts.revoke_session, name="revoke-account-session"),

@@ -10,6 +10,14 @@ from service.models import SecurityEvent
 
 
 class SecurityEventTests(TestCase):
+    def test_identity_settings_security_kinds_are_accepted_idempotently(self):
+        for kind in ("account.preferences_updated", "account.privacy_request_received",
+                     "account.reauthenticated", "account.reauthentication_failed",
+                     "account.reauthentication_throttled", "session.listed"):
+            payload = {**self.payload, "id": str(uuid.uuid4()), "kind": kind}
+            self.assertEqual(self.send(payload).status_code, 201)
+            self.assertEqual(self.send(payload).status_code, 200)
+
     def setUp(self):
         self.factory = RequestFactory()
         self.payload = {"id": str(uuid.uuid4()), "actor_id": str(uuid.uuid4()),

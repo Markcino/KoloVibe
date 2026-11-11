@@ -19,7 +19,7 @@ def _checked(result, kind):
                     or any(type(value) is not bool for value in data.values())):
                 raise ValueError
         elif kind == "list":
-            if set(data) != {"items"} or not isinstance(data["items"], list) or len(data["items"]) > 2:
+            if set(data) != {"items"} or not isinstance(data["items"], list) or len(data["items"]) > 40:
                 raise ValueError
             data = {"items": [_checked_receipt(item) for item in data["items"]]}
         else:
@@ -32,7 +32,7 @@ def _checked(result, kind):
 def _checked_receipt(item):
     if (not isinstance(item, dict) or set(item) != {"id", "kind", "status", "created_at"}
             or item["kind"] not in {"access", "deletion"}
-            or item["status"] != "received"
+            or item["status"] not in {"received", "in_review", "completed", "declined"}
             or not isinstance(item["created_at"], str)
             or len(item["created_at"]) > 64):
         raise ValueError
@@ -69,14 +69,16 @@ def privacy_requests(request):
     data = {"access_token": token, "operation": "list"}
     if request.method == "POST":
         try:
-            fields = _body(request, {"kind", "current_password"})
-            if (set(fields) != {"kind", "current_password"}
-                    or fields["kind"] not in {"access", "deletion"}
-                    or not isinstance(fields["current_password"], str)
-                    or not 1 <= len(fields["current_password"]) <= 128):
+            fields = _body(request, {"kind", "current_password", "reauth_token"})
+            if (fields["kind"] not in {"access", "deletion"}
+                    or not ({"reauth_token", "current_password"} & set(fields))):
                 raise ValueError
+            for field, minimum in (("current_password", 1), ("reauth_token", 32)):
+                if field in fields and (not isinstance(fields[field], str)
+                                        or not minimum <= len(fields[field]) <= 128):
+                    raise ValueError
         except (ValueError, KeyError, TypeError, UnicodeError):
             return _json({"detail": "Invalid privacy request"}, 400)
         data.update(operation="create", **fields)
-        return _checked(_invoke("/internal/auth/privacy-requests", data, {200, 201}), "receipt")
+        return _checked(_invoke("/internal/auth/privacy-requests", data, {201}), "receipt")
     return _checked(_invoke("/internal/auth/privacy-requests", data, {200}), "list")

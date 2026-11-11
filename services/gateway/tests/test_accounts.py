@@ -1,7 +1,9 @@
 import json
 import secrets
 import uuid
+from io import BytesIO
 from unittest.mock import patch
+from urllib.error import HTTPError
 
 from django.test import SimpleTestCase
 from django.urls import reverse
@@ -23,6 +25,60 @@ class Response:
 
 
 class AccountGatewayTests(SimpleTestCase):
+    def test_reauthentication_requires_bearer_and_only_forwards_current_password(self):
+        path = reverse("reauthenticate")
+        auth = {"HTTP_AUTHORIZATION": "Bearer current-session"}
+        password = secrets.token_urlsafe(32)
+        proof = {"reauth_token": secrets.token_urlsafe(48), "expires_at": "2026-11-11T12:05:00+00:00"}
+        with patch("service.accounts.signed_internal_request") as call:
+            self.assertEqual(self.post("reauthenticate", {"current_password": password}).status_code, 401)
+            for data in ({}, {"current_password": None}, {"current_password": ""},
+                         {"current_password": "x" * 129}, {"current_password": password, "account_id": "other"}):
+                self.assertEqual(self.post("reauthenticate", data, **auth).status_code, 400)
+            call.assert_not_called()
+            call.return_value = Response(200, json.dumps(proof).encode())
+            response = self.post("reauthenticate", {"current_password": password}, **auth)
+            self.assertEqual(response.json(), proof)
+            self.assertIn("no-store", response.headers["Cache-Control"])
+            self.assertEqual(call.call_args.args, ("identity", "/internal/auth/reauthenticate"))
+            self.assertEqual(json.loads(call.call_args.kwargs["payload"]), {
+                "access_token": "current-session", "current_password": password})
+            self.assertEqual(self.client.get(path, **auth).status_code, 405)
+
+    def test_reauthentication_preserves_generic_errors_and_429_and_checks_response(self):
+        auth = {"HTTP_AUTHORIZATION": "Bearer current-session"}
+        with patch("service.accounts.signed_internal_request") as call:
+            for status, detail in ((400, "Reauthentication failed"), (429, "Too many attempts")):
+                call.side_effect = HTTPError("https://identity.invalid/internal", status, "", {},
+                                             BytesIO(json.dumps({"detail": detail}).encode()))
+                response = self.post("reauthenticate", {"current_password": "entered"}, **auth)
+                self.assertEqual(response.status_code, status)
+                self.assertEqual(response.json(), {"detail": detail})
+            call.side_effect = None
+            for data in ({"reauth_token": "short", "expires_at": "2026-11-11T00:00:00Z"},
+                         {"reauth_token": "x" * 64, "expires_at": "bad-date"},
+                         {"reauth_token": "x" * 64, "expires_at": "2026-11-11T00:00:00"},
+                         {"reauth_token": "x" * 64, "expires_at": "2026-11-11T00:00:00Z", "password": "leak"}):
+                call.return_value = Response(200, json.dumps(data).encode())
+                self.assertEqual(self.post("reauthenticate", {"current_password": "entered"}, **auth).status_code, 503)
+
+    def test_protected_requests_revalidate_session_every_time_and_fail_closed(self):
+        auth = {"HTTP_AUTHORIZATION": "Bearer same-unexpired-access-token"}
+        user = {"id": str(uuid.uuid4()), "email": "viewer@example.test", "display_name": "Viewer",
+                "roles": ["viewer"], "created_at": "2026-11-11T12:00:00Z"}
+        with patch("service.accounts.signed_internal_request") as call:
+            call.side_effect = [Response(200, json.dumps({"user": user, "session_id": "current"}).encode()),
+                                HTTPError("https://identity.invalid/internal", 401, "", {},
+                                          BytesIO(b'{"detail":"Invalid session"}')),
+                                OSError("unavailable")]
+            self.assertEqual(self.client.get(reverse("me"), **auth).status_code, 200)
+            self.assertEqual(self.client.get(reverse("me"), **auth).status_code, 401)
+            self.assertEqual(self.client.get(reverse("me"), **auth).status_code, 503)
+            self.assertEqual(call.call_count, 3)
+            self.assertTrue(all(args.args == ("identity", "/internal/auth/validate") for args in call.call_args_list))
+            self.assertTrue(all(json.loads(args.kwargs["payload"]) == {
+                "access_token": "same-unexpired-access-token"} for args in call.call_args_list))
+
     def test_profile_update_forwards_only_display_name(self):
         account = {"id": "00000000-0000-4000-8000-000000000001",
                    "email": "viewer@example.test", "display_name": "New Name",

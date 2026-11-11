@@ -63,6 +63,11 @@ def environment_for(service: str, values: dict[str, str]) -> dict[str, str]:
         env["KOLOVIBE_RABBITMQ_URL"] = values[prefix + "RABBITMQ_URL"]
     gateway_key = values.get("KOLOVIBE_GATEWAY_OUTBOUND_KEY", "")
     if service == "gateway":
+        for platform in ("IOS", "ANDROID"):
+            for field in ("MIN_VERSION", "LATEST_VERSION", "STORE_URL"):
+                name = f"KOLOVIBE_APP_{field}_{platform}"
+                if name in values:
+                    env[name] = values[name]
         if len(gateway_key) >= 32:
             env["KOLOVIBE_GATEWAY_OUTBOUND_KEY"] = gateway_key
         for name in ("identity", "content", "creators", "engagement"):

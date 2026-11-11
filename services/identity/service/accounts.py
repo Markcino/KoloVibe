@@ -25,7 +25,8 @@ from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from .models import Account, EmailVerification, LoginSession, LoginThrottle, PasswordReset, UsedRefreshToken
+from .models import (Account, EmailVerification, LoginSession, LoginThrottle, PasswordReset,
+                     ReauthenticationToken, UsedRefreshToken)
 from .mfa import challenge, privileged_enabled, session_allowed
 from .security_audit import record
 
@@ -36,6 +37,7 @@ RESET_MINUTES = 30
 LOGIN_LIMIT = 5
 LOGIN_WINDOW = timedelta(minutes=15)
 ACCESS_SALT = "kolovibe.identity.access.v1"
+REAUTH_SECONDS = 300
 logger = logging.getLogger(__name__)
 
 
@@ -86,6 +88,75 @@ def _session_for_access(token):
         expires_at__gt=now, account__is_active=True,
     ).first()
     return session if session is not None and session_allowed(session) else None
+
+
+def _locked_account(session):
+    """Serialize account mutations and recheck session state after taking locks."""
+    account = Account.objects.select_for_update().get(pk=session.account_id)
+    if not account.is_active or not LoginSession.objects.select_for_update().filter(
+        pk=session.id, account=account, revoked_at__isnull=True,
+        expires_at__gt=timezone.now(),
+    ).exists():
+        return None
+    session.account = account
+    return account if session_allowed(session) else None
+
+
+def _reauthenticate_password(account, password):
+    """Account-wide budget for reauthentication, privacy and password changes.
+
+    Count successful attempts too, so token issuance is bounded across sessions.
+    The account lock serializes throttle creation and consumption.
+    """
+    now = timezone.now()
+    throttle, _ = LoginThrottle.objects.select_for_update().get_or_create(
+        key=_digest("reauth\0" + str(account.id)), defaults={"window_started_at": now})
+    if now - throttle.window_started_at >= LOGIN_WINDOW:
+        throttle.failures = 0
+        throttle.window_started_at = now
+    if throttle.failures >= LOGIN_LIMIT:
+        record("account.reauthentication_throttled", account.id)
+        return _error("Too many attempts", 429)
+    throttle.failures += 1
+    throttle.save(update_fields=["failures", "window_started_at"])
+    if not account.check_password(password):
+        record("account.reauthentication_failed", account.id)
+        return _error("Reauthentication failed")
+    return None
+
+
+def _consume_reauthentication(account, session, raw):
+    now = timezone.now()
+    return ReauthenticationToken.objects.filter(
+        digest=_digest("reauth:" + raw), account=account, session=session,
+        used_at__isnull=True, expires_at__gt=now,
+    ).update(used_at=now) == 1
+
+
+@require_POST
+def reauthenticate(request):
+    try:
+        data = _body(request, {"access_token", "current_password"})
+        token, password = data["access_token"], data["current_password"]
+        if (not isinstance(token, str) or not isinstance(password, str)
+                or not 1 <= len(password) <= 128):
+            raise ValueError
+    except (KeyError, ValueError, UnicodeError):
+        return _error("Reauthentication failed")
+    with transaction.atomic():
+        session = _session_for_access(token)
+        account = _locked_account(session) if session is not None else None
+        if account is None:
+            return _error("Invalid session", 401)
+        error = _reauthenticate_password(account, password)
+        if error is not None:
+            return error
+        raw = secrets.token_urlsafe(48)
+        expires_at = timezone.now() + timedelta(seconds=REAUTH_SECONDS)
+        ReauthenticationToken.objects.create(
+            digest=_digest("reauth:" + raw), account=account, session=session, expires_at=expires_at)
+        record("account.reauthenticated", account.id)
+    return JsonResponse({"reauth_token": raw, "expires_at": expires_at.isoformat()})
 
 
 def _throttle_key(email, origin):
@@ -228,7 +299,7 @@ def request_password_reset(request):
                     record("account.password_reset_requested", account.id)
     except (smtplib.SMTPException, OSError):
         logger.error("Password reset email delivery failed")
-        return _error("Email delivery unavailable", 503)
+        # Delivery errors must not disclose that this address has an account.
     return HttpResponse(status=204)
 
 
@@ -260,6 +331,7 @@ def reset_password(request):
             account.set_password(password)
             account.save(update_fields=["password"])
             LoginSession.objects.filter(account=account, revoked_at__isnull=True).update(revoked_at=now)
+            ReauthenticationToken.objects.filter(account=account, used_at__isnull=True).update(used_at=now)
             record("account.password_reset", account.id)
     except (KeyError, ValueError, ValidationError, json.JSONDecodeError):
         return _error("Invalid password or reset code")
@@ -280,19 +352,19 @@ def change_password(request):
             session = _session_for_access(token)
             if session is None:
                 return _error("Invalid session", 401)
-            account = Account.objects.select_for_update().get(pk=session.account_id)
-            if not LoginSession.objects.select_for_update().filter(
-                pk=session.id, revoked_at__isnull=True,
-                expires_at__gt=timezone.now(),
-            ).exists():
+            account = _locked_account(session)
+            if account is None:
                 return _error("Invalid session", 401)
-            if not account.check_password(current):
-                return _error("Invalid current password", 401)
+            error = _reauthenticate_password(account, current)
+            if error is not None:
+                return error
             validate_password(password, user=account)
             now = timezone.now()
             account.set_password(password)
             account.save(update_fields=["password"])
-            LoginSession.objects.filter(account=account, revoked_at__isnull=True).update(revoked_at=now)
+            LoginSession.objects.filter(account=account, revoked_at__isnull=True).exclude(
+                pk=session.id).update(revoked_at=now)
+            ReauthenticationToken.objects.filter(account=account, used_at__isnull=True).update(used_at=now)
             record("account.password_changed", account.id)
     except (KeyError, ValueError, ValidationError, json.JSONDecodeError):
         return _error("Invalid password change")
@@ -313,11 +385,8 @@ def update_profile(request):
             session = _session_for_access(token)
             if session is None:
                 return _error("Invalid session", 401)
-            account = Account.objects.select_for_update().get(pk=session.account_id)
-            if not LoginSession.objects.select_for_update().filter(
-                pk=session.id, revoked_at__isnull=True,
-                expires_at__gt=timezone.now(),
-            ).exists():
+            account = _locked_account(session)
+            if account is None:
                 return _error("Invalid session", 401)
             account.display_name = name
             account.save(update_fields=["display_name"])
@@ -446,15 +515,19 @@ def manage_sessions(request):
     sessions = LoginSession.objects.filter(
         account_id=current.account_id, revoked_at__isnull=True, expires_at__gt=now,
     )
-    if target is None:
-        return JsonResponse({"items": [
-            {"id": str(session.id), "created_at": session.created_at.isoformat(),
-             "expires_at": session.expires_at.isoformat(), "current": session.id == current.id}
-            for session in sessions.order_by("-created_at", "-id")[:40]
-        ]})
-    if target == current.id:
-        return _error("Use sign out to end this session", 409)
     with transaction.atomic():
+        if _locked_account(current) is None:
+            return _error("Invalid session", 401)
+        if target is None:
+            items = [
+                {"id": str(session.id), "created_at": session.created_at.isoformat(),
+                 "expires_at": session.expires_at.isoformat(), "current": session.id == current.id}
+                for session in sessions.order_by("-created_at", "-id")[:40]
+            ]
+            record("session.listed", current.account_id)
+            return JsonResponse({"items": items})
+        if target == current.id:
+            return _error("Use sign out to end this session", 409)
         if not sessions.filter(pk=target).update(revoked_at=now):
             return _error("Session not found", 404)
         record("session.revoked", current.account_id)
@@ -486,4 +559,4 @@ def revoke(request):
     with transaction.atomic():
         LoginSession.objects.filter(pk=session.id).update(revoked_at=timezone.now())
         record("session.revoked", session.account_id)
-    return JsonResponse({}, status=204)
+    return HttpResponse(status=204)

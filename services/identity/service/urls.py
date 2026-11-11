@@ -15,6 +15,7 @@ urlpatterns = [
     path("internal/auth/password/reset", accounts.reset_password, name="internal-reset-password"),
     path("internal/auth/password/change", accounts.change_password, name="internal-change-password"),
     path("internal/auth/profile", accounts.update_profile, name="internal-update-profile"),
+    path("internal/auth/reauthenticate", accounts.reauthenticate, name="internal-reauthenticate"),
     path("internal/auth/preferences", preferences, name="internal-preferences"),
     path("internal/auth/privacy-requests", privacy_requests, name="internal-privacy-requests"),
     path("internal/auth/login", accounts.login, name="internal-login"),

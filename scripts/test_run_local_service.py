@@ -11,6 +11,19 @@ from run_local_service import environment_for, read_local_env
 
 
 class LocalEnvironmentTests(unittest.TestCase):
+    def test_app_compatibility_configuration_is_forwarded_only_to_gateway(self):
+        values = {f"KOLOVIBE_{service.upper()}_DJANGO_SECRET_KEY": secrets.token_urlsafe(48)
+                  for service in ("gateway", "identity")}
+        config = {f"KOLOVIBE_APP_{field}_{platform}": value
+                  for platform in ("IOS", "ANDROID")
+                  for field, value in (("MIN_VERSION", "1.0.0"), ("LATEST_VERSION", "1.1.0"),
+                                       ("STORE_URL", "https://store.example.test/app"))}
+        values.update(config)
+        gateway = environment_for("gateway", values)
+        identity = environment_for("identity", values)
+        self.assertEqual({key: gateway[key] for key in config}, config)
+        self.assertFalse(set(config) & set(identity))
+
     def test_database_configuration_is_scoped_and_complete(self):
         values = {"KOLOVIBE_IDENTITY_DJANGO_SECRET_KEY": secrets.token_urlsafe(48)}
         values["KOLOVIBE_IDENTITY_DB_PORT"] = "5432"

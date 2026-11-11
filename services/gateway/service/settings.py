@@ -52,6 +52,20 @@ else:
         "NAME": BASE_DIR / "local.sqlite3",
     }}
 KOLOVIBE_SERVICE_NAME = "gateway"
+from .compatibility import validate_configuration
+
+APP_COMPATIBILITY = {
+    "ios": validate_configuration(
+        os.environ.get("KOLOVIBE_APP_MIN_VERSION_IOS"),
+        os.environ.get("KOLOVIBE_APP_LATEST_VERSION_IOS"),
+        os.environ.get("KOLOVIBE_APP_STORE_URL_IOS"),
+    ),
+    "android": validate_configuration(
+        os.environ.get("KOLOVIBE_APP_MIN_VERSION_ANDROID"),
+        os.environ.get("KOLOVIBE_APP_LATEST_VERSION_ANDROID"),
+        os.environ.get("KOLOVIBE_APP_STORE_URL_ANDROID"),
+    ),
+}
 USE_TZ = True
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 if ENVIRONMENT == "staging":
