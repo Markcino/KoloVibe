@@ -122,3 +122,57 @@ All recipes: `apps/mobile/assets/design/`. Shared renderer: `lib/shared/widgets/
 Production identity/session policy and password-reset flows remain gated by ADR-013. Creator verification/retention, upload/provider callbacks, qualified engagement rules, and audit retention retain their documented decision gates. Search/follow/settings/privacy-request routes require contract review where DOC-205 has no complete endpoint. No new backend endpoints were invented.
 
 Media selection, playback, sharing, device settings and store launching are interface previews in this milestone; device adapters are not connected. Privacy/legal copy is a design reference, not an approved complete published policy.
+
+
+## FL-A live binding status — 11 November 2026
+
+Historical design-capture evidence above is preserved. The following table records current account/settings/system binding, not production or device acceptance. Gap-first inspection and contracts: [FL-A acceptance](engineering/FL-A_account_settings_acceptance.md).
+
+| Screen | Mode | Endpoint (all under `/api/v1`) | Result |
+|---|---|---|---|
+| M-001 · Splash Screen | Live | POST /auth/refresh; GET /me | Restores saved session; rejected saved credentials show M-101. |
+| M-002 · Welcome Screen | Static | — | Recipe welcome routes to sign-in/register. |
+| M-003 · A world of original voices | Static | — | Recipe introduction and discovery navigation. |
+| M-004 · Sign in | Live | POST /auth/login | Typed failure navigation; passwords cleared. |
+| M-005 · Create an account | Live | POST /auth/register | Terms acknowledgment; 409 selects M-012. |
+| M-006 · Verify your email | Live | POST /auth/verify | Full delivered code; actual email context; expired/rejected code selects M-008. |
+| M-007 · Resend verification | Live | POST /auth/verification/resend | Generic eligible response; code-entry navigation. |
+| M-008 · Verification expired | Live | POST /auth/verification/resend | Request fresh code; preserves entered email. |
+| M-009 · Forgot password | Live | POST /auth/password/reset-request | Generic eligible response; reset-code form. |
+| M-010 · Reset password | Live | POST /auth/password/reset | New/confirmed password; clears local session after success. |
+| M-011 · Password reset | Live result | — | Reset completion only acknowledged after successful reset; return to sign-in. |
+| M-012 · Account already exists | Live result | — | Registration conflict; sign-in/reset/alternate-email actions. |
+| M-013 · Make it yours | Live | GET /me; PATCH /me | Saves display_name, read-only email. Optional photo action honestly unavailable. |
+| M-014 · Your voice belongs here | Static | — | Original-work/role-based creator introduction; setup/explore navigation. |
+| M-015 · Sign-in problem | Live | POST /auth/login | Generic sign-in failure and retry; recovery/register actions. |
+| M-016 · Confirm it’s you | Live | GET /me; POST /me/reauthenticate | Typed ephemeral proof returned to caller; no storage/URL/session-state token. |
+| M-079 · My account | Live | GET /me | Actual identity/roles; profile/settings/help; creator studio/points entry points. |
+| M-080 · Edit personal profile | Live | GET /me; PATCH /me | Display name save; read-only email; photo policy placeholder; discard guard. |
+| M-081 · Account settings | Live/static | GET /me | Actual account email; recipe settings/support/legal/logout/deletion navigation. |
+| M-082 · Change password | Live | PATCH /me/password | Requires current password; retains current session; explains other-session revocation. |
+| M-083 · Active sessions | Live | GET /me/sessions; DELETE /me/sessions/{id} | Current session identified; explicit confirmation; actual reload after revocation. |
+| M-084 · Privacy settings | Live/static | POST /me/reauthenticate; POST /me/privacy-requests | Data-request flow; privacy/security/deletion links. |
+| M-085 · Security settings | Live | GET /me | Read-only account email; password/session links; no invented verification flag. |
+| M-086 · Notification preferences | Live/native | GET/PATCH /me/preferences | Real email/push preferences; DeviceBridge.openAppSettings; no inferred OS permission. |
+| M-087 · Community guidelines | Static/native | — | Recipe community principles; optional configured HTTPS official link. |
+| M-088 · Terms & Privacy | Static/native | — | Recipe Terms/Privacy topics and tabs; optional configured HTTPS official links. |
+| M-089 · Help & Support | Static/native | — | Recipe help topics; optional configured HTTPS /help through DeviceBridge. |
+| M-090 · Logout confirmation | Live | GET /me; POST /auth/logout | Confirmation; secure local cleanup; welcome route; honest server-revocation uncertainty on failure. |
+| M-091 · Delete account request | Live | GET /me; POST /me/reauthenticate via M-016 | Deletion intake introduction; identity verification before confirmation. |
+| M-092 · Confirm account deletion | Live | POST /me/privacy-requests | DELETE acknowledgment plus one-use proof, or inline password→proof; intake only. |
+| M-093 · Deletion request received | Live | GET /me/privacy-requests or POST receipt | Actual deletion id/status/UTC date; duplicate open request is shown. |
+| M-094 · Privacy request received | Live | GET /me/privacy-requests or POST receipt | Actual access-request id/status/UTC date; all four statuses supported. |
+| M-095 · No Internet Connection | Live/reusable | — | ApiFailure.offline → connection state with retry. |
+| M-096 · Slow Connection | Live/reusable | — | Outstanding request exceeds 3-second UI threshold; does not invent connectivity diagnosis. |
+| M-097 · Loading Skeleton | Reusable | — | Static loading skeleton; timer disposed on completion/removal. |
+| M-098 · No search results | Reusable | — | Query-aware empty widget with edit callback; adoption by other feature owners remains separate. |
+| M-099 · Application error | Live/reusable | — | Unexpected/malformed failures; generic safe detail and retry. |
+| M-100 · Access denied | Live/reusable | — | HTTP 403 access-denied state. |
+| M-101 · Session expired | Live/reusable | POST /auth/refresh | Rejected refresh clears stored credentials; session-expired sign-in action. |
+| M-102 · Service unavailable | Live/reusable | — | HTTP 503 service-unavailable state. |
+| M-103 · Rate limit exceeded | Live/reusable | — | HTTP 429 rate-limit state; wait guidance and manual retry. |
+| M-104 · Media permission | Native/reusable | — | DeviceBridge.openAppSettings; honest unavailable result. |
+| M-105 · Unsaved Changes Warning | Native/reusable | — | PopScope unsaved-form guard; blocks departure during mutation. |
+| M-106 · Destructive-Action Confirmation | Native/reusable | — | Explicit destructive confirmation dialog, used for session revocation. |
+| M-107 · Success Notification | Native/reusable | — | Success notification after acknowledged mutation. |
+| M-108 · Application Update / Compatibility Notice | Live/native | GET /app/compatibility?platform=&version= | Installed DeviceBridge version; required blocks, available dismisses, unknown/errors never block; HTTPS store action. |
