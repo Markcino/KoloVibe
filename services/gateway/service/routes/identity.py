@@ -4,9 +4,11 @@ from django.urls import path
 
 def patterns():
     from .. import accounts
+    from ..compatibility import compatibility
     from ..preferences_privacy import preferences, privacy_requests
 
     return [
+        path("api/v1/app/compatibility", compatibility, name="app-compatibility"),
         path("api/v1/auth/register", accounts.register, name="register"),
         path("api/v1/auth/verification/resend", accounts.resend_verification, name="verification-resend"),
         path("api/v1/auth/verify", accounts.verify_email, name="verify"),

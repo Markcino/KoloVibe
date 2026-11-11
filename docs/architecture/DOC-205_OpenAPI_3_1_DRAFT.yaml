@@ -1923,6 +1923,42 @@ paths:
         '404': {description: Resource not found}
         '409': {description: State or idempotency conflict}
         '503': {description: Moderation temporarily unavailable}
+  /app/compatibility:
+    get:
+      tags: [Operations]
+      operationId: getAppCompatibility
+      x-implementation: local
+      summary: Read public native app version compatibility
+      description: >-
+        Strict SemVer 2.0 parsing and numeric precedence, including prereleases;
+        build metadata does not affect comparison. Below minimum returns
+        update_required, below latest returns update_available, and otherwise a
+        known version bound returns supported. With no version bounds status is
+        unknown. With no configuration all three policy fields are null. Each
+        platform has optional KOLOVIBE_APP_MIN_VERSION_IOS or ANDROID,
+        KOLOVIBE_APP_LATEST_VERSION_IOS or ANDROID and KOLOVIBE_APP_STORE_URL_IOS or
+        ANDROID environment settings. Store URLs must use HTTPS and configuration
+        is validated at settings load; minimum cannot exceed latest. No account
+        or identity-service call is required. Repeated or unknown query parameters
+        are rejected.
+      security: []
+      parameters:
+      - name: platform
+        in: query
+        required: true
+        schema: {type: string, enum: [ios, android]}
+      - name: version
+        in: query
+        required: true
+        description: Semantic version such as 1.2.3 or 1.2.3-rc.1+build.7
+        schema: {type: string, minLength: 5, maxLength: 128}
+      responses:
+        '200':
+          description: Platform-specific compatibility policy
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AppCompatibility'}
+        '400': {description: 'Missing, repeated or invalid compatibility parameters'}
   /health/live:
     get:
       tags:
@@ -2037,6 +2073,20 @@ components:
           minLength: 32
           maxLength: 128
       required: [refresh_token]
+    AppCompatibility:
+      type: object
+      additionalProperties: false
+      required: [status, minimum_version, latest_version, store_url]
+      properties:
+        status: {type: string, enum: [unknown, supported, update_available, update_required]}
+        minimum_version: {type: [string, 'null'], maxLength: 128}
+        latest_version: {type: [string, 'null'], maxLength: 128}
+        store_url: {type: [string, 'null'], format: uri, pattern: '^[Hh][Tt][Tt][Pp][Ss]://', maxLength: 2048}
+      example:
+        status: unknown
+        minimum_version: null
+        latest_version: null
+        store_url: null
     ReauthenticationResponse:
       type: object
       additionalProperties: false
