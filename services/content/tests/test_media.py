@@ -28,6 +28,49 @@ class R2MediaTests(TestCase):
         request.service_caller = "gateway"
         return media_api(request, operation)
 
+    def test_owned_library_and_draft_changes_reject_cross_creator_access(self):
+        other = Video.objects.create(creator_id=uuid4(), title="Other original")
+        owner = {"creator_id": str(self.creator)}
+        page = self.call("library", owner | {"cursor": None})
+        self.assertEqual(page.status_code, 200)
+        self.assertEqual([item["id"] for item in json.loads(page.content)["items"]],
+                         [str(self.video.id)])
+        self.assertEqual(self.call("library", owner | {"cursor": str(other.id)}).status_code, 400)
+        edit = owner | {"video_id": str(self.video.id), "title": "Edited", "description": "Story"}
+        self.assertEqual(self.call("edit", edit).status_code, 200)
+        self.video.refresh_from_db()
+        self.assertEqual((self.video.title, self.video.description), ("Edited", "Story"))
+        self.assertEqual(self.call("edit", edit | {"video_id": str(other.id)}).status_code, 404)
+        self.assertEqual(self.call("delete", owner | {"video_id": str(other.id)}).status_code, 404)
+        self.assertEqual(self.call("delete", owner | {"video_id": str(self.video.id)}).status_code, 200)
+        self.assertFalse(Video.objects.filter(pk=self.video.id).exists())
+        self.assertTrue(Video.objects.filter(pk=other.id).exists())
+
+    def test_draft_with_reserved_media_or_publication_cannot_be_edited_or_deleted(self):
+        payload = {"creator_id": str(self.creator), "video_id": str(self.video.id)}
+        MediaUpload.objects.create(id=uuid4(), video=self.video, expected_bytes=10,
+                                   expires_at=timezone.now())
+        self.assertEqual(self.call("delete", payload).status_code, 409)
+        self.assertEqual(self.call("edit", payload | {"title": "New", "description": ""}).status_code, 409)
+        MediaUpload.objects.filter(video=self.video).delete()
+        self.video.state = Video.State.REVIEW
+        self.video.save(update_fields=["state"])
+        self.assertEqual(self.call("delete", payload).status_code, 409)
+
+    def test_owned_library_paginates_without_leaking_another_creators_video(self):
+        for index in range(22):
+            Video.objects.create(creator_id=self.creator, title=f"Original {index}")
+        Video.objects.create(creator_id=uuid4(), title="Other creator")
+        payload = {"creator_id": str(self.creator)}
+        first = json.loads(self.call("library", payload | {"cursor": None}).content)
+        second = json.loads(self.call("library", payload | {"cursor": first["next_cursor"]}).content)
+        identifiers = [item["id"] for item in first["items"] + second["items"]]
+        self.assertEqual(len(identifiers), 23)
+        self.assertEqual(len(set(identifiers)), 23)
+        self.assertIsNone(second["next_cursor"])
+        self.assertTrue(all(item["creator_id"] == str(self.creator)
+                            for item in first["items"] + second["items"]))
+
     @patch("service.media_api._enqueue")
     @patch("service.media_storage.inspect_upload")
     @patch("service.media_storage.sign_upload", return_value="https://example.invalid/upload")

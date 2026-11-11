@@ -12,5 +12,5 @@ urlpatterns = [
     path("account/", views.account, name="account"),
     path("logout/", views.logout, name="logout"),
     path("creator/", views.gated_creator, name="creator"),
-    path("points/", views.gated_points, name="points"),
+    path("points/", views.points, name="points"),
 ]

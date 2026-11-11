@@ -111,7 +111,28 @@ class WebJourneys(SimpleTestCase):
 
     def test_creator_and_points_are_gated(self):
         self.assertEqual(self.client.get(reverse("creator")).status_code, 503)
-        self.assertEqual(self.client.get(reverse("points")).status_code, 503)
+        self.assertRedirects(self.client.get(reverse("points")), reverse("login"),
+                             fetch_redirect_response=False)
+
+    def test_points_uses_creator_owned_gateway_response(self):
+        creator = str(uuid.uuid4())
+        self.client.cookies["kv_access"] = "session"
+
+        def gateway(path, **kwargs):
+            if path == "/me":
+                return 200, {"id": str(uuid.uuid4()), "display_name": "Creator", "email": "c@example.test"}
+            if path == "/creators/me/points":
+                return 200, {"creator_id": creator, "balance": 3,
+                             "currency": "POINTS", "as_of": "2026-11-11T12:00:00Z"}
+            return 200, {"items": [{"id": str(uuid.uuid4()), "creator_id": creator,
+                                    "amount": 3, "kind": "award", "rule_version": "DEC-003-v1",
+                                    "created_at": "2026-11-11T12:00:00Z"}],
+                         "next_cursor": None}
+
+        with patch("web.views._api", side_effect=gateway):
+            response = self.client.get(reverse("points"))
+        self.assertContains(response, "3")
+        self.assertContains(response, "Award", status_code=200)
 
     def test_public_creator_profile_uses_gateway_data(self):
         import uuid

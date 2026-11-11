@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import '../../core/network/api_client.dart';
+import '../account/live_account_repository.dart';
 import 'live_creator_repository.dart';
 
 class LiveCreatorScreen extends StatefulWidget {
   const LiveCreatorScreen(
-      {super.key, required this.id, required this.repository});
+      {super.key, required this.id, required this.repository, this.account});
   final String id;
   final LiveCreatorRepository repository;
+  final LiveAccountRepository? account;
 
   @override
   State<LiveCreatorScreen> createState() => _LiveCreatorScreenState();
@@ -16,6 +18,8 @@ class _LiveCreatorScreenState extends State<LiveCreatorScreen> {
   LiveCreator? profile;
   Object? error;
   bool loading = true;
+  bool? following;
+  bool updatingFollow = false;
 
   @override
   void initState() {
@@ -31,6 +35,17 @@ class _LiveCreatorScreenState extends State<LiveCreatorScreen> {
     try {
       final value = await widget.repository.detail(widget.id);
       if (mounted) setState(() => profile = value);
+      if (widget.account != null) {
+        try {
+          final result = await widget.account!
+              .authenticatedRequest('/creators/${widget.id}/follow');
+          if (mounted && result['following'] is bool) {
+            setState(() => following = result['following'] as bool);
+          }
+        } on ApiFailure {
+          // Public profile remains readable for signed-out viewers.
+        }
+      }
     } on ApiFailure catch (failure) {
       if (mounted) setState(() => error = failure);
     } on FormatException catch (failure) {
@@ -71,6 +86,30 @@ class _LiveCreatorScreenState extends State<LiveCreatorScreen> {
                   style: Theme.of(context).textTheme.headlineMedium),
               const SizedBox(height: 16),
               Text(creator.bio),
+              if (following != null && widget.account != null)
+                FilledButton(
+                  onPressed: updatingFollow
+                      ? null
+                      : () async {
+                          setState(() => updatingFollow = true);
+                          try {
+                            await widget.account!.authenticatedRequest(
+                              '/creators/${widget.id}/follow',
+                              method: following! ? 'DELETE' : 'PUT',
+                            );
+                            if (mounted)
+                              setState(() => following = !following!);
+                          } on ApiFailure catch (failure) {
+                            if (mounted)
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(failure.message)),
+                              );
+                          } finally {
+                            if (mounted) setState(() => updatingFollow = false);
+                          }
+                        },
+                  child: Text(following! ? 'Unfollow' : 'Follow'),
+                ),
             ]);
           },
         )),

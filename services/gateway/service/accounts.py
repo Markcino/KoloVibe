@@ -28,6 +28,8 @@ def _invoke(path, data, success_statuses):
             raw = response.read(MAX_RESPONSE + 1)
         if len(raw) > MAX_RESPONSE or status not in success_statuses:
             raise ValueError("Unexpected identity response")
+        if status == 204 and raw:
+            raise ValueError("Unexpected identity response body")
         result = json.loads(raw) if raw else {}
         if not isinstance(result, dict):
             raise ValueError("Invalid identity response")
@@ -103,6 +105,43 @@ def verify_email(request):
 
 
 @require_POST
+def request_password_reset(request):
+    try:
+        data = _body(request, {"email"})
+        if set(data) != {"email"}:
+            raise ValueError
+    except (ValueError, UnicodeError):
+        return _json({"detail": "Invalid reset request"}, 400)
+    return _invoke("/internal/auth/password/reset-request", data, {204})
+
+
+@require_POST
+def reset_password(request):
+    try:
+        data = _body(request, {"code", "new_password"})
+        if set(data) != {"code", "new_password"}:
+            raise ValueError
+    except (ValueError, UnicodeError):
+        return _json({"detail": "Invalid reset request"}, 400)
+    return _invoke("/internal/auth/password/reset", data, {204})
+
+
+@never_cache
+@require_http_methods(["PATCH"])
+def change_password(request):
+    token = _bearer(request)
+    if token is None:
+        return _json({"detail": "Unauthorized"}, 401)
+    try:
+        data = _body(request, {"current_password", "new_password"})
+        if set(data) != {"current_password", "new_password"}:
+            raise ValueError
+    except (ValueError, UnicodeError):
+        return _json({"detail": "Invalid password change"}, 400)
+    return _invoke("/internal/auth/password/change", {"access_token": token, **data}, {204})
+
+
+@require_POST
 def login(request):
     try:
         data = _body(request, {"email", "password"})
@@ -162,8 +201,33 @@ def revoke_session(request, session_id):
                    {"access_token": token, "session_id": str(session_id)}, {204})
 
 
-@require_GET
+@require_http_methods(["GET", "PATCH"])
 def me(request):
+    if request.method == "PATCH":
+        token = _bearer(request)
+        if token is None:
+            return _json({"detail": "Unauthorized"}, 401)
+        try:
+            data = _body(request, {"display_name"})
+            if set(data) != {"display_name"}:
+                raise ValueError
+        except (ValueError, UnicodeError):
+            return _json({"detail": "Invalid profile"}, 400)
+        result = _invoke("/internal/auth/profile", {"access_token": token, **data}, {200})
+        if result.status_code != 200:
+            return result
+        try:
+            payload = json.loads(result.content)
+            user = payload["user"]
+            if not isinstance(user, dict) or not all(isinstance(user.get(k), str)
+                                                    for k in ("id", "email", "display_name", "created_at")):
+                raise ValueError
+            if not isinstance(user.get("roles"), list) or not all(
+                    isinstance(role, str) for role in user["roles"]):
+                raise ValueError
+        except (ValueError, KeyError, TypeError):
+            return _json({"detail": "Identity unavailable"}, 503)
+        return _json(user, 200)
     return current_account(request)
 
 

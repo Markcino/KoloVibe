@@ -2,7 +2,10 @@ from django.db import connection
 from .models import AuditDelivery, SecurityEvent
 
 KINDS = {
-    "account.registered", "account.verified", "account.verification_resent", "login.failed", "login.throttled",
+    "account.registered", "account.verified", "account.verification_resent",
+    "account.password_reset_requested", "account.password_reset", "account.password_changed",
+    "account.profile_updated",
+    "login.failed", "login.throttled",
     "login.succeeded", "mfa.challenge", "mfa.failed", "mfa.enrolled",
     "mfa.succeeded", "mfa.recovery_used", "session.rotated", "session.replay",
     "session.revoked",

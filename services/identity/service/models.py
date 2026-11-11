@@ -95,6 +95,15 @@ class EmailVerification(models.Model):
     used_at = models.DateTimeField(null=True, blank=True)
 
 
+class PasswordReset(models.Model):
+    """Single-use password reset proof. Raw codes are delivered by mail only."""
+
+    digest = models.CharField(max_length=64, primary_key=True)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+
+
 class TotpFactor(models.Model):
     account = models.OneToOneField(Account, on_delete=models.CASCADE)
     encrypted_secret = models.TextField()

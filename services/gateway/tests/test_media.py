@@ -5,11 +5,36 @@ from uuid import uuid4
 from django.http import JsonResponse
 from django.test import RequestFactory, SimpleTestCase
 
-from service.media import issue_video_upload, video_playback, video_upload_status
+from service.media import (issue_video_upload, manage_own_video, own_video_library,
+                           video_item, video_playback, video_upload_status)
 from .test_videos import Response
 
 
 class MediaGatewayTests(SimpleTestCase):
+    @patch("service.media.signed_internal_request")
+    @patch("service.media.creator_ownership")
+    @patch("service.media.authenticated_actor")
+    def test_library_and_draft_edits_bind_to_authenticated_creator(self, actor, ownership, content):
+        creator_id, video_id = uuid4(), uuid4()
+        actor.return_value = (str(uuid4()), "creator")
+        ownership.return_value = JsonResponse({"creator_id": str(creator_id)})
+        content.return_value = Response(json.dumps({"items": [], "next_cursor": None}).encode())
+        result = own_video_library(RequestFactory().get("/creators/me/videos"))
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(json.loads(content.call_args.kwargs["payload"])["creator_id"], str(creator_id))
+        content.return_value = Response(json.dumps({
+            "id": str(video_id), "creator_id": str(creator_id), "title": "Edited",
+            "description": "Story", "state": "draft", "created_at": "2026-11-10T20:00:00+00:00",
+        }).encode())
+        request = RequestFactory().patch("/videos", json.dumps({"title": "Edited", "description": "Story"}),
+                                         content_type="application/json")
+        self.assertEqual(video_item(request, video_id).status_code, 200)
+        self.assertEqual(json.loads(content.call_args.kwargs["payload"])["video_id"], str(video_id))
+        actor.return_value = JsonResponse({"detail": "Unauthorized"}, status=401)
+        content.reset_mock()
+        self.assertEqual(manage_own_video(request, video_id).status_code, 401)
+        content.assert_not_called()
+
     @patch("service.media.signed_internal_request")
     @patch("service.media.creator_eligibility")
     def test_upload_is_bound_to_the_approved_creator(self, eligibility, content):

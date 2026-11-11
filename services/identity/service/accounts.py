@@ -15,6 +15,7 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.contrib.auth import authenticate
+from django.contrib.auth.password_validation import validate_password
 from django.core import signing
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
@@ -24,13 +25,14 @@ from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from .models import Account, EmailVerification, LoginSession, LoginThrottle, UsedRefreshToken
+from .models import Account, EmailVerification, LoginSession, LoginThrottle, PasswordReset, UsedRefreshToken
 from .mfa import challenge, privileged_enabled, session_allowed
 from .security_audit import record
 
 ACCESS_SECONDS = 300
 REFRESH_DAYS = 30
 VERIFY_HOURS = 24
+RESET_MINUTES = 30
 LOGIN_LIMIT = 5
 LOGIN_WINDOW = timedelta(minutes=15)
 ACCESS_SALT = "kolovibe.identity.access.v1"
@@ -186,6 +188,143 @@ def verify_email(request):
     except (KeyError, ValueError, json.JSONDecodeError):
         return _error("Invalid verification")
     return JsonResponse({"verified": True})
+
+
+@require_POST
+def request_password_reset(request):
+    try:
+        data = _body(request, {"email"})
+        email = data["email"]
+        if not isinstance(email, str) or len(email) > 254:
+            raise ValueError
+        email = email.strip().casefold()
+        validate_email(email)
+    except (KeyError, ValueError, ValidationError, json.JSONDecodeError):
+        return _error("Invalid email address")
+    if not settings.EMAIL_HOST or not settings.DEFAULT_FROM_EMAIL:
+        return _error("Email delivery unavailable", 503)
+    try:
+        with transaction.atomic():
+            account = Account.objects.select_for_update().filter(
+                email=email, is_active=True, email_verified_at__isnull=False,
+                role__in=(Account.Role.VIEWER, Account.Role.CREATOR),
+            ).first()
+            if account is not None:
+                now = timezone.now()
+                recent = PasswordReset.objects.filter(
+                    account=account,
+                    expires_at__gt=now + timedelta(minutes=RESET_MINUTES - 2),
+                ).exists()
+                if not recent:
+                    raw = secrets.token_urlsafe(48)
+                    PasswordReset.objects.filter(account=account, used_at__isnull=True).update(used_at=now)
+                    PasswordReset.objects.create(
+                        digest=_digest(raw), account=account,
+                        expires_at=now + timedelta(minutes=RESET_MINUTES),
+                    )
+                    send_mail("Reset your KoloVibe password",
+                              "Your password reset code: " + raw,
+                              settings.DEFAULT_FROM_EMAIL, [account.email], fail_silently=False)
+                    record("account.password_reset_requested", account.id)
+    except (smtplib.SMTPException, OSError):
+        logger.error("Password reset email delivery failed")
+        return _error("Email delivery unavailable", 503)
+    return HttpResponse(status=204)
+
+
+@require_POST
+def reset_password(request):
+    try:
+        data = _body(request, {"code", "new_password"})
+        raw, password = data["code"], data["new_password"]
+        if (not isinstance(raw, str) or not 32 <= len(raw) <= 128
+                or not isinstance(password, str) or not 1 <= len(password) <= 128):
+            raise ValueError
+        with transaction.atomic():
+            digest = _digest(raw)
+            account_id = PasswordReset.objects.filter(digest=digest).values_list(
+                "account_id", flat=True,
+            ).first()
+            account = Account.objects.select_for_update().filter(
+                pk=account_id, is_active=True,
+                role__in=(Account.Role.VIEWER, Account.Role.CREATOR),
+            ).first()
+            now = timezone.now()
+            if account is None or not PasswordReset.objects.filter(
+                digest=digest, account=account, used_at__isnull=True,
+                expires_at__gt=now,
+            ).exists():
+                return _error("Invalid or expired reset code")
+            validate_password(password, user=account)
+            PasswordReset.objects.filter(account=account, used_at__isnull=True).update(used_at=now)
+            account.set_password(password)
+            account.save(update_fields=["password"])
+            LoginSession.objects.filter(account=account, revoked_at__isnull=True).update(revoked_at=now)
+            record("account.password_reset", account.id)
+    except (KeyError, ValueError, ValidationError, json.JSONDecodeError):
+        return _error("Invalid password or reset code")
+    return HttpResponse(status=204)
+
+
+@require_POST
+def change_password(request):
+    try:
+        data = _body(request, {"access_token", "current_password", "new_password"})
+        token, current, password = (data[key] for key in
+                                    ("access_token", "current_password", "new_password"))
+        if not all(isinstance(value, str) for value in (token, current, password)):
+            raise ValueError
+        if not current or len(current) > 128 or not 1 <= len(password) <= 128:
+            raise ValueError
+        with transaction.atomic():
+            session = _session_for_access(token)
+            if session is None:
+                return _error("Invalid session", 401)
+            account = Account.objects.select_for_update().get(pk=session.account_id)
+            if not LoginSession.objects.select_for_update().filter(
+                pk=session.id, revoked_at__isnull=True,
+                expires_at__gt=timezone.now(),
+            ).exists():
+                return _error("Invalid session", 401)
+            if not account.check_password(current):
+                return _error("Invalid current password", 401)
+            validate_password(password, user=account)
+            now = timezone.now()
+            account.set_password(password)
+            account.save(update_fields=["password"])
+            LoginSession.objects.filter(account=account, revoked_at__isnull=True).update(revoked_at=now)
+            record("account.password_changed", account.id)
+    except (KeyError, ValueError, ValidationError, json.JSONDecodeError):
+        return _error("Invalid password change")
+    return HttpResponse(status=204)
+
+
+@require_POST
+def update_profile(request):
+    try:
+        data = _body(request, {"access_token", "display_name"})
+        token, name = data["access_token"], data["display_name"]
+        if not isinstance(token, str) or not isinstance(name, str):
+            raise ValueError
+        name = name.strip()
+        if not 2 <= len(name) <= 80:
+            raise ValueError
+        with transaction.atomic():
+            session = _session_for_access(token)
+            if session is None:
+                return _error("Invalid session", 401)
+            account = Account.objects.select_for_update().get(pk=session.account_id)
+            if not LoginSession.objects.select_for_update().filter(
+                pk=session.id, revoked_at__isnull=True,
+                expires_at__gt=timezone.now(),
+            ).exists():
+                return _error("Invalid session", 401)
+            account.display_name = name
+            account.save(update_fields=["display_name"])
+            record("account.profile_updated", account.id)
+    except (KeyError, ValueError, json.JSONDecodeError):
+        return _error("Invalid profile")
+    return JsonResponse({"user": _account(account)})
 
 
 @require_POST

@@ -1,4 +1,5 @@
 import '../../core/network/api_client.dart';
+import '../account/live_account_repository.dart';
 
 class LiveVideo {
   const LiveVideo(this.id, this.creatorId, this.title, this.description);
@@ -33,6 +34,33 @@ class LiveVideoPage {
 class LiveVideoRepository {
   const LiveVideoRepository(this.api);
   final ApiClient api;
+
+  Future<LiveVideoPage> followingPage(LiveAccountRepository account,
+      {String? cursor}) async {
+    if (cursor != null && !isApiId(cursor)) {
+      throw const FormatException('Invalid following cursor');
+    }
+    final response = await account.authenticatedRequest('/videos/following',
+        query: {if (cursor != null) 'cursor': cursor});
+    final raw = response['items'];
+    final next = response['next_cursor'];
+    if (raw is! List ||
+        raw.length > 20 ||
+        !response.containsKey('next_cursor')) {
+      throw const FormatException('Invalid following feed');
+    }
+    final items = raw.map((value) {
+      if (value is! Map<String, dynamic>) {
+        throw const FormatException('Invalid video');
+      }
+      return LiveVideo.fromJson(value);
+    }).toList(growable: false);
+    if (items.map((item) => item.id).toSet().length != items.length ||
+        next != null && (next is! String || !isApiId(next) || next == cursor)) {
+      throw const FormatException('Invalid following cursor');
+    }
+    return LiveVideoPage(items, next as String?);
+  }
 
   Future<List<LiveVideo>> list() async => (await page()).items;
 

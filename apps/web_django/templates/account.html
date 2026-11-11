@@ -4,5 +4,5 @@
 <section class="panel"><h1>My account</h1><dl>
 <dt>Name</dt><dd>{{ account.display_name }}</dd>
 <dt>Email</dt><dd>{{ account.email }}</dd>
-</dl><form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit">Sign out</button></form></section>
+</dl><p><a href="{% url 'points' %}">Lone Stars</a></p><form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit">Sign out</button></form></section>
 {% endblock %}

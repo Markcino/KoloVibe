@@ -23,6 +23,46 @@ class Response:
 
 
 class AccountGatewayTests(SimpleTestCase):
+    def test_profile_update_forwards_only_display_name(self):
+        account = {"id": "00000000-0000-4000-8000-000000000001",
+                   "email": "viewer@example.test", "display_name": "New Name",
+                   "created_at": "2026-11-11T00:00:00+00:00", "roles": ["viewer"]}
+        with patch("service.accounts.signed_internal_request") as call:
+            self.assertEqual(self.client.patch(reverse("me"),
+                data=json.dumps({"display_name": "New Name"}),
+                content_type="application/json").status_code, 401)
+            call.return_value = Response(200, json.dumps({"user": account}).encode())
+            response = self.client.patch(reverse("me"),
+                data=json.dumps({"display_name": "New Name"}),
+                content_type="application/json", HTTP_AUTHORIZATION="Bearer test-token")
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json(), account)
+            self.assertEqual(call.call_args.args, ("identity", "/internal/auth/profile"))
+            self.assertEqual(json.loads(call.call_args.kwargs["payload"]),
+                             {"access_token": "test-token", "display_name": "New Name"})
+
+    def test_password_routes_forward_only_valid_fields_and_current_bearer(self):
+        password = secrets.token_urlsafe(28)
+        access = secrets.token_urlsafe(48)
+        with patch("service.accounts.signed_internal_request") as call:
+            call.return_value = Response(204, b"")
+            self.assertEqual(self.post("reset-request", {"email": "viewer@example.test"}).status_code, 204)
+            self.assertEqual(call.call_args.args, ("identity", "/internal/auth/password/reset-request"))
+            self.assertEqual(self.post("reset-password", {
+                "code": secrets.token_urlsafe(48), "new_password": password,
+            }).status_code, 204)
+            self.assertEqual(call.call_args.args, ("identity", "/internal/auth/password/reset"))
+            self.assertEqual(self.client.patch(reverse("change-password"),
+                data=json.dumps({"current_password": password, "new_password": password}),
+                content_type="application/json").status_code, 401)
+            self.assertEqual(self.client.patch(reverse("change-password"),
+                data=json.dumps({"current_password": password, "new_password": password}),
+                content_type="application/json", HTTP_AUTHORIZATION=f"Bearer {access}").status_code, 204)
+            self.assertEqual(json.loads(call.call_args.kwargs["payload"]), {
+                "access_token": access, "current_password": password, "new_password": password,
+            })
+            call.assert_called()
+
     def post(self, name, data, **headers):
         return self.client.post(reverse(name), data=json.dumps(data),
                                 content_type="application/json", **headers)

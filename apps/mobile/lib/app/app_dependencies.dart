@@ -5,19 +5,24 @@ import '../core/security/credential_store.dart';
 import '../features/account/live_account_repository.dart';
 import '../features/discovery/live_video_repository.dart';
 import '../features/creators/live_creator_repository.dart';
+import '../features/points/live_points_repository.dart';
 
 class AppDependencies {
   const AppDependencies.unavailable()
       : services = const ServiceRepositories.unavailable(),
         liveAccount = null,
         liveVideos = null,
-        liveCreators = null;
+        liveCreators = null,
+        livePoints = null;
 
-  const AppDependencies._(this.services, this.liveAccount, this.liveVideos, this.liveCreators);
+  const AppDependencies._(this.services, this.liveAccount, this.liveVideos,
+      this.liveCreators, this.livePoints);
 
-  factory AppDependencies.live(String baseUrl, {CredentialStore? credentialStore}) {
+  factory AppDependencies.live(String baseUrl,
+      {CredentialStore? credentialStore}) {
     final api = ApiClient(baseUrl);
-    final account = LiveAccountRepository(api, credentialStore ?? const PlatformCredentialStore());
+    final account = LiveAccountRepository(
+        api, credentialStore ?? const PlatformCredentialStore());
     return AppDependencies._(
       ServiceRepositories(
         account: account,
@@ -32,6 +37,7 @@ class AppDependencies {
       account,
       LiveVideoRepository(api),
       LiveCreatorRepository(api),
+      LivePointsRepository(account),
     );
   }
 
@@ -39,5 +45,6 @@ class AppDependencies {
   final LiveAccountRepository? liveAccount;
   final LiveVideoRepository? liveVideos;
   final LiveCreatorRepository? liveCreators;
+  final LivePointsRepository? livePoints;
   FeatureRepository get repository => RepositoryDispatcher(services);
 }

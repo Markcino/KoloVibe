@@ -10,8 +10,11 @@ urlpatterns = [
 
 if settings.ENVIRONMENT == "local":
     from .likes import update_like
+    from .follows import follow_api, followed_creators
 
     urlpatterns.append(path("internal/likes", update_like, name="internal-like"))
+    urlpatterns.append(path("internal/follows", follow_api, name="internal-follow"))
+    urlpatterns.append(path("internal/follows/membership", followed_creators, name="internal-followed-creators"))
 
 if settings.LOCAL_POINTS_ENABLED:
     from .watch import watch_api

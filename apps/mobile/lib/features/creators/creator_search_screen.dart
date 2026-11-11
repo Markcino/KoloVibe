@@ -54,45 +54,51 @@ class _CreatorSearchScreenState extends State<CreatorSearchScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Find creators')),
-    body: SafeArea(
-      child: Column(children: [
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: TextField(
-            enabled: !_loading,
-            maxLength: 100,
-            textInputAction: TextInputAction.search,
-            decoration: const InputDecoration(labelText: 'Search by handle'),
-            onSubmitted: (query) => _load(query: query),
-          ),
+        appBar: AppBar(title: const Text('Find creators')),
+        body: SafeArea(
+          child: Column(children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: TextField(
+                enabled: !_loading,
+                maxLength: 100,
+                textInputAction: TextInputAction.search,
+                decoration:
+                    const InputDecoration(labelText: 'Search by handle'),
+                onSubmitted: (query) => _load(query: query),
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                children: [
+                  for (final creator in _items)
+                    ListTile(
+                      title: Text('@${creator.handle}'),
+                      subtitle: creator.bio.isEmpty ? null : Text(creator.bio),
+                      onTap: () {
+                        final route = ScreenRoute(38, entityId: creator.id);
+                        Navigator.of(context)
+                            .pushNamed(route.name, arguments: route);
+                      },
+                    ),
+                  if (_loading)
+                    const Center(child: CircularProgressIndicator()),
+                  if (!_loading && _error != null)
+                    Semantics(liveRegion: true, child: Text(_error!)),
+                  if (!_loading &&
+                      _error == null &&
+                      _query != null &&
+                      _items.isEmpty)
+                    const Center(child: Text('No creators match your search.')),
+                  if (!_loading && (_cursor != null || _error != null))
+                    TextButton(
+                      onPressed: _load,
+                      child: Text(_error == null ? 'Load more' : 'Try again'),
+                    ),
+                ],
+              ),
+            ),
+          ]),
         ),
-        Expanded(
-          child: ListView(
-            children: [
-              for (final creator in _items)
-                ListTile(
-                  title: Text('@${creator.handle}'),
-                  subtitle: creator.bio.isEmpty ? null : Text(creator.bio),
-                  onTap: () {
-                    final route = ScreenRoute(38, entityId: creator.id);
-                    Navigator.of(context).pushNamed(route.name, arguments: route);
-                  },
-                ),
-              if (_loading) const Center(child: CircularProgressIndicator()),
-              if (!_loading && _error != null)
-                Semantics(liveRegion: true, child: Text(_error!)),
-              if (!_loading && _error == null && _query != null && _items.isEmpty)
-                const Center(child: Text('No creators match your search.')),
-              if (!_loading && (_cursor != null || _error != null))
-                TextButton(
-                  onPressed: _load,
-                  child: Text(_error == null ? 'Load more' : 'Try again'),
-                ),
-            ],
-          ),
-        ),
-      ]),
-    ),
-  );
+      );
 }

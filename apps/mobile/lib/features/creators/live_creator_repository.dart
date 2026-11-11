@@ -26,9 +26,8 @@ class LiveCreatorRepository {
   const LiveCreatorRepository(this.api);
   final ApiClient api;
 
-  Future<({List<LiveCreator> items, String? nextCursor})> search(
-    String query, {String? cursor}
-  ) async {
+  Future<({List<LiveCreator> items, String? nextCursor})> search(String query,
+      {String? cursor}) async {
     final data = await api.request('/creators/search', query: {
       'q': query,
       if (cursor != null) 'cursor': cursor,
@@ -45,8 +44,11 @@ class LiveCreatorRepository {
       return LiveCreator.fromJson(item);
     }).toList(growable: false);
     if (items.map((item) => item.id).toSet().length != items.length ||
-        next != null && (next is! String || items.length != 20 ||
-          next == cursor || next != items.last.id)) {
+        next != null &&
+            (next is! String ||
+                items.length != 20 ||
+                next == cursor ||
+                next != items.last.id)) {
       throw const FormatException('Invalid creator search cursor');
     }
     return (items: items, nextCursor: next as String?);

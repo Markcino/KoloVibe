@@ -6,6 +6,7 @@ import '../../core/theme/kolovibe_theme.dart';
 import '../shell/main_shell.dart';
 import '../creators/live_creator_repository.dart';
 import '../creators/creator_search_screen.dart';
+import '../account/live_account_repository.dart';
 import 'live_video_repository.dart';
 
 class LiveVideoScreen extends StatefulWidget {
@@ -14,11 +15,13 @@ class LiveVideoScreen extends StatefulWidget {
       required this.route,
       required this.catalog,
       required this.repository,
-      this.creators});
+      this.creators,
+      this.account});
   final ScreenRoute route;
   final DesignCatalog catalog;
   final LiveVideoRepository repository;
   final LiveCreatorRepository? creators;
+  final LiveAccountRepository? account;
 
   @override
   State<LiveVideoScreen> createState() => _LiveVideoScreenState();
@@ -44,8 +47,11 @@ class _LiveVideoScreenState extends State<LiveVideoScreen> {
       error = null;
     });
     try {
-      final page = await widget.repository
-          .page(cursor: reset ? null : nextCursor, query: query);
+      final page = widget.route.screen == 18 && widget.account != null
+          ? await widget.repository
+              .followingPage(widget.account!, cursor: reset ? null : nextCursor)
+          : await widget.repository
+              .page(cursor: reset ? null : nextCursor, query: query);
       final existing = reset ? <LiveVideo>[] : videos ?? <LiveVideo>[];
       final ids = existing.map((video) => video.id).toSet();
       if (page.items.any((video) => ids.contains(video.id))) {
@@ -76,20 +82,32 @@ class _LiveVideoScreenState extends State<LiveVideoScreen> {
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
             actions: [
+              if (widget.route.screen == 17 && widget.account != null)
+                TextButton(
+                  onPressed: () {
+                    const route = ScreenRoute(18);
+                    Navigator.of(context)
+                        .pushNamed(route.name, arguments: route);
+                  },
+                  child: const Text('Following'),
+                ),
               if (widget.route.screen == 19 && widget.creators != null)
                 TextButton(
                   onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(builder: (_) =>
-                      CreatorSearchScreen(repository: widget.creators!)),
+                    MaterialPageRoute<void>(
+                        builder: (_) =>
+                            CreatorSearchScreen(repository: widget.creators!)),
                   ),
                   child: const Text('Find creators'),
                 ),
             ],
             title: Text(widget.route.screen == 17
                 ? 'KoloVibe'
-                : widget.route.screen == 24
-                    ? 'Videos'
-                    : 'Explore')),
+                : widget.route.screen == 18
+                    ? 'Following'
+                    : widget.route.screen == 24
+                        ? 'Videos'
+                        : 'Explore')),
         body: SafeArea(
             child: Column(children: [
           if (widget.route.screen == 19)
@@ -127,9 +145,11 @@ class _LiveVideoScreenState extends State<LiveVideoScreen> {
                 return _state(
                     context,
                     error ??
-                        (query == null
-                            ? 'No originals are available yet.'
-                            : 'No videos match your search.'),
+                        (widget.route.screen == 18
+                            ? 'Follow creators to see their originals here.'
+                            : query == null
+                                ? 'No originals are available yet.'
+                                : 'No videos match your search.'),
                     onRetry: () => load(reset: true));
               }
               return RefreshIndicator(
@@ -174,8 +194,9 @@ class _LiveVideoScreenState extends State<LiveVideoScreen> {
           )),
         ])),
         bottomNavigationBar: MainShell(
-          navigation:
-              widget.catalog[widget.route.screen].named('Primary navigation')!,
+          navigation: (widget.catalog[widget.route.screen]
+                  .named('Primary navigation') ??
+              widget.catalog[17].named('Primary navigation'))!,
           screen: widget.route.screen,
           onSelected: navigate,
         ),

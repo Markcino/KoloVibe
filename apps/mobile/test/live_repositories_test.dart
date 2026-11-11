@@ -9,6 +9,7 @@ import 'package:kolovibe/core/security/credential_store.dart';
 import 'package:kolovibe/features/account/live_account_repository.dart';
 import 'package:kolovibe/features/discovery/live_video_repository.dart';
 import 'package:kolovibe/features/creators/live_creator_repository.dart';
+import 'package:kolovibe/features/points/live_points_repository.dart';
 
 class MemoryCredentials implements CredentialStore {
   String? value;
@@ -21,6 +22,37 @@ class MemoryCredentials implements CredentialStore {
 }
 
 void main() {
+  test('points reads use the current session and validate ledger records', () async {
+    const creator = '00000000-0000-4000-8000-000000000001';
+    const entry = '00000000-0000-4000-8000-000000000002';
+    final credentials = MemoryCredentials()..value = 'refresh';
+    final api = ApiClient('https://api.example.test/api/v1',
+        client: MockClient((request) async {
+      if (request.url.path.endsWith('/auth/refresh')) {
+        return http.Response(jsonEncode({
+          'access_token': 'access', 'refresh_token': 'rotated',
+        }), 200);
+      }
+      expect(request.headers['Authorization'], 'Bearer access');
+      if (request.url.path.endsWith('/points')) {
+        return http.Response(jsonEncode({
+          'creator_id': creator, 'balance': 1, 'currency': 'POINTS',
+          'as_of': '2026-11-11T12:00:00Z',
+        }), 200);
+      }
+      return http.Response(jsonEncode({
+        'items': [{
+          'id': entry, 'creator_id': creator, 'amount': 1,
+          'kind': 'award', 'rule_version': 'DEC-003-v1',
+          'created_at': '2026-11-11T12:00:00Z',
+        }], 'next_cursor': null,
+      }), 200);
+    }));
+    final repository = LivePointsRepository(LiveAccountRepository(api, credentials));
+    expect((await repository.balance()).balance, 1);
+    expect((await repository.entries()).items.single.kind, 'award');
+    expect(credentials.value, 'rotated');
+  });
   test('expired access refreshes once and concurrent reads share rotation',
       () async {
     final storage = MemoryCredentials()..value = 'initial-refresh';

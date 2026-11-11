@@ -13,6 +13,17 @@ class VideoLike(models.Model):
         ]
 
 
+class CreatorFollow(models.Model):
+    creator_id = models.UUIDField()
+    account_id = models.UUIDField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["creator_id", "account_id"], name="unique_creator_account_follow"),
+        ]
+
+
 class WatchSession(models.Model):
     session_id = models.UUIDField(default=uuid.uuid4, unique=True)
     account_id = models.UUIDField()

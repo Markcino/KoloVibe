@@ -12,9 +12,9 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
 
 from .accounts import current_account
-from .creator_onboarding import creator_eligibility
+from .creator_onboarding import authenticated_actor, creator_eligibility, creator_ownership
 from .internal_client import signed_internal_request
-from .videos import list_videos
+from .videos import list_videos, video_detail
 
 
 def _error(detail, status):
@@ -32,6 +32,20 @@ def _safe_url(value):
 def _valid_result(operation, data, payload):
     if not isinstance(data, dict):
         return False
+    if operation == "library":
+        items = data.get("items")
+        next_cursor = data.get("next_cursor")
+        return (set(data) == {"items", "next_cursor"} and isinstance(items, list)
+                and len(items) <= 20 and all(_valid_owned_item(item, payload) for item in items)
+                and len({item["id"] for item in items}) == len(items)
+                and (next_cursor is None or len(items) == 20 and next_cursor == items[-1]["id"]))
+    if operation == "delete":
+        return (set(data) == {"video_id", "deleted"}
+                and data["video_id"] == payload["video_id"] and data["deleted"] is True)
+    if operation == "edit":
+        return (_valid_owned_item(data, payload) and data["id"] == payload["video_id"]
+                and data["state"] == "draft" and data["title"] == payload["title"].strip()
+                and data["description"] == payload["description"])
     if operation in ("watch", "watch-check"):
         metadata = {"creator_id", "duration_ms", "revision"}
         expected = metadata | ({"playback_url", "expires_at"} if operation == "watch" else set())
@@ -61,6 +75,19 @@ def _valid_result(operation, data, payload):
                                            "If-None-Match": "*"}
             and datetime.fromisoformat(data["expires_at"]).tzinfo is not None
             and type(data["max_bytes"]) is int and data["max_bytes"] == 50 * 1024 * 1024)
+
+
+def _valid_owned_item(item, payload):
+    if (not isinstance(item, dict) or set(item) != {
+        "id", "creator_id", "title", "description", "state", "created_at"
+    } or item["creator_id"] != payload["creator_id"]
+            or item["state"] not in {"draft", "uploading", "processing", "failed", "review",
+                                   "published", "rejected", "removed"}
+            or not isinstance(item["title"], str) or not 1 <= len(item["title"]) <= 160
+            or not isinstance(item["description"], str) or len(item["description"]) > 2000):
+        return False
+    return (str(UUID(item["id"])) == item["id"]
+            and datetime.fromisoformat(item["created_at"]).tzinfo is not None)
 
 
 def forward_media(operation, data, success):
@@ -98,6 +125,65 @@ def _eligible_creator(request):
     if not data["upload_eligible"]:
         return None, _error("Approved creator eligibility required", 403)
     return data["creator_id"], None
+
+
+def _owned_creator(request):
+    actor = authenticated_actor(request, require_verified_email=True)
+    if isinstance(actor, JsonResponse):
+        return None, actor
+    ownership = creator_ownership(*actor)
+    if ownership.status_code != 200:
+        return None, ownership
+    try:
+        return json.loads(ownership.content)["creator_id"], None
+    except (ValueError, TypeError, KeyError):
+        return None, _error("Creator service unavailable", 503)
+
+
+@never_cache
+@require_GET
+def own_video_library(request):
+    creator_id, error = _owned_creator(request)
+    if error is not None:
+        return error
+    if request.body or set(request.GET) - {"cursor"} or len(request.GET.getlist("cursor")) > 1:
+        return _error("Invalid library query", 400)
+    try:
+        cursor = request.GET.get("cursor")
+        data = {"creator_id": creator_id, "cursor": str(UUID(cursor)) if cursor else None}
+    except (ValueError, TypeError):
+        return _error("Invalid cursor", 400)
+    return forward_media("library", data, (200,))
+
+
+@never_cache
+def manage_own_video(request, video_id):
+    if request.method not in ("PATCH", "DELETE"):
+        return HttpResponseNotAllowed(["PATCH", "DELETE"])
+    creator_id, error = _owned_creator(request)
+    if error is not None:
+        return error
+    if request.GET or len(request.body) > 32768:
+        return _error("Invalid video request", 400)
+    data = {"creator_id": creator_id, "video_id": str(video_id)}
+    if request.method == "PATCH":
+        try:
+            fields = json.loads(request.body)
+            if not isinstance(fields, dict) or set(fields) != {"title", "description"}:
+                raise ValueError("Invalid metadata")
+            data.update(fields)
+        except (ValueError, TypeError, UnicodeError):
+            return _error("Invalid video metadata", 400)
+        return forward_media("edit", data, (200,))
+    if request.body:
+        return _error("Invalid video request", 400)
+    return forward_media("delete", data, (200,))
+
+
+def video_item(request, video_id):
+    if request.method == "GET":
+        return video_detail(request, video_id)
+    return manage_own_video(request, video_id)
 
 
 def video_collection(request):

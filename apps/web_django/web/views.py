@@ -10,7 +10,7 @@ from django.http import HttpResponseNotAllowed
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
-from .api_contracts import valid_creator, valid_id, valid_page, valid_video
+from .api_contracts import valid_creator, valid_id, valid_page, valid_video, valid_points_balance, valid_points_page
 
 ACCESS_COOKIE = "kv_access"
 REFRESH_COOKIE = "kv_refresh"
@@ -213,5 +213,39 @@ def gated_creator(request):
 
 
 @require_GET
-def gated_points(request):
-    return render(request, "status.html", {"title": "Lone Stars are awaiting approved qualification rules."}, status=503)
+def points(request):
+    cursor = request.GET.get("cursor")
+    if (set(request.GET) - {"cursor"} or len(request.GET.getlist("cursor")) > 1
+            or cursor is not None and not valid_id(cursor)):
+        return render(request, "status.html", {"title": "Invalid points page."}, status=400)
+    status, account, rotated = _own_account(request)
+    if status != 200:
+        response = redirect("login") if status == 401 else render(
+            request, "status.html", {"title": "Account unavailable"}, status=503)
+        if status == 401:
+            _clear_credentials(response)
+        elif rotated:
+            _set_credentials(response, rotated)
+        return response
+    token = rotated["access_token"] if rotated else request.COOKIES.get(ACCESS_COOKIE)
+    balance_status, balance = _api("/creators/me/points", token=token)
+    query = "?" + urlencode({"cursor": cursor}) if cursor else ""
+    page_status, page = _api("/creators/me/points/entries" + query, token=token)
+    if balance_status == 200 and not valid_points_balance(balance):
+        balance_status = 503
+    if page_status == 200 and (balance_status != 200 or not valid_points_page(
+            page, balance["creator_id"], cursor=cursor)):
+        page_status = 503
+    if balance_status == 200 and page_status == 200:
+        response = render(request, "points.html", {
+            "balance": balance, "items": page["items"],
+            "next_cursor": page["next_cursor"], "account": account,
+        })
+    else:
+        forbidden = 403 in (balance_status, page_status)
+        response = render(request, "status.html", {
+            "title": "Approved creator access is required." if forbidden else "Lone Stars unavailable."
+        }, status=403 if forbidden else 503)
+    if rotated:
+        _set_credentials(response, rotated)
+    return response

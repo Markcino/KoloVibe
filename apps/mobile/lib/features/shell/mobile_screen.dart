@@ -30,11 +30,13 @@ class MobileScreen extends StatefulWidget {
 class _MobileScreenState extends State<MobileScreen> {
   late final ScreenController controller;
   final form = GlobalKey<FormState>();
+  final resetCode = TextEditingController();
   Timer? timer;
   bool discardConfirmed = false;
   int get id => widget.route.screen;
   DesignScreen get screen => widget.catalog[id];
   bool get protected => !(id <= 12 ||
+      (widget.dependencies.liveAccount != null && {80, 82}.contains(id)) ||
       {
         15,
         87,
@@ -54,6 +56,7 @@ class _MobileScreenState extends State<MobileScreen> {
   void initState() {
     super.initState();
     controller = ScreenController(widget.dependencies.repository);
+    controller.sensitiveClearers.add(resetCode.clear);
     if (id == 72 || id == 74) {
       controller.reason =
           widget.session.reportReason ?? 'Rights or ownership concern';
@@ -72,6 +75,7 @@ class _MobileScreenState extends State<MobileScreen> {
   @override
   void dispose() {
     timer?.cancel();
+    resetCode.dispose();
     controller.dispose();
     super.dispose();
   }
@@ -139,9 +143,8 @@ class _MobileScreenState extends State<MobileScreen> {
           !(form.currentState?.validate() ?? false)) {
         return;
       }
-      final next = target == 7 && widget.dependencies.liveAccount != null
-          ? 8
-          : target;
+      final next =
+          target == 7 && widget.dependencies.liveAccount != null ? 8 : target;
       await navigate(next);
       return;
     }
@@ -196,6 +199,18 @@ class _MobileScreenState extends State<MobileScreen> {
           return;
         case UiOperation.signIn:
           await navigate(79, reset: true);
+          return;
+        case UiOperation.requestReset:
+          notify(result.message);
+          await navigate(10);
+          return;
+        case UiOperation.resetPassword:
+          notify(result.message);
+          await navigate(4, reset: true);
+          return;
+        case UiOperation.saveProfile:
+          notify(result.message);
+          await navigate(79);
           return;
         case UiOperation.signOut:
           await navigate(2, reset: true);
@@ -328,7 +343,22 @@ class _MobileScreenState extends State<MobileScreen> {
         Expanded(
           child: SingleChildScrollView(
             key: PageStorageKey('M-$id'),
-            child: content == null ? const SizedBox.shrink() : view(content),
+            child: Column(children: [
+              if (id == 10 && widget.dependencies.liveAccount != null)
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: TextFormField(
+                    controller: resetCode,
+                    decoration: const InputDecoration(labelText: 'Reset code'),
+                    onChanged: (value) =>
+                        controller.update('Reset code', value),
+                    validator: (value) => value == null || value.isEmpty
+                        ? 'Enter the code sent to your email.'
+                        : null,
+                  ),
+                ),
+              if (content != null) view(content),
+            ]),
           ),
         ),
       ],

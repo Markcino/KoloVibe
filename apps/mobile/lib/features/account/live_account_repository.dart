@@ -97,19 +97,27 @@ class LiveAccountRepository implements AccountRepository {
   }
 
   Future<Map<String, dynamic>> _sessionRequest(String path,
-      {String method = 'GET'}) async {
+      {String method = 'GET',
+      Map<String, String>? query,
+      Map<String, Object?>? body}) async {
     const expired = ApiFailure(401, 'Sign in again to manage sessions.');
     try {
       final restored = _accessToken == null;
       if (restored && !await _refresh()) throw expired;
       try {
         return await api.request(path,
-            method: method, accessToken: _accessToken);
+            method: method,
+            accessToken: _accessToken,
+            query: query,
+            body: body);
       } on ApiFailure catch (error) {
         if (error.status != 401 || restored) rethrow;
         if (!await _refresh()) throw expired;
         return await api.request(path,
-            method: method, accessToken: _accessToken);
+            method: method,
+            accessToken: _accessToken,
+            query: query,
+            body: body);
       }
     } on ApiFailure catch (error) {
       if (error.status != 401) rethrow;
@@ -134,6 +142,10 @@ class LiveAccountRepository implements AccountRepository {
         }
         await _sessionRequest('/me/sessions/$id', method: 'DELETE');
       });
+
+  Future<Map<String, dynamic>> authenticatedRequest(String path,
+          {String method = 'GET', Map<String, String>? query}) =>
+      _serialized(() => _sessionRequest(path, method: method, query: query));
 
   @override
   Future<UiResult> execute(UiRequest request) =>
@@ -162,6 +174,36 @@ class LiveAccountRepository implements AccountRepository {
               method: 'POST', body: {'code': fields['verificationCode'] ?? ''});
           return const UiResult.success(
               message: 'Email verified. You can sign in.');
+        case UiOperation.requestReset:
+          await api
+              .request('/auth/password/reset-request', method: 'POST', body: {
+            'email': fields['Email address'] ?? '',
+          });
+          return const UiResult.success(
+              message:
+                  'If the account is eligible, reset instructions will arrive by email.');
+        case UiOperation.resetPassword:
+          final newPassword = fields['New password'] ?? '';
+          if (fields.containsKey('Current password')) {
+            await _sessionRequest('/me/password', method: 'PATCH', body: {
+              'current_password': fields['Current password'] ?? '',
+              'new_password': newPassword,
+            });
+          } else {
+            await api.request('/auth/password/reset', method: 'POST', body: {
+              'code': fields['Reset code'] ?? '',
+              'new_password': newPassword,
+            });
+          }
+          _accessToken = null;
+          await store.clearRefreshToken();
+          return const UiResult.success(
+              message: 'Password updated. Sign in again.');
+        case UiOperation.saveProfile:
+          await _sessionRequest('/me', method: 'PATCH', body: {
+            'display_name': fields['Display name'] ?? '',
+          });
+          return const UiResult.success(message: 'Profile updated.');
         case UiOperation.signIn:
           await _accept(await api.request('/auth/login', method: 'POST', body: {
             'email': fields['Email address'] ?? '',

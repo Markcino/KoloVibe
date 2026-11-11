@@ -112,6 +112,50 @@ paths:
           description: Invalid, expired or reused code
         '503':
           description: Identity unavailable
+  /auth/password/reset-request:
+    post:
+      tags: [Identity]
+      operationId: requestPasswordReset
+      x-implementation: local
+      summary: Request a single-use password reset code
+      description: Unknown, verified and throttled accounts receive the same empty response. Privileged account recovery requires a separate reviewed workflow.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email]
+              properties:
+                email: {type: string, format: email, maxLength: 254}
+      responses:
+        '204': {description: Request accepted}
+        '400': {description: Invalid request}
+        '503': {$ref: '#/components/responses/LocalUnavailable'}
+  /auth/password/reset:
+    post:
+      tags: [Identity]
+      operationId: resetPassword
+      x-implementation: local
+      summary: Consume reset code and revoke all account sessions
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [code, new_password]
+              properties:
+                code: {type: string, minLength: 32, maxLength: 128}
+                new_password: {type: string, minLength: 1, maxLength: 128}
+      responses:
+        '204': {description: Password changed and sessions revoked}
+        '400': {description: Invalid or expired code or password}
+        '503': {$ref: '#/components/responses/LocalUnavailable'}
   /auth/login:
     post:
       tags:
@@ -284,6 +328,29 @@ paths:
           $ref: '#/components/responses/LocalUnavailable'
         '401':
           $ref: '#/components/responses/Unauthorized'
+  /me/password:
+    patch:
+      tags: [Identity]
+      operationId: changeMyPassword
+      x-implementation: local
+      summary: Change the signed-in account password and revoke all sessions
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [current_password, new_password]
+              properties:
+                current_password: {type: string, minLength: 1, maxLength: 128}
+                new_password: {type: string, minLength: 1, maxLength: 128}
+      responses:
+        '204': {description: Password changed and all sessions revoked}
+        '400': {description: Invalid password change}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '503': {$ref: '#/components/responses/LocalUnavailable'}
   /me/sessions/{session_id}:
     delete:
       tags: [Identity]
@@ -308,6 +375,31 @@ paths:
         '409':
           description: Use sign out to end the current session
   /me:
+    patch:
+      tags: [Identity]
+      operationId: updateMyProfile
+      x-implementation: local
+      summary: Update own display name
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [display_name]
+              properties:
+                display_name: {type: string, minLength: 2, maxLength: 80}
+      responses:
+        '200':
+          description: Updated own account
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/User'}
+        '400': {description: Invalid display name}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '503': {$ref: '#/components/responses/LocalUnavailable'}
     get:
       tags:
       - Identity
@@ -564,6 +656,55 @@ paths:
         schema: &id001
           type: string
           format: uuid
+  /creators/{creator_id}/follow:
+    parameters:
+    - name: creator_id
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    get:
+      tags: [Engagement]
+      operationId: get_creator_follow_status
+      summary: Read own follow state for a creator
+      x-implementation: local
+      responses:
+        '200':
+          description: Own follow state
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [creator_id, following]
+                properties:
+                  creator_id: {type: string, format: uuid}
+                  following: {type: boolean}
+        '401': {description: Missing or invalid session}
+        '403': {description: Role not permitted}
+        '503': {description: Required service unavailable}
+    put:
+      tags: [Engagement]
+      operationId: follow_creator
+      summary: Follow a reviewed active creator
+      x-implementation: local
+      responses:
+        '200': {description: 'Following, including repeated requests'}
+        '400': {description: Unexpected request data}
+        '401': {description: Missing or invalid session}
+        '403': {description: Role not permitted or own profile}
+        '404': {description: Reviewed active creator not found}
+        '503': {description: Required service unavailable}
+    delete:
+      tags: [Engagement]
+      operationId: unfollow_creator
+      summary: Remove own follow idempotently
+      x-implementation: local
+      responses:
+        '204': {description: Follow removed or absent}
+        '400': {description: Unexpected request data}
+        '401': {description: Missing or invalid session}
+        '403': {description: Role not permitted}
+        '503': {description: Required service unavailable}
   /creators/me:
     patch:
       tags:
@@ -597,6 +738,38 @@ paths:
               $ref: '#/components/schemas/CreatorUpdate'
       x-required-roles:
       - creator
+  /creators/me/videos:
+    get:
+      tags: [Content]
+      summary: List the signed-in creator's videos in all states
+      operationId: get_own_videos
+      x-implementation: local-only
+      parameters:
+      - name: cursor
+        in: query
+        required: false
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Up to twenty creator-owned videos, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items, next_cursor]
+                properties:
+                  items:
+                    type: array
+                    maxItems: 20
+                    items: {$ref: '#/components/schemas/Video'}
+                  next_cursor:
+                    type: [string, 'null']
+                    format: uuid
+        '400': {description: Invalid cursor}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '503': {$ref: '#/components/responses/LocalUnavailable'}
   /videos:
     post:
       tags:
@@ -689,6 +862,28 @@ paths:
         schema:
           type: string
           format: uuid
+  /videos/following:
+    get:
+      tags: [Discovery]
+      operationId: get_following_videos
+      summary: Read published videos from followed creators
+      description: Cursor advances through the public video catalog and may refer to a scanned video outside the returned items.
+      x-implementation: local
+      parameters:
+      - name: cursor
+        in: query
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Following video page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageVideos'
+        '400': {description: Invalid cursor or query}
+        '401': {description: Missing or invalid session}
+        '403': {description: Role not permitted}
+        '503': {description: Required service unavailable}
   /videos/{video_id}:
     get:
       tags:
@@ -729,9 +924,14 @@ paths:
     patch:
       tags:
       - Content
-      summary: Edit own draft video
+      summary: Edit metadata of an owned private draft without reserved media
       operationId: patch__videos_video_id
+      x-implementation: local-only
       responses:
+        '404':
+          description: Video is not owned by this creator
+        '503':
+          $ref: '#/components/responses/LocalUnavailable'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -763,6 +963,33 @@ paths:
         in: path
         required: true
         schema: *id001
+    delete:
+      tags: [Content]
+      summary: Delete an owned private draft without reserved media
+      operationId: delete_own_draft_video
+      x-implementation: local-only
+      parameters:
+      - name: video_id
+        in: path
+        required: true
+        schema: *id001
+      responses:
+        '200':
+          description: Deleted draft identifier
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [video_id, deleted]
+                properties:
+                  video_id: *id001
+                  deleted: {type: boolean, enum: [true]}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Video is not owned by this creator}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '503': {$ref: '#/components/responses/LocalUnavailable'}
   /videos/{video_id}/upload-intents:
     post:
       tags:

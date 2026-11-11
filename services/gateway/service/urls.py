@@ -9,23 +9,28 @@ from .creators import creator_detail, search_creators
 from .creator_onboarding import creator_onboarding
 
 if settings.LOCAL_MEDIA_ENABLED:
-    from .media import issue_video_upload, video_collection, video_playback, video_upload_status
+    from .media import (issue_video_upload, own_video_library,
+                        video_collection, video_item, video_playback, video_upload_status)
 else:
     video_collection = list_videos
+    video_item = video_detail
 
 urlpatterns = [
     path("health/live", liveness, name="liveness"),
     path("videos", list_videos, name="videos"),
     path("api/v1/videos", video_collection, name="api-videos"),
-    path("api/v1/videos/<uuid:video_id>", video_detail, name="api-video-detail"),
+    path("api/v1/videos/<uuid:video_id>", video_item, name="api-video-detail"),
     path("api/v1/auth/register", accounts.register, name="register"),
     path("api/v1/auth/verification/resend", accounts.resend_verification, name="verification-resend"),
     path("api/v1/auth/verify", accounts.verify_email, name="verify"),
+    path("api/v1/auth/password/reset-request", accounts.request_password_reset, name="reset-request"),
+    path("api/v1/auth/password/reset", accounts.reset_password, name="reset-password"),
     path("api/v1/auth/login", accounts.login, name="login"),
     path("api/v1/auth/mfa/verify", accounts.verify_mfa, name="mfa-verify"),
     path("api/v1/auth/refresh", accounts.refresh, name="refresh"),
     path("api/v1/auth/logout", accounts.logout, name="logout"),
     path("api/v1/me/sessions", accounts.sessions, name="account-sessions"),
+    path("api/v1/me/password", accounts.change_password, name="change-password"),
     path("api/v1/me/sessions/<uuid:session_id>", accounts.revoke_session, name="revoke-account-session"),
     path("api/v1/me", accounts.me, name="me"),
     path("api/v1/creators/search", search_creators, name="api-creator-search"),
@@ -47,6 +52,7 @@ if settings.ENVIRONMENT == "local" or getattr(settings, "STAGING_CREATOR_ONBOARD
 
 if settings.LOCAL_MEDIA_ENABLED:
     urlpatterns += [
+        path("api/v1/creators/me/videos", own_video_library, name="api-own-videos"),
         path("api/v1/videos/<uuid:video_id>/upload-intents", issue_video_upload, name="api-video-upload"),
         path("api/v1/videos/<uuid:video_id>/playback", video_playback, name="api-video-playback"),
         path("api/v1/videos/<uuid:video_id>/upload-status", video_upload_status, name="api-video-upload-status"),
@@ -73,8 +79,12 @@ if settings.LOCAL_MODERATION_ENABLED:
 
 if settings.ENVIRONMENT == "local":
     from .likes import video_like
+    from .follows import creator_follow
+    from .following import following_videos
 
     urlpatterns.append(path("api/v1/videos/<uuid:video_id>/like", video_like, name="api-video-like"))
+    urlpatterns.append(path("api/v1/creators/<uuid:creator_id>/follow", creator_follow, name="api-creator-follow"))
+    urlpatterns.append(path("api/v1/videos/following", following_videos, name="api-following-videos"))
 
 
 if settings.LOCAL_POINTS_ENABLED:

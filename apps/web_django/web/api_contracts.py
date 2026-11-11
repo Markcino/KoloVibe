@@ -49,3 +49,32 @@ def valid_creator(value):
         and re.fullmatch(r"[a-zA-Z0-9_-]{1,40}", value["handle"]) is not None
         and isinstance(value.get("bio"), str) and len(value["bio"]) <= 500
     )
+
+
+def valid_points_balance(value):
+    return (
+        isinstance(value, dict) and set(value) == {"creator_id", "balance", "currency", "as_of"}
+        and valid_id(value["creator_id"]) and type(value["balance"]) is int
+        and value["currency"] == "POINTS" and isinstance(value["as_of"], str)
+    )
+
+
+def valid_points_page(value, creator_id, cursor=None):
+    if not isinstance(value, dict) or set(value) != {"items", "next_cursor"}:
+        return False
+    items = value["items"]
+    if not isinstance(items, list) or len(items) > 20:
+        return False
+    for entry in items:
+        if (not isinstance(entry, dict)
+                or set(entry) != {"id", "creator_id", "amount", "kind", "rule_version", "created_at"}
+                or not valid_id(entry["id"]) or entry["creator_id"] != creator_id
+                or type(entry["amount"]) is not int
+                or entry["kind"] not in {"award", "reversal", "adjustment"}
+                or not isinstance(entry["rule_version"], str)
+                or not isinstance(entry["created_at"], str)):
+            return False
+    next_cursor = value["next_cursor"]
+    return next_cursor is None or (
+        len(items) == 20 and next_cursor == items[-1]["id"] and next_cursor != cursor
+    )

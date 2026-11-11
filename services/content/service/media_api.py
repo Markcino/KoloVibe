@@ -6,6 +6,7 @@ import re
 from uuid import UUID, uuid5
 
 from django.db import DatabaseError, transaction
+from django.db.models import Q
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -69,6 +70,48 @@ def _intent(video_id, creator_id, data):
 
 def _status(video):
     return {"video_id": str(video.id), "state": video.state}
+
+
+def _owned_item(video):
+    return {"id": str(video.id), "creator_id": str(video.creator_id),
+            "title": video.title, "description": video.description,
+            "state": video.state, "created_at": video.created_at.isoformat()}
+
+
+def _library(creator_id, cursor):
+    videos = Video.objects.filter(creator_id=creator_id).order_by("-created_at", "-id")
+    if cursor is not None:
+        anchor = videos.filter(pk=UUID(cursor)).first()
+        if anchor is None:
+            return _error("Invalid cursor", 400)
+        videos = videos.filter(Q(created_at__lt=anchor.created_at) |
+                               Q(created_at=anchor.created_at, id__lt=anchor.id))
+    page = list(videos[:21])
+    return JsonResponse({"items": [_owned_item(item) for item in page[:20]],
+                         "next_cursor": str(page[19].id) if len(page) > 20 else None})
+
+
+def _manage(video_id, creator_id, data, operation):
+    with transaction.atomic():
+        video = Video.objects.select_for_update().filter(
+            pk=video_id, creator_id=creator_id).first()
+        if video is None:
+            return _error("Video not found", 404)
+        if (video.state != Video.State.DRAFT or video.visibility != Video.Visibility.PRIVATE
+                or video.provider_asset_id or MediaUpload.objects.filter(video=video).exists()):
+            return _error("Only a private draft without media can be changed", 409)
+        if operation == "delete":
+            video.delete()
+            return JsonResponse({"video_id": str(video_id), "deleted": True})
+        title, description = data["title"], data["description"]
+        if not isinstance(title, str) or not 1 <= len(title.strip()) <= 160:
+            raise ValueError("Invalid title")
+        if not isinstance(description, str) or len(description) > 2000:
+            raise ValueError("Invalid description")
+        video.title = title.strip()
+        video.description = description
+        video.save(update_fields=["title", "description"])
+        return JsonResponse(_owned_item(video))
 
 
 def _enqueue(video_id):
@@ -137,6 +180,9 @@ def media_api(request, operation):
         data = json.loads(request.body)
         fields = {
             "draft": {"creator_id", "title", "description"},
+            "library": {"creator_id", "cursor"},
+            "edit": {"creator_id", "video_id", "title", "description"},
+            "delete": {"creator_id", "video_id"},
             "intent": {"creator_id", "video_id", "idempotency_key", "size_bytes"},
             "complete": {"creator_id", "video_id"}, "status": {"creator_id", "video_id"},
             "playback": {"video_id"}, "watch": {"video_id"}, "watch-check": {"video_id"},
@@ -148,7 +194,11 @@ def media_api(request, operation):
         creator_id = UUID(data["creator_id"])
         if operation == "draft":
             return _draft(creator_id, data)
+        if operation == "library":
+            return _library(creator_id, data["cursor"])
         video_id = UUID(data["video_id"])
+        if operation in ("edit", "delete"):
+            return _manage(video_id, creator_id, data, operation)
         if operation == "intent":
             return _intent(video_id, creator_id, data)
         if operation == "complete":

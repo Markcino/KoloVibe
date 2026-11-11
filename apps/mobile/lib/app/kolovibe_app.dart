@@ -11,6 +11,7 @@ import '../features/account/account_sessions_screen.dart';
 import '../features/account/live_account_screen.dart';
 import '../features/discovery/live_video_screen.dart';
 import '../features/creators/live_creator_screen.dart';
+import '../features/points/live_points_screen.dart';
 import 'app_dependencies.dart';
 import 'app_session.dart';
 import 'screen_route.dart';
@@ -52,8 +53,8 @@ class _KoloVibeAppState extends State<KoloVibeApp> {
     final account = widget.dependencies.liveAccount;
     if (account == null || widget.initialScreen != 1) return null;
     return account.currentAccount().then(
-      (user) => user == null ? widget.initialScreen : 17,
-    );
+          (user) => user == null ? widget.initialScreen : 17,
+        );
   }
 
   @override
@@ -112,7 +113,8 @@ class _KoloVibeAppState extends State<KoloVibeApp> {
                 const Text('Your session could not be checked.'),
                 FilledButton(
                   onPressed: () {
-                    setState(() => _initialScreenFuture = _restoreInitialScreen());
+                    setState(
+                        () => _initialScreenFuture = _restoreInitialScreen());
                   },
                   child: const Text('Retry'),
                 ),
@@ -127,20 +129,35 @@ class _KoloVibeAppState extends State<KoloVibeApp> {
 
   Widget featureScreen(ScreenRoute route, DesignCatalog catalog) =>
       switch (route.screen) {
-        17 || 19 || 24 when widget.dependencies.liveVideos != null =>
-          LiveVideoScreen(route: route, catalog: catalog,
-            repository: widget.dependencies.liveVideos!,
-            creators: widget.dependencies.liveCreators),
-        25 when widget.dependencies.liveVideos != null && route.entityId != null =>
-          LiveVideoDetailScreen(id: route.entityId!,
-            repository: widget.dependencies.liveVideos!),
-        38 when widget.dependencies.liveCreators != null && route.entityId != null =>
-          LiveCreatorScreen(id: route.entityId!,
-            repository: widget.dependencies.liveCreators!),
+        17 ||
+        18 ||
+        19 ||
+        24 when widget.dependencies.liveVideos != null =>
+          LiveVideoScreen(
+              route: route,
+              catalog: catalog,
+              repository: widget.dependencies.liveVideos!,
+              creators: widget.dependencies.liveCreators,
+              account: widget.dependencies.liveAccount),
+        25
+            when widget.dependencies.liveVideos != null &&
+                route.entityId != null =>
+          LiveVideoDetailScreen(
+              id: route.entityId!, repository: widget.dependencies.liveVideos!),
+        38
+            when widget.dependencies.liveCreators != null &&
+                route.entityId != null =>
+          LiveCreatorScreen(
+              id: route.entityId!,
+              repository: widget.dependencies.liveCreators!,
+              account: widget.dependencies.liveAccount),
+        >= 61 && <= 69 when widget.dependencies.livePoints != null =>
+          LivePointsScreen(
+              route: route, repository: widget.dependencies.livePoints!),
         83 when widget.dependencies.liveAccount != null =>
           AccountSessionsScreen(repository: widget.dependencies.liveAccount!),
-        79 when widget.dependencies.liveAccount != null =>
-          LiveAccountScreen(repository: widget.dependencies.liveAccount!, catalog: catalog),
+        79 when widget.dependencies.liveAccount != null => LiveAccountScreen(
+            repository: widget.dependencies.liveAccount!, catalog: catalog),
         17 => HomeScreen(
             catalog: catalog,
             dependencies: widget.dependencies,

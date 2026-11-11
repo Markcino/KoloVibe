@@ -10,12 +10,79 @@ from django.test import RequestFactory, TestCase, override_settings
 from django.utils import timezone
 
 from service import accounts
-from service.models import Account, EmailVerification, LoginSession, UsedRefreshToken
+from service.models import Account, EmailVerification, LoginSession, PasswordReset, UsedRefreshToken
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
                    EMAIL_HOST="smtp.example.test", DEFAULT_FROM_EMAIL="noreply@example.test")
 class AccountApiTests(TestCase):
+    def test_reset_replaces_code_and_revokes_existing_sessions(self):
+        account = self.register_and_verify()
+        login = self.post(accounts.login, {"email": account.email, "password": self.password})
+        session = json.loads(login.content)
+        self.assertEqual(self.post(accounts.request_password_reset,
+                                   {"email": "missing@example.test"}).status_code, 204)
+        self.assertEqual(self.post(accounts.request_password_reset,
+                                   {"email": account.email}).status_code, 204)
+        code = mail.outbox[-1].body.split(": ", 1)[1]
+        self.assertEqual(self.post(accounts.request_password_reset,
+                                   {"email": account.email}).status_code, 204)
+        self.assertEqual(PasswordReset.objects.filter(account=account).count(), 1)
+        other_password = secrets.token_urlsafe(28)
+        self.assertEqual(self.post(accounts.reset_password,
+            {"code": code, "new_password": other_password}).status_code, 204)
+        self.assertEqual(self.post(accounts.reset_password,
+            {"code": code, "new_password": secrets.token_urlsafe(28)}).status_code, 400)
+        self.assertEqual(self.post(accounts.validate_access,
+            {"access_token": session["access_token"]}).status_code, 401)
+        self.assertEqual(self.post(accounts.refresh,
+            {"refresh_token": session["refresh_token"]}).status_code, 401)
+        self.assertEqual(self.post(accounts.login,
+            {"email": account.email, "password": self.password}).status_code, 401)
+        self.assertEqual(self.post(accounts.login,
+            {"email": account.email, "password": other_password}).status_code, 200)
+
+    def test_expired_reset_and_wrong_current_password_cannot_change_account(self):
+        account = self.register_and_verify()
+        session = json.loads(self.post(accounts.login,
+            {"email": account.email, "password": self.password}).content)
+        self.post(accounts.request_password_reset, {"email": account.email})
+        code = mail.outbox[-1].body.split(": ", 1)[1]
+        PasswordReset.objects.update(expires_at=timezone.now() - timedelta(seconds=1))
+        self.assertEqual(self.post(accounts.reset_password,
+            {"code": code, "new_password": secrets.token_urlsafe(28)}).status_code, 400)
+        self.assertEqual(self.post(accounts.change_password, {
+            "access_token": session["access_token"],
+            "current_password": secrets.token_urlsafe(28),
+            "new_password": secrets.token_urlsafe(28),
+        }).status_code, 401)
+        self.assertEqual(self.post(accounts.validate_access,
+            {"access_token": session["access_token"]}).status_code, 200)
+        self.assertEqual(self.post(accounts.change_password, {
+            "access_token": session["access_token"],
+            "current_password": self.password,
+            "new_password": secrets.token_urlsafe(28),
+        }).status_code, 204)
+        self.assertEqual(self.post(accounts.validate_access,
+            {"access_token": session["access_token"]}).status_code, 401)
+
+    def test_profile_update_is_owned_and_rejects_client_role(self):
+        account = self.register_and_verify()
+        session = json.loads(self.post(accounts.login,
+            {"email": account.email, "password": self.password}).content)
+        self.assertEqual(self.post(accounts.update_profile, {
+            "access_token": session["access_token"], "display_name": "New Name",
+            "role": "administrator",
+        }).status_code, 400)
+        response = self.post(accounts.update_profile, {
+            "access_token": session["access_token"], "display_name": "New Name",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(json.loads(response.content)["user"]["display_name"], "New Name")
+        account.refresh_from_db()
+        self.assertEqual(account.display_name, "New Name")
+        self.assertEqual(account.role, Account.Role.VIEWER)
+
     def test_mail_failure_rolls_back_registration(self):
         with patch("service.accounts.send_mail", side_effect=smtplib.SMTPException), \
                 self.assertLogs("service.accounts", level="ERROR"):
