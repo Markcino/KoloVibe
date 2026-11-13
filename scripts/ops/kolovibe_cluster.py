@@ -340,11 +340,24 @@ def owned_secret_names(service, spec):
     live, expected = secret_refs(spec), convention_secrets(service)
     if set(live) != set(expected):
         fail('Existing service secrets differ; inspect without overwriting: kvtest-' + service)
-    for target, name in live.items():
-        owned = name == target if target in SHARED_SECRETS else name.startswith(service + '_')
-        if not owned:
-            fail('Existing service mounts a secret that does not belong to it: kvtest-' + service)
+    require_secrets_belong(service, spec)
     return {target: live[target] for target in expected}
+
+
+# Secrets mounted under their own name by one service in addition to the cluster-wide CA secrets.
+SERVICE_SHARED_SECRETS = {'gateway': ('trusted_peers',)}
+
+
+def require_secrets_belong(service, spec):
+    """Every secret a live service mounts is either a cluster-wide CA secret mounted at its own
+    target, a deliberately shared secret for that service, or one of the service's own
+    `<service>_...` secrets (including versioned names). Anything else fails closed. Names only
+    are examined and reported; secret values are never read."""
+    for target, name in secret_refs(spec).items():
+        shared = name == target and (name in SHARED_SECRETS or name in SERVICE_SHARED_SECRETS.get(service, ()))
+        own = target not in SHARED_SECRETS and name.startswith(service + '_')
+        if not (shared or own):
+            fail('Existing service mounts a secret that does not belong to it: kvtest-' + service)
 
 
 def require_gateway_secrets(known, gateway):
@@ -600,6 +613,7 @@ def update_plan(evidence, image, revision, services, restore_ref=None):
             fail(name + ' is not deployed; update never creates services (use deploy)')
         spec = live['Spec']
         safe_spec(spec)
+        require_secrets_belong(service, spec)
         current = live_image(spec)
         if not IMAGE_RE.fullmatch(current):
             fail(name + ' is not pinned to an immutable GHCR digest; inspect before updating')
