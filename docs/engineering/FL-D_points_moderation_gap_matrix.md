@@ -17,12 +17,12 @@ VERIFIED = live screen, real gateway data, all states, tests. PARTIAL = some beh
 | M-067 | Reversed points | PARTIAL (rows with `kind == reversal` from the first page only) | **VERIFIED** | `entries?status=adjustments`, total from `reversed`. |
 | M-068 | Engagement eligibility | MISSING (fell into the points screen) | **VERIFIED** (static approved copy) | No contract needed. |
 | M-069 | No points activity | PARTIAL (a list tile) | **VERIFIED** | Shown for an empty ledger, with no sample figures. |
-| M-070 | Report video entry | MISSING | MISSING | The entry is a control on the video screen (M-071 is its target); no standalone screen was built. |
-| M-071 | Report a video | PARTIAL (live) | PARTIAL | Six labels map onto five server codes, so "Violence" and "Sexual content" both send `harmful`. No sign-in-expired or offline state. |
-| M-072 | Report details | PARTIAL (live) | PARTIAL | Same screen as M-071. |
-| M-073 | Report submitted | PARTIAL (live) | PARTIAL | Receipt `status` is shown raw (`open`). |
-| M-074 | Report submission error | PARTIAL (inline text) | PARTIAL | No dedicated state; a retry reuses the idempotency key, which is correct. |
-| M-075 | Already reported | PARTIAL | PARTIAL | Looks only at the first 20 own reports; ignores the server's `409 already_reported` response. |
+| M-070 | Report video entry | MISSING | PARTIAL (journey 2) | The player's "Report this video" and overflow control open M-071 with the video id (signed-out goes to sign-in). The designed options sheet ("Share public link" plus a report row with its privacy note) was not rebuilt. |
+| M-071 | Report a video | PARTIAL (live) | **VERIFIED** (journey 2) | `GET /videos/{id}` then reasons. Six labels map onto five server codes, so "Violence" and "Sexual content" both send `harmful`; receipts name the reason from the server code only. Loading, offline, expired, video gone, no video id. |
+| M-072 | Report details | PARTIAL (live) | **VERIFIED** | Reason required, text optional (2000 max, trimmed, cleared when sent or left). A cold entry starts at the reasons (it cannot skip the required reason). |
+| M-073 | Report submitted | PARTIAL (live) | **VERIFIED** | `POST /reports` receipt. A cold entry shows the latest own report for the video (paged `GET /me/reports`); a decided one reads "has been reviewed"; none found falls back to the reasons. |
+| M-074 | Report submission error | PARTIAL (inline text) | **VERIFIED** | Dedicated state with the designed actions. Failure kinds: unconfirmed (offline, 5xx, unreadable) retries with the same key; rate limit retries; expired offers sign-in; 403 and 404 offer no retry. No cold entry (no failed attempt to show). |
+| M-075 | Already reported | PARTIAL | **VERIFIED** | `409 code: already_reported` becomes this state (not an error) and the earlier report's reason is looked up (best effort). A cold entry needs an *open* report; a decided one does not count. |
 | M-076 | Content restriction notice | MISSING | MISSING | `GET /creators/me/videos/{id}/notice` needs approved copy for each `reason_code` (unknown codes must not be guessed). |
 | M-077 | Account status | MISSING | MISSING | `GET /me/standing` (`account_status`, `creator_status`, `publishing_allowed`, up to 20 notices). |
 | M-078 | Appeal / review request | MISSING (the repository method exists, no screen) | MISSING | `POST /videos/{id}/appeals`; only when the notice says `appealable` (a removed video with no appeal yet). |
@@ -31,8 +31,8 @@ Staging capabilities `points`, `watch` and `moderation` are closed by default; e
 
 ## Remaining journeys, in priority order
 
-1. **Points ledger (M-061–M-069): this PR.**
-2. Reporting completion (M-070–M-075): handle `409 already_reported`, sign-in and offline states, a receipt wording map, a dedicated entry.
+1. **Points ledger (M-061–M-069): PR 56.**
+2. **Reporting completion (M-071–M-075): journey 2 (stacked on PR 56).** Remaining: the M-070 options sheet.
 3. Notices and standing (M-076, M-077): read-only; blocked on owner-approved copy per `reason_code`.
 4. Appeal (M-078): depends on the notice read; one appeal per removal, no client-side status guessing.
 
@@ -70,3 +70,14 @@ Flutter `analyze`: no issues. Full suite: 781 passed (705 before). Mutation chec
 ## Not covered
 
 Local mocked and fake-repository tests only. No live gateway, device, staging or accessibility screen-reader pass was run.
+
+## Journey 2: reporting (M-071–M-075)
+
+| Area | Change |
+| --- | --- |
+| Defects fixed | A `409 already_reported` showed as a generic error. M-075 looked only at the first 20 reports and for any status. One idempotency key was reused for the life of the screen, so changing the reason or text after a failed attempt would have been rejected as a key conflict. M-074 had no state. A cold M-072 allowed a chosen-reason chip reading "Choose a reason above". |
+| Repository | `ReportRecord` and paged `ownReports` (strict keys, reason must be one of the five codes, cursor rules mirror the gateway). `findReport(videoId, openOnly, maxPages)` walks pages with a bound. `isAlreadyReported`. |
+| Controller | `ReportController`: one submit in flight; identical retry reuses the key (a lost response replays instead of duplicating); a changed reason or text, or a plain 409, gets a new key; an unreadable response is "not confirmed", never "sent"; the text is kept through failures and cleared once sent. |
+| Not done | The M-070 options sheet. Reporting your own video, and any reviewer-side decision, are the server's call; the app adds no rule. |
+
+Tests added for this journey: `test/live_report_repository_test.dart` (13, mocked HTTP), `test/report_controller_test.dart` (19, fake services), `test/live_report_screens_test.dart` (28, fake services and the real catalog, 2.0 text scale), route dispatch extended in `test/trust_routes_test.dart`.
