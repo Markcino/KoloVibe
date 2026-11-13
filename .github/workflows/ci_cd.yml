@@ -376,25 +376,22 @@ jobs:
           trap 'docker logout ghcr.io >/dev/null' EXIT
           printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
           REPOSITORY="$(printf '%s' "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')"
-          IMAGE_ID="$(cat verified-image/image-id.txt)"
-          TARGET="ghcr.io/$REPOSITORY/services:$REVISION-${IMAGE_ID#sha256:}"
+          TARGET="ghcr.io/$REPOSITORY/services:v0.$GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT"
           docker tag "kolovibe/services:ci" "$TARGET"
           docker push "$TARGET"
-          docker pull "$TARGET"
-          test "$(docker image inspect "$TARGET" --format '{{.Id}}')" = "$(cat verified-image/image-id.txt)"
-          DIGEST_REFERENCE="$(docker image inspect "$TARGET" --format '{{index .RepoDigests 0}}')"
-          case "$DIGEST_REFERENCE" in
-            "ghcr.io/$REPOSITORY/services@"* | "ghcr.io/$REPOSITORY/services:"*@* ) ;;
-            *) echo "::error::Published image digest belongs to an unexpected repository"; exit 1 ;;
-          esac
-          DIGEST="${DIGEST_REFERENCE##*@}"
+          DIGEST="$(docker buildx imagetools inspect "$TARGET" --format '{{json .Manifest}}' |
+            python3 -c 'import json, sys; print(json.load(sys.stdin)["digest"])')"
           printf '%s\n' "$DIGEST" | grep -Eq '^sha256:[0-9a-f]{64}$' || {
             echo "::error::Published image has an invalid digest"; exit 1;
           }
           DIGEST="ghcr.io/$REPOSITORY/services@$DIGEST"
+          docker pull "$DIGEST"
+          test "$(docker image inspect "$DIGEST" --format '{{.Id}}')" = "$(cat verified-image/image-id.txt)"
           printf '%s\n' "$DIGEST" > verified-image/published-digest.txt
           printf '%s\n' "$TARGET" > verified-image/published-tag.txt
-          printf '### Shared services image\n\nCommit: `%s`\n\nImage: `%s`\n' "$REVISION" "$DIGEST" >> "$GITHUB_STEP_SUMMARY"
+          python3 -c 'import json, pathlib, sys; pathlib.Path("verified-image/publication.json").write_text(json.dumps(dict(zip(("tag", "digest", "revision", "image_id"), sys.argv[1:]))) + "\n")' \
+            "$TARGET" "$DIGEST" "$REVISION" "$(cat verified-image/image-id.txt)"
+          printf '### Shared services image\n\nCommit: `%s`\n\nTag: `%s`\n\nImage: `%s`\n' "$REVISION" "$TARGET" "$DIGEST" >> "$GITHUB_STEP_SUMMARY"
       - name: Retain publication evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -402,6 +399,7 @@ jobs:
           path: |
             verified-image/published-digest.txt
             verified-image/published-tag.txt
+            verified-image/publication.json
             verified-image/image-id.txt
             verified-image/revision.txt
             verified-image/services.json

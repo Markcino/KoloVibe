@@ -231,10 +231,18 @@ def resolve_release(image=None, revision=None, release_dir=None):
         published, rev, tag = text('published-digest.txt'), text('revision.txt'), text('published-tag.txt')
         if image not in (None, published) or revision not in (None, rev):
             fail('--image/--revision disagree with the published release evidence')
-        if tag.split(':', 1)[0] != REPOSITORY or not tag.split(':', 1)[1:] \
-                or not tag.split(':', 1)[1].startswith(rev + '-'):
-            fail('Published tag does not belong to the recorded revision')
+        tag_prefix = REPOSITORY + ':'
+        versioned = tag.startswith(tag_prefix) and re.fullmatch(
+            r'v0\.[1-9][0-9]*\.[1-9][0-9]*', tag[len(tag_prefix):])
+        if not versioned and not tag.startswith(tag_prefix + rev + '-'):
+            fail('Published tag does not match the release evidence')
         try:
+            if versioned:
+                image_id = text('image-id.txt')
+                publication = json.loads(text('publication.json'))
+                if not re.fullmatch(r'sha256:[0-9a-f]{64}', image_id) or publication != {
+                        'tag': tag, 'digest': published, 'revision': rev, 'image_id': image_id}:
+                    fail('Publication metadata disagrees with the release evidence')
             names = json.loads(text('services.json'))
             components = json.loads(text('image-sbom.json'))['components']
         except (ValueError, KeyError, TypeError):

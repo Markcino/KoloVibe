@@ -84,7 +84,11 @@ def manager(swarm):
 
 def release_dir(directory, **overrides):
     files = {'published-digest.txt': NEW_IMAGE, 'revision.txt': TARGET_REVISION,
-             'published-tag.txt': cluster.REPOSITORY + ':' + TARGET_REVISION + '-' + 'b' * 64,
+             'published-tag.txt': cluster.REPOSITORY + ':v0.123.2',
+             'image-id.txt': 'sha256:' + 'b' * 64,
+             'publication.json': json.dumps({'tag': cluster.REPOSITORY + ':v0.123.2',
+                                             'digest': NEW_IMAGE, 'revision': TARGET_REVISION,
+                                             'image_id': 'sha256:' + 'b' * 64}),
              'services.json': json.dumps(list(cluster.SERVICES)),
              'image-sbom.json': json.dumps({'components': [{'name': 'django'}, {'name': 'gunicorn'}]})}
     files.update(overrides)
@@ -119,10 +123,16 @@ class ReleaseSelectionTests(unittest.TestCase):
             self.assertEqual(cluster.resolve_release(release_dir=directory), (NEW_IMAGE, TARGET_REVISION))
             with self.assertRaisesRegex(RuntimeError, 'disagree'):
                 cluster.resolve_release(cluster.REPOSITORY + '@sha256:' + 'd' * 64, release_dir=directory)
+            release_dir(directory, **{'published-tag.txt': cluster.REPOSITORY + ':' + TARGET_REVISION + '-' + 'b' * 64})
+            self.assertEqual(cluster.resolve_release(release_dir=directory), (NEW_IMAGE, TARGET_REVISION))
 
     def test_unscanned_or_inconsistent_evidence_is_refused(self):
         cases = {
             'Published tag': {'published-tag.txt': cluster.REPOSITORY + ':' + 'e' * 40 + '-' + 'b' * 64},
+            'Published tag ': {'published-tag.txt': cluster.REPOSITORY + ':v0.0.2'},
+            'Published tag.*': {'published-tag.txt': 'ghcr.io/other/services:v0.123.2'},
+            'Publication metadata': {'revision.txt': 'e' * 40},
+            'Publication metadata ': {'image-id.txt': 'sha256:' + 'e' * 64},
             'different service set': {'services.json': json.dumps(['gateway'])},
             'scan gate': {'image-sbom.json': json.dumps({'components': [{'name': 'sqlite-libs'}]})},
             'valid JSON': {'image-sbom.json': 'not json'},
