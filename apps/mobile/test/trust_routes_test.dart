@@ -7,7 +7,9 @@ import 'package:kolovibe/app/routes/route_context.dart';
 import 'package:kolovibe/app/routes/trust_routes.dart';
 import 'package:kolovibe/app/screen_route.dart';
 import 'package:kolovibe/core/presentation/design_node.dart';
+import 'package:kolovibe/features/moderation/live_notice_screen.dart';
 import 'package:kolovibe/features/moderation/live_report_screen.dart';
+import 'package:kolovibe/features/moderation/live_standing_screen.dart';
 import 'package:kolovibe/features/points/live_points_screen.dart';
 
 void main() {
@@ -42,9 +44,18 @@ void main() {
     expect(build(71, live), isNull);
     expect(build(71, live, entityId: '00000000-0000-4000-8000-000000000003'),
         isA<LiveReportScreen>());
-    // Not yet journeys: they fall back to the protected placeholder.
-    for (final screen in [70, 76, 77, 78]) {
+    // M-070 is the player's own control; M-078 is not built yet.
+    for (final screen in [70, 78]) {
       expect(build(screen, live), isNull, reason: 'M-0$screen');
     }
+  });
+
+  test('M-076 needs a video; M-077 needs only a signed-in gateway', () {
+    final live = AppDependencies.live('https://api.example.test/api/v1');
+    expect(build(76, live), isNull);
+    expect(build(76, live, entityId: '00000000-0000-4000-8000-000000000003'),
+        isA<LiveNoticeScreen>());
+    expect(build(77, live), isA<LiveStandingScreen>());
+    expect(build(77, const AppDependencies.unavailable()), isNull);
   });
 }

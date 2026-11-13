@@ -23,8 +23,8 @@ VERIFIED = live screen, real gateway data, all states, tests. PARTIAL = some beh
 | M-073 | Report submitted | PARTIAL (live) | **VERIFIED** | `POST /reports` receipt. A cold entry shows the latest own report for the video (paged `GET /me/reports`); a decided one reads "has been reviewed"; none found falls back to the reasons. |
 | M-074 | Report submission error | PARTIAL (inline text) | **VERIFIED** | Dedicated state with the designed actions. Failure kinds: unconfirmed (offline, 5xx, unreadable) retries with the same key; rate limit retries; expired offers sign-in; 403 and 404 offer no retry. No cold entry (no failed attempt to show). |
 | M-075 | Already reported | PARTIAL | **VERIFIED** | `409 code: already_reported` becomes this state (not an error) and the earlier report's reason is looked up (best effort). A cold entry needs an *open* report; a decided one does not count. |
-| M-076 | Content restriction notice | MISSING | MISSING | `GET /creators/me/videos/{id}/notice` needs approved copy for each `reason_code` (unknown codes must not be guessed). |
-| M-077 | Account status | MISSING | MISSING | `GET /me/standing` (`account_status`, `creator_status`, `publishing_allowed`, up to 20 notices). |
+| M-076 | Content restriction notice | MISSING | **VERIFIED** with a stated limit (journey 3) | `GET /creators/me/videos/{id}/notice`. Decision wording restates the server's closed `decision` vocabulary. **No approved copy exists for free-form `reason_code`s**, so a code is shown as received ("Reason code: X"), the server's default `REVIEWED_*` codes are described as "a moderation reviewer recorded this decision; no policy reason was specified", and a null code is stated. Owner decision needed: approved per-code copy. Entered from the library (rejected/removed rows) and from M-077. |
+| M-077 | Account status | MISSING | **VERIFIED** with a stated limit | `GET /me/standing`. The gateway only authenticates an *active* account, so "Your account is suspended" (the design headline) can never be a true account claim here; the screen speaks of the **creator** account (`pending`, `active`, `restricted`, `suspended`, none) and `publishing_allowed`. The design's "Review the account notice" has **no contract** (only per-video notices exist) and is not offered. Notice titles come from the own video library, best effort. Entered from M-079. |
 | M-078 | Appeal / review request | MISSING (the repository method exists, no screen) | MISSING | `POST /videos/{id}/appeals`; only when the notice says `appealable` (a removed video with no appeal yet). |
 
 Staging capabilities `points`, `watch` and `moderation` are closed by default; every client must treat 403, 404 and 503 as normal states.
@@ -33,8 +33,8 @@ Staging capabilities `points`, `watch` and `moderation` are closed by default; e
 
 1. **Points ledger (M-061–M-069): PR 56.**
 2. **Reporting completion (M-071–M-075): journey 2 (stacked on PR 56).** Remaining: the M-070 options sheet.
-3. Notices and standing (M-076, M-077): read-only; blocked on owner-approved copy per `reason_code`.
-4. Appeal (M-078): depends on the notice read; one appeal per removal, no client-side status guessing.
+3. **Notices and standing (M-076, M-077): journey 3, this PR.** Read-only.
+4. Appeal (M-078): depends on the notice read. The approved M-078 design says "This screen does not submit an appeal", while the backend has `POST /videos/{id}/appeals`; the owner must decide which is intended before any submit control is built.
 
 ## Journey 1: what changed
 
@@ -81,3 +81,15 @@ Local mocked and fake-repository tests only. No live gateway, device, staging or
 | Not done | The M-070 options sheet. Reporting your own video, and any reviewer-side decision, are the server's call; the app adds no rule. |
 
 Tests added for this journey: `test/live_report_repository_test.dart` (13, mocked HTTP), `test/report_controller_test.dart` (19, fake services), `test/live_report_screens_test.dart` (28, fake services and the real catalog, 2.0 text scale), route dispatch extended in `test/trust_routes_test.dart`.
+
+## Journey 3: notices and standing (M-076, M-077)
+
+| Area | Change |
+| --- | --- |
+| Repository | `LiveStandingRepository` (`notice`, `standing`), `VideoNotice`, `OwnAppeal`, `AccountStanding`. Strict parsing mirrors the gateway validator: exact keys, closed `decision`, `reason_code` pattern, time zones required, a decision needs a date, an appeal must match its video and be 10–2000 characters, `appealable` only for a removal with no appeal, publishing allowed only for an active creator, at most 20 unique notices. |
+| Server owns the answers | The app never infers a decision, a reason, a creator state or an appeal right. `appealable` is displayed, not derived. |
+| Screens | `LiveNoticeScreen` (M-076) and `LiveStandingScreen` (M-077); `AsyncResource` (loading, failed, ready, stale-load guard). States: loading, offline with retry, expired with sign-in, 403 (not the owner/creator), 404 (foreign or missing video), unreadable, no decision, no video id. |
+| Entry points | Library rows in `rejected` or `removed` show "View notice"; M-079 gains "Account status". |
+| Not done | **No review-request control**: M-078 is the next journey and needs the owner decision above, so an appealable notice says a review is possible but not yet available in the app. No account-level notice (no contract). |
+
+Tests added: `test/live_standing_repository_test.dart` (11, mocked HTTP), `test/standing_controller_test.dart` (9, fake services), `test/live_notice_screens_test.dart` (27, fake service, real catalog, 2.0 text scale); route dispatch, library link and M-079 link tests extended.
