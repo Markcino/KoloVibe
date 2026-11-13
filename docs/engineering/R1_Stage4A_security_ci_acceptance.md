@@ -69,6 +69,10 @@ python -m unittest discover -s scripts -p 'test_*.py'   # 97 pass
 
 The lock was regenerated with the project's pinned `uv 0.9.15` and documented command. The application lock `requirements-dev.txt` is unchanged. Removing the new audit line makes the new contract test fail.
 
+## CI result for this fix
+
+[Run 43432687628](https://github.com/Markcino/KoloVibe/actions/runs/43432687628) on `aad9a0e73`: Security scans and SBOM (now auditing both locks), Django services, Flutter, and osv-scan all **success**. Only "Build and scan shared service image" fails, at the same `sqlite-libs` scan; the matrix and publish jobs are skipped.
+
 ## Publication and image evidence
 
 - Gating: `publish` needs all six quality jobs, runs only on a push to main with no status override, and publishes the exact artifact tested in the same run. It is covered by `scripts/test_ci_cd.py` and was observed `skipped` on every failing main run above. PRs, schedules and manual runs cannot publish. Only that job has `packages: write`.
