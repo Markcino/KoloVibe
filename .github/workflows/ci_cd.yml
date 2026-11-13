@@ -382,8 +382,16 @@ jobs:
           docker push "$TARGET"
           docker pull "$TARGET"
           test "$(docker image inspect "$TARGET" --format '{{.Id}}')" = "$(cat verified-image/image-id.txt)"
-          DIGEST="$(docker image inspect "$TARGET" --format '{{index .RepoDigests 0}}')"
-          printf '%s\n' "$DIGEST" | grep -Eq "^ghcr.io/$REPOSITORY/services@sha256:[0-9a-f]{64}$"
+          DIGEST_REFERENCE="$(docker image inspect "$TARGET" --format '{{index .RepoDigests 0}}')"
+          case "$DIGEST_REFERENCE" in
+            "ghcr.io/$REPOSITORY/services@"* | "ghcr.io/$REPOSITORY/services:"*@* ) ;;
+            *) echo "::error::Published image digest belongs to an unexpected repository"; exit 1 ;;
+          esac
+          DIGEST="${DIGEST_REFERENCE##*@}"
+          printf '%s\n' "$DIGEST" | grep -Eq '^sha256:[0-9a-f]{64}$' || {
+            echo "::error::Published image has an invalid digest"; exit 1;
+          }
+          DIGEST="ghcr.io/$REPOSITORY/services@$DIGEST"
           printf '%s\n' "$DIGEST" > verified-image/published-digest.txt
           printf '%s\n' "$TARGET" > verified-image/published-tag.txt
           printf '### Shared services image\n\nCommit: `%s`\n\nImage: `%s`\n' "$REVISION" "$DIGEST" >> "$GITHUB_STEP_SUMMARY"

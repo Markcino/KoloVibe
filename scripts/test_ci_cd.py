@@ -187,6 +187,38 @@ class WorkflowTests(unittest.TestCase):
         self.assertNotIn("KOLOVIBE_ENV=local", smoke["run"])
         self.assertNotIn("sqlite", smoke["run"].lower())
 
+    def test_published_digest_is_normalized_from_repo_digest_reference(self):
+        publish = next(step for step in self.jobs["publish"]["steps"]
+                       if step.get("name") == "Authenticate and publish")
+        lines = publish["run"].splitlines()
+        start = next(index for index, line in enumerate(lines)
+                     if line.startswith("DIGEST_REFERENCE="))
+        end = next(index for index, line in enumerate(lines[start:], start)
+                   if line.startswith('printf \'%s\\n\' "$DIGEST" >'))
+        commands = [
+            'DIGEST_REFERENCE="$MOCK_DIGEST_REFERENCE"',
+            *lines[start + 1:end],
+            'printf "%s\\n" "$DIGEST"',
+        ]
+        for reference, expected, valid in (
+            ("ghcr.io/markcino/kolovibe/services@sha256:" + "a" * 64,
+             "ghcr.io/markcino/kolovibe/services@sha256:" + "a" * 64, True),
+            ("ghcr.io/markcino/kolovibe/services:main-abc@sha256:" + "b" * 64,
+             "ghcr.io/markcino/kolovibe/services@sha256:" + "b" * 64, True),
+            ("ghcr.io/other/repo/services@sha256:" + "c" * 64, "", False),
+            ("ghcr.io/markcino/kolovibe/services:tag@sha256:invalid", "", False),
+        ):
+            with self.subTest(reference=reference):
+                result = subprocess.run(
+                    ["bash", "-euo", "pipefail", "-c", "\n".join(commands)],
+                    capture_output=True, text=True, check=False,
+                    env={**os.environ, "REPOSITORY": "markcino/kolovibe",
+                         "MOCK_DIGEST_REFERENCE": reference},
+                    timeout=5)
+                self.assertEqual(result.returncode == 0, valid, result.stderr)
+                if valid:
+                    self.assertEqual(result.stdout.strip(), expected)
+
     def test_permissions_are_job_scoped(self):
         self.assertEqual(self.workflow["permissions"], {"contents": "read"})
         self.assertEqual([key for key, job in self.jobs.items()
