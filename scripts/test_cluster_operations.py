@@ -164,6 +164,51 @@ class ClusterOperationsTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 'secrets differ'):
             self.plan_with(responses)
 
+    def update_with(self, names, service='content'):
+        responses = self.manager_responses()
+        known = {**all_secrets(), **{name: 'id-' + name for name in names.values()}}
+        live = cluster.api_spec(gateway_fixture(), service, known, TARGET, TARGET_REVISION, names=names)
+        live['Mode'] = {'Replicated': {'Replicas': 1}}
+        responses['/v1.52/services'].append({'ID': service, 'Version': {'Index': 7}, 'Spec': live})
+        responses['/v1.52/secrets'] += [{'ID': 'id-' + name, 'Spec': {'Name': name}}
+                                         for name in names.values() if name not in all_secrets()]
+        with patch.object(cluster, 'root'), patch.object(cluster, 'policy_baseline'), \
+                patch.object(cluster, 'docker', side_effect=lambda method, path, *args: responses[path]), \
+                patch.object(cluster, 'run', return_value='true ["-policy-file","/opa/policies/authz.rego","-quiet"]'):
+            return cluster.update_plan({'available_memory_bytes': 3000*cluster.MIB}, TARGET, TARGET_REVISION, [service])
+
+    def test_update_plan_accepts_own_and_rotated_secret_names(self):
+        names = cluster.convention_secrets('content')
+        self.update_with(names)
+        names['caller_keys'] = 'content_callers_2'
+        self.update_with(names)
+
+    def test_update_plan_refuses_another_services_or_misplaced_shared_secret(self):
+        foreign = cluster.convention_secrets('content')
+        foreign['caller_keys'] = 'creators_callers'
+        misplaced = cluster.convention_secrets('content')
+        misplaced['internal_ca'] = 'db_ca'
+        shared_as_own = cluster.convention_secrets('content')
+        shared_as_own['caller_keys'] = 'db_ca'
+        for label, names in (('foreign', foreign), ('misplaced', misplaced), ('shared as own', shared_as_own)):
+            with self.subTest(case=label), self.assertRaisesRegex(RuntimeError, 'does not belong'):
+                self.update_with(names)
+
+    def test_gateway_keeps_its_deliberate_extra_secrets_only(self):
+        gateway = gateway_fixture()['Spec']
+        refs = [('django_key', 'gateway_django'), ('caller_keys', 'gateway_callers'),
+                ('outbound_key', 'gateway_outbound_2'), ('trusted_peers', 'trusted_peers'),
+                ('internal_ca', 'internal_ca'), ('db_ca', 'db_ca')]
+        mounts = [{'SecretName': name, 'SecretID': 'id', 'File': {'Name': target}} for target, name in refs]  # pragma: allowlist secret
+        gateway['TaskTemplate']['ContainerSpec']['Secrets'] = mounts
+        cluster.require_secrets_belong('gateway', gateway)
+        mounts.append({'SecretName': 'identity_audit_signing', 'SecretID': 'id', 'File': {'Name': 'audit_key'}})  # pragma: allowlist secret
+        with self.assertRaisesRegex(RuntimeError, 'does not belong'):
+            cluster.require_secrets_belong('gateway', gateway)
+        with self.assertRaisesRegex(RuntimeError, 'does not belong'):  # trusted_peers is the gateway's alone
+            cluster.require_secrets_belong('content', {'TaskTemplate': {'ContainerSpec': {'Secrets': [
+                {'SecretName': 'trusted_peers', 'SecretID': 'id', 'File': {'Name': 'trusted_peers'}}]}}})  # pragma: allowlist secret
+
     def test_missing_secret_stops_before_any_deployment(self):
         with self.assertRaisesRegex(RuntimeError, 'Missing existing Swarm secret'):
             cluster.api_spec(gateway_fixture(), 'identity', {}, TARGET, TARGET_REVISION)
