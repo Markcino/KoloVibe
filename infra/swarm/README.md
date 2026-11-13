@@ -171,3 +171,43 @@ Monitor command failures, pending delivery count and oldest pending timestamp in
 `service_auditdelivery` joined to `service_securityevent`. Approve retry cadence,
 delivery-lag alerts, retention and storage capacity; no live scheduler is installed
 or silently implied here.
+
+## Moving running services to a new approved image
+
+`scripts/ops/kolovibe_cluster.py deploy` only creates missing services; it never touches a
+running one. Moving services is a separate, explicit step run on VM1 after a fresh VM2
+`worker-preflight`. No image is defaulted anywhere: every command that needs one takes the
+published `published-image-<sha>` CI artifact (`--release-dir`, preferred) or an explicit
+`--image` plus `--revision`. The tool rejects a tag, another repository, the 1 November
+baseline, and a release whose evidence lists SQLite or a different service set.
+
+```bash
+python3 kolovibe_cluster.py update-plan --worker-evidence worker.json --release-dir published-image \
+  --services audit,identity --restore-point-ref <approved-restore-point>
+```
+
+`update-plan` is read-only. `update` is the same command, and is a dry run until
+`--confirm-image <the approved digest>` repeats the digest exactly. When confirmed it:
+
+1. requires `--restore-point-ref` (an operator attestation; the tool cannot verify a restore);
+2. writes a new mode-0600 rollback record (current and target pin, service spec hash, rollback
+   commands) before changing anything, and never overwrites an existing one;
+3. updates the named services one at a time in a fixed order (audit, identity, creators,
+   content, engagement, points, moderation, gateway last), changing only the image pin, the
+   revision label and the stop-first rolling guards (monitor 30 s, roll back on failure);
+4. re-reads each service first and stops if it drifted since planning, and stops at the first
+   service Swarm pauses or rolls back, naming those not yet updated.
+
+The Gateway changes only when named, and only with `--accept-ungated` while its spec has no
+readiness healthcheck; run `verify-worker --image <digest> --services <name>` after each service.
+
+Image rollback restores each service's previous spec, Gateway first, without a registry
+credential (the previous image is cached on the worker). Dry run unless confirmed:
+
+```bash
+python3 kolovibe_cluster.py rollback --services audit,identity --confirm-rollback identity,audit
+```
+
+**Rollback never reverses migrations.** Treat schema changes as forward-only and restore from
+the approved restore point; export Points 0005, Moderation 0003 and Audit 0004 evidence rows
+first. The tool does not run migrations, change secrets, or touch PostgreSQL, Nginx or DNS.

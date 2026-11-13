@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
-"""Deploy existing KoloVibe image and collect credential-free live evidence.
+"""Deploy or move KoloVibe services to an approved image and collect credential-free live evidence.
 
-Run worker-preflight on VM2; copy its JSON to VM1 before deploy. The working
-gateway, PostgreSQL, firewall, DNS and Nginx are never modified by this tool.
+Run worker-preflight on VM2; copy its JSON to VM1 before deploy/update. `deploy` only creates
+missing services. `update-plan`/`update` move named, already-deployed services to an explicit
+digest one at a time (dry-run unless confirmed), and `rollback` restores the previous spec.
+No image is ever defaulted. PostgreSQL, firewall, DNS and Nginx are never modified, and the
+Gateway changes only when it is explicitly named.
 """
 import argparse
 import base64
@@ -31,9 +34,25 @@ from urllib.request import build_opener, HTTPSHandler, HTTPRedirectHandler, Prox
 from urllib.error import HTTPError
 
 SERVICES = ('gateway', 'content', 'creators', 'identity', 'engagement', 'points', 'moderation', 'audit')
-IMAGE = 'ghcr.io/markcino/kolovibe/services@sha256:8d6a16e450e6a7825c7d501069cd54fa3a75776afc2819e5664499bcef85ea14'
+REPOSITORY = 'ghcr.io/markcino/kolovibe/services'
+# The 1 November image the running staging services were created from. It is only the
+# historical baseline: it is never a deployment target and never a silent default.
+BASELINE_IMAGE = REPOSITORY + '@sha256:8d6a16e450e6a7825c7d501069cd54fa3a75776afc2819e5664499bcef85ea14'
 # Published Git commit identifier, not an authentication credential.
-REVISION = 'be03dbcced01f1a4f71c643dbc179da2810ffa61'  # pragma: allowlist secret
+BASELINE_REVISION = 'be03dbcced01f1a4f71c643dbc179da2810ffa61'  # pragma: allowlist secret
+IMAGE, REVISION = BASELINE_IMAGE, BASELINE_REVISION  # legacy names for the baseline only
+IMAGE_RE = re.compile(re.escape(REPOSITORY) + r'@sha256:[0-9a-f]{64}')
+REVISION_RE = re.compile(r'[0-9a-f]{40}')
+REF_RE = re.compile(r'[A-Za-z0-9][A-Za-z0-9._-]{3,63}')
+# Leaf-most services first so audit ingest is ready before its producers; the public
+# Gateway is always last and is rolled back first.
+UPDATE_ORDER = ('audit', 'identity', 'creators', 'content', 'engagement', 'points', 'moderation', 'gateway')
+# Swarm rolling-update guards recorded in infra/swarm/staging.yml.
+UPDATE_CONFIG = {'Parallelism': 1, 'Delay': 0, 'FailureAction': 'rollback', 'Monitor': 30_000_000_000,
+                 'MaxFailureRatio': 0, 'Order': 'stop-first'}
+ROLLBACK_CONFIG = {'Parallelism': 1, 'Delay': 0, 'FailureAction': 'pause', 'Monitor': 30_000_000_000,
+                   'MaxFailureRatio': 0, 'Order': 'stop-first'}
+ROLLING_KEYS = ('UpdateConfig', 'RollbackConfig')
 POLICY = Path('/etc/docker/policies/authz.rego')
 BASE = '''package docker.authz
 default allow = false
@@ -193,7 +212,71 @@ def canonical(value):
     return value
 
 
-def base_gateway(api):
+def resolve_release(image=None, revision=None, release_dir=None):
+    """Return the one approved (image, revision) target, or stop.
+
+    The target is never defaulted. It comes from the operator naming a digest, or from the
+    `published-image-<sha>` artifact written by the CI publish job, which only runs after
+    the image scan, the SQLite-free checks and the eight-service smoke matrix pass. A
+    digest that was not published by that job cannot be cross-checked, so --release-dir
+    is the preferred input and --image/--revision alone are only a shape check.
+    """
+    if release_dir:
+        base = Path(release_dir)
+        def text(name):
+            path = base / name
+            if path.is_symlink() or not path.is_file() or path.stat().st_size > 1_000_000:
+                fail('Release evidence file is missing or unsafe: ' + name)
+            return path.read_text().strip()
+        published, rev, tag = text('published-digest.txt'), text('revision.txt'), text('published-tag.txt')
+        if image not in (None, published) or revision not in (None, rev):
+            fail('--image/--revision disagree with the published release evidence')
+        if tag.split(':', 1)[0] != REPOSITORY or not tag.split(':', 1)[1:] \
+                or not tag.split(':', 1)[1].startswith(rev + '-'):
+            fail('Published tag does not belong to the recorded revision')
+        try:
+            names = json.loads(text('services.json'))
+            components = json.loads(text('image-sbom.json'))['components']
+        except (ValueError, KeyError, TypeError):
+            fail('Release evidence is not valid JSON')
+        if sorted(names) != sorted(SERVICES):
+            fail('Release evidence lists a different service set')
+        if not components or any('sqlite' in str(c.get('name', '')).lower() for c in components):
+            fail('Release SBOM is empty or lists SQLite; the scan gate was not satisfied')
+        image, revision = published, rev
+    if not image or not IMAGE_RE.fullmatch(image):
+        fail('Supply an immutable ' + REPOSITORY + '@sha256:<digest> via --release-dir or --image')
+    if not revision or not REVISION_RE.fullmatch(revision):
+        fail('Supply the 40-hex release commit via --release-dir or --revision')
+    if image == BASELINE_IMAGE:
+        fail('The 1 November baseline image is not an approved release target')
+    return image, revision
+
+
+def pinned(spec, image, revision):
+    spec = copy.deepcopy(spec)
+    spec['TaskTemplate']['ContainerSpec']['Image'] = image
+    spec.setdefault('Labels', {})['kolovibe.source-revision'] = revision
+    return spec
+
+
+def release_neutral(spec):
+    """A spec with the release pin and rolling-update guards removed, for drift checks."""
+    spec = pinned(spec, '', '')
+    for key in ROLLING_KEYS:
+        spec.pop(key, None)
+    return canonical(spec)
+
+
+def spec_digest(spec):
+    return hashlib.sha256(json.dumps(canonical(spec), sort_keys=True).encode()).hexdigest()
+
+
+def live_image(spec):
+    return ((spec.get('TaskTemplate') or {}).get('ContainerSpec') or {}).get('Image', '')
+
+
+def base_gateway(api, image=BASELINE_IMAGE):
     gateway = docker('GET', '/v' + api + '/services/kvtest-gateway')
     spec = gateway['Spec']
     safe_spec(spec)
@@ -203,7 +286,8 @@ def base_gateway(api):
                 'KOLOVIBE_DB_HOST': 'vm-swarm-worker', 'KOLOVIBE_DB_NAME': 'kolovibe_staging',
                 'KOLOVIBE_DB_USER': 'kv_gateway_run', 'KOLOVIBE_STAGING_ACCOUNTS': '0',
                 'KOLOVIBE_STAGING_PRIVILEGED': '0'}
-    if any(env.get(k) != v for k, v in required.items()) or c.get('Image') != IMAGE:
+    # The Gateway is either still on the working baseline or already on a reviewed target.
+    if any(env.get(k) != v for k, v in required.items()) or c.get('Image') not in (BASELINE_IMAGE, image):
         fail('Gateway differs from the working pinned baseline')
     if not c.get('ReadOnly') or c.get('User') != '10001:10001':
         fail('Gateway runtime hardening differs')
@@ -224,10 +308,11 @@ def base_gateway(api):
     return gateway
 
 
-def api_spec(gateway, service, all_secrets):
+def api_spec(gateway, service, all_secrets, image, revision):
     spec = copy.deepcopy(gateway['Spec'])
     spec['Name'] = 'kvtest-' + service
-    spec['Labels'] = {LABEL: '1', 'kolovibe.source-revision': REVISION}
+    spec['Labels'] = {LABEL: '1', 'kolovibe.source-revision': revision}
+    spec['TaskTemplate']['ContainerSpec']['Image'] = image
     spec.pop('UpdateConfig', None)
     spec.pop('RollbackConfig', None)
     spec['EndpointSpec'] = {'Mode': 'vip'}
@@ -316,7 +401,8 @@ def load_evidence(path):
     return evidence
 
 
-def plan(evidence):
+def manager_checks():
+    """Read-only preconditions shared by every manager-side mode; returns the API version."""
     root('vm-swarm-manager')
     policy_baseline()
     version = docker('GET', '/version')['ApiVersion']
@@ -329,7 +415,12 @@ def plan(evidence):
                   '--format', '{{.Enabled}} {{json .Settings.Args}}']).strip()
     if plugin != 'true ["-policy-file","/opa/policies/authz.rego","-quiet"]':
         fail('OPA must be enabled with quiet logging before registry authentication')
-    gateway = base_gateway(version)
+    return version
+
+
+def plan(evidence, image, revision):
+    version = manager_checks()
+    gateway = base_gateway(version, image)
     entries = docker('GET', '/v' + version + '/services')
     all_secrets = {s['Spec']['Name']: s['ID'] for s in docker('GET', '/v' + version + '/secrets')}
     if len(all_secrets) != 62:
@@ -337,14 +428,20 @@ def plan(evidence):
     existing = {s['Spec']['Name']: s for s in entries}
     new = []
     for service in SERVICES[1:]:
-        expected = api_spec(gateway, service, all_secrets)
-        actual = existing.get(expected['Name'])
+        name = 'kvtest-' + service
+        actual = existing.get(name)
         if actual:
-            # Refuse to overwrite or adopt a differently configured service.
-            if canonical(actual['Spec']) != canonical(expected):
-                fail('Existing service differs; inspect without overwriting: ' + expected['Name'])
+            # An existing service keeps its own release pin; moving it is `update`'s job.
+            # Refuse to overwrite or adopt a service configured differently in any other way.
+            pin = live_image(actual['Spec'])
+            rev = (actual['Spec'].get('Labels') or {}).get('kolovibe.source-revision', '')
+            if not IMAGE_RE.fullmatch(pin):
+                fail('Existing service differs; inspect without overwriting: ' + name)
+            expected = api_spec(gateway, service, all_secrets, pin, rev)
+            if release_neutral(actual['Spec']) != release_neutral(expected):
+                fail('Existing service differs; inspect without overwriting: ' + name)
         else:
-            new.append(expected)
+            new.append(api_spec(gateway, service, all_secrets, image, revision))
     broker, blocked = broker_candidate(entries, version)
     broker_memory = 0
     if broker and broker['Spec']['Mode']['Replicated']['Replicas'] == 0:
@@ -380,24 +477,28 @@ def wait_running(api, sid):
     fail('Task did not reach Running within 120 seconds')
 
 
-def deploy(path, username, dry_run=False):
+def registry_auth(username):
+    if not username or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9-]{0,38}', username) or not sys.stdin.isatty():
+        fail('Use ssh -t and --registry-user for the hidden GHCR read:packages token prompt')
+    token = getpass.getpass('GHCR read:packages token (hidden): ')
+    if len(token) < 20 or any(c.isspace() for c in token):
+        fail('Invalid registry token')
+    auth = base64.urlsafe_b64encode(json.dumps({'username': username, 'password': token,
+                                              'serveraddress': 'ghcr.io'}).encode()).decode()
+    del token
+    return auth
+
+
+def deploy(path, username, image, revision, dry_run=False):
     evidence = load_evidence(path)
-    api, gateway, new, broker, blocked = plan(evidence)
-    print('PLAN: create ' + ', '.join(s['Name'] for s in new) + '; preserve kvtest-gateway unchanged', file=sys.stderr)
+    api, gateway, new, broker, blocked = plan(evidence, image, revision)
+    print('PLAN: create ' + ', '.join(s['Name'] for s in new) + ' from ' + image
+          + '; preserve kvtest-gateway unchanged; existing services keep their pin (use update-plan)', file=sys.stderr)
     if blocked:
         print('PENDING RabbitMQ: ' + blocked, file=sys.stderr)
     if dry_run:
         return
-    auth = None
-    if new:
-        if not username or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9-]{0,38}', username) or not sys.stdin.isatty():
-            fail('Use ssh -t and --registry-user for the hidden GHCR read:packages token prompt')
-        token = getpass.getpass('GHCR read:packages token (hidden): ')
-        if len(token) < 20 or any(c.isspace() for c in token):
-            fail('Invalid registry token')
-        auth = base64.urlsafe_b64encode(json.dumps({'username': username, 'password': token,
-                                                  'serveraddress': 'ghcr.io'}).encode()).decode()
-        del token
+    auth = registry_auth(username) if new else None
     load_evidence(path)  # Recheck freshness after the interactive credential prompt.
     for spec in new:
         path_api = '/v' + api + '/services/create'
@@ -421,6 +522,196 @@ def deploy(path, username, dry_run=False):
         fail('Gateway changed concurrently; investigate')
     if blocked:
         fail('APIs submitted; RabbitMQ remains pending: ' + blocked)
+
+
+def ordered(services, reverse=False):
+    """Validate an explicit service list and return it in the safe rollout order."""
+    if not services:
+        fail('Name the services explicitly with --services; nothing is selected by default')
+    unknown = sorted(set(services) - set(UPDATE_ORDER))
+    if unknown or len(set(services)) != len(services):
+        fail('--services must be a unique subset of: ' + ', '.join(UPDATE_ORDER))
+    order = tuple(reversed(UPDATE_ORDER)) if reverse else UPDATE_ORDER
+    return [s for s in order if s in services]
+
+
+def update_plan(evidence, image, revision, services, restore_ref=None):
+    """Read-only plan to move named, already-deployed services to the approved image.
+
+    Every entry records what a rollback needs *before* anything is changed. The spec for
+    each service is the live spec with only the release pin and the rolling-update guards
+    replaced; nothing else about the running service is altered.
+    """
+    names = ordered(services)
+    api = manager_checks()
+    base_gateway(api, image)
+    if len(docker('GET', '/v' + api + '/secrets')) != 62:
+        fail('Expected 62 existing Swarm secrets')
+    existing = {s['Spec']['Name']: s for s in docker('GET', '/v' + api + '/services')}
+    entries = []
+    for service in names:
+        name = 'kvtest-' + service
+        live = existing.get(name)
+        if not live:
+            fail(name + ' is not deployed; update never creates services (use deploy)')
+        spec = live['Spec']
+        safe_spec(spec)
+        current = live_image(spec)
+        if not IMAGE_RE.fullmatch(current):
+            fail(name + ' is not pinned to an immutable GHCR digest; inspect before updating')
+        if spec.get('Mode') != {'Replicated': {'Replicas': 1}}:
+            fail(name + ' must be a single replica service before an image update')
+        if (spec.get('EndpointSpec') or {}).get('Ports'):
+            fail(name + ' publishes ports; refusing to update')
+        health = ((spec['TaskTemplate']['ContainerSpec'].get('Healthcheck') or {}).get('Test') or ['NONE'])[0]
+        revision_now = (spec.get('Labels') or {}).get('kolovibe.source-revision', '')
+        entries.append({
+            'service': service, 'service_id': live['ID'], 'version_index': live['Version']['Index'],
+            'current_image': current, 'current_revision': revision_now,
+            'target_image': image, 'target_revision': revision,
+            'action': 'unchanged' if current == image else 'update',
+            'health_gated': health not in ('NONE', ''), 'spec_sha256': spec_digest(spec),
+            'update_spec': update_spec(spec, image, revision),
+            'previous_spec_available': bool(live.get('PreviousSpec')),
+            'rollback': {
+                'image_rollback': 'python3 kolovibe_cluster.py rollback --services ' + service
+                                  + ' --confirm-rollback ' + service,
+                'repin': 'python3 kolovibe_cluster.py update --services ' + service + ' --release-dir <prior approved release>',
+                'schema': 'Forward-only: image rollback never reverses migrations. Restore from the '
+                          'owner-approved restore point and export evidence tables first.'}})
+    return {'api': api, 'image': image, 'revision': revision, 'restore_point_ref': restore_ref,
+            'entries': entries, 'evidence_time': evidence.get('time')}
+
+
+def update_spec(spec, image, revision):
+    new = pinned(spec, image, revision)
+    new['UpdateConfig'] = dict(UPDATE_CONFIG)
+    new['RollbackConfig'] = dict(ROLLBACK_CONFIG)
+    if release_neutral(new) != release_neutral(spec):
+        fail('Update would change more than the release pin')
+    safe_spec(new)
+    return new
+
+
+def public_plan(report):
+    """The plan as printed and recorded: no full specs, which can name secret objects."""
+    shown = [{k: v for k, v in entry.items() if k != 'update_spec'} for entry in report['entries']]
+    return dict(report, entries=shown)
+
+
+def write_private(path, document):
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(descriptor, 'w') as handle:
+        handle.write(json.dumps(document, indent=2) + '\n')
+
+
+def wait_update(api, sid, previous_started, expected_image, *, rollback=False, timeout=300):
+    """Block until Swarm reports this update finished; any rollback or pause is a failure."""
+    deadline = time.monotonic() + timeout
+    good = 'rollback_completed' if rollback else 'completed'
+    while time.monotonic() < deadline:
+        service = docker('GET', '/v' + api + '/services/' + sid)
+        status = service.get('UpdateStatus') or {}
+        if status.get('StartedAt') != previous_started:
+            state = status.get('State')
+            if state == good:
+                if not rollback and live_image(service['Spec']) != expected_image:
+                    fail('Service finished updating on an unexpected image')
+                return
+            bad = ('paused', 'rollback_paused') if rollback else ('paused', 'rollback_started', 'rollback_completed',
+                                                                   'rollback_paused')
+            if state in bad:
+                fail('Swarm reported ' + state + '; the service is not on the target image')
+        time.sleep(2)
+    fail('Update did not finish within ' + str(timeout) + ' seconds')
+
+
+def update(path, username, image, revision, services, restore_ref, confirm_image, rollback_file, accept_ungated):
+    """Dry-run unless --confirm-image repeats the approved digest exactly."""
+    evidence = load_evidence(path)
+    report = update_plan(evidence, image, revision, services, restore_ref)
+    shown = public_plan(report)
+    print(json.dumps(shown, indent=2), file=sys.stderr)
+    todo = [e for e in report['entries'] if e['action'] == 'update']
+    if confirm_image is None:
+        print('DRY RUN: add --confirm-image ' + image + ' to apply; nothing was changed', file=sys.stderr)
+        return
+    if confirm_image != image:
+        fail('--confirm-image must repeat the approved release digest exactly')
+    if not restore_ref or not REF_RE.fullmatch(restore_ref):
+        fail('--restore-point-ref must name the owner-approved pre-migration restore point')
+    ungated = [e['service'] for e in todo if not e['health_gated']]
+    if ungated and not accept_ungated:
+        fail('No readiness healthcheck, so Swarm cannot detect a bad image for: ' + ', '.join(ungated)
+             + '; add --accept-ungated only with verify-worker/verify-edge run immediately after')
+    if not todo:
+        print('NOTHING TO DO: every named service is already on the target image', file=sys.stderr)
+        return
+    # The rollback record is written first and exclusively, so it can never be overwritten.
+    write_private(rollback_file, dict(shown, accept_ungated=bool(ungated and accept_ungated),
+                                      note='Restore point attested by the operator; restore not verified by this tool.'))
+    auth = registry_auth(username)
+    load_evidence(path)  # Recheck freshness after the interactive credential prompt.
+    api = report['api']
+    remaining = [e['service'] for e in todo]
+    gateway_before = None if 'gateway' in services else docker('GET', '/v' + api + '/services/kvtest-gateway')['Spec']
+    for entry in todo:
+        name = 'kvtest-' + entry['service']
+        live = docker('GET', '/v' + api + '/services/' + name)
+        if spec_digest(live['Spec']) != entry['spec_sha256']:
+            fail(name + ' changed since it was planned; stop and re-plan. Untouched: ' + ', '.join(remaining))
+        spec = entry['update_spec']
+        started = (live.get('UpdateStatus') or {}).get('StartedAt')
+        path_api = '/v' + api + '/services/' + live['ID'] + '/update'
+        with allow_once(api, path_api, spec):
+            docker('POST', path_api + '?version=' + str(live['Version']['Index']), spec, auth)
+        try:
+            wait_update(api, live['ID'], started, image)
+            wait_running(api, live['ID'])
+        except RuntimeError as error:
+            fail(str(error).replace('BLOCKED: ', '') + ' Not yet updated: '
+                 + (', '.join(remaining[1:]) or 'none') + '. Rollback record: ' + str(rollback_file))
+        remaining.pop(0)
+        print('UPDATED: ' + name + '; run verify-worker before the next service', file=sys.stderr)
+    if gateway_before is not None and docker('GET', '/v' + api + '/services/kvtest-gateway')['Spec'] != gateway_before:
+        fail('Gateway changed during the update; investigate')
+
+
+def rollback(services, confirm):
+    """Server-side rollback to each service's PreviousSpec, Gateway first. Dry-run by default."""
+    names = ordered(services, reverse=True)
+    api = manager_checks()
+    existing = {s['Spec']['Name']: s for s in docker('GET', '/v' + api + '/services')}
+    steps = []
+    for service in names:
+        live = existing.get('kvtest-' + service)
+        if not live:
+            fail('kvtest-' + service + ' is not deployed')
+        previous = live.get('PreviousSpec')
+        target = live_image(previous or {})
+        if not previous or not IMAGE_RE.fullmatch(target):
+            fail('kvtest-' + service + ' has no previous spec; re-pin with update and the prior approved digest')
+        safe_spec(live['Spec'])
+        steps.append((service, live, target))
+    for service, live, target in steps:
+        print('ROLLBACK PLAN: kvtest-' + service + ' ' + live_image(live['Spec']) + ' -> ' + target, file=sys.stderr)
+    print('Schema is NOT rolled back; restore from the approved restore point if migrations must be reversed.',
+          file=sys.stderr)
+    if confirm is None:
+        print('DRY RUN: add --confirm-rollback ' + ','.join(names) + ' to apply', file=sys.stderr)
+        return
+    if confirm.split(',') != names:
+        fail('--confirm-rollback must list exactly the planned services, in order: ' + ','.join(names))
+    for service, live, target in steps:
+        spec = live['Spec']
+        started = (live.get('UpdateStatus') or {}).get('StartedAt')
+        path_api = '/v' + api + '/services/' + live['ID'] + '/update'
+        # The previous image is already cached on the worker, so no registry credential is needed.
+        with allow_once(api, path_api, spec):
+            docker('POST', path_api + '?version=' + str(live['Version']['Index']) + '&rollback=previous', spec)
+        wait_update(api, live['ID'], started, target, rollback=True)
+        wait_running(api, live['ID'])
+        print('ROLLED BACK: kvtest-' + service + '; run verify-worker', file=sys.stderr)
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -577,10 +868,11 @@ def container_id(service):
     return ids[0]
 
 
-def inside(service, mode):
+def inside(service, mode, image):
     cid = container_id(service)
     info = json.loads(run(['docker', 'inspect', cid]))[0]
-    if info['Config']['Image'] != IMAGE:
+    running = info['Config']['Image']
+    if running != image if image else not IMAGE_RE.fullmatch(running):
         fail('Container digest differs: ' + service)
     # Source is sent through stdin, no file or secret copy inside the container.
     source = Path(__file__).read_text()
@@ -597,7 +889,7 @@ def worker_preflight():
     guard = json.loads(run(['python3', '/usr/local/sbin/kolovibe_db_route_fix.py', '--worker-evidence']))
     if guard.get('guard') is not True or guard.get('db') != '10.0.2.103':
         fail('Working bridge guard is not verified')
-    live = inside('gateway', 'live')
+    live = inside('gateway', 'live', None)
     if live != [200, {'status': 'ok'}]:
         fail('Existing Gateway HTTPS liveness failed')
     memory = dict(line.split(':', 1) for line in Path('/proc/meminfo').read_text().splitlines())
@@ -606,12 +898,14 @@ def worker_preflight():
             'available_memory_bytes': int(memory['MemAvailable'].split()[0])*1024}
 
 
-def verify_worker():
+def verify_worker(image, services=SERVICES):
+    """Verify `services` (all by default) are running exactly `image`; a staged rollout
+    verifies each service as it moves, so the rest are not claimed."""
     root('vm-swarm-worker')
     reports = []
-    for service in SERVICES:
+    for service in services:
         try:
-            reports.append(inside(service, 'tests'))
+            reports.append(inside(service, 'tests', image))
         except Exception as error:
             reports.append({'service': service, 'checks': [{'test': 'container probe', 'status': 'FAIL',
                                                           'error_type': type(error).__name__}]})
@@ -629,7 +923,7 @@ def verify_worker():
         broker['checks'].append({'test': 'one running broker', 'status': 'FAIL'})
     reports.append(broker)
     return {'scope': 'private-deployed-services', 'time': datetime.now(timezone.utc).isoformat(),
-            'image': IMAGE, 'reports': reports,
+            'image': image, 'services_checked': list(services), 'reports': reports,
             'not_tested': ['live account flows (gated)', 'unfinished business APIs',
                            'AMQP publish/consume and Celery integration', 'external ingress',
                            'backup/restore and failover']}
@@ -662,7 +956,7 @@ def has_failures(report):
     return any(row['status'] != 'PASS' for row in rows)
 
 
-def cloud_run(username):
+def cloud_run(username, image, revision):
     """Use the operator's existing Cloud Shell SSH aliases, never copy SSH keys."""
     if not username or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9-]{0,38}', username):
         fail('Supply --registry-user with the GitHub registry username')
@@ -679,9 +973,10 @@ def cloud_run(username):
     remote_evidence = '/home/ubuntu/kolovibe-cluster-evidence.json'
     run(['scp', str(evidence), 'swarm-manager:' + remote_evidence], timeout=60)
     result = subprocess.call(['ssh', '-t', 'swarm-manager', 'sudo python3 ' + destination
-                              + ' deploy --worker-evidence ' + remote_evidence + ' --registry-user ' + username])
+                              + ' deploy --worker-evidence ' + remote_evidence + ' --registry-user ' + username
+                              + ' --image ' + image + ' --revision ' + revision])
     # Even a partially blocked deployment gets an honest private/public report.
-    command = ['ssh', 'swarm-worker', 'sudo python3 ' + destination + ' verify-worker']
+    command = ['ssh', 'swarm-worker', 'sudo python3 ' + destination + ' verify-worker --image ' + image]
     checked = subprocess.run(command, capture_output=True, text=True, timeout=1200)
     if checked.stdout:
         try:
@@ -693,7 +988,7 @@ def cloud_run(username):
     (output / 'private-api.json').write_text(json.dumps(private, indent=2) + '\n')
     public = verify_edge()
     (output / 'public-api.json').write_text(json.dumps(public, indent=2) + '\n')
-    summary = {'deployment_exit_code': result, 'private_checks_exit_code': checked.returncode,
+    summary = {'image': image, 'revision': revision, 'deployment_exit_code': result, 'private_checks_exit_code': checked.returncode,
                'public_failed_checks': sum(r['status'] != 'PASS' for r in public['checks']),
                'gateway_database_dns_firewall_nginx': 'unchanged', 'evidence_directory': str(output),
                'full_acceptance': False}
@@ -703,23 +998,57 @@ def cloud_run(username):
         sys.exit(2)
 
 
+def csv(value):
+    return [item for item in (value or '').split(',') if item]
+
+
 def main():
     os.umask(0o077)
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('mode', choices=('cloud-run', 'worker-preflight', 'plan', 'deploy', 'verify-worker', 'verify-edge'))
+    parser.add_argument('mode', choices=('cloud-run', 'worker-preflight', 'plan', 'deploy', 'update-plan', 'update',
+                                         'rollback', 'verify-worker', 'verify-edge'))
     parser.add_argument('--worker-evidence')
     parser.add_argument('--registry-user')
+    parser.add_argument('--release-dir', help='downloaded published-image-<sha> CI artifact (preferred)')
+    parser.add_argument('--image', help=REPOSITORY + '@sha256:<digest>; never defaulted')
+    parser.add_argument('--revision', help='40-hex commit the image was built from')
+    parser.add_argument('--services', help='comma-separated, explicit; never defaulted')
+    parser.add_argument('--restore-point-ref', help='identifier of the owner-approved restore point')
+    parser.add_argument('--confirm-image', help='repeat the approved digest to apply an update')
+    parser.add_argument('--confirm-rollback', help='repeat the planned service list to apply a rollback')
+    parser.add_argument('--rollback-file', help='new private file recording the pre-update state')
+    parser.add_argument('--accept-ungated', action='store_true',
+                        help='update services with no healthcheck; verify-worker/verify-edge must follow')
     args = parser.parse_args()
+    if args.mode in ('plan', 'deploy', 'update-plan', 'update', 'cloud-run'):
+        image, revision = resolve_release(args.image, args.revision, args.release_dir)
     if args.mode == 'cloud-run':
-        cloud_run(args.registry_user)
+        cloud_run(args.registry_user, image, revision)
         return
+    if args.mode in ('plan', 'deploy', 'update-plan', 'update') and not args.worker_evidence:
+        parser.error('--worker-evidence is required')
     if args.mode in ('plan', 'deploy'):
-        if not args.worker_evidence:
-            parser.error('--worker-evidence is required')
-        deploy(args.worker_evidence, args.registry_user, dry_run=args.mode == 'plan')
+        deploy(args.worker_evidence, args.registry_user, image, revision, dry_run=args.mode == 'plan')
         return
-    report = (worker_preflight() if args.mode == 'worker-preflight' else
-              verify_worker() if args.mode == 'verify-worker' else verify_edge())
+    if args.mode in ('update-plan', 'update'):
+        confirm = args.confirm_image if args.mode == 'update' else None
+        stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
+        update(args.worker_evidence, args.registry_user, image, revision, csv(args.services),
+               args.restore_point_ref, confirm, args.rollback_file or 'kolovibe-rollback-' + stamp + '.json',
+               args.accept_ungated)
+        return
+    if args.mode == 'rollback':
+        rollback(csv(args.services), args.confirm_rollback)
+        return
+    if args.mode == 'verify-worker':
+        if not args.image or not IMAGE_RE.fullmatch(args.image):
+            parser.error('--image must be the expected immutable digest')
+        selected = csv(args.services) or list(SERVICES)
+        if set(selected) - set(SERVICES):
+            parser.error('--services must be a subset of ' + ', '.join(SERVICES))
+        report = verify_worker(args.image, selected)
+    else:
+        report = worker_preflight() if args.mode == 'worker-preflight' else verify_edge()
     print(json.dumps(report, indent=2))
     if has_failures(report):
         sys.exit(2)
