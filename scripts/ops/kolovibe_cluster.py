@@ -316,7 +316,46 @@ def base_gateway(api, image=BASELINE_IMAGE):
     return gateway
 
 
-def api_spec(gateway, service, all_secrets, image, revision):
+SHARED_SECRETS = ('internal_ca', 'db_ca')
+
+
+def secret_refs(spec):
+    """{mount target: Swarm secret name} for a service spec; names only, never values."""
+    container = (spec.get('TaskTemplate') or {}).get('ContainerSpec') or {}
+    return {ref['File']['Name']: ref['SecretName'] for ref in container.get('Secrets') or []}
+
+
+def convention_secrets(service):
+    """Secret names a new service is given, in mount order."""
+    selected = {target: service + suffix for target, suffix in COMMON.items()}
+    selected.update(EXTRA.get(service, {}))
+    selected.update({name: name for name in SHARED_SECRETS})
+    return selected
+
+
+def owned_secret_names(service, spec):
+    """Names an existing service already mounts, so a rotation to versioned secret names
+    (for example `content_callers_2`) is not mistaken for drift. Each must still belong to
+    that service, and the mount targets must be exactly the expected ones."""
+    live, expected = secret_refs(spec), convention_secrets(service)
+    if set(live) != set(expected):
+        fail('Existing service secrets differ; inspect without overwriting: kvtest-' + service)
+    for target, name in live.items():
+        owned = name == target if target in SHARED_SECRETS else name.startswith(service + '_')
+        if not owned:
+            fail('Existing service mounts a secret that does not belong to it: kvtest-' + service)
+    return {target: live[target] for target in expected}
+
+
+def require_gateway_secrets(known, gateway):
+    """The count of Swarm secrets is not a contract: new versioned secrets are expected during
+    rotation. What must hold is that every secret this tool relies on exists."""
+    missing = sorted(set(secret_refs(gateway['Spec']).values()) - set(known))
+    if missing:
+        fail('Gateway references Swarm secrets that do not exist: ' + ', '.join(missing))
+
+
+def api_spec(gateway, service, all_secrets, image, revision, names=None):
     spec = copy.deepcopy(gateway['Spec'])
     spec['Name'] = 'kvtest-' + service
     spec['Labels'] = {LABEL: '1', 'kolovibe.source-revision': revision}
@@ -342,9 +381,7 @@ def api_spec(gateway, service, all_secrets, image, revision):
                    KOLOVIBE_TRUSTED_PEERS_FILE='/run/secrets/audit_peers',
                    KOLOVIBE_ACCOUNT_APPROVAL_FILE='/run/secrets/account_approvals')
     c['Env'] = [key + '=' + value for key, value in sorted(env.items())]
-    selected = {target: service + suffix for target, suffix in COMMON.items()}
-    selected.update(EXTRA.get(service, {}))
-    selected.update(internal_ca='internal_ca', db_ca='db_ca')
+    selected = dict(names) if names is not None else convention_secrets(service)
     c['Secrets'] = []
     for target, name in selected.items():
         if name not in all_secrets:
@@ -431,8 +468,7 @@ def plan(evidence, image, revision):
     gateway = base_gateway(version, image)
     entries = docker('GET', '/v' + version + '/services')
     all_secrets = {s['Spec']['Name']: s['ID'] for s in docker('GET', '/v' + version + '/secrets')}
-    if len(all_secrets) != 62:
-        fail('Expected 62 existing Swarm secrets')
+    require_gateway_secrets(all_secrets, gateway)
     existing = {s['Spec']['Name']: s for s in entries}
     new = []
     for service in SERVICES[1:]:
@@ -445,7 +481,8 @@ def plan(evidence, image, revision):
             rev = (actual['Spec'].get('Labels') or {}).get('kolovibe.source-revision', '')
             if not IMAGE_RE.fullmatch(pin):
                 fail('Existing service differs; inspect without overwriting: ' + name)
-            expected = api_spec(gateway, service, all_secrets, pin, rev)
+            expected = api_spec(gateway, service, all_secrets, pin, rev,
+                                names=owned_secret_names(service, actual['Spec']))
             if release_neutral(actual['Spec']) != release_neutral(expected):
                 fail('Existing service differs; inspect without overwriting: ' + name)
         else:
@@ -552,9 +589,8 @@ def update_plan(evidence, image, revision, services, restore_ref=None):
     """
     names = ordered(services)
     api = manager_checks()
-    base_gateway(api, image)
-    if len(docker('GET', '/v' + api + '/secrets')) != 62:
-        fail('Expected 62 existing Swarm secrets')
+    gateway = base_gateway(api, image)
+    require_gateway_secrets({s['Spec']['Name'] for s in docker('GET', '/v' + api + '/secrets')}, gateway)
     existing = {s['Spec']['Name']: s for s in docker('GET', '/v' + api + '/services')}
     entries = []
     for service in names:

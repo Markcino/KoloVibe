@@ -96,7 +96,7 @@ the actual network's encryption, firewall, capacity or secret lifecycle.
      `<peer>_callers_<n+1>` containing `{"gateway": ["<new>", "<old>"]}`
      (at most two keys per caller) and roll the peer.
   2. Create `gateway_outbound_<n+1>` with the new key for that peer only and roll the gateway.
-  3. Confirm readiness and the cluster `signed_tests` (including "other peer credential
+  3. Confirm readiness and the cluster `signed_tests` (run them only once the gateway holds the per-peer map; they fail against a single shared key by design; the cluster tool no longer assumes a fixed number of Swarm secrets and follows the secret names an existing service already mounts) (including "other peer credential
      rejected"), then roll the peer to a secret holding only the new key and retire the old secrets.
   A suspected leak is rotated the same way and the old key is destroyed, never reused.
   Moving from the previous single shared gateway key: roll every receiver to a

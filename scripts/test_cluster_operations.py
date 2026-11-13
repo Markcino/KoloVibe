@@ -115,6 +115,54 @@ class ClusterOperationsTests(unittest.TestCase):
             self.assertNotEqual(container['Healthcheck']['Test'], ['NONE'])
         self.assertEqual(gateway, original)
 
+    def plan_with(self, responses):
+        with patch.object(cluster, 'root'), patch.object(cluster, 'policy_baseline'), \
+                patch.object(cluster, 'docker', side_effect=lambda method, path: responses[path]), \
+                patch.object(cluster, 'run', return_value='true ["-policy-file","/opa/policies/authz.rego","-quiet"]'):
+            return cluster.plan({'available_memory_bytes': 3000*cluster.MIB}, TARGET, TARGET_REVISION)
+
+    def test_secret_count_is_not_a_contract_but_missing_gateway_secrets_are(self):
+        responses = self.manager_responses()
+        responses['/v1.52/secrets'].append({'ID': 'id-new', 'Spec': {'Name': 'content_callers_2'}})
+        self.assertEqual(len(self.plan_with(responses)[2]), 7)  # a new versioned secret is fine
+        responses = self.manager_responses()
+        responses['/v1.52/services/kvtest-gateway']['Spec']['TaskTemplate']['ContainerSpec']['Secrets'] = [
+            {'SecretName': 'gateway_outbound_2', 'SecretID': 'x', 'File': {'Name': 'outbound_key'}}]
+        with self.assertRaisesRegex(RuntimeError, 'gateway_outbound_2'):
+            self.plan_with(responses)
+
+    def deployed(self, service, names):
+        gateway = gateway_fixture()
+        known = {**all_secrets(), **{name: 'id-' + name for name in names.values()}}
+        live = cluster.api_spec(gateway, service, known, TARGET, TARGET_REVISION, names=names)
+        return {'Spec': live}
+
+    def test_rotated_secret_names_on_an_existing_service_are_not_drift(self):
+        names = cluster.convention_secrets('content')
+        names['caller_keys'] = 'content_callers_2'
+        responses = self.manager_responses()
+        responses['/v1.52/secrets'].append({'ID': 'id-content_callers_2', 'Spec': {'Name': 'content_callers_2'}})
+        responses['/v1.52/services'].append(self.deployed('content', names))
+        self.assertEqual(len(self.plan_with(responses)[2]), 6)  # content is adopted, not recreated
+
+    def test_existing_service_with_another_services_secret_is_refused(self):
+        names = cluster.convention_secrets('content')
+        names['caller_keys'] = 'creators_callers'
+        responses = self.manager_responses()
+        responses['/v1.52/services'].append(self.deployed('content', names))
+        with self.assertRaisesRegex(RuntimeError, 'does not belong'):
+            self.plan_with(responses)
+        names = cluster.convention_secrets('content')
+        names['internal_ca'] = 'db_ca'
+        responses['/v1.52/services'][-1] = self.deployed('content', names)
+        with self.assertRaisesRegex(RuntimeError, 'does not belong'):
+            self.plan_with(responses)
+        spec = self.deployed('content', cluster.convention_secrets('content'))
+        spec['Spec']['TaskTemplate']['ContainerSpec']['Secrets'].pop()
+        responses['/v1.52/services'][-1] = spec
+        with self.assertRaisesRegex(RuntimeError, 'secrets differ'):
+            self.plan_with(responses)
+
     def test_missing_secret_stops_before_any_deployment(self):
         with self.assertRaisesRegex(RuntimeError, 'Missing existing Swarm secret'):
             cluster.api_spec(gateway_fixture(), 'identity', {}, TARGET, TARGET_REVISION)

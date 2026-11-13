@@ -236,4 +236,3 @@ class _Ok:
 
     def __init__(self, caller=None):
         self.caller = caller
-
