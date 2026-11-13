@@ -38,6 +38,7 @@ In this checkout the media, upload, playback, moderation, points, watch, analyti
 - `creator_detail` and `search_creators` return the creators-service profile, which includes `user_id` (the identity `Account.id`). `services/creators/service/profiles.py:23` includes it in `_profile_data`.
 - Exploit path: anonymous `GET /api/v1/creators/{id}` or `/api/v1/creators/search?q=x`, both allowed by `infra/nginx/staging.conf.template:21` and the staging allowlist.
 - Suggested fix: strip `user_id` from public responses; keep it internal for self-view checks.
+- **Status (13 November 2026, branch `security/public-creator-no-user-id`, not merged or deployed):** fixed in code. The gateway removes `user_id` from `GET /creators/{id}`; Creators no longer returns it from search, and the gateway rejects a search page that carries it. The internal profile read keeps `user_id` for the follow and watch self-checks. `GET`/`PATCH /creators/me` still returns the caller's own `user_id` (DOC-205 `OwnCreator`). The mobile and web clients no longer require it. Local checks only; no staging or device evidence.
 
 ## Controls verified (source and tests)
 

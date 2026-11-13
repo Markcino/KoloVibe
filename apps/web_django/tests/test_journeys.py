@@ -137,7 +137,7 @@ class WebJourneys(SimpleTestCase):
 
     def test_mismatched_creator_detail_is_unavailable(self):
         with patch("web.views._api", return_value=(200, {
-                "id": str(uuid.uuid4()), "user_id": str(uuid.uuid4()),
+                "id": str(uuid.uuid4()),
                 "handle": "someone", "bio": "", "status": "active"})):
             self.assertEqual(self.client.get(
                 reverse("creator-detail", args=[uuid.uuid4()])).status_code, 503)
@@ -241,7 +241,17 @@ class WebJourneys(SimpleTestCase):
         import uuid
         creator_id = uuid.uuid4()
         with patch("web.views._api", return_value=(200, {
-                "id": str(creator_id), "user_id": str(uuid.uuid4()),
+                "id": str(creator_id),
                 "handle": "original-voice", "bio": "", "status": "active"})):
             response = self.client.get(reverse("creator-detail", args=[creator_id]))
         self.assertContains(response, "@original-voice")
+
+    def test_creator_page_never_renders_an_account_id(self):
+        import uuid
+        creator_id, account = uuid.uuid4(), uuid.uuid4()
+        with patch("web.views._api", return_value=(200, {
+                "id": str(creator_id), "user_id": str(account),
+                "handle": "original-voice", "bio": "", "status": "active"})):
+            response = self.client.get(reverse("creator-detail", args=[creator_id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, str(account))

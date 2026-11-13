@@ -1,25 +1,24 @@
 import '../../core/network/api_client.dart';
 
 class LiveCreator {
-  const LiveCreator(this.id, this.userId, this.handle, this.bio,
+  const LiveCreator(this.id, this.handle, this.bio,
       {this.displayName = '',
       this.location = '',
       this.followerCount,
       this.publishedVideoCount});
   final String displayName, location;
   final int? followerCount, publishedVideoCount;
-  final String id, userId, handle, bio;
+  final String id, handle, bio;
 
   factory LiveCreator.fromJson(Map<String, dynamic> data) {
-    final id = data['id'], userId = data['user_id'];
+    // The public contract carries no account id; any such field is ignored.
+    final id = data['id'];
     final handle = data['handle'], bio = data['bio'];
     if (id is! String ||
-        userId is! String ||
         handle is! String ||
         bio is! String ||
         data['status'] != 'active' ||
         !isApiId(id) ||
-        !isApiId(userId) ||
         bio.length > 500 ||
         !RegExp(r'^[a-zA-Z0-9_-]{1,40}$').hasMatch(handle)) {
       throw const FormatException('Invalid creator');
@@ -35,7 +34,7 @@ class LiveCreator {
         videos != null && (videos is! int || videos < 0)) {
       throw const FormatException('Invalid creator counts');
     }
-    return LiveCreator(id, userId, handle, bio,
+    return LiveCreator(id, handle, bio,
         displayName: name,
         location: location,
         followerCount: followers as int?,

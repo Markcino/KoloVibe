@@ -25,7 +25,6 @@ Map<String, Object?> videoJson([String id = videoId]) => {
     };
 Map<String, Object?> creatorJson() => {
       'id': accountId,
-      'user_id': receiptId,
       'handle': 'mark',
       'bio': 'Stories',
       'display_name': 'Mark',
@@ -115,6 +114,18 @@ void main() {
     test('invalid public creator rejected ${bad.toString()}',
         () => expect(() => LiveCreator.fromJson(bad), throwsFormatException));
   }
+  test('public creator needs no account id and ignores one if sent', () {
+    expect(creatorJson().containsKey('user_id'), isFalse);
+    expect(LiveCreator.fromJson(creatorJson()).handle, 'mark');
+    final leaked = LiveCreator.fromJson(
+        {...creatorJson(), 'user_id': '00000000-0000-4000-8000-0000000000ff'});
+    expect(leaked.id, creatorJson()['id']);
+    expect(leaked.toString(), isNot(contains('00000000-0000-4000-8000-0000000000ff')));
+  });
+  test('public creator with a malformed id is still rejected', () {
+    expect(() => LiveCreator.fromJson({...creatorJson(), 'id': 'not-an-id'}),
+        throwsFormatException);
+  });
   test('unknown counters remain null, never invented zero', () {
     final video = LiveVideo.fromJson({
       ...videoJson(),

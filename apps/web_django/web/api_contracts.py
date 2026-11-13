@@ -43,7 +43,7 @@ def valid_page(value, *, cursor=None, creator_id=None):
 def valid_creator(value):
     return (
         isinstance(value, dict)
-        and valid_id(value.get("id")) and valid_id(value.get("user_id"))
+        and valid_id(value.get("id"))
         and value.get("status") == "active"
         and isinstance(value.get("handle"), str)
         and re.fullmatch(r"[a-zA-Z0-9_-]{1,40}", value["handle"]) is not None

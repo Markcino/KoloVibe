@@ -19,10 +19,15 @@ def _public_profiles():
     )
 
 
-def _profile_data(profile):
-    return {"id": str(profile.id), "user_id": str(profile.user_id),
-            "handle": profile.handle, "bio": profile.bio, "status": profile.status,
-            "display_name": profile.display_name, "location": profile.location}
+def _profile_data(profile, *, with_account=True):
+    """Profile fields. The internal account id is only for gateway authorization
+    decisions (self-view, self-engagement); public search never carries it."""
+    data = {"id": str(profile.id), "handle": profile.handle, "bio": profile.bio,
+            "status": profile.status, "display_name": profile.display_name,
+            "location": profile.location}
+    if with_account:
+        data["user_id"] = str(profile.user_id)
+    return data
 
 
 @require_POST
@@ -50,7 +55,7 @@ def internal_search(request):
         return JsonResponse({"detail": "Invalid search query"}, status=400)
     page = list(profiles[:21])
     return JsonResponse({
-        "items": [_profile_data(profile) for profile in page[:20]],
+        "items": [_profile_data(profile, with_account=False) for profile in page[:20]],
         "next_cursor": str(page[19].id) if len(page) > 20 else None,
     })
 

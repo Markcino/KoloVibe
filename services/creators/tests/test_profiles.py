@@ -59,6 +59,9 @@ class PublicCreatorTests(TestCase):
 
         first = json.loads(search({"q": "RIVER"}).content)
         self.assertEqual(len(first["items"]), 20)
+        self.assertTrue(all("user_id" not in item for item in first["items"]))
+        self.assertTrue(all(set(item) == {"id", "handle", "bio", "status", "display_name", "location"}
+                            for item in first["items"]))
         second = json.loads(search({"q": "river", "cursor": first["next_cursor"]}).content)
         self.assertEqual([item["handle"] for item in second["items"]], ["river-20"])
         self.assertIsNone(second["next_cursor"])
