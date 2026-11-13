@@ -203,3 +203,20 @@ Historical capture evidence is preserved. Current live/native states and endpoin
 | M-033 | Native state | video_player initialization/runtime error | M-033 playback error; retry obtains a fresh signed grant/controller. |
 | M-034 | Native state | Buffering longer than 5 seconds | M-034 slow connection; no claimed rendition or fake quality switch. |
 | M-035 | Live state | HTTP 403 | M-035 restriction; Explore/guidelines actions; no bypass. |
+
+## FL-C upload binding status — 13 November 2026
+
+Current binding of the creator upload journey, not production or device acceptance. Contracts, tests and mock classification: [FL-C upload acceptance](engineering/FL-C_creator_upload_acceptance.md). All routes need `KOLOVIBE_API_URL`.
+
+| Screen | Mode | Endpoint (all under `/api/v1`) | Result |
+|---|---|---|---|
+| M-041 · Create an original | Live | GET /creators/me/upload-eligibility | Entry and access states; the live flow also serves `/mobile/M-042`–`/mobile/M-044`. |
+| M-042 · Select a video | Live (inside M-041 flow) | Platform picker | File selection step. |
+| M-043 · Check your file | Live (inside M-041 flow) | Local checks; server validates media | Local MP4 checks; `invalid_media` from the server. |
+| M-044 · Tell the story | Live (inside M-041 flow) | POST /videos | Title, description, required category, hashtags. |
+| M-045 · Choose a cover | Not wired | — | No frame-picker API; server picks the cover. |
+| M-046 · Uploading your original | Live (inside M-041 flow) | POST /videos/{id}/upload-intents; PUT signed URL; POST /videos/{id}/upload-status | Real progress. |
+| M-047 · Upload interrupted | Live (inside M-041 flow) | Same, resumed at the failed step | Fresh key only for expired or conflicting reservations. |
+| M-048 · Upload failed | Live (inside M-041 flow) | GET/POST /videos/{id}/upload-status | Server `failure_reason` and `retryable`. |
+| M-049 · Preparing your video | Live (inside M-041 flow) | GET /videos/{id}/upload-status | Bounded polling and manual check. |
+

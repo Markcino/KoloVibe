@@ -34,8 +34,15 @@ void main() {
       'creator_id': creator,
       'title': 'Original',
       'description': '',
+      // DOC-205 OwnVideo: the gateway always returns these fields.
+      'category': 'culture',
+      'tags': <String>[],
+      'cover_time_ms': null,
       'state': 'draft',
+      'visibility': 'private',
       'created_at': '2026-11-11T10:00:00+00:00',
+      'published_at': null,
+      'poster_url': null,
     };
     final api = ApiClient('https://api.example.test/api/v1',
         client: MockClient((request) async {
