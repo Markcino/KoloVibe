@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import tempfile
 import unittest
 
 import yaml
@@ -168,8 +169,8 @@ class WorkflowTests(unittest.TestCase):
         commands = "\n".join(step.get("run", "") for step in publish)
         self.assertIn("scripts/verify_image_artifact.py", commands)
         self.assertIn("docker load", commands)
-        self.assertNotIn("docker build", commands)
-        self.assertIn('docker pull "$TARGET"', commands)
+        self.assertNotIn("docker build ", commands)
+        self.assertIn('docker pull "$DIGEST"', commands)
         matrix_steps = self.jobs["build-and-verify"]["steps"]
         matrix_download = next(step for step in matrix_steps
                                if step.get("uses", "").startswith("actions/download-artifact@"))
@@ -187,37 +188,63 @@ class WorkflowTests(unittest.TestCase):
         self.assertNotIn("KOLOVIBE_ENV=local", smoke["run"])
         self.assertNotIn("sqlite", smoke["run"].lower())
 
-    def test_published_digest_is_normalized_from_repo_digest_reference(self):
+    def test_publication_uses_remote_digest_and_verifies_pulled_image(self):
         publish = next(step for step in self.jobs["publish"]["steps"]
                        if step.get("name") == "Authenticate and publish")
         lines = publish["run"].splitlines()
         start = next(index for index, line in enumerate(lines)
-                     if line.startswith("DIGEST_REFERENCE="))
-        end = next(index for index, line in enumerate(lines[start:], start)
-                   if line.startswith('printf \'%s\\n\' "$DIGEST" >'))
-        commands = [
-            'DIGEST_REFERENCE="$MOCK_DIGEST_REFERENCE"',
-            *lines[start + 1:end],
-            'printf "%s\\n" "$DIGEST"',
-        ]
-        for reference, expected, valid in (
-            ("ghcr.io/markcino/kolovibe/services@sha256:" + "a" * 64,
-             "ghcr.io/markcino/kolovibe/services@sha256:" + "a" * 64, True),
-            ("ghcr.io/markcino/kolovibe/services:main-abc@sha256:" + "b" * 64,
-             "ghcr.io/markcino/kolovibe/services@sha256:" + "b" * 64, True),
-            ("ghcr.io/other/repo/services@sha256:" + "c" * 64, "", False),
-            ("ghcr.io/markcino/kolovibe/services:tag@sha256:invalid", "", False),
+                     if line.startswith("REPOSITORY="))
+        commands = """\
+set -euo pipefail
+docker() {
+  printf '%s\\n' "$*" >> "$DOCKER_CALLS"
+  case "$1" in
+    tag|push|pull) ;;
+    buildx) test "$MOCK_REGISTRY_STATUS" = ok || return 1; printf '%s\\n' "$MOCK_MANIFEST" ;;
+    image) printf '%s\\n' "$MOCK_IMAGE_ID" ;;
+    *) return 1 ;;
+  esac
+}
+""" + "\n".join(lines[start:])
+        image_id = "sha256:" + "b" * 64
+        remote_digest = "sha256:" + "a" * 64
+        for manifest, pulled_id, registry_status, valid in (
+            (json.dumps({"digest": remote_digest}), image_id, "ok", True),
+            (json.dumps({"digest": "sha256:invalid"}), image_id, "ok", False),
+            ('{}', image_id, "ok", False),
+            (json.dumps({"digest": remote_digest}), "sha256:" + "c" * 64, "ok", False),
+            (json.dumps({"digest": remote_digest}), image_id, "error", False),
         ):
-            with self.subTest(reference=reference):
+            with self.subTest(manifest=manifest, pulled_id=pulled_id, registry_status=registry_status), \
+                    tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                (root / "verified-image").mkdir()
+                (root / "verified-image/image-id.txt").write_text(image_id)
                 result = subprocess.run(
-                    ["bash", "-euo", "pipefail", "-c", "\n".join(commands)],
+                    ["bash", "-c", commands], cwd=root,
                     capture_output=True, text=True, check=False,
-                    env={**os.environ, "REPOSITORY": "markcino/kolovibe",
-                         "MOCK_DIGEST_REFERENCE": reference},
+                    env={**os.environ, "GITHUB_REPOSITORY": "Markcino/KoloVibe",
+                         "GITHUB_RUN_NUMBER": "123", "GITHUB_RUN_ATTEMPT": "2",
+                         "REVISION": "d" * 40, "GITHUB_STEP_SUMMARY": str(root / "summary"),
+                         "DOCKER_CALLS": str(root / "calls"), "MOCK_MANIFEST": manifest,
+                         "MOCK_IMAGE_ID": pulled_id, "MOCK_REGISTRY_STATUS": registry_status},
                     timeout=5)
                 self.assertEqual(result.returncode == 0, valid, result.stderr)
                 if valid:
-                    self.assertEqual(result.stdout.strip(), expected)
+                    repository = "ghcr.io/markcino/kolovibe/services"
+                    digest = repository + "@" + remote_digest
+                    tag = repository + ":v0.123.2"
+                    self.assertEqual((root / "verified-image/published-digest.txt").read_text().strip(), digest)
+                    self.assertEqual((root / "verified-image/published-tag.txt").read_text().strip(), tag)
+                    self.assertEqual(json.loads((root / "verified-image/publication.json").read_text()),
+                                     {"tag": tag, "digest": digest, "revision": "d" * 40,
+                                      "image_id": image_id})
+                    calls = (root / "calls").read_text()
+                    self.assertIn("buildx imagetools inspect " + tag, calls)
+                    self.assertIn("pull " + digest, calls)
+                    self.assertIn("image inspect " + digest, calls)
+                else:
+                    self.assertFalse((root / "verified-image/published-digest.txt").exists())
 
     def test_permissions_are_job_scoped(self):
         self.assertEqual(self.workflow["permissions"], {"contents": "read"})

@@ -55,10 +55,10 @@ It verifies `github.sha`, complete inventory, image identity, SBOM and archive
 bytes, loads the same tested image without rebuilding, and publishes once to:
 
 ```text
-ghcr.io/markcino/kolovibe/services:<full-commit>-<image-config-sha256>
+ghcr.io/markcino/kolovibe/services:v0.<workflow-run-number>.<run-attempt>
 ```
 
-Including the image configuration identity prevents a rebuild of the same commit from replacing a different artifact's tag. No moving `latest` tag is published. The job pulls the published image back, verifies its image identity, and records one remote digest/tag artifact and the job summary. Repeated publication of the same verified artifact is idempotent. Historical per-service packages are not deleted; future builds publish only the shared `services` package.
+The run number and attempt distinguish workflow runs and reruns; they are not semantic release versions. No moving `latest` tag is published. The job reads the manifest digest from GHCR, pulls by digest, verifies the image identity, and records the digest, tag, image ID and commit in the publication artifact. `publication.json` ties those fields together for deployment evidence checks; it is not a cryptographic attestation. Deploy by digest, not by tag, and trust the evidence's originating workflow run. Historical per-service packages are not deleted; future builds publish only the shared `services` package.
 
 ## Running separate services
 
