@@ -40,6 +40,18 @@ class SecretFindingChecks(unittest.TestCase):
             self.check("docs/mobile-asset-manifest.json", '    "api_token": "' + "f" * 64 + '",')
         self.assertEqual(context.exception.code, 1)
 
+    def test_secret_keyword_in_mobile_test_still_fails(self):
+        # No blanket allowance: fixtures must avoid keyword-adjacent literals.
+        with self.assertRaises(SystemExit) as context:
+            self.check("apps/mobile/test/fl_a_account_repository_test.dart",
+                       "  placeholder fixture line", kind="Secret Keyword")
+        self.assertEqual(context.exception.code, 1)
+
+    def test_account_fixture_has_no_keyword_adjacent_literals(self):
+        source = (Path(__file__).resolve().parents[1]
+                  / "apps/mobile/test/fl_a_account_repository_test.dart").read_text(encoding="utf-8")
+        self.assertNotRegex(source, r"(?im)^\s*'[^']*password[^']*'\s*:\s*'")
+
     def test_new_detector_type_on_metadata_fails(self):
         with self.assertRaises(SystemExit) as context:
             self.check("apps/mobile/.metadata", 'revision: "' + "a" * 40 + '"',

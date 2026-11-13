@@ -19,6 +19,30 @@ from staging_runtime import SERVICES
 from staging_runtime.launch import main, service_directory
 
 
+class ImageSecurityContractTests(unittest.TestCase):
+    """Guard the CI image-scan repair against regressions and weakened gates."""
+
+    def setUp(self):
+        self.dockerfile = (ROOT / "infra/docker/Dockerfile.service").read_text()
+        self.workflow = (ROOT / ".github/workflows/ci_cd.yml").read_text()
+
+    def test_os_packages_are_upgraded_before_python_dependencies(self):
+        self.assertIn("RUN apk upgrade --no-cache", self.dockerfile)
+        self.assertLess(self.dockerfile.index("apk upgrade --no-cache"),
+                        self.dockerfile.index("pip install"))
+
+    def test_base_image_stays_digest_pinned(self):
+        self.assertRegex(self.dockerfile, r"(?m)^FROM python:[^@\s]+@sha256:[0-9a-f]{64}$")
+
+    def test_image_scan_gate_is_not_weakened(self):
+        start = self.workflow.index("Scan local image vulnerabilities")
+        step = self.workflow[start:self.workflow.index("- name:", start + 1)]
+        self.assertIn("fail-build: true", step)
+        self.assertIn("severity-cutoff: high", step)
+        for weakening in ("only-fixed", "ignore", "grype.yaml", "continue-on-error"):
+            self.assertNotIn(weakening, step)
+
+
 class SharedImageTests(unittest.TestCase):
     def test_selection_rejects_missing_unknown_or_path_traversal(self):
         for name in (None, "", "unknown", "../identity", "/identity", "staging_runtime"):

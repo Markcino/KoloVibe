@@ -3,6 +3,10 @@ FROM python:3.12.16-alpine3.23@sha256:20d13dc88e7bc1adf6e18cdddeb4cd53a7e0fdc382
 WORKDIR /app
 ENV PYTHONPATH=/app/services
 
+# Pull Alpine security fixes published after the pinned base image was built
+# (zlib, krb5-libs, sqlite-libs). Never replace this with a scanner exception.
+RUN apk upgrade --no-cache
+
 # A predictable, immutable dependency set, verified against package hashes.
 COPY requirements-dev.txt /tmp/requirements-dev.txt
 RUN python -m pip install --no-cache-dir --require-hashes -r /tmp/requirements-dev.txt \

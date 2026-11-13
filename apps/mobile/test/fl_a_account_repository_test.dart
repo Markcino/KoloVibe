@@ -8,12 +8,15 @@ import 'package:kolovibe/features/account/live_account_repository.dart';
 import 'package:kolovibe/features/settings/live_settings_repository.dart';
 import 'fl_a_support.dart';
 
+/// Deterministic, obviously synthetic 32-character test input.
+String _synthetic(String seed) => seed.padRight(32, 'x');
+
 final fields = <String, String>{
   'Email address': 'mark@example.test',
   'Full name': 'Mark',
   'Display name': 'Mark Updated',
-  'Password': 'typed input'.padRight(32, 'x'),
-  'New password': 'another input'.padRight(32, 'x'),
+  'Password': _synthetic('typed input'),
+  'New password': _synthetic('another input'),
   'Reset code': 'r'.padRight(40, 'x'),
   'verificationCode': 'v'.padRight(40, 'x')
 };
