@@ -65,8 +65,13 @@ Including the image configuration identity prevents a rebuild of the same commit
 Build once (no `SERVICE` build argument):
 
 ```bash
-docker build -f infra/docker/Dockerfile.service -t kolovibe/services:ci .
+docker build --target release -f infra/docker/Dockerfile.service -t kolovibe/services:ci .
 ```
+
+`release` is the last stage, so it is also the default. It is PostgreSQL-only: SQLite is removed
+because the base image's `sqlite-libs` has unfixed High CVEs (see the
+[Task 01 record](R1_Task01_release_image_security_repair.md)). `--target local` builds the
+SQLite-capable developer image, which is never scanned, published or deployed.
 
 Run that image once per required service with `KOLOVIBE_SERVICE_NAME=gateway`,
 `identity`, etc. Staging also needs the existing secret files and approved
@@ -86,7 +91,7 @@ Persistent DB, broker, provider, private-registry and environment credentials mu
 
 Disposable test-only credentials are generated inside isolated runners, never used against deployed systems, and removed with their fixture. The container smoke credential is masked. The current public Python base requires no private-registry login. Any future DHI/private base requires separately configured Actions secret names and approved access.
 
-Publication requires a passing main-push run. Deployment activation has a separate acceptance process. Images reject unknown/production environments and staging without its required secret files, TLS and capability configuration. The image matrix checks these refusals, plus local HTTP behavior under Gunicorn. Real staging Gunicorn/TLS journeys use isolated runner PostgreSQL and certificates in the backend job; successful staging-profile execution inside an actual image remains an additional acceptance requirement.
+Publication requires a passing main-push run. Deployment activation has a separate acceptance process. Images reject unknown/production environments and staging without its required secret files, TLS and capability configuration. The image matrix checks these refusals, plus HTTP liveness, a verified-TLS PostgreSQL session, applied migrations and the absence of any SQLite fallback for each service under Gunicorn. Real staging Gunicorn/TLS journeys use isolated runner PostgreSQL and certificates in the backend job; successful staging-profile execution inside an actual image remains an additional acceptance requirement.
 
 Dependency lock generation resolves the CI lock first, then constrains the runtime
 lock to it so shared packages do not conflict with audit/SBOM tools. Gunicorn is
