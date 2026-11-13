@@ -3,6 +3,8 @@
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
 from http.client import HTTPConnection, HTTPSConnection, RemoteDisconnected
+import hashlib
+import hmac
 import json
 import os
 from pathlib import Path
@@ -27,17 +29,17 @@ def test_application():
     return application
 
 
-def request(port, path, ca, *, data=None, token=None, host=None):
+def request(port, path, ca, *, data=None, token=None, host=None, headers=None):
     context = ssl.create_default_context(cafile=str(ca))
     connection = HTTPSConnection("localhost", port, context=context, timeout=8)
     try:
-        headers = {"Content-Type": "application/json"}
+        sent = {"Content-Type": "application/json", **(headers or {})}
         if token:
-            headers["Authorization"] = "Bearer " + token
+            sent["Authorization"] = "Bearer " + token
         if host:
-            headers["Host"] = host
+            sent["Host"] = host
         connection.request("POST" if data is not None else "GET", path,
-                           body=None if data is None else json.dumps(data), headers=headers)
+                           body=None if data is None else json.dumps(data), headers=sent)
         response = connection.getresponse()
         raw = response.read(1_000_001)
         if len(raw) > 1_000_000:
@@ -47,6 +49,14 @@ def request(port, path, ca, *, data=None, token=None, host=None):
         return response.status, content if raw else None
     finally:
         connection.close()
+
+
+def sign_headers(caller, audience, key, path="/internal/probe", *, nonce=None, stamp=None):
+    """Headers a service holding `key` would send; used to prove what each credential can and cannot do."""
+    nonce, stamp = nonce or secrets.token_urlsafe(24), stamp or str(int(time.time()))
+    canonical = "\n".join((caller, audience, stamp, nonce, "GET", path, hashlib.sha256(b"").hexdigest()))
+    return {"X-KoloVibe-Caller": caller, "X-KoloVibe-Timestamp": stamp, "X-KoloVibe-Nonce": nonce,
+            "X-KoloVibe-Signature": hmac.new(key.encode(), canonical.encode(), hashlib.sha256).hexdigest()}
 
 
 def check_environment(environment, service, *, succeeds=True):
@@ -145,14 +155,19 @@ def verify():
             sock.bind(("127.0.0.1", 0))
             ports[service] = sock.getsockname()[1]
             reservations[service] = sock
-        signing = secrets.token_urlsafe(48)
+        # One independent gateway credential per peer: the gateway holds the map, and each
+        # receiver holds only the entry meant for it. Services that never receive gateway
+        # calls hold no gateway credential at all.
+        gateway_keys = {peer: secrets.token_urlsafe(48) for peer in ("content", "creators", "identity")}
         probe = secrets.token_urlsafe(48)
-        callers = base / "callers.json"
+        callers = {service: base / f"{service}-callers.json" for service in SERVICES}
         outbound = base / "outbound"
         probe_path = base / "probe"
         peers = base / "peers.json"
-        secret_file(callers, json.dumps({"gateway": signing}))
-        secret_file(outbound, signing)
+        for service in SERVICES:
+            secret_file(callers[service], json.dumps(
+                {"gateway": gateway_keys[service]} if service in gateway_keys else {}))
+        secret_file(outbound, json.dumps(gateway_keys))
         secret_file(probe_path, probe)
         secret_file(peers, json.dumps({name: f"https://127.0.0.1:{ports[name]}"
                                      for name in ("content", "creators")}))
@@ -172,7 +187,7 @@ def verify():
                 KOLOVIBE_ALLOWED_HOSTS="127.0.0.1",
                 KOLOVIBE_TLS_CERT_FILE=str(certificate), KOLOVIBE_TLS_KEY_FILE=str(key),
                 KOLOVIBE_INTERNAL_CA_FILE=str(certificate),
-                KOLOVIBE_CALLER_KEYS_FILE=str(callers), KOLOVIBE_PROBE_TOKEN_FILE=str(probe_path),
+                KOLOVIBE_CALLER_KEYS_FILE=str(callers[service]), KOLOVIBE_PROBE_TOKEN_FILE=str(probe_path),
                 KOLOVIBE_TRUSTED_PEERS_FILE=str(peers),
                 KOLOVIBE_OUTBOUND_KEY_FILE=str(outbound),
                 PYTHONPATH=os.pathsep.join((str(ROOT / "services"), str(ROOT / "scripts"))))
@@ -221,6 +236,26 @@ def verify():
             assert api(service, "/internal/probe")[0] == 403
             assert api(service, "/api/v1/points")[0] == 403
             assert request(ports[service], "/health/live", certificate, host="evil.example.test")[0] == 400
+        held = [json.loads(callers[peer].read_text())["gateway"] for peer in gateway_keys]
+        assert len(set(held)) == len(gateway_keys), "Receivers share one gateway credential"
+        for audience, key in gateway_keys.items():
+            def probe_as(caller, signing_key, *, signed_for=audience, nonce=None):
+                return api(audience, "/internal/probe", headers=sign_headers(
+                    caller, signed_for, signing_key, nonce=nonce))[0]
+            assert probe_as("gateway", key) == 200, audience
+            for other, other_key in gateway_keys.items():
+                if other != audience:
+                    assert probe_as("gateway", other_key) == 403, "Another peer's credential was accepted"
+                    assert probe_as("gateway", key, signed_for=other) == 403
+            nonce = secrets.token_urlsafe(24)
+            assert probe_as("gateway", key, nonce=nonce) == 200
+            assert probe_as("gateway", key, nonce=nonce) == 403, "Replayed nonce was accepted"
+            assert probe_as("gateway", key[:-1] + ("A" if key[-1] != "A" else "B")) == 403
+            assert probe_as("content" if audience != "content" else "creators", key) == 403
+        for audience in set(SERVICES) - set(gateway_keys):
+            for key in gateway_keys.values():
+                status = api(audience, "/internal/probe", headers=sign_headers("gateway", audience, key))[0]
+                assert status == 403, f"A gateway credential was accepted by {audience}"
         with admin_connection(base, environments["content"]) as connection:
             migration = connection.execute(
                 "DELETE FROM content.django_migrations WHERE app=%s AND name=%s "
@@ -353,7 +388,7 @@ def verify():
         identity_signing = secrets.token_urlsafe(48)
         identity_outbound = base / "identity-outbound"
         secret_file(identity_outbound, identity_signing)
-        secret_file(callers, json.dumps({"gateway": signing, "identity": identity_signing}))
+        secret_file(callers["audit"], json.dumps({"identity": identity_signing}))
         secret_file(approvals, json.dumps({name: "disposable-test-approval"
                                           for name in ("identity", "smtp", "credentials",
                                                        "transport", "mfa", "audit")}))
@@ -478,10 +513,22 @@ def verify():
                         pass
                     else:
                         raise AssertionError("PostgreSQL permitted security evidence mutation")
+        # Rotate only the gateway-to-content credential, with an overlap so there is no outage.
         rotated = secrets.token_urlsafe(48)
-        secret_file(callers, json.dumps({"gateway": rotated, "identity": identity_signing}))
+        previous = dict(gateway_keys)
+        secret_file(callers["content"], json.dumps({"gateway": [rotated, previous["content"]]}))
+        assert api("gateway", "/health/ready") == (200, {"status": "ok"})
+        secret_file(outbound, json.dumps({**previous, "content": rotated}))
+        assert api("gateway", "/health/ready") == (200, {"status": "ok"})
+        secret_file(callers["content"], json.dumps({"gateway": rotated}))
+        assert api("gateway", "/health/ready") == (200, {"status": "ok"})
+        assert api("content", "/internal/probe", headers=sign_headers(
+            "gateway", "content", previous["content"]))[0] == 403, "Retired credential still accepted"
+        assert api("creators", "/internal/probe", headers=sign_headers(
+            "gateway", "creators", previous["creators"]))[0] == 200, "Rotation disturbed another peer"
+        secret_file(outbound, json.dumps(previous))
         assert api("gateway", "/health/ready")[0] == 503
-        secret_file(outbound, rotated)
+        secret_file(outbound, json.dumps({**previous, "content": rotated}))
         assert api("gateway", "/health/ready") == (200, {"status": "ok"})
         stop(processes["content"])
         assert api("gateway", "/health/ready")[0] == 503

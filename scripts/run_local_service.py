@@ -61,7 +61,9 @@ def environment_for(service: str, values: dict[str, str]) -> dict[str, str]:
                 env["KOLOVIBE_" + name] = value
     if service in ("engagement", "points") and values.get(prefix + "RABBITMQ_URL"):
         env["KOLOVIBE_RABBITMQ_URL"] = values[prefix + "RABBITMQ_URL"]
-    gateway_key = values.get("KOLOVIBE_GATEWAY_OUTBOUND_KEY", "")
+    legacy_gateway_key = values.get("KOLOVIBE_GATEWAY_OUTBOUND_KEY", "")
+    # Each receiver is given only the gateway key that is meant for it (local development only).
+    gateway_key = values.get(f"KOLOVIBE_GATEWAY_OUTBOUND_KEY_{service.upper()}") or legacy_gateway_key
     if service == "gateway":
         if "KOLOVIBE_PUBLIC_WEB_ORIGIN" in values:
             env["KOLOVIBE_PUBLIC_WEB_ORIGIN"] = values["KOLOVIBE_PUBLIC_WEB_ORIGIN"]
@@ -70,8 +72,12 @@ def environment_for(service: str, values: dict[str, str]) -> dict[str, str]:
                 name = f"KOLOVIBE_APP_{field}_{platform}"
                 if name in values:
                     env[name] = values[name]
-        if len(gateway_key) >= 32:
-            env["KOLOVIBE_GATEWAY_OUTBOUND_KEY"] = gateway_key
+        if len(legacy_gateway_key) >= 32:
+            env["KOLOVIBE_GATEWAY_OUTBOUND_KEY"] = legacy_gateway_key
+        for audience in ("identity", "content", "creators", "moderation", "engagement", "points"):
+            audience_key = values.get(f"KOLOVIBE_GATEWAY_OUTBOUND_KEY_{audience.upper()}", "")
+            if len(audience_key) >= 32:
+                env[f"KOLOVIBE_GATEWAY_OUTBOUND_KEY_{audience.upper()}"] = audience_key
         for name in ("identity", "content", "creators", "engagement"):
             url = values.get(f"KOLOVIBE_{name.upper()}_URL")
             if url:
@@ -80,7 +86,9 @@ def environment_for(service: str, values: dict[str, str]) -> dict[str, str]:
         env["KOLOVIBE_CALLER_GATEWAY_KEY"] = gateway_key
     if service in ("gateway", "content", "moderation") and values.get("KOLOVIBE_LOCAL_MODERATION_ENABLED") == "1":
         moderation_key = values.get("KOLOVIBE_MODERATION_OUTBOUND_KEY", "")
-        if len(moderation_key) < 32 or moderation_key == gateway_key:
+        gateway_keys = {legacy_gateway_key, *(values.get(f"KOLOVIBE_GATEWAY_OUTBOUND_KEY_{name}", "") for name in
+                                              ("IDENTITY", "CONTENT", "CREATORS", "MODERATION", "ENGAGEMENT", "POINTS"))}
+        if len(moderation_key) < 32 or moderation_key in gateway_keys:
             raise ValueError("Local moderation requires a distinct outbound key")
         env["KOLOVIBE_LOCAL_MODERATION_ENABLED"] = "1"
         if service == "gateway":
@@ -103,7 +111,7 @@ def environment_for(service: str, values: dict[str, str]) -> dict[str, str]:
             if broker:
                 env["KOLOVIBE_RABBITMQ_URL"] = broker
     if service in ("gateway", "engagement", "points") and values.get("KOLOVIBE_LOCAL_POINTS_ENABLED") == "1":
-        if len(gateway_key) < 32:
+        if len(values.get("KOLOVIBE_GATEWAY_OUTBOUND_KEY_POINTS") or legacy_gateway_key) < 32:
             raise ValueError("Local points require a Gateway signing key")
         env["KOLOVIBE_LOCAL_POINTS_ENABLED"] = "1"
         if service == "gateway":

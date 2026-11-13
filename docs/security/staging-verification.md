@@ -61,7 +61,9 @@ The audit peer JSON contains exactly `audit` mapped to an approved HTTPS origin.
 Approval JSON contains actual references for `identity`, `smtp`, `credentials`,
 `transport`, `mfa`, `audit`; placeholder strings do not constitute approval.
 Audit must separately trust the identity signing key, with its own TLS/DB/probe
-credentials. Never share Django, signing, probe or MFA keys.
+credentials. Never share Django, signing, probe or MFA keys. The gateway signs with one
+independent key per peer; no two services' caller-key files may contain the same value
+(see [swarm README](../../infra/swarm/README.md) for the format and rotation).
 
 Passing this offline operation proves configuration shape and readable trust/key
 files, not provider authentication, certificate issuance, remote DBA permissions,

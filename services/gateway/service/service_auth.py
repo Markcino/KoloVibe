@@ -1,4 +1,8 @@
-"""Authenticate internal service requests; fail closed without approved secrets/database."""
+"""Authenticate internal service requests; fail closed without approved secrets/database.
+
+Every caller has its own credential and this service accepts only the callers and paths named in
+CALLER_PATHS, so a key held by one service cannot sign as another service.
+"""
 import hashlib
 import hmac
 import json
@@ -10,8 +14,57 @@ from pathlib import Path
 from django.db import DatabaseError, connection, transaction
 from django.http import JsonResponse
 
+# caller -> exact paths ("/x") or path prefixes ("/x/") that caller may reach on this service.
+CALLER_PATHS = {}
+
+# BEGIN shared service-identity verifier (identical in every service; see scripts/test_service_identity_drift.py)
+KEY_MIN_LENGTH = 32
+MAX_KEYS_PER_CALLER = 2  # one active key, plus one previous key during a rotation overlap
+
+
 def _deny():
     return JsonResponse({"detail": "Forbidden"}, status=403)
+
+
+def _path_allowed(caller, path):
+    return any(path == rule or (rule.endswith("/") and path.startswith(rule))
+               for rule in CALLER_PATHS.get(caller, ()))
+
+
+def _local_key(caller):
+    """Local development only: single-process keys injected through the environment."""
+    if os.getenv("KOLOVIBE_ENV") != "local":
+        return None
+    if caller == "gateway":
+        return os.getenv("KOLOVIBE_CALLER_GATEWAY_KEY")
+    if caller == "moderation":
+        return os.getenv("KOLOVIBE_CALLER_MODERATION_KEY")
+    return None
+
+
+def _accepted_keys(caller, secret_file):
+    """Return the keys that may sign for `caller`, or None when the configuration is unsafe."""
+    local_key = _local_key(caller)
+    if local_key:
+        return [local_key] if len(local_key) >= KEY_MIN_LENGTH else None
+    if not secret_file:
+        return None
+    authorized = json.loads(Path(secret_file).read_text())
+    if not isinstance(authorized, dict):
+        return None
+    every_key = []
+    for value in authorized.values():
+        keys = value if isinstance(value, list) else [value]
+        if not 1 <= len(keys) <= MAX_KEYS_PER_CALLER:
+            return None
+        if any(not isinstance(key, str) or len(key) < KEY_MIN_LENGTH for key in keys):
+            return None
+        every_key.extend(keys)
+    if len(set(every_key)) != len(every_key):
+        return None  # a credential shared by two callers (or entries) would let them impersonate each other
+    value = authorized.get(caller)
+    return None if value is None else (value if isinstance(value, list) else [value])
+
 
 class ServiceAuthMiddleware:
     def __init__(self, get_response):
@@ -32,20 +85,24 @@ class ServiceAuthMiddleware:
             return _deny()
         if abs(time.time() - int(stamp)) > 60:
             return _deny()
+        if not _path_allowed(caller, request.path):
+            return _deny()
         secret_file = os.getenv("KOLOVIBE_CALLER_KEYS_FILE")
         service = os.getenv("KOLOVIBE_SERVICE_NAME")
-        if not secret_file or not service:
+        if not service:
             return _deny()
         try:
-            authorized = json.loads(Path(secret_file).read_text())
-            key = authorized.get(caller)
-            if not isinstance(key, str) or len(key) < 32:
+            keys = _accepted_keys(caller, secret_file)
+            if not keys:
                 return _deny()
             payload_hash = hashlib.sha256(request.body).hexdigest()
             canonical = "\n".join((caller, service, stamp, nonce, request.method,
                                     request.path, payload_hash))
-            expected = hmac.new(key.encode(), canonical.encode(), hashlib.sha256).hexdigest()
-            if not hmac.compare_digest(sig, expected):
+            matched = False
+            for key in keys:
+                expected = hmac.new(key.encode(), canonical.encode(), hashlib.sha256).hexdigest()
+                matched = hmac.compare_digest(sig, expected) or matched
+            if not matched:
                 return _deny()
         except (OSError, ValueError, TypeError):
             logging.getLogger(__name__).error("Internal caller configuration unavailable")
@@ -64,3 +121,4 @@ class ServiceAuthMiddleware:
             return JsonResponse({"detail": "Service unavailable"}, status=503)
         request.service_caller = caller
         return self.get_response(request)
+# END shared service-identity verifier

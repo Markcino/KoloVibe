@@ -145,7 +145,7 @@ def service_tests(service):
     from django.db import DatabaseError, connection, transaction
     from django.http import HttpResponse
     from django.test import RequestFactory
-    from service.service_auth import ServiceAuthMiddleware
+    from service.service_auth import CALLER_PATHS, ServiceAuthMiddleware
 
     class Foundations(unittest.TestCase):
         def test_actual_cross_service_sql_access_is_denied(self):
@@ -168,27 +168,32 @@ def service_tests(service):
 
         def test_signed_identity_replay_expiry_and_wrong_audience(self):
             key = secrets.token_urlsafe(48)
+            # Use the first caller this service's policy admits; the gateway admits none.
+            caller = next(iter(CALLER_PATHS), "identity")
             with tempfile.TemporaryDirectory(prefix="kolovibe-auth-test-") as directory:
                 keys = Path(directory) / "keys.json"
-                secret_file(keys, json.dumps({"gateway": key}))
+                secret_file(keys, json.dumps({caller: key}))
                 middleware = ServiceAuthMiddleware(lambda request: HttpResponse(status=200))
 
                 def request(audience=service, stamp=None):
                     stamp = str(int(time.time()) if stamp is None else stamp)
                     nonce = secrets.token_urlsafe(24)
-                    canonical = "\n".join(("gateway", audience, stamp, nonce,
+                    canonical = "\n".join((caller, audience, stamp, nonce,
                                             "POST", "/internal/probe",
                                             hashlib.sha256(b"{}").hexdigest()))
                     signature = hmac.new(key.encode(), canonical.encode(),
                                          hashlib.sha256).hexdigest()
                     return RequestFactory().post("/internal/probe", data=b"{}",
-                        content_type="application/json", HTTP_X_KOLOVIBE_CALLER="gateway",
+                        content_type="application/json", HTTP_X_KOLOVIBE_CALLER=caller,
                         HTTP_X_KOLOVIBE_NONCE=nonce, HTTP_X_KOLOVIBE_TIMESTAMP=stamp,
                         HTTP_X_KOLOVIBE_SIGNATURE=signature)
 
                 with patch.dict(os.environ, KOLOVIBE_CALLER_KEYS_FILE=str(keys),
                                 KOLOVIBE_SERVICE_NAME=service):
                     valid = request()
+                    if not CALLER_PATHS:
+                        self.assertEqual(middleware(valid).status_code, 403)
+                        return
                     self.assertEqual(middleware(valid).status_code, 200)
                     self.assertEqual(middleware(valid).status_code, 403)
                     self.assertEqual(middleware(request(audience="wrongservice")).status_code, 403)

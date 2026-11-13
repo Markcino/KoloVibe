@@ -101,6 +101,30 @@ class LocalEnvironmentTests(unittest.TestCase):
         self.assertNotIn("KOLOVIBE_RABBITMQ_URL", gateway)
         self.assertNotIn("KOLOVIBE_LOCAL_MEDIA_ENABLED", environment_for("identity", values))
 
+    def test_each_receiver_gets_only_the_gateway_key_meant_for_it(self):
+        audiences = ("IDENTITY", "CONTENT", "CREATORS", "ENGAGEMENT")
+        values = {f"KOLOVIBE_{name.upper()}_DJANGO_SECRET_KEY": secrets.token_urlsafe(48)
+                  for name in ("gateway", "identity", "content", "creators", "engagement")}
+        values.update({f"KOLOVIBE_GATEWAY_OUTBOUND_KEY_{name}": secrets.token_urlsafe(48) for name in audiences})
+        gateway = environment_for("gateway", values)
+        for name in audiences:
+            receiver = environment_for(name.lower(), values)
+            self.assertEqual(receiver["KOLOVIBE_CALLER_GATEWAY_KEY"], values[f"KOLOVIBE_GATEWAY_OUTBOUND_KEY_{name}"])
+            self.assertEqual(gateway[f"KOLOVIBE_GATEWAY_OUTBOUND_KEY_{name}"], receiver["KOLOVIBE_CALLER_GATEWAY_KEY"])
+            for other in set(audiences) - {name}:
+                self.assertNotIn(values[f"KOLOVIBE_GATEWAY_OUTBOUND_KEY_{other}"], receiver.values())
+        self.assertNotIn("KOLOVIBE_GATEWAY_OUTBOUND_KEY_POINTS", gateway)
+
+    def test_moderation_key_must_differ_from_every_gateway_key(self):
+        values = {f"KOLOVIBE_{name.upper()}_DJANGO_SECRET_KEY": secrets.token_urlsafe(48)
+                  for name in ("gateway", "content", "moderation")}
+        shared = secrets.token_urlsafe(48)
+        values.update(KOLOVIBE_LOCAL_MODERATION_ENABLED="1", KOLOVIBE_MODERATION_OUTBOUND_KEY=shared,
+                      KOLOVIBE_GATEWAY_OUTBOUND_KEY_CONTENT=secrets.token_urlsafe(48),
+                      KOLOVIBE_GATEWAY_OUTBOUND_KEY_MODERATION=shared)
+        with self.assertRaisesRegex(ValueError, "distinct"):
+            environment_for("moderation", values)
+
     def test_rejects_missing_service_secret(self):
         with self.assertRaisesRegex(ValueError, "KOLOVIBE_IDENTITY"):
             environment_for("identity", {"KOLOVIBE_ENV": "local"})
@@ -118,12 +142,16 @@ class LocalEnvironmentTests(unittest.TestCase):
             path = Path(directory) / ".env"
             create_local_env(path)
             values = read_local_env(path)
-            self.assertEqual(len(values), 17)
+            self.assertEqual(len(values), 22)
+            self.assertNotIn("KOLOVIBE_GATEWAY_OUTBOUND_KEY", values)
             gateway = environment_for("gateway", values)
             engagement = environment_for("engagement", values)
             self.assertEqual(gateway["KOLOVIBE_ENGAGEMENT_URL"], "http://127.0.0.1:8004")
             self.assertEqual(engagement["KOLOVIBE_CALLER_GATEWAY_KEY"],
-                             gateway["KOLOVIBE_GATEWAY_OUTBOUND_KEY"])
+                             gateway["KOLOVIBE_GATEWAY_OUTBOUND_KEY_ENGAGEMENT"])
+            gateway_keys = [values[name] for name in values if name.startswith("KOLOVIBE_GATEWAY_OUTBOUND_KEY_")]
+            self.assertEqual(len(gateway_keys), 6)
+            self.assertEqual(len(set(gateway_keys)), 6)
             self.assertEqual(path.stat().st_mode & 0o777, 0o600)
             with self.assertRaises(FileExistsError):
                 create_local_env(path)

@@ -17,6 +17,35 @@ class _NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, request, fp, code, msg, headers, newurl):
         return None
 
+# BEGIN shared service-identity signer (identical in every service; see scripts/test_service_identity_drift.py)
+KEY_MIN_LENGTH = 32
+
+
+def _select_signing_key(audience, peers, local_key=None):
+    """Return the credential for exactly one audience; never a key that serves several peers."""
+    if local_key is not None:  # local development only (KOLOVIBE_ENV=local)
+        key = local_key
+    else:
+        text = Path(os.environ["KOLOVIBE_OUTBOUND_KEY_FILE"]).read_text().strip()
+        if text.startswith("{"):
+            keys = json.loads(text)
+            if (not isinstance(keys, dict) or not keys
+                    or any(not isinstance(value, str) or len(value) < KEY_MIN_LENGTH for value in keys.values())
+                    or len(set(keys.values())) != len(keys)):
+                raise RuntimeError("Service signing credential is invalid")
+            key = keys.get(audience)
+            if key is None:
+                raise RuntimeError("No signing credential for this service audience")
+        elif set(peers) == {audience}:
+            key = text  # a single credential is acceptable only when it can serve a single peer
+        else:
+            raise RuntimeError("A single signing credential cannot serve several service audiences")
+    if len(key) < KEY_MIN_LENGTH:
+        raise RuntimeError("Service signing credential is invalid")
+    return key
+# END shared service-identity signer
+
+
 def signed_internal_request(audience, path, *, method="GET", payload=b"", timeout=5):
     sender = os.environ["KOLOVIBE_SERVICE_NAME"]
     peers = json.loads(Path(os.environ["KOLOVIBE_TRUSTED_PEERS_FILE"]).read_text())
@@ -32,9 +61,7 @@ def signed_internal_request(audience, path, *, method="GET", payload=b"", timeou
         raise ValueError("Only canonical internal service paths are permitted")
     if not isinstance(payload, bytes):
         raise TypeError("Payload must be pre-serialized bytes")
-    key = Path(os.environ["KOLOVIBE_OUTBOUND_KEY_FILE"]).read_text().strip()
-    if len(key) < 32:
-        raise RuntimeError("Service signing credential is invalid")
+    key = _select_signing_key(audience, peers)
     nonce = secrets.token_urlsafe(24)
     stamp = str(int(time.time()))
     digest = hashlib.sha256(payload).hexdigest()
