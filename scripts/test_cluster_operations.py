@@ -13,6 +13,9 @@ spec = importlib.util.spec_from_file_location('cluster', MODULE)
 cluster = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(cluster)
 
+TARGET = cluster.REPOSITORY + '@sha256:' + 'a' * 64
+TARGET_REVISION = 'c' * 40
+
 
 def gateway_fixture():
     return {'ID': 'gateway-id', 'Spec': {
@@ -74,8 +77,8 @@ class ClusterOperationsTests(unittest.TestCase):
                 patch.object(cluster, 'docker', side_effect=read_only), \
                 patch.object(cluster, 'run', return_value='true ["-policy-file","/opa/policies/authz.rego","-quiet"]'):
             with self.assertRaisesRegex(RuntimeError, 'VM2 capacity'):
-                cluster.plan({'available_memory_bytes': 100*cluster.MIB})
-            api, gateway, new, broker, pending = cluster.plan({'available_memory_bytes': 3000*cluster.MIB})
+                cluster.plan({'available_memory_bytes': 100*cluster.MIB}, TARGET, TARGET_REVISION)
+            api, gateway, new, broker, pending = cluster.plan({'available_memory_bytes': 3000*cluster.MIB}, TARGET, TARGET_REVISION)
         self.assertEqual(api, '1.52')
         self.assertEqual(len(new), 7)
         self.assertNotIn('kvtest-gateway', [item['Name'] for item in new])
@@ -89,19 +92,19 @@ class ClusterOperationsTests(unittest.TestCase):
                 patch.object(cluster, 'docker', side_effect=lambda method, path: responses[path]), \
                 patch.object(cluster, 'run', return_value='true ["-policy-file","/opa/policies/authz.rego","-quiet"]'):
             with self.assertRaisesRegex(RuntimeError, 'Existing service differs'):
-                cluster.plan({'available_memory_bytes': 3000*cluster.MIB})
+                cluster.plan({'available_memory_bytes': 3000*cluster.MIB}, TARGET, TARGET_REVISION)
 
     def test_each_new_service_has_own_credentials_and_keeps_database_route(self):
         gateway = gateway_fixture()
         original = copy.deepcopy(gateway)
         for service in cluster.SERVICES[1:]:
-            selected = cluster.api_spec(gateway, service, all_secrets())
+            selected = cluster.api_spec(gateway, service, all_secrets(), TARGET, TARGET_REVISION)
             container = selected['TaskTemplate']['ContainerSpec']
             env = cluster.env_dict(container)
             self.assertEqual(env['KOLOVIBE_DB_USER'], 'kv_' + service + '_run')
             self.assertEqual(env['KOLOVIBE_DB_HOST'], 'vm-swarm-worker')
             self.assertEqual(container['Hosts'], original['Spec']['TaskTemplate']['ContainerSpec']['Hosts'])
-            self.assertEqual(container['Image'], cluster.IMAGE)
+            self.assertEqual(container['Image'], TARGET)
             self.assertEqual(env['KOLOVIBE_STAGING_ACCOUNTS'], '0')
             self.assertEqual(env['KOLOVIBE_STAGING_PRIVILEGED'], '0')
             refs = {item['File']['Name']: item for item in container['Secrets']}
@@ -114,7 +117,7 @@ class ClusterOperationsTests(unittest.TestCase):
 
     def test_missing_secret_stops_before_any_deployment(self):
         with self.assertRaisesRegex(RuntimeError, 'Missing existing Swarm secret'):
-            cluster.api_spec(gateway_fixture(), 'identity', {})
+            cluster.api_spec(gateway_fixture(), 'identity', {}, TARGET, TARGET_REVISION)
 
     def test_inline_credentials_are_never_serialized(self):
         for key in ('DATABASE_PASSWORD', 'AUTH_TOKEN', 'DJANGO_SECRET_KEY'):
