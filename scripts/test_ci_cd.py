@@ -107,6 +107,20 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("python-sbom.json", next(step for step in image_steps
                                               if step.get("name") == "Preserve the verified image")["run"])
 
+    def test_both_dependency_locks_are_audited_and_failures_block(self):
+        # The CI toolchain lock once carried a High advisory that only
+        # Dependabot reported, because only the application lock was audited.
+        steps = self.jobs["security"]["steps"]
+        audit = next(step for step in steps if step.get("name") == "Dependency vulnerability audit")
+        commands = [line.strip() for line in audit["run"].splitlines() if "pip-audit" in line]
+        for lock in ("requirements-dev.txt", "requirements-ci.txt"):
+            self.assertTrue(any(f"pip-audit -r {lock} " in line and "--no-deps --disable-pip" in line
+                                for line in commands), lock)
+        self.assertEqual(len(commands), 2)
+        for forbidden in ("|| true", "--ignore-vuln", "--skip-editable", "continue-on-error"):
+            self.assertNotIn(forbidden, audit["run"])
+            self.assertNotIn(forbidden, str(audit.get("continue-on-error", "")))
+
     def test_publish_requires_every_quality_job_without_status_bypass(self):
         publish = self.jobs["publish"]
         self.assertEqual(set(publish["needs"]), QUALITY)

@@ -130,6 +130,7 @@ jobs:
         run: |
           mkdir -p security-reports
           pip-audit -r requirements-dev.txt --no-deps --disable-pip --format json --output security-reports/python-vulnerabilities.json
+          pip-audit -r requirements-ci.txt --no-deps --disable-pip --format json --output security-reports/ci-toolchain-vulnerabilities.json
       - name: Python static security review
         run: |
           bandit -r services scripts apps/web_django -f json -o security-reports/bandit.json || true
