@@ -3,25 +3,91 @@ import 'package:http/http.dart' as http;
 import '../../core/network/api_client.dart';
 import '../account/live_account_repository.dart';
 
+/// DOC-205 `category` values accepted by the server, with display labels.
+const videoCategories = <String, String>{
+  'hipco': 'Hipco',
+  'afrobeats': 'Afrobeats',
+  'comedy': 'Comedy',
+  'skits': 'Skits',
+  'short_films': 'Short films',
+  'culture': 'Culture',
+  'documentaries': 'Documentaries',
+};
+
+const _videoStates = {
+  'draft',
+  'uploading',
+  'processing',
+  'failed',
+  'review',
+  'published',
+  'rejected',
+  'removed'
+};
+
+final _tagPattern = RegExp(r'^[a-z0-9_]{1,30}$');
+
+/// Mirrors the server rule: trim, drop one leading `#`, lowercase, deduplicate.
+/// Throws [FormatException] when any tag is invalid or more than five remain.
+List<String> normalizeTags(Iterable<String> raw) {
+  final tags = <String>[];
+  for (final item in raw) {
+    var tag = item.trim();
+    if (tag.isEmpty) continue;
+    if (tag.length > 64) throw const FormatException('Invalid hashtag');
+    if (tag.startsWith('#')) tag = tag.substring(1);
+    tag = tag.toLowerCase();
+    if (!_tagPattern.hasMatch(tag)) {
+      throw const FormatException('Invalid hashtag');
+    }
+    if (!tags.contains(tag)) tags.add(tag);
+  }
+  if (tags.length > 5) throw const FormatException('Too many hashtags');
+  return List.unmodifiable(tags);
+}
+
 class OwnedVideo {
   const OwnedVideo(this.id, this.creatorId, this.title, this.description,
-      this.state, this.createdAt);
+      this.state, this.createdAt,
+      {this.category,
+      this.tags = const [],
+      this.coverTimeMs,
+      this.visibility = 'private',
+      this.publishedAt,
+      this.posterUrl,
+      this.durationMs});
 
-  final String id, creatorId, title, description, state;
+  final String id, creatorId, title, description, state, visibility;
   final DateTime createdAt;
+  final String? category;
+  final List<String> tags;
+  final int? coverTimeMs, durationMs;
+  final DateTime? publishedAt;
+
+  /// Short-lived signed URL (at most 300 seconds). Never persist it.
+  final String? posterUrl;
 
   bool get canEditDraft => state == 'draft';
 
   factory OwnedVideo.fromJson(Object? raw) {
+    const required = {
+      'id',
+      'creator_id',
+      'title',
+      'description',
+      'category',
+      'tags',
+      'cover_time_ms',
+      'state',
+      'visibility',
+      'created_at',
+      'published_at',
+      'poster_url'
+    };
     if (raw is! Map<String, dynamic> ||
-        raw.keys.toSet().difference({
-          'id',
-          'creator_id',
-          'title',
-          'description',
-          'state',
-          'created_at'
-        }).isNotEmpty) {
+        !raw.keys.toSet().containsAll(required) ||
+        raw.keys.toSet().difference(
+            {...required, 'duration_seconds', 'duration_ms'}).isNotEmpty) {
       throw const FormatException('Invalid owned video');
     }
     final id = raw['id'];
@@ -29,17 +95,13 @@ class OwnedVideo {
     final title = raw['title'];
     final description = raw['description'];
     final state = raw['state'];
-    final createdAt = raw['created_at'];
-    const states = {
-      'draft',
-      'uploading',
-      'processing',
-      'failed',
-      'review',
-      'published',
-      'rejected',
-      'removed'
-    };
+    final visibility = raw['visibility'];
+    final category = raw['category'];
+    final rawTags = raw['tags'];
+    final cover = raw['cover_time_ms'];
+    final poster = raw['poster_url'];
+    final seconds = raw['duration_seconds'];
+    final millis = raw['duration_ms'];
     if (!isApiId(id) ||
         !isApiId(creatorId) ||
         title is! String ||
@@ -48,17 +110,44 @@ class OwnedVideo {
         description is! String ||
         description.length > 2000 ||
         state is! String ||
-        !states.contains(state) ||
-        createdAt is! String) {
+        !_videoStates.contains(state) ||
+        !{'private', 'public', 'unlisted'}.contains(visibility) ||
+        category != null && !videoCategories.containsKey(category) ||
+        rawTags is! List ||
+        rawTags.length > 5 ||
+        rawTags.any((tag) => tag is! String || !_tagPattern.hasMatch(tag)) ||
+        rawTags.toSet().length != rawTags.length ||
+        cover != null && (cover is! int || cover < 0 || cover > 300000) ||
+        seconds != null && (seconds is! int || seconds < 0 || seconds > 300) ||
+        millis != null && (millis is! int || millis < 1 || millis > 300000) ||
+        poster != null &&
+            (poster is! String ||
+                poster.length > 4096 ||
+                Uri.tryParse(poster)?.scheme != 'https')) {
       throw const FormatException('Invalid owned video');
     }
-    final timestamp = DateTime.tryParse(createdAt);
-    if (timestamp == null ||
-        !createdAt.contains(RegExp(r'(Z|[+-]\d\d:\d\d)$'))) {
+    final created = _timestamp(raw['created_at']);
+    final published =
+        raw['published_at'] == null ? null : _timestamp(raw['published_at']);
+    return OwnedVideo(
+        id as String, creatorId as String, title, description, state, created,
+        category: category as String?,
+        tags: List<String>.unmodifiable(rawTags.cast<String>()),
+        coverTimeMs: cover as int?,
+        visibility: visibility as String,
+        publishedAt: published,
+        posterUrl: poster as String?,
+        durationMs: millis as int? ??
+            (seconds == null ? null : (seconds as int) * 1000));
+  }
+
+  static DateTime _timestamp(Object? value) {
+    final parsed = value is String ? DateTime.tryParse(value) : null;
+    if (parsed == null ||
+        !(value as String).contains(RegExp(r'(Z|[+-]\d\d:\d\d)$'))) {
       throw const FormatException('Invalid video timestamp');
     }
-    return OwnedVideo(id as String, creatorId as String, title, description,
-        state, timestamp);
+    return parsed;
   }
 }
 
@@ -123,27 +212,51 @@ class UploadIntent {
   }
 }
 
+const _failureReasons = {
+  'invalid_media',
+  'cover_out_of_range',
+  'processing_unavailable',
+  'poster_failed',
+  'upload_missing',
+  'upload_changed'
+};
+
 class VideoUploadStatus {
-  const VideoUploadStatus(this.videoId, this.state);
+  const VideoUploadStatus(this.videoId, this.state,
+      {this.failureReason, this.retryable = false});
   final String videoId, state;
+
+  /// Stable server reason for a failed or interrupted preparation, else null.
+  final String? failureReason;
+
+  /// The server's statement that the owner may retry the upload or completion.
+  final bool retryable;
+
+  bool get preparing => state == 'uploading' || state == 'processing';
 
   factory VideoUploadStatus.fromJson(
       Map<String, dynamic> data, String videoId) {
-    if (data.keys.toSet().difference({'video_id', 'state'}).isNotEmpty ||
+    final state = data['state'];
+    final reason = data['failure_reason'];
+    final retryable = data['retryable'];
+    if (data.keys.toSet().difference(
+            {'video_id', 'state', 'failure_reason', 'retryable'}).isNotEmpty ||
+        data.length != 4 ||
         data['video_id'] != videoId ||
-        !{
-          'draft',
-          'uploading',
-          'processing',
-          'failed',
-          'review',
-          'published',
-          'rejected',
-          'removed'
-        }.contains(data['state'])) {
+        state is! String ||
+        !_videoStates.contains(state) ||
+        reason != null &&
+            (reason is! String || !_failureReasons.contains(reason)) ||
+        retryable is! bool ||
+        // Retry is offered for draft/uploading/failed, and for processing
+        // only when a transient failure reason is present.
+        retryable !=
+            ({'draft', 'uploading', 'failed'}.contains(state) ||
+                state == 'processing' && reason != null)) {
       throw const FormatException('Invalid upload status');
     }
-    return VideoUploadStatus(videoId, data['state'] as String);
+    return VideoUploadStatus(videoId, state,
+        failureReason: reason as String?, retryable: retryable);
   }
 }
 
@@ -156,17 +269,30 @@ class LiveContentRepository {
   Future<OwnedVideo> createDraft(
       {required String title,
       required String description,
+      required String category,
+      List<String> tags = const [],
       required String idempotencyKey}) async {
     final cleaned = title.trim();
-    if (cleaned.isEmpty || cleaned.length > 160 || description.length > 2000) {
+    if (cleaned.isEmpty ||
+        cleaned.length > 160 ||
+        description.length > 2000 ||
+        !videoCategories.containsKey(category)) {
       throw const FormatException('Invalid draft metadata');
     }
+    final normalized = normalizeTags(tags);
     final result = OwnedVideo.fromJson(await account.authenticatedRequest(
         '/videos',
         method: 'POST',
         idempotencyKey: idempotencyKey,
-        body: {'title': cleaned, 'description': description}));
-    if (!result.canEditDraft) {
+        body: {
+          'title': cleaned,
+          'description': description,
+          'category': category,
+          'tags': normalized,
+        }));
+    if (!result.canEditDraft ||
+        result.category != category ||
+        result.title != cleaned) {
       throw const FormatException('Invalid draft response');
     }
     return result;
@@ -189,7 +315,8 @@ class LiveContentRepository {
   }
 
   Future<void> uploadToProvider(
-      UploadIntent intent, Stream<List<int>> bytes, int sizeBytes) async {
+      UploadIntent intent, Stream<List<int>> bytes, int sizeBytes,
+      {void Function(int sentBytes)? onProgress}) async {
     if (intent.expiresAt.isBefore(DateTime.now()) ||
         sizeBytes < 1 ||
         sizeBytes > intent.maxBytes ||
@@ -204,7 +331,15 @@ class LiveContentRepository {
     try {
       final responseFuture =
           client.send(request).timeout(const Duration(minutes: 3));
-      await request.sink.addStream(bytes).timeout(const Duration(minutes: 3));
+      var sent = 0;
+      final counted = onProgress == null
+          ? bytes
+          : bytes.map((chunk) {
+              sent += chunk.length;
+              onProgress(sent);
+              return chunk;
+            });
+      await request.sink.addStream(counted).timeout(const Duration(minutes: 3));
       await request.sink.close();
       final response = await responseFuture;
       await response.stream.drain<void>();

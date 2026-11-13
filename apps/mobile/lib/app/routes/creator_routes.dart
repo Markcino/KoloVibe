@@ -16,7 +16,11 @@ Widget? creatorRoute(RouteContext context) {
         onboarding: route.screen == 37 && deps.liveAccount != null
             ? LiveCreatorOnboardingRepository(deps.liveAccount!)
             : null),
-    41 when deps.liveContent != null && deps.liveAccount != null =>
+    // M-041 is the entry; M-042–M-044 are its file, check and story steps.
+    41 ||
+    42 ||
+    43 ||
+    44 when deps.liveContent != null && deps.liveAccount != null =>
       LiveCreateOriginalScreen(
           content: deps.liveContent!,
           onboarding: LiveCreatorOnboardingRepository(deps.liveAccount!)),
