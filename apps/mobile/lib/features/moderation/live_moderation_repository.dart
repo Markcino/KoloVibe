@@ -34,6 +34,62 @@ class ModerationReceipt {
   }
 }
 
+/// The five reasons the gateway accepts for a report.
+const reportReasonCodes = {
+  'spam',
+  'harassment',
+  'copyright',
+  'harmful',
+  'other'
+};
+
+/// One of the caller's own reports, as listed by `GET /me/reports`.
+class ReportRecord {
+  const ReportRecord(
+      this.id, this.videoId, this.status, this.createdAt, this.reason);
+  final String id, videoId, status, reason;
+  final DateTime createdAt;
+
+  bool get isOpen => status == 'open';
+
+  factory ReportRecord.fromJson(Object? value) {
+    const keys = {
+      'id',
+      'video_id',
+      'status',
+      'created_at',
+      'reason',
+      'details'
+    };
+    if (value is! Map<String, dynamic> ||
+        value.keys.toSet().difference(keys).isNotEmpty ||
+        !value.keys.toSet().containsAll(keys)) {
+      throw const FormatException('Invalid report record');
+    }
+    // Validate the shared receipt fields with the receipt parser.
+    final receipt = ModerationReceipt.fromJson({
+      'id': value['id'],
+      'video_id': value['video_id'],
+      'status': value['status'],
+      'created_at': value['created_at'],
+    });
+    final reason = value['reason'];
+    if (reason is! String ||
+        !reportReasonCodes.contains(reason) ||
+        value['details'] is! String) {
+      throw const FormatException('Invalid report record');
+    }
+    return ReportRecord(
+        receipt.id, receipt.videoId, receipt.status, receipt.createdAt, reason);
+  }
+}
+
+class ReportPage {
+  const ReportPage(this.items, this.nextCursor);
+  final List<ReportRecord> items;
+  final String? nextCursor;
+}
+
 class LiveModerationRepository {
   const LiveModerationRepository(this.account);
   final LiveAccountRepository account;
@@ -44,8 +100,7 @@ class LiveModerationRepository {
       required String details,
       required String key}) async {
     if (!isApiId(videoId) ||
-        !{'spam', 'harassment', 'copyright', 'harmful', 'other'}
-            .contains(reason) ||
+        !reportReasonCodes.contains(reason) ||
         details.length > 2000 ||
         !RegExp(r'^[A-Za-z0-9_-]{16,128}$').hasMatch(key)) {
       throw const FormatException('Invalid report');
@@ -77,8 +132,59 @@ class LiveModerationRepository {
     return receipt;
   }
 
-  Future<List<ModerationReceipt>> ownReports({String? cursor}) =>
-      _own('reports', cursor);
+  /// One page (at most 20) of the caller's own reports, newest first.
+  Future<ReportPage> ownReports({String? cursor}) async {
+    if (cursor != null && !isApiId(cursor)) {
+      throw const FormatException('Invalid cursor');
+    }
+    final data = await account.authenticatedRequest('/me/reports',
+        query: {if (cursor != null) 'cursor': cursor});
+    final items = data['items'];
+    final next = data['next_cursor'];
+    if (items is! List ||
+        items.length > 20 ||
+        data.keys.toSet().difference({'items', 'next_cursor'}).isNotEmpty ||
+        !data.containsKey('next_cursor')) {
+      throw const FormatException('Invalid report list');
+    }
+    final records = items.map(ReportRecord.fromJson).toList(growable: false);
+    if (records.map((r) => r.id).toSet().length != records.length ||
+        next != null &&
+            (next is! String ||
+                !isApiId(next) ||
+                records.isEmpty ||
+                records.last.id != next ||
+                next == cursor)) {
+      throw const FormatException('Invalid report cursor');
+    }
+    return ReportPage(records, next as String?);
+  }
+
+  /// The caller's most recent report about [videoId], or null when none is
+  /// found within [maxPages] pages. With [openOnly] it looks for an open one,
+  /// which is what makes a new report a duplicate.
+  Future<ReportRecord?> findReport(String videoId,
+      {bool openOnly = false, int maxPages = 5}) async {
+    if (!isApiId(videoId)) throw const FormatException('Invalid video');
+    String? cursor;
+    for (var page = 0; page < maxPages; page++) {
+      final result = await ownReports(cursor: cursor);
+      for (final record in result.items) {
+        if (record.videoId == videoId && (!openOnly || record.isOpen)) {
+          return record;
+        }
+      }
+      cursor = result.nextCursor;
+      if (cursor == null) return null;
+    }
+    return null;
+  }
+
+  /// True when [error] is the gateway's "you already have an open report".
+  static bool isAlreadyReported(Object error) =>
+      error is ApiFailure &&
+      error.status == 409 &&
+      error.code == 'already_reported';
   Future<List<ModerationReceipt>> ownAppeals({String? cursor}) =>
       _own('appeals', cursor);
 
