@@ -74,7 +74,7 @@ void main() {
           expect(request.url.path, '/api/v1/creators/me/application');
           if (request.method == 'POST') {
             expect(jsonDecode(request.body), {
-              'handle': 'Storyteller',
+              'handle': 'storyteller',
               'adult_attested': true,
               'rights_attested': true,
             });
@@ -94,11 +94,16 @@ void main() {
     expect((await repository.application())!.status, 'invited');
     await expectLater(
         repository.submit(
-            handle: 'Storyteller', adultAttested: false, rightsAttested: true),
+            handle: 'storyteller', adultAttested: false, rightsAttested: true),
+        throwsFormatException);
+    // DOC-205 requires ^[a-z0-9_]{3,30}$; the gateway answers 400 otherwise.
+    await expectLater(
+        repository.submit(
+            handle: 'Storyteller', adultAttested: true, rightsAttested: true),
         throwsFormatException);
     expect(
         (await repository.submit(
-                handle: ' Storyteller ',
+                handle: ' storyteller ',
                 adultAttested: true,
                 rightsAttested: true))
             .status,
