@@ -1,5 +1,6 @@
 import '../../core/network/api_client.dart';
 import '../account/live_account_repository.dart';
+import 'live_own_creator_repository.dart';
 
 class CreatorApplication {
   const CreatorApplication(this.accountId, this.status, this.creatorId);
@@ -66,7 +67,8 @@ class LiveCreatorOnboardingRepository {
       required bool adultAttested,
       required bool rightsAttested}) async {
     final trimmed = handle.trim();
-    if (!RegExp(r'^[A-Za-z0-9_-]{1,40}$').hasMatch(trimmed) ||
+    // DOC-205 `POST /creators/me/application`: ^[a-z0-9_]{3,30}$ and both attestations.
+    if (creatorHandleProblem(trimmed) != null ||
         !adultAttested ||
         !rightsAttested) {
       throw const FormatException('Invalid creator handle');

@@ -220,3 +220,14 @@ Current binding of the creator upload journey, not production or device acceptan
 | M-048 · Upload failed | Live (inside M-041 flow) | GET/POST /videos/{id}/upload-status | Server `failure_reason` and `retryable`. |
 | M-049 · Preparing your video | Live (inside M-041 flow) | GET /videos/{id}/upload-status | Bounded polling and manual check. |
 
+## FL-C creator identity binding status — 14 November 2026
+
+Journey 1 of the remaining Creator Studio work. Full matrix, tests and decisions: [FL-C Creator Studio gap matrix](engineering/FL-C_creator_studio_gap_matrix.md). All routes need `KOLOVIBE_API_URL`.
+
+| Screen | Mode | Endpoint (all under `/api/v1`) | Result |
+|---|---|---|---|
+| M-036 · Become a creator | Live | GET /creators/me/upload-eligibility; GET/POST /creators/me/application | Real invitation, application and eligibility states; invited accounts apply with a handle (`^[a-z0-9_]{3,30}$`) and both attestations. |
+| M-037 · Creator Studio | Live (partial) | Same, plus GET /creators/me | Real name and studio actions for approved creators; others see M-036. Analytics and Lone Stars cards are not shown. |
+| M-038 · Creator profile | Live | GET /creators/me; GET /creators/{id} (count only) | Real public fields; preview (M-026) and originals (M-027) links; no profile photo. |
+| M-039 · Edit creator profile | Live | PATCH /creators/me | Display name, bio, location and handle; `handle_taken` shown on the field; no photo. |
+
