@@ -120,6 +120,10 @@ void main() {
               'balance': 1,
               'currency': 'POINTS',
               'as_of': '2026-11-11T12:00:00Z',
+              'confirmed': 1,
+              'pending': 0,
+              'withheld': 0,
+              'reversed': 0,
             }),
             200);
       }
@@ -133,6 +137,8 @@ void main() {
                 'kind': 'award',
                 'rule_version': 'DEC-003-v1',
                 'created_at': '2026-11-11T12:00:00Z',
+                'status': 'confirmed',
+                'video_id': null,
               }
             ],
             'next_cursor': null,

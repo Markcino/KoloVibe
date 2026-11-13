@@ -99,6 +99,7 @@ class _LiveCreatorStudioScreenState extends State<LiveCreatorStudioScreen> {
         const SizedBox(height: 8),
         _tile(context, 'My video library', 'Your drafts and originals', 40),
         _tile(context, 'Creator profile', '@${own.handle}', 38),
+        _tile(context, 'Lone Stars', 'Non-cash recognition points', 61),
       ]),
     );
   }
