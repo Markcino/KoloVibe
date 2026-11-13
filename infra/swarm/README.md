@@ -78,10 +78,30 @@ the actual network's encryption, firewall, capacity or secret lifecycle.
   first in `GATEWAY_HOSTS` and include every approved ingress Host explicitly.
   The first host is also used by the verified-TLS image readiness probe.
 - Supply a trusted-peers JSON object containing exactly `content` and `creators`,
-  each a canonical `https://<service>:8000` origin. Supply a gateway signing key
-  matching each peer's caller-key JSON. The gateway can have an empty caller map.
-  Keys, DB credentials, Django keys and probe tokens are distinct per service;
-  signing/Django/probe secrets require at least 32 characters.
+  each a canonical `https://<service>:8000` origin. The gateway's `outbound_key`
+  secret is a JSON object mapping each peer audience to its own signing key, for
+  example `{"content": "<key>", "creators": "<key>"}`; every value is distinct and
+  at least 32 characters. A peer's `caller_keys` secret holds only that peer's entry,
+  `{"gateway": "<key>"}`. A key must never appear in two receivers' secrets, and a
+  receiver refuses a caller map in which two callers share a key. The gateway has no
+  signed internal routes, so its caller map is empty. A receiver also accepts only
+  its fixed caller set and paths (`CALLER_PATHS` in `service_auth.py`), so a key
+  held by one service cannot sign as another service. A sender with a single peer
+  (identity to audit) may keep one plain key. Keys, DB credentials, Django keys and
+  probe tokens are distinct per service; signing/Django/probe secrets require at
+  least 32 characters.
+- Rotate a peer key without an outage (Swarm secrets are immutable, so each step
+  creates a new secret and updates the service; never print or commit values):
+  1. Generate a fresh random key for that one gateway-to-peer pair and create
+     `<peer>_callers_<n+1>` containing `{"gateway": ["<new>", "<old>"]}`
+     (at most two keys per caller) and roll the peer.
+  2. Create `gateway_outbound_<n+1>` with the new key for that peer only and roll the gateway.
+  3. Confirm readiness and the cluster `signed_tests` (including "other peer credential
+     rejected"), then roll the peer to a secret holding only the new key and retire the old secrets.
+  A suspected leak is rotated the same way and the old key is destroyed, never reused.
+  Moving from the previous single shared gateway key: roll every receiver to a
+  secret holding `["<new>", "<previous shared>"]` first, then the gateway to the map,
+  then drop the shared key everywhere. Treat the shared key as compromised afterwards.
 - Provision external secrets named by the manifest from protected Actions
   environment secrets. Target files are `/run/secrets/*`, owner UID/GID 10001,
   mode 0400. Never commit credentials or include root `.env` in artifacts/images.

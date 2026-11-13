@@ -7,6 +7,10 @@ from pathlib import Path
 from run_local_service import ROOT, SERVICES, read_local_env
 
 
+# One independent gateway signing key per peer, so no local service holds a key that signs for another.
+GATEWAY_AUDIENCES = ("IDENTITY", "CONTENT", "CREATORS", "MODERATION", "ENGAGEMENT", "POINTS")
+
+
 def create_local_env(path: Path) -> None:
     lines = ["KOLOVIBE_ENV=local", "DJANGO_DEBUG=0"]
     lines.extend(
@@ -15,7 +19,7 @@ def create_local_env(path: Path) -> None:
     )
     lines.extend((
         f"KOLOVIBE_WEB_DJANGO_SECRET_KEY={secrets.token_urlsafe(48)}",
-        f"KOLOVIBE_GATEWAY_OUTBOUND_KEY={secrets.token_urlsafe(48)}",
+        *(f"KOLOVIBE_GATEWAY_OUTBOUND_KEY_{audience}={secrets.token_urlsafe(48)}" for audience in GATEWAY_AUDIENCES),
         "KOLOVIBE_GATEWAY_URL=http://127.0.0.1:8000",
         "KOLOVIBE_IDENTITY_URL=http://127.0.0.1:8001",
         "KOLOVIBE_CONTENT_URL=http://127.0.0.1:8002",
@@ -36,7 +40,7 @@ def add_local_peer_configuration(path: Path) -> None:
     values = read_local_env(path)
     additions = {
         "KOLOVIBE_WEB_DJANGO_SECRET_KEY": secrets.token_urlsafe(48),
-        "KOLOVIBE_GATEWAY_OUTBOUND_KEY": secrets.token_urlsafe(48),
+        **{f"KOLOVIBE_GATEWAY_OUTBOUND_KEY_{audience}": secrets.token_urlsafe(48) for audience in GATEWAY_AUDIENCES},
         "KOLOVIBE_GATEWAY_URL": "http://127.0.0.1:8000",
         "KOLOVIBE_IDENTITY_URL": "http://127.0.0.1:8001",
         "KOLOVIBE_CONTENT_URL": "http://127.0.0.1:8002",

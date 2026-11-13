@@ -67,6 +67,8 @@ services:
       KOLOVIBE_ALLOWED_HOSTS: ${GATEWAY_HOSTS:?approved gateway hostnames required}
       KOLOVIBE_DB_USER: ${GATEWAY_DB_USER:?runtime database login required}
       KOLOVIBE_TRUSTED_PEERS_FILE: /run/secrets/trusted_peers
+      # JSON map {audience: key}: one independent signing key per peer. Each peer's
+      # `<peer>_callers` secret holds only its own {"gateway": key}; see README rotation steps.
       KOLOVIBE_OUTBOUND_KEY_FILE: /run/secrets/outbound_key
     secrets:
       - {source: gateway_django, target: django_key, uid: "10001", gid: "10001", mode: 0400}

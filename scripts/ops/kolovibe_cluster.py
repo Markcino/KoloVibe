@@ -821,8 +821,14 @@ def signed_tests(rows, ca):
     import hmac
     from urllib.parse import urlsplit
     peers = json.loads(Path(os.environ['KOLOVIBE_TRUSTED_PEERS_FILE']).read_text())
-    key = Path(os.environ['KOLOVIBE_OUTBOUND_KEY_FILE']).read_text().strip()
+    keys = json.loads(Path(os.environ['KOLOVIBE_OUTBOUND_KEY_FILE']).read_text())
+    if (not isinstance(keys, dict) or any(not isinstance(keys.get(name), str) for name in ('content', 'creators'))
+            or len(set(keys.values())) != len(keys)):
+        rows.append({'test': 'gateway per-peer signing credentials', 'status': 'FAIL', 'error_type': 'SharedOrMissingKey'})
+        return
     for peer in ('content', 'creators'):
+        key = keys[peer]
+        other = 'creators' if peer == 'content' else 'content'
         try:
             origin = peers[peer].rstrip('/')
             parsed = urlsplit(origin)
@@ -848,6 +854,13 @@ def signed_tests(rows, ca):
             headers['X-KoloVibe-Nonce'] = secrets.token_urlsafe(24)
             headers['X-KoloVibe-Signature'] = '0'*64
             record(rows, peer + ' forged signature rejected', send, (403,))
+            # The credential meant for the other peer must not be accepted here.
+            headers['X-KoloVibe-Nonce'] = secrets.token_urlsafe(24)
+            canonical_request = '\n'.join(('gateway', peer, stamp, headers['X-KoloVibe-Nonce'], 'GET', path,
+                                           hashlib.sha256(b'').hexdigest()))
+            headers['X-KoloVibe-Signature'] = hmac.new(keys[other].encode(), canonical_request.encode(),
+                                                      hashlib.sha256).hexdigest()
+            record(rows, peer + ' other peer credential rejected', send, (403,))
         except Exception as error:
             rows.append({'test': peer + ' signed transport', 'status': 'FAIL', 'error_type': type(error).__name__})
 
