@@ -4,6 +4,7 @@ from http.client import HTTPConnection
 import json
 import os
 from pathlib import Path
+import re
 import secrets
 import socket
 import subprocess
@@ -32,7 +33,8 @@ class ImageSecurityContractTests(unittest.TestCase):
                         self.dockerfile.index("pip install"))
 
     def test_base_image_stays_digest_pinned(self):
-        self.assertRegex(self.dockerfile, r"(?m)^FROM python:[^@\s]+@sha256:[0-9a-f]{64}$")
+        self.assertRegex(self.dockerfile, r"(?m)^FROM python:[^@\s]+@sha256:[0-9a-f]{64}( AS \w+)?$")
+        self.assertEqual(len(re.findall(r"(?m)^FROM python:", self.dockerfile)), 1)
 
     def test_image_scan_gate_is_not_weakened(self):
         start = self.workflow.index("Scan local image vulnerabilities")
@@ -41,6 +43,47 @@ class ImageSecurityContractTests(unittest.TestCase):
         self.assertIn("severity-cutoff: high", step)
         for weakening in ("only-fixed", "ignore", "grype.yaml", "continue-on-error"):
             self.assertNotIn(weakening, step)
+
+    def stages(self):
+        parts = re.split(r"(?m)^FROM [^\n]+ AS (\w+)\n", self.dockerfile)
+        return dict(zip(parts[1::2], parts[2::2]))
+
+    def test_release_is_the_default_last_stage_and_local_keeps_sqlite(self):
+        stages = self.stages()
+        self.assertEqual(list(stages), ["local", "release"])
+        # A bare `docker build` must produce the PostgreSQL-only image.
+        self.assertEqual(re.findall(r"(?m)^FROM .* AS (\w+)$", self.dockerfile)[-1], "release")
+        self.assertIn("FROM local AS release", self.dockerfile)
+        # The local target is the unchanged SQLite-capable image: nothing is removed from it.
+        for removal in ("apk del", "rm -rf", "_sqlite3"):
+            self.assertNotIn(removal, stages["local"])
+
+    def test_release_stage_removes_sqlite_and_fails_closed(self):
+        release = self.stages()["release"]
+        self.assertIn("apk del .python-rundeps sqlite-libs", release)
+        # Other Python runtime libraries are re-pinned first so removal cannot cascade.
+        self.assertLess(release.index(".kolovibe-python-rundeps"), release.index("apk del"))
+        for check in ("apk info -e sqlite-libs", "apk list -I", "import sqlite3",
+                      "import django, psycopg", "pip check"):
+            self.assertIn(check, release)
+        # `! command` is ignored by `set -e`; checks must use explicit conditionals.
+        self.assertNotRegex(release, r"(?m)^\s*!\s")
+        self.assertTrue(release.rstrip().endswith("USER 10001:10001"))
+        self.assertIn("USER root", release)
+
+    def test_ci_builds_scans_and_publishes_only_the_release_target(self):
+        build = self.workflow[self.workflow.index("- name: Build shared service image"):
+                              self.workflow.index("- name: Inspect image configuration")]
+        self.assertIn("--target release", build)
+        self.assertIn("--file infra/docker/Dockerfile.service", build)
+        self.assertNotIn("--target local", self.workflow)
+        verify = self.workflow[self.workflow.index("- name: Verify the release image has no SQLite"):
+                               self.workflow.index("- name: Scan local image vulnerabilities")]
+        self.assertIn("import sqlite3", verify)
+        self.assertIn("list -I", verify)
+        self.assertLess(self.workflow.index("Verify the release image has no SQLite"),
+                        self.workflow.index("Scan local image vulnerabilities"))
+        self.assertIn("lists no SQLite component", self.workflow)
 
 
 class SharedImageTests(unittest.TestCase):

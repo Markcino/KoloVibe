@@ -179,9 +179,13 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(all_commands.count("docker build "), 1)
         self.assertEqual(all_commands.count("docker push "), 1)
         self.assertIn('TARGET="ghcr.io/$REPOSITORY/services:', commands)
-        smoke = next(step for step in matrix_steps if step.get("name") == "Run service HTTP smoke check")
-        self.assertIn('-e "KOLOVIBE_SERVICE_NAME=$SERVICE"', smoke["run"])
-        self.assertIn('"kolovibe/services:ci"', smoke["run"])
+        smoke = next(step for step in matrix_steps if step.get("name") == "Run service PostgreSQL smoke check")
+        self.assertEqual(smoke["env"], {"SERVICE": "${{ matrix.service }}"})
+        self.assertIn('scripts/smoke_release_image.py --image "kolovibe/services:ci" --service "$SERVICE"',
+                      smoke["run"])
+        # The release image has no SQLite, so the smoke test must not use the local SQLite profile.
+        self.assertNotIn("KOLOVIBE_ENV=local", smoke["run"])
+        self.assertNotIn("sqlite", smoke["run"].lower())
 
     def test_permissions_are_job_scoped(self):
         self.assertEqual(self.workflow["permissions"], {"contents": "read"})

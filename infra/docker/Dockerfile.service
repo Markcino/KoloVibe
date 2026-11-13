@@ -1,10 +1,18 @@
+# Shared service image with two build targets.
+#   release (default, last stage): PostgreSQL-only. SQLite is removed, so the image
+#       that CI scans, verifies and publishes carries no sqlite-libs. Staging
+#       already refuses SQLite, so every supported release profile is unaffected.
+#   local:  SQLite fallback retained for local development and unit-test runs.
+#       It is not scanned, verified or published; never deploy it.
+# A bare `docker build` produces the release target, so the unsafe image is opt-in.
+
 # Local/CI and restricted staging image; production remains gated.
-FROM python:3.12.16-alpine3.23@sha256:20d13dc88e7bc1adf6e18cdddeb4cd53a7e0fdc3825bfe05f00c7563d4cdf102
+FROM python:3.12.16-alpine3.23@sha256:20d13dc88e7bc1adf6e18cdddeb4cd53a7e0fdc3825bfe05f00c7563d4cdf102 AS local
 WORKDIR /app
 ENV PYTHONPATH=/app/services
 
 # Pull Alpine security fixes published after the pinned base image was built
-# (zlib, krb5-libs, sqlite-libs). Never replace this with a scanner exception.
+# (zlib, krb5-libs). Never replace this with a scanner exception.
 RUN apk upgrade --no-cache
 
 # A predictable, immutable dependency set, verified against package hashes.
@@ -22,3 +30,27 @@ EXPOSE 8000
 # Staging requires external secret files, verified TLS and explicit capabilities.
 ENTRYPOINT ["python", "-m", "staging_runtime.launch"]
 CMD []
+
+# PostgreSQL-only release image. The base image's Python links the SQLite C library
+# (sqlite-libs), which carries High CVEs with no fixed Alpine package. Nothing in the
+# supported release profiles uses it: staging and the PostgreSQL profile use psycopg.
+FROM local AS release
+USER root
+# apk tracks Python's runtime libraries through one virtual package that also depends
+# on sqlite-libs. Re-pin every other runtime library under a new virtual package
+# first, so removing sqlite-libs cannot cascade into libraries Python still needs.
+RUN set -eux; \
+    apk info -R .python-rundeps | awk 'NF && $0 !~ /depends on:$/ && $0 !~ /sqlite/' > /tmp/python-rundeps; \
+    test -s /tmp/python-rundeps; \
+    apk add --no-cache --virtual .kolovibe-python-rundeps $(cat /tmp/python-rundeps); \
+    apk del .python-rundeps sqlite-libs; \
+    rm -f /tmp/python-rundeps; \
+    pydir="$(python -c 'import os; print(os.path.dirname(os.__file__))')"; \
+    rm -rf "$pydir"/sqlite3 "$pydir"/lib-dynload/_sqlite3*; \
+    if apk info -e sqlite-libs | grep -q .; then echo "sqlite-libs is still installed" >&2; exit 1; fi; \
+    if apk list -I | grep -qi sqlite; then echo "An SQLite package is still installed" >&2; exit 1; fi; \
+    if python -c 'import sqlite3' 2>/dev/null; then echo "sqlite3 is still importable" >&2; exit 1; fi; \
+    python -c 'import ssl, ctypes, zlib, bz2, lzma, readline, curses, pyexpat, uuid, decimal, hashlib'; \
+    python -c 'import django, psycopg, cryptography.fernet, celery, kombu, gunicorn, yaml, pyotp'; \
+    python -m pip check
+USER 10001:10001
