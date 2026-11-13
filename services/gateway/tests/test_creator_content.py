@@ -68,7 +68,9 @@ class CreatorContentGatewayTests(SimpleTestCase):
                 patch("service.content_client.published_video_count", return_value=7) as content_count, \
                 patch("service.engagement_client.follower_count", return_value=None) as followers:
             response = creators.creator_detail(self.factory.get("/creator"), self.creator)
-            self.assertEqual(json.loads(response.content), self.profile | {"published_video_count": 7, "follower_count": None})
+            public = {key: value for key, value in self.profile.items() if key != "user_id"}
+            self.assertEqual(json.loads(response.content), public | {"published_video_count": 7, "follower_count": None})
+            self.assertNotIn("user_id", json.loads(response.content))
             content_count.assert_called_once_with(self.creator)
             followers.assert_called_once_with(self.creator)
             followers.return_value = 12

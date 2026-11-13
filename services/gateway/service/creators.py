@@ -28,7 +28,13 @@ def creator_detail(request, creator_id):
         followers = None
     if count is None or followers is not None and (type(followers) is not int or followers < 0):
         return JsonResponse({"detail": "Creator totals unavailable"}, status=503)
-    return JsonResponse(json.loads(result.content) | {"published_video_count": count, "follower_count": followers})
+    return JsonResponse(public_profile(json.loads(result.content))
+                        | {"published_video_count": count, "follower_count": followers})
+
+
+def public_profile(profile):
+    """Fields safe for anonymous clients: never the internal account id."""
+    return {key: value for key, value in profile.items() if key != "user_id"}
 
 
 def read_creator(creator_id):
@@ -56,14 +62,17 @@ def read_creator(creator_id):
     return JsonResponse(result)
 
 
-def _validate_profile(result):
-    if not isinstance(result, dict) or set(result) != {
-        "id", "user_id", "handle", "bio", "status", "display_name", "location"
-    } or result["status"] != "active":
+_PUBLIC_FIELDS = {"id", "handle", "bio", "status", "display_name", "location"}
+
+
+def _validate_profile(result, *, with_account=True):
+    expected = _PUBLIC_FIELDS | {"user_id"} if with_account else _PUBLIC_FIELDS
+    if not isinstance(result, dict) or set(result) != expected or result["status"] != "active":
         raise ValueError("Invalid creator response")
-    if not all(isinstance(result[key], str) for key in ("id", "user_id")):
+    if not all(isinstance(result[key], str) for key in expected & {"id", "user_id"}):
         raise ValueError("Invalid creator identifier")
-    uuid.UUID(result["user_id"])
+    if with_account:
+        uuid.UUID(result["user_id"])
     uuid.UUID(result["id"])
     if not isinstance(result["handle"], str) or not re.fullmatch(r"[a-zA-Z0-9_-]{1,40}", result["handle"]):
         raise ValueError("Invalid creator handle")
@@ -158,7 +167,7 @@ def search_creators(request):
         if not isinstance(items, list) or len(items) > 20:
             raise ValueError
         for item in items:
-            _validate_profile(item)
+            _validate_profile(item, with_account=False)
         ids = [uuid.UUID(item["id"]) for item in items]
         if ids != sorted(set(ids)) or (
             ids and "cursor" in payload and ids[0] <= uuid.UUID(payload["cursor"])

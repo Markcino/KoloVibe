@@ -251,7 +251,6 @@ void main() {
       return http.Response(
           jsonEncode({
             'id': id,
-            'user_id': '00000000-0000-4000-8000-000000000004',
             'handle': 'original-voice',
             'bio': '',
             'status': 'active'

@@ -3152,10 +3152,10 @@ components:
         creator_id: {type: [string, 'null'], format: uuid}
     Creator:
       type: object
+      description: Public creator profile. It never includes the internal account id.
       additionalProperties: false
       required:
       - id
-      - user_id
       - handle
       - display_name
       - bio
@@ -3165,9 +3165,6 @@ components:
       - follower_count
       properties:
         id:
-          type: string
-          format: uuid
-        user_id:
           type: string
           format: uuid
         handle:
@@ -3976,7 +3973,6 @@ components:
       additionalProperties: false
       required:
       - id
-      - user_id
       - handle
       - display_name
       - bio
@@ -3984,9 +3980,6 @@ components:
       - status
       properties:
         id:
-          type: string
-          format: uuid
-        user_id:
           type: string
           format: uuid
         handle:
