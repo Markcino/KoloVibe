@@ -73,3 +73,27 @@ class QualificationReceipt(models.Model):
         indexes = [models.Index(fields=["creator_user_id", "status", "-received_at"],
                                 name="points_receipt_owner_state")]
         constraints = [models.CheckConstraint(condition=Q(amount=1), name="points_receipt_one_point")]
+
+
+class AuditEvent(models.Model):
+    """Immutable evidence of a ledger decision, written in the deciding transaction.
+
+    The actor is null: awards and cap withholdings are server decisions, not user
+    actions. The subject is the qualification event id, which is also the ledger
+    entry id for posted awards.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    kind = models.CharField(max_length=64)
+    occurred_at = models.DateTimeField(default=timezone.now)
+    subject_type = models.CharField(max_length=32, default="points_entry")
+    subject_id = models.UUIDField()
+
+    class Meta:
+        db_table = "points_audit_event"
+
+
+class AuditDelivery(models.Model):
+    event = models.OneToOneField(AuditEvent, primary_key=True, on_delete=models.PROTECT)
+    attempts = models.PositiveIntegerField(default=0)
+    delivered_at = models.DateTimeField(null=True)
+    next_attempt_at = models.DateTimeField(default=timezone.now)

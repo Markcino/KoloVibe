@@ -36,6 +36,21 @@ class ProducerTests(TestCase):
             self.assertEqual(self.send(producer, other)[0].status_code, 400)
         self.assertEqual(self.send("gateway", "account.registered")[0].status_code, 403)
 
+    def test_points_ledger_decision_payload_is_ingested_with_null_actor_and_is_producer_bound(self):
+        # Exact shape emitted by the Points deliver_audit_events command.
+        for kind in ("points.awarded", "points.withheld"):
+            payload = {"id": str(uuid4()), "actor_id": None, "kind": kind,
+                       "occurred_at": timezone.now().isoformat(),
+                       "subject_type": "points_entry", "subject_id": str(uuid4())}
+            request = RequestFactory().post("/internal/security-events", payload, content_type="application/json")
+            request.service_caller = "points"
+            self.assertEqual(ingest(request).status_code, 201)
+            self.assertEqual(ingest(request).status_code, 200)
+            event = SecurityEvent.objects.get(pk=payload["id"])
+            self.assertEqual((event.producer, event.actor_id, event.subject_type), ("points", None, "points_entry"))
+            request.service_caller = "moderation"
+            self.assertEqual(ingest(request).status_code, 400)
+
     def test_optional_subject_is_paired_strict_and_producer_cannot_be_spoofed(self):
         for extra in ({"subject_type": "video"}, {"subject_id": str(uuid4())},
                       {"subject_type": "video", "subject_id": "bad"},

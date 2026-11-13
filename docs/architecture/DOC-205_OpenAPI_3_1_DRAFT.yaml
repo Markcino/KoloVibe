@@ -2902,7 +2902,7 @@ paths:
         collision is 409. Unknown caller is 403; invalid kind/subject/shape is 400. Moderation decisions, reports
         and appeals atomically create immutable producer events plus AuditDelivery rows; deliver_audit_events uses
         two-second requests, bounded batches (1..1000), capped one-hour exponential retry delay, and retains failed
-        deliveries indefinitely. Other producers are accepted by ingest; this change does not add their producers/outboxes.
+        deliveries indefinitely. Points atomically creates points.awarded and points.withheld events (null actor, subject_type points_entry, subject_id the qualification event id) with AuditDelivery rows and delivers them with its own deliver_audit_events. Creators and content are accepted by ingest; this change does not add their producers/outboxes.
       security:
       - internalCaller: []
         internalTimestamp: []

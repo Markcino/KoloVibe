@@ -12,6 +12,7 @@ from django.views.decorators.http import require_POST
 
 from .events import accept_once
 from .models import DailyAwardCount, PointsEntry, QualificationReceipt
+from .security_audit import record as audit_record
 
 
 QUALIFIED_VIEW = "dec003.qualified_view"
@@ -54,6 +55,7 @@ def apply_qualified_view(event_id, payload):
         if not updated:
             receipt.status, receipt.reason_code = "withheld", "DAILY_CAP"
             receipt.save(update_fields=["status", "reason_code"])
+            audit_record("points.withheld", event_id)
             return False
         PointsEntry.objects.create(
             entry_id=event_id, creator_user_id=account, source_decision_id=event_id, delta=1,
@@ -61,6 +63,7 @@ def apply_qualified_view(event_id, payload):
         )
         receipt.status = "posted"
         receipt.save(update_fields=["status"])
+        audit_record("points.awarded", event_id)
     return True
 
 
