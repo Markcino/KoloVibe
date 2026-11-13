@@ -127,7 +127,8 @@ class ClusterOperationsTests(unittest.TestCase):
         self.assertEqual(len(self.plan_with(responses)[2]), 7)  # a new versioned secret is fine
         responses = self.manager_responses()
         responses['/v1.52/services/kvtest-gateway']['Spec']['TaskTemplate']['ContainerSpec']['Secrets'] = [
-            {'SecretName': 'gateway_outbound_2', 'SecretID': 'x', 'File': {'Name': 'outbound_key'}}]
+            # Offline fixture: a secret name and id placeholder, no key material.
+            {'SecretName': 'gateway_outbound_2', 'SecretID': 'x', 'File': {'Name': 'outbound_key'}}]  # pragma: allowlist secret
         with self.assertRaisesRegex(RuntimeError, 'gateway_outbound_2'):
             self.plan_with(responses)
 
