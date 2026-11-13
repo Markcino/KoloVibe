@@ -78,4 +78,43 @@ void main() {
     expect(find.text('You have no videos yet.'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('rejected and removed videos link to their notice, others do not',
+      (tester) async {
+    final repository = _ContentFixture();
+    OwnedVideo video(int n, String state) => OwnedVideo(
+        '00000000-0000-4000-8000-00000000010$n',
+        '00000000-0000-4000-8000-000000000002',
+        'Video $state',
+        '',
+        state,
+        DateTime.utc(2026, 11, 11));
+    repository.videos
+      ..clear()
+      ..addAll([
+        video(1, 'removed'),
+        video(2, 'rejected'),
+        video(3, 'published'),
+      ]);
+    final pushed = <RouteSettings>[];
+    await tester.pumpWidget(MaterialApp(
+      home: LiveContentScreen(
+        route: const ScreenRoute(40),
+        catalog: catalog,
+        repository: repository,
+      ),
+      onGenerateRoute: (settings) {
+        pushed.add(settings);
+        return MaterialPageRoute<void>(
+            settings: settings, builder: (_) => const Scaffold());
+      },
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('View notice'), findsNWidgets(2));
+    await tester.tap(find.text('View notice').first);
+    await tester.pumpAndSettle();
+    final route = pushed.last.arguments as ScreenRoute;
+    expect(route.screen, 76);
+    expect(route.entityId, '00000000-0000-4000-8000-000000000101');
+  });
 }

@@ -240,6 +240,14 @@ void main() {
     expect(
         find.text('Destination ${const ScreenRoute(81).name}'), findsOneWidget);
   });
+  testWidgets('M-079 links to the live account status (M-077)', (tester) async {
+    await tester.pumpWidget(app(LiveAccountScreen(
+        repository: AccountFixture().account, catalog: catalog)));
+    await settle(tester);
+    await tap(tester, 'Account status');
+    expect(
+        find.text('Destination ${const ScreenRoute(77).name}'), findsOneWidget);
+  });
   testWidgets('M-083 revocation confirms then reloads server records',
       (tester) async {
     var revoked = false;

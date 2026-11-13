@@ -81,6 +81,10 @@ class _LiveAccountScreenState extends State<LiveAccountScreen> {
                     onTap: () => navigate(81),
                   ),
                   ListTile(
+                    title: const Text('Account status'),
+                    onTap: () => navigate(77),
+                  ),
+                  ListTile(
                     title: const Text('Help & Support'),
                     onTap: () => navigate(89),
                   ),

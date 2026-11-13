@@ -188,7 +188,13 @@ class _LiveContentScreenState extends State<LiveContentScreen> {
                               value: 'delete', child: Text('Delete draft')),
                         ],
                       )
-                    : null,
+                    : video.state == 'rejected' || video.state == 'removed'
+                        ? TextButton(
+                            onPressed: () => Navigator.of(context).pushNamed(
+                                const ScreenRoute(76).name,
+                                arguments: ScreenRoute(76, entityId: video.id)),
+                            child: const Text('View notice'))
+                        : null,
               )),
             if (_loading && _loaded)
               const Center(child: CircularProgressIndicator()),
