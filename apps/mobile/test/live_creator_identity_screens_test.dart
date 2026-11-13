@@ -207,13 +207,16 @@ void main() {
         ..status = 'approved';
       await pump(tester, studio());
       expect(find.text('Ama Kollie · Creator enabled'), findsOneWidget);
-      // No fabricated metrics, Lone Stars or video counts.
+      // No fabricated metrics, Lone Stars figures or video counts. The Lone
+      // Stars entry is a link only; the balance is read on M-061.
       expect(find.textContaining('18.2K'), findsNothing);
-      expect(find.textContaining('Lone Stars'), findsNothing);
+      expect(find.textContaining('1,240'), findsNothing);
+      expect(find.text('Non-cash recognition points'), findsOneWidget);
       for (final (label, screen) in [
         ('Publish an original', 41),
         ('My video library', 40),
         ('Creator profile', 38),
+        ('Lone Stars', 61),
       ]) {
         await tester.tap(find.text(label));
         await tester.pumpAndSettle();

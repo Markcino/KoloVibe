@@ -9,8 +9,13 @@ Widget? trustRoute(RouteContext context) {
   final deps = context.dependencies;
   final route = context.route;
   return switch (route.screen) {
-    >= 61 && <= 69 when deps.livePoints != null =>
-      LivePointsScreen(route: route, repository: deps.livePoints!),
+    >= 61 && <= 69 when deps.livePoints != null => LivePointsScreen(
+        route: route,
+        catalog: context.catalog,
+        repository: deps.livePoints!,
+        videoTitle: deps.liveVideos == null
+            ? null
+            : (id) async => (await deps.liveVideos!.detail(id)).title),
     71 ||
     72 ||
     73 ||
