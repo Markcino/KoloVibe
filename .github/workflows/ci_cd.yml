@@ -348,23 +348,32 @@ jobs:
       - name: Verify FFmpeg is the minimal build the pipeline needs and nothing more
         run: |
           set -euo pipefail
-          run() { docker run --rm --entrypoint "$1" "kolovibe/media-worker:ci" "${@:2}"; }
-          run ffmpeg -hide_banner -version | head -1 | grep -q '^ffmpeg version 9\.0\.2'
-          protocols="$(run ffmpeg -hide_banner -protocols 2>&1 | grep -vE '^(Supported|Input|Output)' | tr -s ' \n' ' ')"
+          # Each listing is captured whole before it is checked: a reader that exits early (head, grep -q) would
+          # close the pipe and fail `docker run` with a broken pipe under pipefail.
+          run() { docker run --rm --entrypoint "$1" "kolovibe/media-worker:ci" "${@:2}" 2>&1; }
+          version="$(run ffmpeg -hide_banner -version)"
+          case "${version%%$'\n'*}" in
+            "ffmpeg version 9.0.2"*) ;;
+            *) echo "::error::Unexpected FFmpeg version line: ${version%%$'\n'*}"; exit 1 ;;
+          esac
+          protocols="$(run ffmpeg -hide_banner -protocols | grep -vE '^(Supported|Input|Output)' | tr -s ' \n' ' ')"
           test "$(printf '%s' "$protocols" | tr ' ' '\n' | grep -v '^$' | sort -u | tr '\n' ' ')" = "file pipe " || {
             echo "::error::FFmpeg must support only the file and pipe protocols, got: $protocols"; exit 1; }
-          for encoder in libx264 aac mjpeg; do run ffmpeg -hide_banner -encoders 2>&1 | grep -qE " $encoder " || {
-            echo "::error::FFmpeg lacks the $encoder encoder"; exit 1; }; done
-          # Each listing is a separate invocation: ffmpeg exits after the first information option.
+          encoders="$(run ffmpeg -hide_banner -encoders)"
+          for encoder in libx264 aac mjpeg; do
+            grep -qE " $encoder " <<<"$encoders" || { echo "::error::FFmpeg lacks the $encoder encoder"; exit 1; }
+          done
           for listing in -encoders -decoders -demuxers -muxers -protocols; do
+            output="$(run ffmpeg -hide_banner "$listing")"
             for absent in libvpx libopus libx265 rtsp rtp http tcp udp tls; do
-              if run ffmpeg -hide_banner "$listing" 2>&1 | grep -qiE "(^| )$absent( |$)"; then
+              if grep -qiE "(^| )$absent( |$)" <<<"$output"; then
                 echo "::error::FFmpeg $listing must not include $absent"; exit 1; fi
             done
           done
           run ffprobe -hide_banner -version >/dev/null
           # No device library, no network or audio-device libraries in the image's dependency closure.
-          if docker run --rm --entrypoint apk "kolovibe/media-worker:ci" list -I | grep -E '^(cjson|alsa-lib|glib|libssh|libzmq|libpulse|libsrt|dbus-libs)-'; then
+          installed="$(docker run --rm --entrypoint apk "kolovibe/media-worker:ci" list -I)"
+          if grep -E '^(cjson|alsa-lib|glib|libssh|libzmq|libpulse|libsrt|dbus-libs)-' <<<"$installed"; then
             echo "::error::The media image carries a library FFmpeg does not need"; exit 1
           fi
       - name: End-to-end media pipeline test inside the image
