@@ -33,7 +33,13 @@ def mount(target, name):
     return {'SecretName': name, 'SecretID': 'id-' + name, 'File': {'Name': target}}  # pragma: allowlist secret
 
 
-def aws_gateway(constraint=PIN, db_host=DB, networks=('services-net', 'data-net'), extra_mounts=()):
+def set_flags(container, flags):
+    """Replace the two staging capability flags in a fixture; a value of None removes the variable."""
+    kept = [e for e in container['Env'] if e.split('=', 1)[0] not in cluster.PROFILES['aws-staging'].gateway_flags]
+    container['Env'] = kept + [key + '=' + value for key, value in flags.items() if value is not None]
+
+
+def aws_gateway(constraint=PIN, db_host=DB, networks=('services-net', 'data-net'), extra_mounts=(), flags=None):
     gateway = gateway_fixture()
     spec = gateway['Spec']
     spec['Name'] = 'kolovibe-gateway'
@@ -41,6 +47,7 @@ def aws_gateway(constraint=PIN, db_host=DB, networks=('services-net', 'data-net'
     container['Hosts'] = []
     container['Env'] = [('KOLOVIBE_DB_HOST=' + db_host) if e.startswith('KOLOVIBE_DB_HOST=') else e
                         for e in container['Env']]
+    set_flags(container, flags or dict(AWS.gateway_flags))
     container['Secrets'] = [mount('django_key', 'gateway_django'), mount('internal_ca', 'internal_ca'),
                             mount('db_ca', 'db_ca'), mount('trusted_peers', PEERS),
                             mount('account_approvals', APPROVAL), *extra_mounts]
@@ -458,7 +465,7 @@ class AwsGuardsStillFailClosedTests(unittest.TestCase):
         oracle['Version'] = {'Index': 7}
         oracle['Spec']['Name'] = 'kolovibe-gateway'
         swarm.services['kolovibe-gateway'] = oracle
-        with self.assertRaisesRegex(RuntimeError, 'differs from the working pinned baseline'):
+        with self.assertRaisesRegex(RuntimeError, 'differ'):
             self.plan(swarm)
 
     def test_worker_node_must_be_the_aws_worker_ready_and_active(self):
@@ -505,6 +512,66 @@ class AwsGuardsStillFailClosedTests(unittest.TestCase):
         with patch.object(cluster, 'PROFILE', cluster.ORACLE_STAGING):
             _, why = cluster.broker_candidate([broker([PIN])], '1.52')
             self.assertEqual(why, 'RabbitMQ lacks the worker workload constraint')
+
+
+class GatewayStagingFlagTests(unittest.TestCase):
+    """The Gateway's staging capability flags are compared exactly, per profile, names-only in errors."""
+    ON, OFF = 'KOLOVIBE_STAGING_ACCOUNTS', 'KOLOVIBE_STAGING_PRIVILEGED'
+
+    def plan(self, profile, swarm):
+        with patch.object(cluster, 'PROFILE', profile), manager(swarm):
+            return cluster.update_plan(EVIDENCE, NEW_IMAGE, TARGET_REVISION, ['audit'])
+
+    def test_every_profile_declares_exactly_the_two_flags_with_binary_values(self):
+        for name, profile in cluster.PROFILES.items():
+            with self.subTest(name):
+                self.assertEqual(sorted(profile.gateway_flags), [self.ON, self.OFF])
+                self.assertTrue(set(profile.gateway_flags.values()) <= {'0', '1'})
+        self.assertEqual(cluster.ORACLE_STAGING.gateway_flags, {self.ON: '0', self.OFF: '0'})
+        self.assertEqual(AWS.gateway_flags, {self.ON: '1', self.OFF: '0'})
+
+    def test_aws_gateway_with_the_profile_flags_plans(self):
+        self.assertEqual(self.plan(AWS, AwsSwarm())['entries'][0]['action'], 'update')
+
+    def test_aws_gateway_with_any_other_flag_value_is_refused_naming_only_the_variable(self):
+        for label, flags, named in (
+                ('accounts off', {self.ON: '0', self.OFF: '0'}, self.ON),
+                ('privileged on', {self.ON: '1', self.OFF: '1'}, self.OFF),
+                ('accounts missing', {self.ON: None, self.OFF: '0'}, self.ON),
+                ('privileged missing', {self.ON: '1', self.OFF: None}, self.OFF),
+                ('padded value', {self.ON: ' 1', self.OFF: '0'}, self.ON),
+                ('word value', {self.ON: 'true', self.OFF: '0'}, self.ON),
+                ('both wrong', {self.ON: '0', self.OFF: '1'}, self.ON + ', ' + self.OFF)):
+            with self.subTest(label), self.assertRaises(RuntimeError) as raised:
+                self.plan(AWS, AwsSwarm(gateway=aws_gateway(flags=flags)))
+            self.assertIn('capability flags differ from the aws-staging profile: ' + named, str(raised.exception))
+
+    def test_the_refusal_never_echoes_other_environment_values(self):
+        gateway = aws_gateway(flags={self.ON: '0', self.OFF: '0'})
+        gateway['Spec']['TaskTemplate']['ContainerSpec']['Env'].append('KOLOVIBE_UNRELATED=do-not-print-this')
+        with self.assertRaises(RuntimeError) as raised:
+            self.plan(AWS, AwsSwarm(gateway=gateway))
+        text = str(raised.exception)
+        self.assertNotIn('do-not-print-this', text)
+        self.assertNotIn(DB, text)
+
+    def test_oracle_still_demands_both_flags_off(self):
+        swarm = FakeSwarm()
+        self.assertEqual(self.plan(cluster.ORACLE_STAGING, swarm)['entries'][0]['action'], 'update')
+        for flags in ({self.ON: '1', self.OFF: '0'}, {self.ON: '0', self.OFF: '1'}, {self.ON: None, self.OFF: '0'}):
+            with self.subTest(flags):
+                broken = FakeSwarm()
+                set_flags(broken.services['kvtest-gateway']['Spec']['TaskTemplate']['ContainerSpec'], flags)
+                with self.assertRaisesRegex(RuntimeError, 'capability flags differ from the oracle-staging'):
+                    self.plan(cluster.ORACLE_STAGING, broken)
+
+    def test_the_aws_flags_do_not_make_the_oracle_gateway_acceptable(self):
+        gateway = gateway_fixture()
+        set_flags(gateway['Spec']['TaskTemplate']['ContainerSpec'], dict(AWS.gateway_flags))
+        swarm = FakeSwarm()
+        swarm.services['kvtest-gateway'] = dict(swarm.services['kvtest-gateway'], Spec=gateway['Spec'])
+        with self.assertRaisesRegex(RuntimeError, 'capability flags differ from the oracle-staging'):
+            self.plan(cluster.ORACLE_STAGING, swarm)
 
 
 if __name__ == '__main__':

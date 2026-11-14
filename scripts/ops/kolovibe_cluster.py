@@ -99,6 +99,7 @@ class Profile(NamedTuple):
     broker_needs_label: bool   # RabbitMQ must also carry the worker workload-label constraint
     service_shared_secrets: dict   # service -> names mounted under their own name besides the CA secrets
     service_allowed_secrets: dict  # service -> exact secret names it may mount although they lack its prefix
+    gateway_flags: dict        # staging capability flags the live Gateway must carry, exact values ('0' or '1')
 
 
 NETWORKS = frozenset({'kolovibe_services', 'kolovibe_data', 'kolovibe_db_host_access'})
@@ -109,7 +110,8 @@ ORACLE_STAGING = Profile(
     db_guard='route-fix-script', db_guard_address='10.0.2.103',
     gateway_networks_required=NETWORKS, gateway_networks_allowed=NETWORKS,
     broker_needs_label=True, service_shared_secrets={'gateway': ('trusted_peers',)},
-    service_allowed_secrets={})
+    service_allowed_secrets={},
+    gateway_flags={'KOLOVIBE_STAGING_ACCOUNTS': '0', 'KOLOVIBE_STAGING_PRIVILEGED': '0'})
 # Observed on the AWS staging by read-only operator evidence on 14 November 2026. There are no node
 # labels and no Oracle route-fix script; the database is a private 172.31.x address reached directly.
 AWS_STAGING = Profile(
@@ -125,7 +127,11 @@ AWS_STAGING = Profile(
                                'kolovibe_identity_smtp_user_20261110_v1',
                                'kolovibe_identity_smtp_password_20261110_v1'}),  # pragma: allowlist secret
         'gateway': frozenset({'kolovibe_gateway_trusted_peers_accounts_20261110_v1',
-                              'kolovibe_account_uat_approval_20261110_v1'})})
+                              'kolovibe_account_uat_approval_20261110_v1'})},
+    # The account wave (register, verify, login, refresh, logout) is live on the AWS Gateway, which the
+    # staging middleware only allows with ACCOUNTS=1; privileged routes stay at the documented default.
+    # Exact values, never "either": a different live value stops the tool until a reviewed change.
+    gateway_flags={'KOLOVIBE_STAGING_ACCOUNTS': '1', 'KOLOVIBE_STAGING_PRIVILEGED': '0'})
 PROFILES = {p.name: p for p in (ORACLE_STAGING, AWS_STAGING)}
 # `main()` always sets this from the required --profile. The Oracle default exists only so that
 # the module can still be imported by the offline tests and by the probe shipped into containers.
@@ -382,8 +388,11 @@ def base_gateway(api, image=BASELINE_IMAGE):
     env = env_dict(c)
     required = {'KOLOVIBE_ENV': 'staging', 'KOLOVIBE_SERVICE_NAME': 'gateway',
                 'KOLOVIBE_DB_NAME': PROFILE.db_name,
-                'KOLOVIBE_DB_USER': 'kv_gateway_run', 'KOLOVIBE_STAGING_ACCOUNTS': '0',
-                'KOLOVIBE_STAGING_PRIVILEGED': '0'}
+                'KOLOVIBE_DB_USER': 'kv_gateway_run'}
+    # Capability flags are part of the profile and are compared exactly; only their names are reported.
+    off = sorted(key for key, value in PROFILE.gateway_flags.items() if env.get(key) != value)
+    if off:
+        fail('Gateway staging capability flags differ from the ' + PROFILE.name + ' profile: ' + ', '.join(off))
     # The Gateway is either still on the working baseline or already on a reviewed target.
     if (any(env.get(k) != v for k, v in required.items()) or not db_host_ok(env.get('KOLOVIBE_DB_HOST', ''))
             or c.get('Image') not in (BASELINE_IMAGE, image)):
