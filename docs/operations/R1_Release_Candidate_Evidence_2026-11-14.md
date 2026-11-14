@@ -1,6 +1,6 @@
 # KoloVibe R1 release-candidate evidence record — 14 November 2026
 
-**Decision: NO-GO for AWS staging deployment and physical-iPhone R1 acceptance.** This record authorizes nothing. No AWS, Docker, Swarm, OPA, database, secret, IAM, SSH, firewall or network operation was performed or attempted for it. Nothing was merged or deployed.
+**Decision: NO-GO for AWS staging deployment and physical-iPhone R1 acceptance.** *(Code gaps in section 4 are addressed by the follow-up [runtime release candidate](R1_Runtime_Release_Candidate_2026-11-14.md); the operational findings here still stand except where that record corrects them: the AWS worker does carry two Swarm labels, and OPA and backup are now waived for restricted staging.)* This record authorizes nothing. No AWS, Docker, Swarm, OPA, database, secret, IAM, SSH, firewall or network operation was performed or attempted for it. Nothing was merged or deployed.
 
 Baseline: `origin/main` `0afc0d3` (PR #73, CI run `43592285946`, all jobs green). Branch: `release/r1-candidate-2026-11-14` (main plus the per-service flag guard, one isolation hardening, one test-guard fix and this documentation). Evidence was produced on the operator's macOS workstation (Python 3.12.5, PostgreSQL 14.15 client/server tools, Flutter stable) and is repeated by CI on the pull request.
 

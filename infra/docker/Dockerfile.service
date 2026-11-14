@@ -53,4 +53,16 @@ RUN set -eux; \
     python -c 'import ssl, ctypes, zlib, bz2, lzma, readline, curses, pyexpat, uuid, decimal, hashlib'; \
     python -c 'import django, psycopg, cryptography.fernet, celery, kombu, gunicorn, yaml, pyotp'; \
     python -m pip check
+
+# FFmpeg for the bounded media worker (Content, `--role media-worker`). The R1 candidate ships one immutable
+# image for every service and role, so the encoder is present everywhere; only the media worker ever runs it
+# (media_encoding runs it with a fixed minimal PATH, input/duration/size limits and no network protocols).
+# Installed after the SQLite removal and re-checked, so the encoder's dependency closure cannot bring SQLite
+# back. A scanner finding in these packages fails the image gate; it is never excepted.
+USER root
+RUN set -eux; \
+    apk add --no-cache ffmpeg; \
+    ffmpeg -version >/dev/null; ffprobe -version >/dev/null; \
+    if apk list -I | grep -qi sqlite; then echo "An SQLite package is installed" >&2; exit 1; fi; \
+    if python -c 'import sqlite3' 2>/dev/null; then echo "sqlite3 is importable" >&2; exit 1; fi
 USER 10001:10001

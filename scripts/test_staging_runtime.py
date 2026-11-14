@@ -92,7 +92,7 @@ class StagingManifestTests(unittest.TestCase):
         self.assertFalse((ROOT / "infra/rabbitmq/stack.yml").exists())
         self.assertEqual(sorted(str(path.relative_to(ROOT / "infra")) for path in
                                 (ROOT / "infra").rglob("*.yml")),
-                         ["swarm/staging.yml"])
+                         ["swarm/staging-aws.yml", "swarm/staging.yml"])  # Oracle candidate + AWS R1 workers
 
     def test_memory_activation_and_cross_service_secrets_are_rejected(self):
         for service in SERVICES:

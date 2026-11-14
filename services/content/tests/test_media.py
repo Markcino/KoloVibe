@@ -1,3 +1,4 @@
+from datetime import datetime, timezone as dt_timezone
 from importlib.util import find_spec
 import json
 from pathlib import Path
@@ -156,22 +157,80 @@ class R2MediaTests(TestCase):
         self.assertEqual(self.video.state, Video.State.FAILED)
         self.assertIsNone(self.video.provider_asset_id)
 
-    @skipUnless(find_spec("awscrt"), "Install the optional media dependencies")
-    def test_crt_presigned_put_binds_all_required_headers_without_network(self):
-        with TemporaryDirectory() as directory:
-            paths = {}
-            for name in ("KOLOVIBE_R2_ACCESS_KEY_FILE", "KOLOVIBE_R2_SECRET_KEY_FILE"):
-                path = Path(directory) / name
-                path.touch(mode=0o600)
-                path.write_text(secrets.token_hex(32))
-                paths[name] = str(path)
-            with patch.dict("os.environ", paths | {
-                "KOLOVIBE_R2_ACCOUNT_ID": "a" * 32, "KOLOVIBE_R2_MEDIA_BUCKET": "local-fixture",
-            }):
-                url = media_storage.sign_upload(f"originals/{uuid4()}.mp4", 1234, 60)
-                poster = media_storage.sign_playback(f"playback/{uuid4()}/{uuid4()}.jpg", 300)
+    def _credentials(self, directory):
+        paths = {}
+        for name in ("KOLOVIBE_R2_ACCESS_KEY_FILE", "KOLOVIBE_R2_SECRET_KEY_FILE"):
+            path = Path(directory) / name
+            path.touch(mode=0o600)
+            path.write_text(secrets.token_hex(32))
+            paths[name] = str(path)
+        return paths | {"KOLOVIBE_R2_ACCOUNT_ID": "a" * 32, "KOLOVIBE_R2_MEDIA_BUCKET": "local-fixture"}
+
+    def test_presigned_put_binds_all_required_headers_without_network(self):
+        with TemporaryDirectory() as directory, patch.dict("os.environ", self._credentials(directory)):
+            url = media_storage.sign_upload(f"originals/{uuid4()}.mp4", 1234, 60)
+            poster = media_storage.sign_playback(f"playback/{uuid4()}/{uuid4()}.jpg", 300)
         query = parse_qs(urlsplit(url).query)
         self.assertEqual(query["X-Amz-SignedHeaders"], ["content-length;content-type;host;if-none-match"])
         self.assertEqual(query["X-Amz-Expires"], ["60"])
         self.assertEqual(parse_qs(urlsplit(poster).query)["X-Amz-Expires"], ["300"])
         self.assertTrue(urlsplit(poster).path.endswith(".jpg"))
+        self.assertEqual(len(query["X-Amz-Signature"][0]), 64)
+
+    def test_signing_is_refused_for_bad_inputs_and_unprotected_credentials(self):
+        key = f"originals/{uuid4()}.mp4"
+        with TemporaryDirectory() as directory:
+            environment = self._credentials(directory)
+            with patch.dict("os.environ", environment):
+                for bad in (("PUT", "originals/../x.mp4", 60), ("DELETE", key, 60), ("PUT", key, 0),
+                            ("PUT", key, 604801), ("PUT", f"other/{uuid4()}.mp4", 60)):
+                    with self.subTest(bad), self.assertRaises(media_storage.StorageUnavailable):
+                        media_storage._signed_url(bad[0], bad[1], bad[2], {})
+                Path(environment["KOLOVIBE_R2_SECRET_KEY_FILE"]).chmod(0o644)
+                with self.assertRaises(media_storage.StorageUnavailable):
+                    media_storage.sign_upload(key, 10, 60)
+            with patch.dict("os.environ", environment | {"KOLOVIBE_R2_ACCOUNT_ID": "short"}):
+                with self.assertRaises(media_storage.StorageUnavailable):
+                    media_storage.sign_playback(key, 60)
+
+    def test_url_changes_when_any_bound_header_or_expiry_changes(self):
+        moment = datetime(2026, 11, 14, 12, 0, tzinfo=dt_timezone.utc)
+        key = f"originals/{uuid4()}.mp4"
+        with TemporaryDirectory() as directory, patch.dict("os.environ", self._credentials(directory)):
+            base = media_storage._signed_url("PUT", key, 60, media_storage.upload_headers(100), moment)
+            for other in (media_storage._signed_url("PUT", key, 61, media_storage.upload_headers(100), moment),
+                          media_storage._signed_url("PUT", key, 60, media_storage.upload_headers(101), moment),
+                          media_storage._signed_url("GET", key, 60, {}, moment)):
+                self.assertNotEqual(parse_qs(urlsplit(base).query)["X-Amz-Signature"],
+                                    parse_qs(urlsplit(other).query)["X-Amz-Signature"])
+
+    @skipUnless(find_spec("awscrt"), "AWS CRT is the reference signer; install the optional media dependencies")
+    def test_pure_python_signature_equals_the_aws_crt_reference(self):
+        from awscrt.auth import (AwsCredentialsProvider, AwsSignatureType, AwsSignedBodyValue, AwsSigningConfig,
+                                 aws_sign_request)
+        from awscrt.http import HttpHeaders, HttpRequest
+
+        moment = datetime(2026, 11, 14, 12, 34, 56, tzinfo=dt_timezone.utc)
+        cases = (("PUT", f"originals/{uuid4()}.mp4", 600, media_storage.upload_headers(4321)),
+                 ("GET", f"playback/{uuid4()}/{uuid4()}.mp4", 300, {}),
+                 ("GET", f"playback/{uuid4()}/{uuid4()}.jpg", 300, {}))
+        with TemporaryDirectory() as directory:
+            environment = self._credentials(directory)
+            access = Path(environment["KOLOVIBE_R2_ACCESS_KEY_FILE"]).read_text().strip()
+            secret = Path(environment["KOLOVIBE_R2_SECRET_KEY_FILE"]).read_text().strip()
+            with patch.dict("os.environ", environment):
+                for method, key, seconds, headers in cases:
+                    with self.subTest(method=method, key=key[:9]):
+                        ours = media_storage._signed_url(method, key, seconds, headers, moment)
+                        host = f"{'a' * 32}.r2.cloudflarestorage.com"
+                        request = HttpRequest(method=method, path=f"/local-fixture/{key}",
+                                              headers=HttpHeaders([("Host", host), *headers.items()]))
+                        config = AwsSigningConfig(
+                            signature_type=AwsSignatureType.HTTP_REQUEST_QUERY_PARAMS,
+                            credentials_provider=AwsCredentialsProvider.new_static(access, secret),
+                            region="auto", service="s3", use_double_uri_encode=False, should_normalize_uri_path=False,
+                            signed_body_value=AwsSignedBodyValue.UNSIGNED_PAYLOAD, expiration_in_seconds=seconds,
+                            date=moment)
+                        reference = aws_sign_request(request, config).result(timeout=5)
+                        self.assertEqual(parse_qs(urlsplit(ours).query), parse_qs(urlsplit(reference.path).query))
+                        self.assertEqual(urlsplit(ours).path, urlsplit(reference.path).path.split("?")[0])

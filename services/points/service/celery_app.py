@@ -37,10 +37,21 @@ def validate_broker_url(value: str) -> str:
 
 
 def build_app():
-    """Initialize worker only for the existing local foundation environment."""
-    if os.getenv("KOLOVIBE_ENV") != "local":
+    """Initialize the worker for local development or an approved staging capability.
+
+    Staging reads the broker URI from an owner-only secret file and verifies the broker against an explicit CA;
+    it runs only when the `points` capability is approved for this service.
+    """
+    environment = os.getenv("KOLOVIBE_ENV")
+    ca_file = None
+    if environment == "local":
+        broker = validate_broker_url(os.getenv("KOLOVIBE_RABBITMQ_URL", ""))
+    elif environment == "staging" and "points" in os.getenv("KOLOVIBE_STAGING_CAPABILITIES", "").split(","):
+        from staging_runtime import broker_ca, broker_url
+
+        broker, ca_file = validate_broker_url(broker_url()), broker_ca()
+    else:
         raise RuntimeError("Celery worker deployment is blocked until environment review")
-    broker = validate_broker_url(os.getenv("KOLOVIBE_RABBITMQ_URL", ""))
 
     # Imported only by the worker entrypoint. Celery must be added to the
     # existing hashed dependency lock before the worker can be shipped.
@@ -50,7 +61,7 @@ def build_app():
     app = Celery("kolovibe-points")
     app.conf.update(
         broker_url=broker,
-        broker_use_ssl={"cert_reqs": ssl.CERT_REQUIRED},
+        broker_use_ssl={"cert_reqs": ssl.CERT_REQUIRED, **({"ca_certs": ca_file} if ca_file else {})},
         broker_connection_retry_on_startup=True,
         broker_transport_options={"confirm_publish": True},
         broker_heartbeat=30,

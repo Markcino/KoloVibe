@@ -150,6 +150,14 @@ class _LiveContentScreenState extends State<LiveContentScreen> {
     }
   }
 
+  /// M-053; the library always re-reads afterwards, so publish, unpublish, edit and delete show at once.
+  Future<void> _manage(OwnedVideo video) async {
+    final route = ScreenRoute(53, entityId: video.id);
+    await Navigator.of(context)
+        .pushNamed<Object?>(route.name, arguments: route);
+    if (mounted) await _load(reset: true);
+  }
+
   void _notify(String message) => ScaffoldMessenger.of(context)
       .showSnackBar(SnackBar(content: Text(message)));
 
@@ -188,13 +196,9 @@ class _LiveContentScreenState extends State<LiveContentScreen> {
                               value: 'delete', child: Text('Delete draft')),
                         ],
                       )
-                    : video.state == 'rejected' || video.state == 'removed'
-                        ? TextButton(
-                            onPressed: () => Navigator.of(context).pushNamed(
-                                const ScreenRoute(76).name,
-                                arguments: ScreenRoute(76, entityId: video.id)),
-                            child: const Text('View notice'))
-                        : null,
+                    : TextButton(
+                        onPressed: () => _manage(video),
+                        child: const Text('Manage')),
               )),
             if (_loading && _loaded)
               const Center(child: CircularProgressIndicator()),

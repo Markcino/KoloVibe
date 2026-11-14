@@ -71,6 +71,18 @@ class ImageSecurityContractTests(unittest.TestCase):
         self.assertTrue(release.rstrip().endswith("USER 10001:10001"))
         self.assertIn("USER root", release)
 
+    def test_release_stage_installs_ffmpeg_after_sqlite_removal_and_rechecks(self):
+        release = self.stages()["release"]
+        self.assertIn("apk add --no-cache ffmpeg", release)
+        self.assertGreater(release.index("apk add --no-cache ffmpeg"), release.index("apk del .python-rundeps sqlite-libs"))
+        tail = release[release.index("apk add --no-cache ffmpeg"):]
+        for check in ("ffmpeg -version", "ffprobe -version", "apk list -I | grep -qi sqlite", "import sqlite3"):
+            self.assertIn(check, tail)
+        self.assertTrue(release.rstrip().endswith("USER 10001:10001"))
+        self.assertIn("Verify FFmpeg for the media worker on the sandbox PATH", self.workflow)
+        self.assertLess(self.workflow.index("Verify FFmpeg for the media worker"),
+                        self.workflow.index("Scan local image vulnerabilities"))
+
     def test_ci_builds_scans_and_publishes_only_the_release_target(self):
         build = self.workflow[self.workflow.index("- name: Build shared service image"):
                               self.workflow.index("- name: Inspect image configuration")]

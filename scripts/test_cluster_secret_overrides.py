@@ -390,8 +390,9 @@ class CommandLineTests(unittest.TestCase):
                           '--services', 'gateway,identity',
                           '--secret-override', 'gateway:outbound_key=gateway_outbound_2',
                           '--secret-override', 'identity:caller_keys=identity_callers_2')
-        self.assertEqual(update.call_args.args[-1], ['gateway:outbound_key=gateway_outbound_2',
-                                                     'identity:caller_keys=identity_callers_2'])
+        self.assertEqual(update.call_args.args[9], ['gateway:outbound_key=gateway_outbound_2',
+                                                    'identity:caller_keys=identity_callers_2'])
+        self.assertEqual(update.call_args.args[10:], (False, None))  # no R1 option unless it is named
         self.assertIsNone(update.call_args.args[6])  # update-plan never confirms
 
     def test_overrides_are_never_defaulted(self):
@@ -399,7 +400,18 @@ class CommandLineTests(unittest.TestCase):
                 patch.object(cluster, 'update') as update:
             self.run_main('update-plan', '--profile', 'oracle-staging', '--worker-evidence', 'w.json',
                           '--services', 'gateway')
-        self.assertIsNone(update.call_args.args[-1])
+        self.assertIsNone(update.call_args.args[9])
+
+    def test_r1_options_reach_update_only_when_named_and_only_for_update_modes(self):
+        with patch.object(cluster, 'resolve_release', return_value=(NEW_IMAGE, TARGET_REVISION)), \
+                patch.object(cluster, 'update') as update:
+            self.run_main('update-plan', '--profile', 'aws-staging', '--worker-evidence', 'w.json',
+                          '--services', 'content', '--enable-r1-capabilities',
+                          '--set-env', 'content:KOLOVIBE_R2_ACCOUNT_ID=' + '1' * 32)
+        self.assertEqual(update.call_args.args[10:], (True, ['content:KOLOVIBE_R2_ACCOUNT_ID=' + '1' * 32]))
+        for mode in ('rollback', 'plan', 'deploy', 'verify-worker', 'worker-preflight'):
+            with self.subTest(mode=mode), patch('sys.stderr'), self.assertRaises(SystemExit):
+                self.run_main(mode, '--profile', 'aws-staging', '--worker-evidence', 'w.json', '--enable-r1-capabilities')
 
     def test_the_flag_is_refused_outside_update_plan_and_update(self):
         for mode in ('rollback', 'plan', 'deploy', 'verify-worker', 'worker-preflight'):

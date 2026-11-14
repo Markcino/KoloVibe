@@ -8,7 +8,7 @@ urlpatterns = [
     path("internal/probe", lambda request: JsonResponse({"status":"ok"}), name="internal-probe"),
 ]
 
-if settings.ENVIRONMENT == "local":
+if settings.ENVIRONMENT == "local" or "engagement" in getattr(settings, "STAGING_CAPABILITIES", ()):
     from .likes import update_like, read_like
     from .follows import follow_api, followed_creators
     from .analytics import video_engagement, creator_engagement

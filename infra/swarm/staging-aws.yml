@@ -1,0 +1,331 @@
+version: "3.8"
+# AWS R1 staging: the worker and scheduled-job services only. Candidate; NOT approved, NOT deployed.
+#
+# PLACEMENT PROFILE: aws-staging only. The AWS nodes carry no Swarm labels, so every service here is pinned
+# with the exact `node.hostname==ip-172-31-16-154` constraint the aws-staging profile of
+# scripts/ops/kolovibe_cluster.py requires. This is not the Oracle stack (infra/swarm/staging.yml) and shares
+# no placement with it.
+#
+# The eight API services already run on AWS and are moved to the R1 configuration with
+# `kolovibe_cluster.py update --profile aws-staging --enable-r1-capabilities` (see README), not by this file.
+# This file adds the seven processes that do not exist yet. Every one is the same shared image digest as the
+# APIs, selected by `--role`; each mounts exactly the secrets of the API service it belongs to (the staging
+# runtime validates the same configuration for a worker as for the API), and carries the same exact flag row.
+#
+# All services start at ZERO replicas. Scale each up one at a time, after the read-only capacity check and
+# only when the secrets exist:   docker service scale <stack>_<name>=1
+# Rollback never deletes anything:   docker service scale <stack>_<name>=0
+#
+# Memory limits below are reviewed budgets, not measurements: the AWS instance size is not recorded in this
+# repository. scripts/validate_staging_stack.py --aws-stack prints the total, and the owner's capacity check must
+# show it fits beside the eight APIs, PostgreSQL and RabbitMQ before any replica is started.
+
+x-environment: &environment
+  KOLOVIBE_ENV: staging
+  DJANGO_DEBUG: "0"
+  DJANGO_SECRET_KEY_FILE: /run/secrets/django_key
+  KOLOVIBE_DB_NAME: ${STAGING_DB_NAME:?approved staging database required}
+  KOLOVIBE_DB_HOST: ${STAGING_DB_HOST:?verified TLS database host required}
+  KOLOVIBE_DB_PORT: "5432"
+  KOLOVIBE_DB_PASSWORD_FILE: /run/secrets/db_password
+  KOLOVIBE_DB_SSLROOTCERT: /run/secrets/db_ca
+  KOLOVIBE_INTERNAL_CA_FILE: /run/secrets/internal_ca
+  KOLOVIBE_TLS_CERT_FILE: /run/secrets/tls_cert
+  KOLOVIBE_TLS_KEY_FILE: /run/secrets/tls_key
+  KOLOVIBE_CALLER_KEYS_FILE: /run/secrets/caller_keys
+  KOLOVIBE_PROBE_TOKEN_FILE: /run/secrets/probe_token
+
+x-broker: &broker
+  KOLOVIBE_RABBITMQ_URL_FILE: /run/secrets/rabbitmq_url
+  KOLOVIBE_RABBITMQ_CA_FILE: /run/secrets/rabbitmq_ca
+
+x-peers: &peers
+  KOLOVIBE_OUTBOUND_KEY_FILE: /run/secrets/outbound_key
+  KOLOVIBE_TRUSTED_PEERS_FILE: /run/secrets/trusted_peers
+
+x-deploy: &deploy
+  replicas: 0
+  placement:
+    constraints: ["node.hostname==ip-172-31-16-154"]
+  update_config:
+    parallelism: 1
+    order: stop-first
+    failure_action: rollback
+    monitor: 30s
+  rollback_config: {parallelism: 1, order: stop-first, monitor: 30s}
+  restart_policy: {condition: on-failure, delay: 30s}
+
+x-process: &process
+  image: ${KOLOVIBE_IMAGE:?verified shared GHCR digest required}
+  user: "10001:10001"
+  read_only: true
+  tmpfs: ["/tmp"]
+  cap_drop: [ALL]
+  stop_grace_period: 40s
+  # The API readiness probe talks to the HTTP port; these processes serve none.
+  healthcheck: {disable: true}
+
+services:
+  # --- Content: the bounded FFmpeg/R2 media worker ----------------------------------------------------------
+  media-worker:
+    <<: *process
+    command: ["--role", "media-worker"]
+    networks: [private, data_private, broker_private]
+    environment:
+      <<: [*environment, *broker]
+      KOLOVIBE_SERVICE_NAME: content
+      KOLOVIBE_ALLOWED_HOSTS: content
+      KOLOVIBE_DB_USER: ${CONTENT_DB_USER:?runtime database login required}
+      KOLOVIBE_STAGING_ACCOUNTS: "0"
+      KOLOVIBE_STAGING_PRIVILEGED: "0"
+      KOLOVIBE_STAGING_CAPABILITIES: analytics,engagement,media,moderation
+      KOLOVIBE_R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:?R2 account identifier required (not a secret)}
+      KOLOVIBE_R2_MEDIA_BUCKET: ${R2_MEDIA_BUCKET:?private R2 media bucket required}
+      KOLOVIBE_R2_ACCESS_KEY_FILE: /run/secrets/r2_access_key
+      KOLOVIBE_R2_SECRET_KEY_FILE: /run/secrets/r2_secret_key
+    secrets:
+      - {source: content_django, target: django_key, uid: "10001", gid: "10001", mode: 0400}
+      - {source: content_db, target: db_password, uid: "10001", gid: "10001", mode: 0400}
+      - {source: content_tls_cert, target: tls_cert, uid: "10001", gid: "10001", mode: 0400}
+      - {source: content_tls_key, target: tls_key, uid: "10001", gid: "10001", mode: 0400}
+      - {source: content_callers, target: caller_keys, uid: "10001", gid: "10001", mode: 0400}
+      - {source: content_probe, target: probe_token, uid: "10001", gid: "10001", mode: 0400}
+      - {source: internal_ca, target: internal_ca, uid: "10001", gid: "10001", mode: 0400}
+      - {source: db_ca, target: db_ca, uid: "10001", gid: "10001", mode: 0400}
+      - {source: kolovibe_content_r2_access_key_r1_v1, target: r2_access_key, uid: "10001", gid: "10001", mode: 0400}
+      - {source: kolovibe_content_r2_secret_key_r1_v1, target: r2_secret_key, uid: "10001", gid: "10001", mode: 0400}
+      - {source: kolovibe_content_rabbitmq_url_r1_v1, target: rabbitmq_url, uid: "10001", gid: "10001", mode: 0400}
+      - {source: kolovibe_rmq_ca, target: rabbitmq_ca, uid: "10001", gid: "10001", mode: 0400}
+    deploy:
+      <<: *deploy
+      resources:
+        limits: {cpus: "1.0", memory: 512M}
+        reservations: {cpus: "0.25", memory: 256M}
+
+  # --- Engagement: queue consumer and outbox dispatcher -----------------------------------------------------
+  engagement-consumer:
+    <<: *process
+    command: ["--role", "consumer"]
+    networks: [private, data_private, broker_private]
+    environment:
+      <<: [*environment, *broker]
+      KOLOVIBE_SERVICE_NAME: engagement
+      KOLOVIBE_ALLOWED_HOSTS: engagement
+      KOLOVIBE_DB_USER: ${ENGAGEMENT_DB_USER:?runtime database login required}
+      KOLOVIBE_STAGING_ACCOUNTS: "0"
+      KOLOVIBE_STAGING_PRIVILEGED: "0"
+      KOLOVIBE_STAGING_CAPABILITIES: analytics,engagement,points,watch
+    secrets: &engagement-secrets
+      - {source: engagement_django, target: django_key, uid: "10001", gid: "10001", mode: 0400}
+      - {source: engagement_db, target: db_password, uid: "10001", gid: "10001", mode: 0400}
+      - {source: engagement_tls_cert, target: tls_cert, uid: "10001", gid: "10001", mode: 0400}
+      - {source: engagement_tls_key, target: tls_key, uid: "10001", gid: "10001", mode: 0400}
+      - {source: engagement_callers, target: caller_keys, uid: "10001", gid: "10001", mode: 0400}
+      - {source: engagement_probe, target: probe_token, uid: "10001", gid: "10001", mode: 0400}
+      - {source: internal_ca, target: internal_ca, uid: "10001", gid: "10001", mode: 0400}
+      - {source: db_ca, target: db_ca, uid: "10001", gid: "10001", mode: 0400}
+      - {source: kolovibe_engagement_rabbitmq_url_r1_v1, target: rabbitmq_url, uid: "10001", gid: "10001", mode: 0400}
+      - {source: kolovibe_rmq_ca, target: rabbitmq_ca, uid: "10001", gid: "10001", mode: 0400}
+    deploy:
+      <<: *deploy
+      resources:
+        limits: {cpus: "0.5", memory: 192M}
+        reservations: {cpus: "0.1", memory: 96M}
+
+  engagement-dispatch:
+    <<: *process
+    command: ["--role", "dispatch-events", "--interval", "15", "--limit", "100"]
+    networks: [private, data_private, broker_private]
+    environment:
+      <<: [*environment, *broker]
+      KOLOVIBE_SERVICE_NAME: engagement
+      KOLOVIBE_ALLOWED_HOSTS: engagement
+      KOLOVIBE_DB_USER: ${ENGAGEMENT_DB_USER:?runtime database login required}
+      KOLOVIBE_STAGING_ACCOUNTS: "0"
+      KOLOVIBE_STAGING_PRIVILEGED: "0"
+      KOLOVIBE_STAGING_CAPABILITIES: analytics,engagement,points,watch
+    secrets: *engagement-secrets
+    deploy:
+      <<: *deploy
+      resources:
+        limits: {cpus: "0.5", memory: 160M}
+        reservations: {cpus: "0.1", memory: 80M}
+
+  # --- Points: queue consumer and audit delivery ------------------------------------------------------------
+  points-consumer:
+    <<: *process
+    command: ["--role", "consumer"]
+    networks: [private, data_private, broker_private]
+    environment:
+      <<: [*environment, *broker, *peers]
+      KOLOVIBE_SERVICE_NAME: points
+      KOLOVIBE_ALLOWED_HOSTS: points
+      KOLOVIBE_DB_USER: ${POINTS_DB_USER:?runtime database login required}
+      KOLOVIBE_STAGING_ACCOUNTS: "0"
+      KOLOVIBE_STAGING_PRIVILEGED: "0"
+      KOLOVIBE_STAGING_CAPABILITIES: points
+    secrets: &points-secrets
+      - {source: points_django, target: django_key, uid: "10001", gid: "10001", mode: 0400}
+      - {source: points_db, target: db_password, uid: "10001", gid: "10001", mode: 0400}
+      - {source: points_tls_cert, target: tls_cert, uid: "10001", gid: "10001", mode: 0400}
+      - {source: points_tls_key, target: tls_key, uid: "10001", gid: "10001", mode: 0400}
+      - {source: points_callers, target: caller_keys, uid: "10001", gid: "10001", mode: 0400}
+      - {source: points_probe, target: probe_token, uid: "10001", gid: "10001", mode: 0400}
+      - {source: internal_ca, target: internal_ca, uid: "10001", gid: "10001", mode: 0400}
+      - {source: db_ca, target: db_ca, uid: "10001", gid: "10001", mode: 0400}
+      - {source: kolovibe_points_rabbitmq_url_r1_v1, target: rabbitmq_url, uid: "10001", gid: "10001", mode: 0400}
+      - {source: kolovibe_rmq_ca, target: rabbitmq_ca, uid: "10001", gid: "10001", mode: 0400}
+      - {source: kolovibe_points_outbound_key_r1_v1, target: outbound_key, uid: "10001", gid: "10001", mode: 0400}
+      - {source: kolovibe_points_audit_peers_r1_v1, target: trusted_peers, uid: "10001", gid: "10001", mode: 0400}
+    deploy:
+      <<: *deploy
+      resources:
+        limits: {cpus: "0.5", memory: 192M}
+        reservations: {cpus: "0.1", memory: 96M}
+
+  points-audit:
+    <<: *process
+    command: ["--role", "deliver-audit", "--interval", "30", "--limit", "100"]
+    networks: [private, data_private, broker_private]
+    environment:
+      <<: [*environment, *broker, *peers]
+      KOLOVIBE_SERVICE_NAME: points
+      KOLOVIBE_ALLOWED_HOSTS: points
+      KOLOVIBE_DB_USER: ${POINTS_DB_USER:?runtime database login required}
+      KOLOVIBE_STAGING_ACCOUNTS: "0"
+      KOLOVIBE_STAGING_PRIVILEGED: "0"
+      KOLOVIBE_STAGING_CAPABILITIES: points
+    secrets: *points-secrets
+    deploy:
+      <<: *deploy
+      resources:
+        limits: {cpus: "0.5", memory: 160M}
+        reservations: {cpus: "0.1", memory: 80M}
+
+  # --- Moderation: audit delivery -----------------------------------------------------------------------------
+  moderation-audit:
+    <<: *process
+    command: ["--role", "deliver-audit", "--interval", "30", "--limit", "100"]
+    networks: [private, data_private]
+    environment:
+      <<: [*environment, *peers]
+      KOLOVIBE_SERVICE_NAME: moderation
+      KOLOVIBE_ALLOWED_HOSTS: moderation
+      KOLOVIBE_DB_USER: ${MODERATION_DB_USER:?runtime database login required}
+      KOLOVIBE_STAGING_ACCOUNTS: "0"
+      KOLOVIBE_STAGING_PRIVILEGED: "0"
+      KOLOVIBE_STAGING_CAPABILITIES: moderation
+    secrets:
+      - {source: moderation_django, target: django_key, uid: "10001", gid: "10001", mode: 0400}
+      - {source: moderation_db, target: db_password, uid: "10001", gid: "10001", mode: 0400}
+      - {source: moderation_tls_cert, target: tls_cert, uid: "10001", gid: "10001", mode: 0400}
+      - {source: moderation_tls_key, target: tls_key, uid: "10001", gid: "10001", mode: 0400}
+      - {source: moderation_callers, target: caller_keys, uid: "10001", gid: "10001", mode: 0400}
+      - {source: moderation_probe, target: probe_token, uid: "10001", gid: "10001", mode: 0400}
+      - {source: internal_ca, target: internal_ca, uid: "10001", gid: "10001", mode: 0400}
+      - {source: db_ca, target: db_ca, uid: "10001", gid: "10001", mode: 0400}
+      - {source: kolovibe_moderation_outbound_key_r1_v1, target: outbound_key, uid: "10001", gid: "10001", mode: 0400}
+      - {source: kolovibe_moderation_peers_r1_v1, target: trusted_peers, uid: "10001", gid: "10001", mode: 0400}
+    deploy:
+      <<: *deploy
+      resources:
+        limits: {cpus: "0.5", memory: 160M}
+        reservations: {cpus: "0.1", memory: 80M}
+
+  # --- Identity: security-audit delivery (privileged MFA sessions are on, so identity holds the audit peers) --
+  identity-audit:
+    <<: *process
+    command: ["--role", "deliver-security-audit", "--interval", "30", "--limit", "100"]
+    networks: [private, data_private]
+    environment:
+      <<: *environment
+      KOLOVIBE_SERVICE_NAME: identity
+      KOLOVIBE_ALLOWED_HOSTS: identity
+      KOLOVIBE_DB_USER: ${IDENTITY_DB_USER:?runtime database login required}
+      KOLOVIBE_STAGING_ACCOUNTS: "1"
+      KOLOVIBE_STAGING_PRIVILEGED: "1"
+      KOLOVIBE_STAGING_CAPABILITIES: account_management,moderation
+      KOLOVIBE_ACCOUNT_APPROVAL_FILE: /run/secrets/account_approvals
+      KOLOVIBE_SMTP_HOST: ${SMTP_HOST:?approved SMTP host required}
+      KOLOVIBE_SMTP_PORT: ${SMTP_PORT:?approved SMTP port required}
+      KOLOVIBE_FROM_EMAIL: ${FROM_EMAIL:?approved from address required}
+      KOLOVIBE_SMTP_USER_FILE: /run/secrets/smtp_user
+      KOLOVIBE_SMTP_PASSWORD_FILE: /run/secrets/smtp_password
+      KOLOVIBE_MFA_ENCRYPTION_KEY_FILE: /run/secrets/mfa_encryption_key
+      KOLOVIBE_OUTBOUND_KEY_FILE: /run/secrets/audit_signing_key
+      KOLOVIBE_TRUSTED_PEERS_FILE: /run/secrets/audit_peers
+    secrets:
+      - {source: identity_django, target: django_key, uid: "10001", gid: "10001", mode: 0400}
+      - {source: identity_db, target: db_password, uid: "10001", gid: "10001", mode: 0400}
+      - {source: identity_tls_cert, target: tls_cert, uid: "10001", gid: "10001", mode: 0400}
+      - {source: identity_tls_key, target: tls_key, uid: "10001", gid: "10001", mode: 0400}
+      - {source: identity_callers, target: caller_keys, uid: "10001", gid: "10001", mode: 0400}
+      - {source: identity_probe, target: probe_token, uid: "10001", gid: "10001", mode: 0400}
+      - {source: internal_ca, target: internal_ca, uid: "10001", gid: "10001", mode: 0400}
+      - {source: db_ca, target: db_ca, uid: "10001", gid: "10001", mode: 0400}
+      - {source: kolovibe_identity_smtp_user_20261110_v1, target: smtp_user, uid: "10001", gid: "10001", mode: 0400}
+      - {source: kolovibe_identity_smtp_password_20261110_v1, target: smtp_password, uid: "10001", gid: "10001", mode: 0400}
+      - {source: identity_mfa_encryption, target: mfa_encryption_key, uid: "10001", gid: "10001", mode: 0400}
+      - {source: identity_audit_signing, target: audit_signing_key, uid: "10001", gid: "10001", mode: 0400}
+      - {source: identity_audit_peers, target: audit_peers, uid: "10001", gid: "10001", mode: 0400}
+      - {source: kolovibe_account_approval_r1_v1, target: account_approvals, uid: "10001", gid: "10001", mode: 0400}
+    deploy:
+      <<: *deploy
+      resources:
+        limits: {cpus: "0.5", memory: 160M}
+        reservations: {cpus: "0.1", memory: 80M}
+
+networks:
+  private: {external: true, name: kolovibe_services}
+  data_private: {external: true, name: kolovibe_data}
+  broker_private: {external: true, name: kolovibe_messaging}
+
+secrets:
+  internal_ca: {external: true}
+  db_ca: {external: true}
+  kolovibe_rmq_ca: {external: true}
+  content_django: {external: true}
+  content_db: {external: true}
+  content_tls_cert: {external: true}
+  content_tls_key: {external: true}
+  content_callers: {external: true}
+  content_probe: {external: true}
+  kolovibe_content_r2_access_key_r1_v1: {external: true}
+  kolovibe_content_r2_secret_key_r1_v1: {external: true}
+  kolovibe_content_rabbitmq_url_r1_v1: {external: true}
+  engagement_django: {external: true}
+  engagement_db: {external: true}
+  engagement_tls_cert: {external: true}
+  engagement_tls_key: {external: true}
+  engagement_callers: {external: true}
+  engagement_probe: {external: true}
+  kolovibe_engagement_rabbitmq_url_r1_v1: {external: true}
+  points_django: {external: true}
+  points_db: {external: true}
+  points_tls_cert: {external: true}
+  points_tls_key: {external: true}
+  points_callers: {external: true}
+  points_probe: {external: true}
+  kolovibe_points_rabbitmq_url_r1_v1: {external: true}
+  kolovibe_points_outbound_key_r1_v1: {external: true}
+  kolovibe_points_audit_peers_r1_v1: {external: true}
+  moderation_django: {external: true}
+  moderation_db: {external: true}
+  moderation_tls_cert: {external: true}
+  moderation_tls_key: {external: true}
+  moderation_callers: {external: true}
+  moderation_probe: {external: true}
+  kolovibe_moderation_outbound_key_r1_v1: {external: true}
+  kolovibe_moderation_peers_r1_v1: {external: true}
+  identity_django: {external: true}
+  identity_db: {external: true}
+  identity_tls_cert: {external: true}
+  identity_tls_key: {external: true}
+  identity_callers: {external: true}
+  identity_probe: {external: true}
+  kolovibe_identity_smtp_user_20261110_v1: {external: true}
+  kolovibe_identity_smtp_password_20261110_v1: {external: true}  # pragma: allowlist secret
+  identity_mfa_encryption: {external: true}
+  identity_audit_signing: {external: true}
+  identity_audit_peers: {external: true}
+  kolovibe_account_approval_r1_v1: {external: true}

@@ -1,6 +1,8 @@
 # KoloVibe R1 physical iPhone UAT checklist
 
-**Run only after an approved deployment whose capabilities cover the section being tested.** Today only the account journeys (sections A and B, partly) are reachable on AWS staging; sections C to H need the staging capability work listed in the [evidence record](R1_Release_Candidate_Evidence_2026-11-14.md) section 4. A section that cannot be exercised is recorded **NOT TESTED**, never PASS.
+**Run only after an approved deployment.** The runtime now carries the capability policy, media worker, consumers and schedulers ([R1 runtime release candidate](R1_Runtime_Release_Candidate_2026-11-14.md)), but nothing is deployed or verified on AWS yet, so every row is NOT TESTED until it is run. A section whose capability is not enabled in the approved deployment is recorded **NOT TESTED**, never PASS.
+
+**Prerequisites (operator, before the tester starts):** R2 bucket and keys provisioned; a reviewer account with MFA enrolled (`enroll_privileged_mfa`); a creator invitation for the tester; the worker, consumer and job processes scaled to 1 and healthy; SMTP delivering.
 
 ## Record header (fill once per run)
 
@@ -57,7 +59,8 @@ For every row: record Expected, Actual, PASS / FAIL / NOT TESTED, a screenshot o
 | D4 | Reviewer decision (API, MFA) approves | Video published; unlisted from others until approved |
 | D5 | Playback from another account | Plays from the R2 delivery path; link expires at about 300 s; not logged |
 | D6 | Rejected or removed video | Rejection notice; no playback |
-| D7 | Unpublish and re-publish (**not available in the app today**; record as open gap or perform via API) | |
+| D7 | After approval the video shows "Approved, not public": Manage video, **Publish**, confirm; then **Unpublish**, confirm; then Publish again | Public only after Publish; Unpublish hides it from another account; each step asks first; a video still in review offers neither |
+| D8 | Edit details of the published video, then delete a draft and a rejected video | Edits show at once; deleted videos leave the library; no raw service text in any error |
 
 ## E. Engagement and points (needs engagement, points, consumers)
 

@@ -55,7 +55,8 @@ class OwnedVideo {
       this.visibility = 'private',
       this.publishedAt,
       this.posterUrl,
-      this.durationMs});
+      this.durationMs,
+      this.revision});
 
   final String id, creatorId, title, description, state, visibility;
   final DateTime createdAt;
@@ -64,10 +65,23 @@ class OwnedVideo {
   final int? coverTimeMs, durationMs;
   final DateTime? publishedAt;
 
+  /// Moderation revision; only the owned-detail read returns it.
+  final int? revision;
+
   /// Short-lived signed URL (at most 300 seconds). Never persist it.
   final String? posterUrl;
 
   bool get canEditDraft => state == 'draft';
+
+  /// Moderation approved the video; the creator decides whether it is public.
+  bool get isApproved => state == 'published';
+  bool get isPublic => isApproved && visibility == 'public';
+  bool get canPublish => isApproved && visibility != 'public';
+  bool get canUnpublish => isPublic;
+
+  /// DOC-205 allows editing details in these states (a published edit keeps its approval).
+  bool get canEditDetails =>
+      const {'draft', 'failed', 'rejected', 'published'}.contains(state);
 
   factory OwnedVideo.fromJson(Object? raw) {
     const required = {
@@ -86,8 +100,12 @@ class OwnedVideo {
     };
     if (raw is! Map<String, dynamic> ||
         !raw.keys.toSet().containsAll(required) ||
-        raw.keys.toSet().difference(
-            {...required, 'duration_seconds', 'duration_ms'}).isNotEmpty) {
+        raw.keys.toSet().difference({
+          ...required,
+          'duration_seconds',
+          'duration_ms',
+          'revision'
+        }).isNotEmpty) {
       throw const FormatException('Invalid owned video');
     }
     final id = raw['id'];
@@ -102,6 +120,7 @@ class OwnedVideo {
     final poster = raw['poster_url'];
     final seconds = raw['duration_seconds'];
     final millis = raw['duration_ms'];
+    final revision = raw['revision'];
     if (!isApiId(id) ||
         !isApiId(creatorId) ||
         title is! String ||
@@ -120,6 +139,8 @@ class OwnedVideo {
         cover != null && (cover is! int || cover < 0 || cover > 300000) ||
         seconds != null && (seconds is! int || seconds < 0 || seconds > 300) ||
         millis != null && (millis is! int || millis < 1 || millis > 300000) ||
+        revision != null &&
+            (revision is! int || revision < 0 || revision > 2147483647) ||
         poster != null &&
             (poster is! String ||
                 poster.length > 4096 ||
@@ -137,6 +158,7 @@ class OwnedVideo {
         visibility: visibility as String,
         publishedAt: published,
         posterUrl: poster as String?,
+        revision: revision as int?,
         durationMs: millis as int? ??
             (seconds == null ? null : (seconds as int) * 1000));
   }
@@ -430,6 +452,99 @@ class LiveContentRepository {
         response['video_id'] != video.id ||
         response['deleted'] != true) {
       throw const FormatException('Invalid draft deletion response');
+    }
+  }
+
+  /// The owner's detail read (`GET /creators/me/videos/{id}`), including the moderation revision.
+  Future<OwnedVideo> ownedVideo(String videoId) async {
+    if (!isApiId(videoId)) throw const FormatException('Invalid video');
+    final video = OwnedVideo.fromJson(
+        await account.authenticatedRequest('/creators/me/videos/$videoId'));
+    if (video.id != videoId) throw const FormatException('Mismatched video');
+    return video;
+  }
+
+  /// Publish (make public) or unpublish (make private) an approved video. Moderation approval itself is
+  /// never granted here: the server answers 409 `review_required` for a video that is not approved.
+  Future<OwnedVideo> setVisibility(OwnedVideo video,
+      {required bool publish}) async {
+    if (!isApiId(video.id) ||
+        (publish ? !video.canPublish : !video.canUnpublish)) {
+      throw const FormatException('Invalid visibility change');
+    }
+    final result = OwnedVideo.fromJson(await account.authenticatedRequest(
+        '/videos/${video.id}/${publish ? 'publish' : 'unpublish'}',
+        method: 'POST'));
+    if (result.id != video.id ||
+        result.creatorId != video.creatorId ||
+        result.state != 'published' ||
+        result.visibility != (publish ? 'public' : 'private')) {
+      throw const FormatException('Mismatched visibility response');
+    }
+    return result;
+  }
+
+  /// Edit details of a draft, failed, rejected or published video; only the changed fields are sent.
+  Future<OwnedVideo> editDetails(OwnedVideo video,
+      {String? title,
+      String? description,
+      String? category,
+      List<String>? tags}) async {
+    final changes = <String, Object?>{};
+    if (title != null && title.trim() != video.title) {
+      final cleaned = title.trim();
+      if (cleaned.isEmpty || cleaned.length > 160) {
+        throw const FormatException('Invalid title');
+      }
+      changes['title'] = cleaned;
+    }
+    if (description != null && description != video.description) {
+      if (description.length > 2000) {
+        throw const FormatException('Invalid description');
+      }
+      changes['description'] = description;
+    }
+    if (category != null && category != video.category) {
+      if (!videoCategories.containsKey(category)) {
+        throw const FormatException('Invalid category');
+      }
+      changes['category'] = category;
+    }
+    if (tags != null) {
+      final normalized = normalizeTags(tags);
+      if (normalized.join(',') != video.tags.join(',')) {
+        changes['tags'] = normalized;
+      }
+    }
+    if (!video.canEditDetails || !isApiId(video.id) || changes.isEmpty) {
+      throw const FormatException('Invalid video edit');
+    }
+    final result = OwnedVideo.fromJson(await account.authenticatedRequest(
+        '/videos/${video.id}',
+        method: 'PATCH',
+        body: changes));
+    if (result.id != video.id ||
+        result.creatorId != video.creatorId ||
+        changes.entries.any((entry) => switch (entry.key) {
+              'title' => result.title != entry.value,
+              'description' => result.description != entry.value,
+              'category' => result.category != entry.value,
+              _ => result.tags.join(',') != (entry.value as List).join(','),
+            })) {
+      throw const FormatException('Mismatched edited video');
+    }
+    return result;
+  }
+
+  /// Delete in any state. The server soft-deletes (media is retained under ADR-020).
+  Future<void> deleteVideo(OwnedVideo video) async {
+    if (!isApiId(video.id)) throw const FormatException('Invalid deletion');
+    final response = await account.authenticatedRequest('/videos/${video.id}',
+        method: 'DELETE');
+    if (response.length != 2 ||
+        response['video_id'] != video.id ||
+        response['deleted'] != true) {
+      throw const FormatException('Invalid deletion response');
     }
   }
 }

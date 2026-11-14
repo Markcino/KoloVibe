@@ -4,9 +4,11 @@ import re
 from django.conf import settings
 from django.http import JsonResponse
 
+from . import capabilities
+
 logger = logging.getLogger(__name__)
 UUID = r"[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}"
-PUBLIC = re.compile(rf"/(?:videos|api/v1/videos(?:/{UUID})?|api/v1/creators/{UUID})")
+PUBLIC = re.compile(rf"/(?:videos|api/v1/videos(?:/{UUID})?|api/v1/creators/(?:{UUID}|search))")
 CREATOR_ONBOARDING_PUBLIC = re.compile(
     rf"/api/v1/(?:creator-invitations|creator-applications(?:/{UUID}/decision)?|creators/me/(?:application|upload-eligibility))"
 )
@@ -19,9 +21,30 @@ ACCOUNTS = {
 }
 INTERNAL = {
     "content": {"/internal/videos", "/internal/videos/detail", "/internal/videos/published-count"},
-    "creators": {"/internal/creators/profile"},
+    "creators": {"/internal/creators/profile", "/internal/creators/search"},
     "audit": {"/internal/security-events"},
 }
+
+
+def route_allowed(service, method, path, *, accounts=False, privileged=False, onboarding=False,
+                  capability_set=frozenset()):
+    """The whole staging allow-list as one pure function (the middleware and the tests share it)."""
+    if path in ("/health/live", "/health/ready", "/ops/verify"):
+        return True
+    allowed = path == "/internal/probe" and method == "GET"
+    allowed |= service == "gateway" and method == "GET" and bool(PUBLIC.fullmatch(path))
+    allowed |= path in INTERNAL.get(service, set()) and method == "POST"
+    allowed |= accounts and path in ACCOUNTS.get(service, set())
+    # R1 capabilities: explicit (service, capability, method, path) rules; closed unless named.
+    allowed |= capabilities.allowed(service, capability_set, method, path, privileged=privileged)
+    allowed |= privileged and path in {
+        "gateway": {"/api/v1/auth/mfa/verify"},
+        "identity": {"/internal/auth/mfa/verify"},
+    }.get(service, set())
+    if onboarding:
+        allowed |= service == "gateway" and bool(CREATOR_ONBOARDING_PUBLIC.fullmatch(path))
+        allowed |= service == "creators" and method == "POST" and bool(CREATOR_ONBOARDING_INTERNAL.fullmatch(path))
+    return allowed
 
 
 class RestrictedStagingMiddleware:
@@ -34,23 +57,11 @@ class RestrictedStagingMiddleware:
             return JsonResponse({"detail": "HTTPS required"}, status=403)
         # Validate Host even for views which never call request.get_host().
         request.get_host()
-        path = request.path
-        service = settings.KOLOVIBE_SERVICE_NAME
-        if path in ("/health/live", "/health/ready", "/ops/verify"):
-            return self.get_response(request)
-        allowed = path == "/internal/probe" and request.method == "GET"
-        allowed |= service == "gateway" and request.method == "GET" and bool(PUBLIC.fullmatch(path))
-        allowed |= path in INTERNAL.get(service, set()) and request.method == "POST"
-        allowed |= settings.STAGING_ACCOUNTS and path in ACCOUNTS.get(service, set())
-        allowed |= getattr(settings, "STAGING_PRIVILEGED", False) and path in {
-            "gateway": {"/api/v1/auth/mfa/verify"},
-            "identity": {"/internal/auth/mfa/verify"},
-        }.get(service, set())
-        if getattr(settings, "STAGING_CREATOR_ONBOARDING", False):
-            allowed |= service == "gateway" and bool(CREATOR_ONBOARDING_PUBLIC.fullmatch(path))
-            allowed |= (service == "creators" and request.method == "POST"
-                        and bool(CREATOR_ONBOARDING_INTERNAL.fullmatch(path)))
-        if not allowed:
+        if not route_allowed(
+                settings.KOLOVIBE_SERVICE_NAME, request.method, request.path, accounts=settings.STAGING_ACCOUNTS,
+                privileged=getattr(settings, "STAGING_PRIVILEGED", False),
+                onboarding=getattr(settings, "STAGING_CREATOR_ONBOARDING", False),
+                capability_set=getattr(settings, "STAGING_CAPABILITIES", frozenset())):
             logger.warning("Rejected gated staging route")
             return JsonResponse({"detail": "Not enabled in restricted staging"}, status=403)
         return self.get_response(request)

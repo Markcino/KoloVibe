@@ -1,11 +1,14 @@
-"""Private Cloudflare R2 access using the AWS CRT SigV4 signer."""
+"""Private Cloudflare R2 access with a pure-Python SigV4 presigner (scoped keys come from secret files only)."""
 
 from contextlib import contextmanager
+from datetime import datetime, timezone
+import hashlib
+import hmac
 from http.client import HTTPException, HTTPSConnection
 import os
 from pathlib import Path
 import re
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import quote, urlsplit
 
 
 MAX_BYTES = 50 * 1024 * 1024
@@ -38,41 +41,44 @@ def _secret(name):
         raise StorageUnavailable from None
 
 
-def _signed_url(method, key, seconds, headers):
+def _hmac(key, message):
+    return hmac.new(key, message.encode(), hashlib.sha256).digest()
+
+
+def _signed_url(method, key, seconds, headers, now=None):
+    """SigV4 query-string presigning for R2 in pure Python (no native signer, so the Alpine image can run it).
+
+    Every header the caller names is signed together with `host`, so a client cannot change the content type,
+    size or create-only condition of an upload without invalidating the signature. The payload is unsigned
+    (`UNSIGNED-PAYLOAD`), which is what a browser or mobile client PUT needs. The result is cross-checked against
+    the AWS CRT implementation in the test suite.
+    """
     account = os.environ.get("KOLOVIBE_R2_ACCOUNT_ID", "")
     bucket = os.environ.get("KOLOVIBE_R2_MEDIA_BUCKET", "")
     if (not re.fullmatch(r"[0-9a-f]{32}", account)
             or not re.fullmatch(r"[a-z0-9][a-z0-9-]{1,61}[a-z0-9]", bucket)
-            or not re.fullmatch(r"(?:originals/[0-9a-f-]{36}\.mp4|playback/[0-9a-f-]{36}/[0-9a-f-]{36}\.(?:mp4|jpg))", key)):
+            or not re.fullmatch(r"(?:originals/[0-9a-f-]{36}\.mp4|playback/[0-9a-f-]{36}/[0-9a-f-]{36}\.(?:mp4|jpg))", key)
+            or method not in ("GET", "PUT", "HEAD") or not 1 <= seconds <= 604800):
         raise StorageUnavailable
+    access, secret = _secret("KOLOVIBE_R2_ACCESS_KEY_FILE"), _secret("KOLOVIBE_R2_SECRET_KEY_FILE")
     host = f"{account}.r2.cloudflarestorage.com"
-    try:
-        from awscrt.auth import (
-            AwsCredentialsProvider, AwsSignatureType, AwsSignedBodyValue, AwsSigningConfig, aws_sign_request,
-        )
-        from awscrt.exceptions import AwsCrtError
-        from awscrt.http import HttpHeaders, HttpRequest
-    except ImportError:
-        raise StorageUnavailable from None
-    try:
-        credentials = AwsCredentialsProvider.new_static(
-            _secret("KOLOVIBE_R2_ACCESS_KEY_FILE"), _secret("KOLOVIBE_R2_SECRET_KEY_FILE"),
-        )
-        request = HttpRequest(method=method, path=f"/{bucket}/{key}",
-                              headers=HttpHeaders([("Host", host), *headers.items()]))
-        config = AwsSigningConfig(
-            signature_type=AwsSignatureType.HTTP_REQUEST_QUERY_PARAMS, credentials_provider=credentials,
-            region="auto", service="s3", use_double_uri_encode=False, should_normalize_uri_path=False,
-            signed_body_value=AwsSignedBodyValue.UNSIGNED_PAYLOAD, expiration_in_seconds=seconds,
-        )
-        signed = aws_sign_request(request, config).result(timeout=5)
-        query = parse_qs(urlsplit(signed.path).query)
-        signed_headers = set(query["X-Amz-SignedHeaders"][0].split(";"))
-        if not {"host", *(name.lower() for name in headers)} <= signed_headers:
-            raise ValueError("Required R2 headers were not signed")
-        return f"https://{host}{signed.path}"
-    except (AwsCrtError, OSError, ValueError, KeyError):
-        raise StorageUnavailable from None
+    moment = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    stamp, day = moment.strftime("%Y%m%dT%H%M%SZ"), moment.strftime("%Y%m%d")
+    scope = f"{day}/auto/s3/aws4_request"
+    signed = {"host": host}
+    for name, value in headers.items():
+        signed[name.lower()] = " ".join(str(value).split())
+    names = sorted(signed)
+    query = {"X-Amz-Algorithm": "AWS4-HMAC-SHA256", "X-Amz-Credential": f"{access}/{scope}", "X-Amz-Date": stamp,
+             "X-Amz-Expires": str(seconds), "X-Amz-SignedHeaders": ";".join(names)}
+    canonical_query = "&".join(f"{quote(name, safe='')}={quote(value, safe='')}" for name, value in sorted(query.items()))
+    path = f"/{bucket}/{key}"
+    canonical = "\n".join((method, quote(path, safe="/-_.~"), canonical_query,
+                          "".join(f"{name}:{signed[name]}\n" for name in names), ";".join(names), "UNSIGNED-PAYLOAD"))
+    to_sign = "\n".join(("AWS4-HMAC-SHA256", stamp, scope, hashlib.sha256(canonical.encode()).hexdigest()))
+    signing_key = _hmac(_hmac(_hmac(_hmac(("AWS4" + secret).encode(), day), "auto"), "s3"), "aws4_request")
+    signature = hmac.new(signing_key, to_sign.encode(), hashlib.sha256).hexdigest()
+    return f"https://{host}{path}?{canonical_query}&X-Amz-Signature={signature}"
 
 
 def upload_headers(size):

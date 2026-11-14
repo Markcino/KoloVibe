@@ -18,16 +18,44 @@ def service_directory(root, name):
     return directory
 
 
+def run_role(root, directory, service, role, interval, limit):
+    from staging_runtime import roles
+
+    capability, kind, target, queue = roles.resolve(service, role)
+    sys.path[:0] = [str(root), str(directory)]
+    os.environ["DJANGO_SETTINGS_MODULE"] = "service.settings"
+    import django
+    from django.conf import settings
+
+    django.setup()
+    roles.require_capability(settings, capability)
+    if kind == "celery":
+        roles.run_celery(target, queue)
+    else:
+        roles.run_job(target, interval, limit)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check-settings", action="store_true")
+    parser.add_argument("--role", help="worker or scheduled-job role for this service instead of the API")
+    parser.add_argument("--interval", type=int, default=30, help="seconds between job runs (jobs only)")
+    parser.add_argument("--limit", type=int, default=100, help="batch size per job run (jobs only)")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
-    directory = service_directory(root, os.environ.get("KOLOVIBE_SERVICE_NAME"))
+    service = os.environ.get("KOLOVIBE_SERVICE_NAME")
+    directory = service_directory(root, service)
     os.chdir(directory)
     sys.path.insert(0, str(directory))
     if args.check_settings:
         importlib.import_module("service.settings")
+        if args.role:
+            from staging_runtime import roles
+
+            roles.resolve(service, args.role)
+        return
+    if args.role:
+        run_role(root, directory, service, args.role, args.interval, args.limit)
         return
     os.execv(sys.executable, [
         sys.executable, "-m", "gunicorn",

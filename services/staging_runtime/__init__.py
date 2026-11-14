@@ -37,6 +37,64 @@ def secret(name):
     return value
 
 
+AMQPS_PORTS = (None, 5671)
+
+# (settings switch, capability) per service: the same switches local development drives from its own flags.
+FEATURE_SWITCHES = {
+    "content": (("LOCAL_MEDIA_ENABLED", "media"), ("LOCAL_MODERATION_ENABLED", "moderation")),
+    "engagement": (("LOCAL_POINTS_ENABLED", "points"),),
+    "points": (("LOCAL_POINTS_ENABLED", "points"),),
+    "moderation": (("LOCAL_MODERATION_ENABLED", "moderation"),),
+    "gateway": (("LOCAL_MEDIA_ENABLED", "media"), ("LOCAL_MODERATION_ENABLED", "moderation"),
+                ("LOCAL_POINTS_ENABLED", "points")),
+}
+
+
+def broker_url():
+    """The authenticated AMQPS broker URI, read from an owner-only secret file, never from the environment.
+
+    A URI carries the broker credential, so a plain `KOLOVIBE_RABBITMQ_URL` variable (visible in
+    `docker service inspect`) is refused in staging.
+    """
+    from urllib.parse import urlsplit
+
+    if os.environ.get("KOLOVIBE_RABBITMQ_URL"):
+        raise RuntimeError("The broker URI must come from KOLOVIBE_RABBITMQ_URL_FILE, not the environment")
+    value = file_value("KOLOVIBE_RABBITMQ_URL_FILE", private=True)
+    try:
+        uri = urlsplit(value)
+        valid = (uri.scheme == "amqps" and uri.hostname and uri.username and uri.password
+                 and uri.port in AMQPS_PORTS and re.fullmatch(r"(?:/[A-Za-z0-9_.-]{1,64})?", uri.path)
+                 and not uri.query and not uri.fragment)
+    except ValueError:
+        valid = False
+    if not valid:
+        raise RuntimeError("Invalid broker URI secret")
+    return value
+
+
+def broker_ca():
+    """The CA file that must verify the broker's certificate (explicit; no system-store fallback)."""
+    path = required("KOLOVIBE_RABBITMQ_CA_FILE")
+    try:
+        ssl.create_default_context(cafile=path)
+    except (OSError, ssl.SSLError):
+        raise RuntimeError("Invalid broker CA") from None
+    return path
+
+
+def r2_configuration():
+    """Validated private-bucket settings: identifiers from the environment, keys only from secret files."""
+    account, bucket = os.environ.get("KOLOVIBE_R2_ACCOUNT_ID", ""), os.environ.get("KOLOVIBE_R2_MEDIA_BUCKET", "")
+    if not re.fullmatch(r"[0-9a-f]{32}", account) or not re.fullmatch(r"[a-z0-9][a-z0-9-]{1,61}[a-z0-9]", bucket):
+        raise RuntimeError("Invalid R2 account or bucket identifier")
+    for name in ("KOLOVIBE_R2_ACCESS_KEY_FILE", "KOLOVIBE_R2_SECRET_KEY_FILE"):
+        value = file_value(name, private=True)
+        if len(value) < 16 or any(character.isspace() for character in value):
+            raise RuntimeError("Invalid R2 credential")
+    return account, bucket
+
+
 def json_file(name, *, private=False):
     try:
         value = json.loads(file_value(name, private=private))
@@ -84,8 +142,7 @@ def configure(settings):
     if service == "audit" and (set(callers) - {"identity", "moderation", "creators", "content", "points", "gateway"}
                                or len(set(callers.values())) != len(callers)):
         raise RuntimeError("Audit producers require distinct caller credentials")
-    if service in ("identity", "content", "creators") and "gateway" not in callers:
-        raise RuntimeError("Staging peer requires an approved gateway credential")
+    callers_have_gateway = "gateway" in callers
     settings["STAGING_PROBE_TOKEN"] = secret("KOLOVIBE_PROBE_TOKEN_FILE")
     enabled = os.environ.get("KOLOVIBE_STAGING_ACCOUNTS", "0")
     if enabled not in ("0", "1"):
@@ -96,6 +153,17 @@ def configure(settings):
     if privileged not in ("0", "1"):
         raise RuntimeError("Invalid privileged capability")
     settings["STAGING_PRIVILEGED"] = privileged == "1"
+    from . import capabilities as policy
+    caps = policy.parse(os.environ.get("KOLOVIBE_STAGING_CAPABILITIES"))
+    policy.check(service, caps, accounts=accounts, privileged=privileged == "1")
+    settings["STAGING_CAPABILITIES"] = caps
+    # The services gate their routes and workers on these switches. Outside local development they are
+    # never read from the environment: only the approved capability set can turn them on.
+    for switch, capability in FEATURE_SWITCHES.get(service, ()):
+        settings[switch] = capability in caps
+    if (service in ("identity", "content", "creators") or caps and service in ("engagement", "points", "moderation")
+            ) and not callers_have_gateway:
+        raise RuntimeError("Staging peer requires an approved gateway credential")
     if privileged == "1" and (not accounts or service not in ("gateway", "identity")):
         raise RuntimeError("Privileged capability requires approved account services")
     creator_onboarding = os.environ.get("KOLOVIBE_STAGING_CREATOR_ONBOARDING", "0")
@@ -169,7 +237,7 @@ def configure(settings):
     if service == "gateway":
         secret("KOLOVIBE_OUTBOUND_KEY_FILE")
         peers = json_file("KOLOVIBE_TRUSTED_PEERS_FILE")
-        expected = {"content", "creators"} | ({"identity"} if accounts else set())
+        expected = policy.gateway_peers(caps, accounts)
         if set(peers) != expected:
             raise RuntimeError("Staging peers must match the enabled capabilities")
         for origin in peers.values():
@@ -184,6 +252,28 @@ def configure(settings):
                     or url.password or url.path not in ("", "/")
                     or url.query or url.fragment):
                 raise RuntimeError("Staging peers require canonical HTTPS origins")
+    wanted = policy.receiver_peers(service, caps)
+    if wanted:
+        secret("KOLOVIBE_OUTBOUND_KEY_FILE")
+        receiver_peers = json_file("KOLOVIBE_TRUSTED_PEERS_FILE")
+        if set(receiver_peers) != wanted:
+            raise RuntimeError("Staging peers must match the enabled capabilities")
+        for origin in receiver_peers.values():
+            try:
+                url = urlsplit(origin) if isinstance(origin, str) else None
+                url.port
+            except (ValueError, AttributeError):
+                raise RuntimeError("Invalid staging peer origin") from None
+            if (url.scheme != "https" or not url.hostname or url.username or url.password
+                    or url.path not in ("", "/") or url.query or url.fragment):
+                raise RuntimeError("Staging peers require canonical HTTPS origins")
+    if service == "content" and "media" in caps:
+        r2_configuration()
+        broker_url()
+        broker_ca()
+    if service in ("engagement", "points") and "points" in caps:
+        broker_url()
+        broker_ca()
     settings.update(
         DEBUG=False, ALLOWED_HOSTS=hosts, ROOT_URLCONF="staging_runtime.urls",
         SECURE_SSL_REDIRECT=True, SECURE_HSTS_SECONDS=3600,

@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import '../../features/content/live_content_screen.dart';
 import '../../features/content/live_create_original_screen.dart';
+import '../../features/content/live_manage_video_screen.dart';
 import '../../features/creators/live_become_creator_screen.dart';
 import '../../features/creators/live_creator_onboarding_repository.dart';
 import '../../features/creators/live_creator_studio_screen.dart';
@@ -32,6 +33,10 @@ Widget? creatorRoute(RouteContext context) {
         catalog: context.catalog, profiles: LiveOwnCreatorRepository(account)),
     40 when deps.liveContent != null => LiveContentScreen(
         route: route, catalog: context.catalog, repository: deps.liveContent!),
+    // M-053 Manage video (with M-054 edit, M-055 unpublish and M-056 delete confirmations) needs a video.
+    53 when deps.liveContent != null && route.entityId != null =>
+      LiveManageVideoScreen(
+          videoId: route.entityId!, repository: deps.liveContent!),
     // M-041 is the entry; M-042–M-044 are its file, check and story steps.
     41 ||
     42 ||
