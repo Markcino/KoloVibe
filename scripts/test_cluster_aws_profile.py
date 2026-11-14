@@ -35,7 +35,7 @@ def mount(target, name):
 
 def set_flags(container, flags):
     """Replace the two staging capability flags in a fixture; a value of None removes the variable."""
-    kept = [e for e in container['Env'] if e.split('=', 1)[0] not in cluster.PROFILES['aws-staging'].gateway_flags]
+    kept = [e for e in container['Env'] if e.split('=', 1)[0] not in cluster.PROFILES['aws-staging'].service_flags['gateway']]
     container['Env'] = kept + [key + '=' + value for key, value in flags.items() if value is not None]
 
 
@@ -47,7 +47,7 @@ def aws_gateway(constraint=PIN, db_host=DB, networks=('services-net', 'data-net'
     container['Hosts'] = []
     container['Env'] = [('KOLOVIBE_DB_HOST=' + db_host) if e.startswith('KOLOVIBE_DB_HOST=') else e
                         for e in container['Env']]
-    set_flags(container, flags or dict(AWS.gateway_flags))
+    set_flags(container, flags or dict(AWS.service_flags['gateway']))
     container['Secrets'] = [mount('django_key', 'gateway_django'), mount('internal_ca', 'internal_ca'),
                             mount('db_ca', 'db_ca'), mount('trusted_peers', PEERS),
                             mount('account_approvals', APPROVAL), *extra_mounts]
@@ -522,13 +522,13 @@ class GatewayStagingFlagTests(unittest.TestCase):
         with patch.object(cluster, 'PROFILE', profile), manager(swarm):
             return cluster.update_plan(EVIDENCE, NEW_IMAGE, TARGET_REVISION, ['audit'])
 
-    def test_every_profile_declares_exactly_the_two_flags_with_binary_values(self):
+    def test_every_profile_declares_exactly_the_two_flags_with_binary_values_for_the_gateway(self):
         for name, profile in cluster.PROFILES.items():
             with self.subTest(name):
-                self.assertEqual(sorted(profile.gateway_flags), [self.ON, self.OFF])
-                self.assertTrue(set(profile.gateway_flags.values()) <= {'0', '1'})
-        self.assertEqual(cluster.ORACLE_STAGING.gateway_flags, {self.ON: '0', self.OFF: '0'})
-        self.assertEqual(AWS.gateway_flags, {self.ON: '1', self.OFF: '0'})
+                self.assertEqual(sorted(profile.service_flags['gateway']), [self.ON, self.OFF])
+                self.assertTrue(set(profile.service_flags['gateway'].values()) <= {'0', '1'})
+        self.assertEqual(cluster.ORACLE_STAGING.service_flags['gateway'], {self.ON: '0', self.OFF: '0'})
+        self.assertEqual(AWS.service_flags['gateway'], {self.ON: '1', self.OFF: '0'})
 
     def test_aws_gateway_with_the_profile_flags_plans(self):
         self.assertEqual(self.plan(AWS, AwsSwarm())['entries'][0]['action'], 'update')
@@ -567,7 +567,7 @@ class GatewayStagingFlagTests(unittest.TestCase):
 
     def test_the_aws_flags_do_not_make_the_oracle_gateway_acceptable(self):
         gateway = gateway_fixture()
-        set_flags(gateway['Spec']['TaskTemplate']['ContainerSpec'], dict(AWS.gateway_flags))
+        set_flags(gateway['Spec']['TaskTemplate']['ContainerSpec'], dict(AWS.service_flags['gateway']))
         swarm = FakeSwarm()
         swarm.services['kvtest-gateway'] = dict(swarm.services['kvtest-gateway'], Spec=gateway['Spec'])
         with self.assertRaisesRegex(RuntimeError, 'capability flags differ from the oracle-staging'):
@@ -576,3 +576,93 @@ class GatewayStagingFlagTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class ServiceFlagTableTests(unittest.TestCase):
+    """Every service has an exact, reviewed flag pair; Identity is guarded like the Gateway."""
+    ON, OFF = 'KOLOVIBE_STAGING_ACCOUNTS', 'KOLOVIBE_STAGING_PRIVILEGED'
+
+    def plan(self, swarm, service, profile=AWS):
+        with patch.object(cluster, 'PROFILE', profile), manager(swarm):
+            return cluster.update_plan(EVIDENCE, NEW_IMAGE, TARGET_REVISION, [service])
+
+    def edit(self, swarm, service, flags, prefix='kolovibe-'):
+        set_flags(swarm.services[prefix + service]['Spec']['TaskTemplate']['ContainerSpec'], flags)
+
+    def test_tables_name_all_eight_services_and_match_the_14_november_read_back(self):
+        for profile in cluster.PROFILES.values():
+            self.assertEqual(set(profile.service_flags), set(cluster.SERVICES))
+        for service in cluster.SERVICES:
+            self.assertEqual(cluster.ORACLE_STAGING.service_flags[service], {self.ON: '0', self.OFF: '0'})
+            expected = {self.ON: '1', self.OFF: '0'} if service in ('gateway', 'identity') else {self.ON: '0', self.OFF: '0'}
+            self.assertEqual(AWS.service_flags[service], expected, service)
+
+    def test_a_table_the_runtime_would_refuse_is_refused_at_review_time(self):
+        good = cluster.flag_table(gateway=('1', '0'), identity=('1', '0'))
+        bad_tables = {
+            'accounts on a non-account service': cluster.flag_table(gateway=('1', '0'), identity=('1', '0'), audit=('1', '0')),
+            'privileged without accounts': cluster.flag_table(gateway=('0', '1')),
+            'privileged on a non-account service': cluster.flag_table(gateway=('1', '0'), identity=('1', '0'), points=('1', '1')),
+            'gateway on, identity off': cluster.flag_table(gateway=('1', '0')),
+            'identity on, gateway off': cluster.flag_table(identity=('1', '0')),
+            'missing service': {k: v for k, v in good.items() if k != 'audit'},
+            'non-binary value': cluster.flag_table(gateway=('yes', '0'), identity=('yes', '0')),
+            'extra variable': dict(good, audit={self.ON: '0', self.OFF: '0', 'KOLOVIBE_STAGING_X': '0'}),
+        }
+        cluster.check_flag_table(AWS._replace(service_flags=good))
+        for label, table in bad_tables.items():
+            with self.subTest(label), self.assertRaises(ValueError):
+                cluster.check_flag_table(AWS._replace(service_flags=table))
+        with self.assertRaises(ValueError):
+            cluster.flag_table(nonsense=('0', '0'))
+
+    def test_new_services_take_their_flags_from_the_profile_not_from_the_gateway(self):
+        gateway = aws_gateway()
+        known = {**all_secrets(), **{n: 'id-' + n for n in AWS_ONLY}}
+        with patch.object(cluster, 'PROFILE', AWS):
+            for service in cluster.SERVICES[1:]:
+                spec = cluster.api_spec(gateway, service, known, cluster.BASELINE_IMAGE, cluster.BASELINE_REVISION,
+                                        names=aws_names(service))
+                env = cluster.env_dict(spec['TaskTemplate']['ContainerSpec'])
+                self.assertEqual({k: env[k] for k in (self.ON, self.OFF)}, AWS.service_flags[service], service)
+
+    def test_identity_and_every_receiver_plan_with_the_profile_flags(self):
+        for service in cluster.SERVICES[1:]:
+            self.assertEqual(self.plan(AwsSwarm(), service)['entries'][0]['action'], 'update', service)
+
+    def test_drifted_identity_flags_stop_the_plan_naming_only_variables(self):
+        for label, flags, named in (
+                ('accounts off', {self.ON: '0', self.OFF: '0'}, self.ON),
+                ('privileged on', {self.ON: '1', self.OFF: '1'}, self.OFF),
+                ('accounts missing', {self.ON: None, self.OFF: '0'}, self.ON),
+                ('padded value', {self.ON: '1 ', self.OFF: '0'}, self.ON)):
+            swarm = AwsSwarm()
+            self.edit(swarm, 'identity', flags)
+            with self.subTest(label), self.assertRaises(RuntimeError) as raised:
+                self.plan(swarm, 'identity')
+            self.assertIn('Staging capability flags of kolovibe-identity differ from the aws-staging profile: ' + named,
+                          str(raised.exception))
+
+    def test_a_service_that_must_stay_off_cannot_be_updated_while_it_is_on(self):
+        swarm = AwsSwarm()
+        self.edit(swarm, 'audit', {self.ON: '1', self.OFF: '0'})
+        with self.assertRaisesRegex(RuntimeError, 'flags of kolovibe-audit differ from the aws-staging profile: ' + self.ON):
+            self.plan(swarm, 'audit')
+
+    def test_the_refusal_never_echoes_other_environment_values(self):
+        swarm = AwsSwarm()
+        self.edit(swarm, 'identity', {self.ON: '0', self.OFF: '0'})
+        swarm.services['kolovibe-identity']['Spec']['TaskTemplate']['ContainerSpec']['Env'].append(
+            'KOLOVIBE_UNRELATED=do-not-print-this')
+        with self.assertRaises(RuntimeError) as raised:
+            self.plan(swarm, 'identity')
+        self.assertNotIn('do-not-print-this', str(raised.exception))
+        self.assertNotIn(DB, str(raised.exception))
+
+    def test_oracle_receivers_must_stay_fully_off_and_identity_gets_no_account_exception(self):
+        swarm = FakeSwarm()
+        self.assertEqual(self.plan(swarm, 'identity', cluster.ORACLE_STAGING)['entries'][0]['action'], 'update')
+        broken = FakeSwarm()
+        self.edit(broken, 'identity', {self.ON: '1', self.OFF: '0'}, prefix='kvtest-')
+        with self.assertRaisesRegex(RuntimeError, 'flags of kvtest-identity differ from the oracle-staging profile'):
+            self.plan(broken, 'identity', cluster.ORACLE_STAGING)
