@@ -52,7 +52,8 @@ FROM ${FFMPEG_BUILD_BASE} AS ffmpeg-minimal
 RUN set -eux; \
     apk add --no-cache alpine-sdk curl ca-certificates nasm pkgconf x264-dev zlib-dev; \
     adduser -D builder; addgroup builder abuild; \
-    mkdir -p /home/builder/ffmpeg /out/apk /var/cache/distfiles; chmod 0777 /var/cache/distfiles
+    mkdir -p /home/builder/ffmpeg /out/apk /var/cache/distfiles; chmod 0777 /var/cache/distfiles; \
+    chown -R builder:builder /home/builder
 COPY --chown=builder:builder infra/docker/ffmpeg/APKBUILD /home/builder/ffmpeg/APKBUILD
 RUN set -eux; \
     su builder -c 'cd /home/builder/ffmpeg && abuild-keygen -a -n >/dev/null && abuild -r'; \
