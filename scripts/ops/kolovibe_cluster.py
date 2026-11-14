@@ -9,7 +9,8 @@ Run worker-preflight on VM2; copy its JSON to VM1 before deploy/update. `deploy`
 missing services. `update-plan`/`update` move named, already-deployed services to an explicit
 digest one at a time (dry-run unless confirmed), and `rollback` restores the previous spec.
 No image is ever defaulted. PostgreSQL, firewall, DNS and Nginx are never modified, and the
-Gateway changes only when it is explicitly named.
+Gateway changes only when it is explicitly named. A reviewed `--secret-override
+<service>:<mount target>=<secret name>` moves one named service's secret in the same guarded step.
 """
 import argparse
 import base64
@@ -350,11 +351,18 @@ def pinned(spec, image, revision):
     return spec
 
 
-def release_neutral(spec):
-    """A spec with the release pin and rolling-update guards removed, for drift checks."""
+def release_neutral(spec, secret_targets=()):
+    """A spec with the release pin and rolling-update guards removed, for drift checks.
+
+    `secret_targets` are the mount targets of reviewed secret overrides: only the Swarm secret
+    name and ID behind those targets are blanked. The mount target, mode, UID and GID stay in the
+    comparison, so a swap can never change how a secret is mounted."""
     spec = pinned(spec, '', '')
     for key in ROLLING_KEYS:
         spec.pop(key, None)
+    for ref in spec['TaskTemplate']['ContainerSpec'].get('Secrets') or []:
+        if (ref.get('File') or {}).get('Name') in secret_targets:
+            ref['SecretName'] = ref['SecretID'] = ''
     return canonical(spec)
 
 
@@ -678,17 +686,20 @@ def ordered(services, reverse=False):
     return [s for s in order if s in services]
 
 
-def update_plan(evidence, image, revision, services, restore_ref=None):
+def update_plan(evidence, image, revision, services, restore_ref=None, secret_overrides=None):
     """Read-only plan to move named, already-deployed services to the approved image.
 
     Every entry records what a rollback needs *before* anything is changed. The spec for
     each service is the live spec with only the release pin and the rolling-update guards
-    replaced; nothing else about the running service is altered.
+    replaced, plus, where the operator named a reviewed `--secret-override`, the Swarm secret
+    behind that one mount target; nothing else about the running service is altered.
     """
     names = ordered(services)
+    overrides = parse_secret_overrides(secret_overrides, names)
     api = manager_checks()
     gateway = base_gateway(api, image)
-    require_gateway_secrets({s['Spec']['Name'] for s in docker('GET', '/v' + api + '/secrets')}, gateway)
+    known = {s['Spec']['Name']: s['ID'] for s in docker('GET', '/v' + api + '/secrets')}
+    require_gateway_secrets(known, gateway)
     existing = {s['Spec']['Name']: s for s in docker('GET', '/v' + api + '/services')}
     entries = []
     for service in names:
@@ -699,6 +710,7 @@ def update_plan(evidence, image, revision, services, restore_ref=None):
         spec = live['Spec']
         safe_spec(spec)
         require_secrets_belong(service, spec)
+        changes = secret_changes(service, spec, overrides.get(service, {}), known)
         current = live_image(spec)
         if not IMAGE_RE.fullmatch(current):
             fail(name + ' is not pinned to an immutable GHCR digest; inspect before updating')
@@ -712,28 +724,96 @@ def update_plan(evidence, image, revision, services, restore_ref=None):
             'service': service, 'service_id': live['ID'], 'version_index': live['Version']['Index'],
             'current_image': current, 'current_revision': revision_now,
             'target_image': image, 'target_revision': revision,
-            'action': 'unchanged' if current == image else 'update',
+            'action': 'unchanged' if current == image and not changes else 'update',
+            'secret_changes': public_changes(changes),
             'health_gated': health not in ('NONE', ''), 'spec_sha256': spec_digest(spec),
-            'update_spec': update_spec(spec, image, revision),
+            'update_spec': update_spec(spec, image, revision, changes),
             'previous_spec_available': bool(live.get('PreviousSpec')),
             'rollback': {
                 'image_rollback': 'python3 kolovibe_cluster.py rollback --services ' + service
                                   + ' --confirm-rollback ' + service,
                 'repin': 'python3 kolovibe_cluster.py update --services ' + service + ' --release-dir <prior approved release>',
                 'schema': 'Forward-only: image rollback never reverses migrations. Restore from the '
-                          'owner-approved restore point and export evidence tables first.'}})
+                          'owner-approved restore point and export evidence tables first.',
+                'secrets': 'Rollback restores the previous spec including these secret names (' +
+                           ', '.join(c['from'] for c in public_changes(changes)) + '); keep them in Swarm until soak ends.'
+                           if changes else 'No secret change planned.'}})
     return {'api': api, 'image': image, 'revision': revision, 'restore_point_ref': restore_ref,
             'entries': entries, 'evidence_time': evidence.get('time')}
 
 
-def update_spec(spec, image, revision):
+def update_spec(spec, image, revision, changes=None):
+    """The live spec with the release pin, the rolling guards and (only when `changes` names
+    them) the Swarm secret behind specific mount targets replaced. Nothing else may differ."""
     new = pinned(spec, image, revision)
     new['UpdateConfig'] = dict(UPDATE_CONFIG)
     new['RollbackConfig'] = dict(ROLLBACK_CONFIG)
-    if release_neutral(new) != release_neutral(spec):
-        fail('Update would change more than the release pin')
+    targets = tuple(changes or ())
+    if targets:
+        for ref in new['TaskTemplate']['ContainerSpec']['Secrets']:
+            change = changes.get(ref['File']['Name'])
+            if change:
+                ref['SecretName'], ref['SecretID'] = change['to'], change['id']
+    expected = secret_refs(spec)
+    expected.update({target: change['to'] for target, change in (changes or {}).items()})
+    if release_neutral(new, targets) != release_neutral(spec, targets) or secret_refs(new) != expected:
+        fail('Update would change more than the release pin' + (' and the named secret references' if targets else ''))
     safe_spec(new)
     return new
+
+
+OVERRIDE_RE = re.compile(r'([a-z]+):([a-z][a-z0-9_]{0,63})=([A-Za-z0-9][A-Za-z0-9._-]{0,63})')
+
+
+def parse_secret_overrides(values, services):
+    """Parse repeated `--secret-override <service>:<mount target>=<new secret name>`.
+
+    Nothing is inferred: each override names one service that is also in --services, one mount
+    target and one Swarm secret name, and the same pair may not be named twice."""
+    parsed = {}
+    for value in values or ():
+        match = OVERRIDE_RE.fullmatch(value)
+        if not match:
+            fail('--secret-override must look like <service>:<mount target>=<secret name>')
+        service, target, name = match.groups()
+        if service not in services:
+            fail('--secret-override names a service that is not in --services: ' + service)
+        if target in parsed.setdefault(service, {}):
+            fail('--secret-override names the same mount target twice: ' + service + ':' + target)
+        parsed[service][target] = name
+    return parsed
+
+
+def secret_changes(service, spec, overrides, known):
+    """Validate reviewed secret overrides for one live service and return {target: change}.
+
+    `known` maps every existing Swarm secret name to its ID. Each override must replace a
+    secret the service already mounts at that exact target, with a Swarm secret that exists, is
+    not already mounted at another target of this service, and passes the active profile's
+    ownership check (`require_secrets_belong`) as the spec would after the swap. Names only."""
+    live, changes = secret_refs(spec), {}
+    for target, name in overrides.items():
+        if target not in live:
+            fail(svc(service) + ' mounts no secret at target ' + target + '; refusing the override')
+        if name not in known:
+            fail('Override secret does not exist in Swarm: ' + name)
+        if name == live[target]:
+            continue  # already in place (a re-run); no change, nothing to apply
+        if name in live.values():
+            fail('Override secret is already mounted at another target of ' + svc(service) + ': ' + name)
+        changes[target] = {'from': live[target], 'to': name, 'id': known[name]}
+    if changes:
+        candidate = copy.deepcopy(spec)
+        for ref in candidate['TaskTemplate']['ContainerSpec']['Secrets']:
+            if ref['File']['Name'] in changes:
+                ref['SecretName'] = changes[ref['File']['Name']]['to']
+        require_secrets_belong(service, candidate)
+    return changes
+
+
+def public_changes(changes):
+    """Secret names for the plan and the rollback record; never IDs, never values."""
+    return [{'target': target, 'from': change['from'], 'to': change['to']} for target, change in sorted(changes.items())]
 
 
 def public_plan(report):
@@ -769,10 +849,11 @@ def wait_update(api, sid, previous_started, expected_image, *, rollback=False, t
     fail('Update did not finish within ' + str(timeout) + ' seconds')
 
 
-def update(path, username, image, revision, services, restore_ref, confirm_image, rollback_file, accept_ungated):
+def update(path, username, image, revision, services, restore_ref, confirm_image, rollback_file, accept_ungated,
+           secret_overrides=None):
     """Dry-run unless --confirm-image repeats the approved digest exactly."""
     evidence = load_evidence(path)
-    report = update_plan(evidence, image, revision, services, restore_ref)
+    report = update_plan(evidence, image, revision, services, restore_ref, secret_overrides)
     shown = public_plan(report)
     print(json.dumps(shown, indent=2), file=sys.stderr)
     todo = [e for e in report['entries'] if e['action'] == 'update']
@@ -788,7 +869,7 @@ def update(path, username, image, revision, services, restore_ref, confirm_image
         fail('No readiness healthcheck, so Swarm cannot detect a bad image for: ' + ', '.join(ungated)
              + '; add --accept-ungated only with verify-worker/verify-edge run immediately after')
     if not todo:
-        print('NOTHING TO DO: every named service is already on the target image', file=sys.stderr)
+        print('NOTHING TO DO: every named service is already on the target image and secrets', file=sys.stderr)
         return
     # The rollback record is written first and exclusively, so it can never be overwritten.
     write_private(rollback_file, dict(shown, accept_ungated=bool(ungated and accept_ungated),
@@ -810,6 +891,8 @@ def update(path, username, image, revision, services, restore_ref, confirm_image
             docker('POST', path_api + '?version=' + str(live['Version']['Index']), spec, auth)
         try:
             wait_update(api, live['ID'], started, image)
+            if secret_refs(docker('GET', '/v' + api + '/services/' + live['ID'])['Spec']) != secret_refs(spec):
+                fail('Service finished updating with different secret references than planned')
             wait_running(api, live['ID'])
         except RuntimeError as error:
             fail(str(error).replace('BLOCKED: ', '') + ' Not yet updated: '
@@ -825,6 +908,7 @@ def rollback(services, confirm):
     names = ordered(services, reverse=True)
     api = manager_checks()
     existing = {s['Spec']['Name']: s for s in docker('GET', '/v' + api + '/services')}
+    known = {s['Spec']['Name'] for s in docker('GET', '/v' + api + '/secrets')}
     steps = []
     for service in names:
         live = existing.get(svc(service))
@@ -835,9 +919,17 @@ def rollback(services, confirm):
         if not previous or not IMAGE_RE.fullmatch(target):
             fail(svc(service) + ' has no previous spec; re-pin with update and the prior approved digest')
         safe_spec(live['Spec'])
+        # A rolled-back service gets its previous secrets back, so those must still exist.
+        gone = sorted(set(secret_refs(previous).values()) - known)
+        if gone:
+            fail(svc(service) + ' previous spec needs Swarm secrets that no longer exist: ' + ', '.join(gone))
         steps.append((service, live, target))
     for service, live, target in steps:
         print('ROLLBACK PLAN: ' + svc(service) + ' ' + live_image(live['Spec']) + ' -> ' + target, file=sys.stderr)
+        now, before = secret_refs(live['Spec']), secret_refs(live['PreviousSpec'])
+        for mount in sorted(set(now) | set(before)):
+            if now.get(mount) != before.get(mount):
+                print('  secret ' + mount + ': ' + str(now.get(mount)) + ' -> ' + str(before.get(mount)), file=sys.stderr)
     print('Schema is NOT rolled back; restore from the approved restore point if migrations must be reversed.',
           file=sys.stderr)
     if confirm is None:
@@ -853,6 +945,8 @@ def rollback(services, confirm):
         with allow_once(api, path_api, spec):
             docker('POST', path_api + '?version=' + str(live['Version']['Index']) + '&rollback=previous', spec)
         wait_update(api, live['ID'], started, target, rollback=True)
+        if secret_refs(docker('GET', '/v' + api + '/services/' + live['ID'])['Spec']) != secret_refs(live['PreviousSpec']):
+            fail(svc(service) + ' rolled back with different secret references than its previous spec')
         wait_running(api, live['ID'])
         print('ROLLED BACK: ' + svc(service) + '; run verify-worker', file=sys.stderr)
 
@@ -1225,6 +1319,9 @@ def main():
     parser.add_argument('--confirm-image', help='repeat the approved digest to apply an update')
     parser.add_argument('--confirm-rollback', help='repeat the planned service list to apply a rollback')
     parser.add_argument('--rollback-file', help='new private file recording the pre-update state')
+    parser.add_argument('--secret-override', action='append', metavar='SERVICE:TARGET=SECRET',
+                        help='update-plan/update only; repeatable and never defaulted: replace the Swarm secret '
+                             'mounted at one exact target of one named service, e.g. gateway:outbound_key=gateway_outbound_2')
     parser.add_argument('--accept-ungated', action='store_true',
                         help='update services with no healthcheck; verify-worker/verify-edge must follow')
     args = parser.parse_args()
@@ -1232,6 +1329,8 @@ def main():
         if not args.profile:
             parser.error('--profile is required: ' + ' or '.join(sorted(PROFILES)))
         use_profile(args.profile)
+    if args.secret_override and args.mode not in ('update-plan', 'update'):
+        parser.error('--secret-override is only valid with update-plan or update')
     if args.mode in ('plan', 'deploy', 'update-plan', 'update', 'cloud-run'):
         image, revision = resolve_release(args.image, args.revision, args.release_dir)
     if args.mode == 'cloud-run':
@@ -1247,7 +1346,7 @@ def main():
         stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
         update(args.worker_evidence, args.registry_user, image, revision, csv(args.services),
                args.restore_point_ref, confirm, args.rollback_file or 'kolovibe-rollback-' + stamp + '.json',
-               args.accept_ungated)
+               args.accept_ungated, args.secret_override)
         return
     if args.mode == 'rollback':
         rollback(csv(args.services), args.confirm_rollback)

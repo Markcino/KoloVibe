@@ -234,7 +234,63 @@ python3 kolovibe_cluster.py rollback --profile <profile> --services audit,identi
 
 **Rollback never reverses migrations.** Treat schema changes as forward-only and restore from
 the approved restore point; export Points 0005, Moderation 0003 and Audit 0004 evidence rows
-first. The tool does not run migrations, change secrets, or touch PostgreSQL, Nginx or DNS.
+first. The tool does not run migrations, create or delete secrets, or touch PostgreSQL, Nginx or DNS;
+it only re-points a named mount to a secret you already created (next section).
+
+### Moving the image and chosen secrets in one step (`--secret-override`)
+
+Used for the per-peer key rollout: the Gateway needs the new image **and** the per-peer outbound map
+at the same time, and receivers mount `<peer>_callers_2`. `update-plan` and `update` take a
+repeatable, never-defaulted flag, one per service and mount target:
+
+```bash
+sudo python3 kolovibe_cluster.py update-plan --profile <profile> --worker-evidence worker-evidence.json \
+  --release-dir release/ --services gateway \
+  --secret-override gateway:outbound_key=gateway_outbound_2
+sudo python3 kolovibe_cluster.py update-plan --profile <profile> --worker-evidence worker-evidence.json \
+  --release-dir release/ --services identity,content \
+  --secret-override identity:caller_keys=identity_callers_2 \
+  --secret-override content:caller_keys=content_callers_2
+```
+
+Format: `<service>:<mount target>=<Swarm secret name>`. The target is the file name under
+`/run/secrets/` the service already mounts (`caller_keys` for a receiver's peer-key file,
+`outbound_key` for the Gateway's outbound key). The service must also be in `--services`.
+Nothing is inferred: without the flag no secret ever changes. Before anything is planned the tool
+refuses (`BLOCKED:`, nothing changed) unless:
+
+1. the service already mounts a secret at exactly that target (no new mounts, no removals);
+2. the new secret **already exists in Swarm** (create it yourself first; the tool never creates one);
+3. it is not already mounted at a different target of the same service;
+4. the service passes the active profile's ownership check **with the new name in place**
+   (`require_secrets_belong`): the service's own `<service>_...` secrets or, under `aws-staging`, the
+   exact names listed for that service. A foreign secret, another service's name, or a replaced
+   cluster CA mount (`internal_ca`, `db_ca`) is refused under both profiles;
+5. the resulting spec differs from the live one only by the image pin, the revision label, the
+   rolling-update guards and the named secret references. The mount target, mode (0400), UID and
+   GID of the secret are carried over unchanged; any other difference stops the plan.
+
+The plan and the rollback record list each swap as `{target, from, to}` (names only; no values, IDs or
+specs). `update` stays a dry run until `--confirm-image <digest>` repeats the digest exactly, still
+needs `--restore-point-ref`, still re-reads the service and stops on drift, and after Swarm reports the
+update finished it re-reads the service and stops if its secret references are not the planned ones.
+The Gateway with `--accept-ungated` moves image and secret in **one** service update, so there is no
+interval with the new image on the old secret.
+
+Suggested order for the per-peer rollout (owner creates the secrets; names only are recorded):
+receivers image-only first (the old shared key still works); then receivers with
+`--secret-override <peer>:caller_keys=<peer>_callers_2`; then the Gateway with the new image and
+`--secret-override gateway:outbound_key=gateway_outbound_2`; run `verify-worker` and `verify-edge`
+after each service.
+
+**Rollback restores the secrets as well.** `rollback` asks Swarm for the service's previous spec, so
+the image, the revision label and the secret references all go back together. The dry run prints each
+changed mount (`secret caller_keys: identity_callers_2 -> identity_callers`), `rollback` refuses
+(changing nothing) if a previous secret has been deleted from Swarm, and after it finishes the tool
+re-reads the service and stops if its secrets differ from the previous spec. **Therefore keep the old
+secret versions in Swarm until the soak is over** (do not retire `gateway_outbound` or the old
+`_callers` secrets before then). Rollback restores the *previous* spec only, one step: to move back
+further, re-pin with `update` and the prior approved release.
 
 ### Choosing the environment profile
 
