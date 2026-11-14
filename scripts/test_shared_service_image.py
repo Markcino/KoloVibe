@@ -82,10 +82,11 @@ class ImageSecurityContractTests(unittest.TestCase):
         self.assertIn("ARG WITH_FFMPEG=0", release)
         # Alpine's full ffmpeg package is never installed; the minimal build is copied in and its runtime library added.
         self.assertNotIn("apk add --no-cache ffmpeg", release)
-        self.assertIn("COPY --from=ffmpeg-source /out/ /", release)
+        self.assertIn("COPY --from=ffmpeg-source /out/ /tmp/ffmpeg-out/", release)
         self.assertIn("FROM ${FFMPEG_SOURCE} AS ffmpeg-source", self.dockerfile)
         self.assertGreater(release.index("COPY --from=ffmpeg-source"), release.index("apk del .python-rundeps sqlite-libs"))
-        self.assertRegex(release, r'if \[ "\$WITH_FFMPEG" = "1" \]; then[^#]*apk add --no-cache x264-libs')
+        self.assertRegex(release, r'if \[ "\$WITH_FFMPEG" = "1" \]; then[^#]*apk add --no-cache --allow-untrusted /tmp/ffmpeg-out/apk/ffmpeg-\*\.apk')
+        self.assertIn("rm -rf /tmp/ffmpeg-out", release)
         self.assertIn("FFmpeg must not be in the shared image", release)
         tail = release[release.index("COPY --from=ffmpeg-source"):]
         for check in ("ffmpeg -version", "ffprobe -version", "A network protocol is compiled into FFmpeg",
@@ -93,28 +94,31 @@ class ImageSecurityContractTests(unittest.TestCase):
             self.assertIn(check, tail)
         self.assertTrue(release.rstrip().endswith("USER 10001:10001"))
 
-    def test_the_minimal_ffmpeg_build_is_pinned_and_compiles_out_everything_the_pipeline_does_not_use(self):
+    def test_the_minimal_ffmpeg_build_is_pinned_packaged_and_compiles_out_everything_the_pipeline_does_not_use(self):
         stage = self.stages()["ffmpeg-minimal"]
+        apkbuild = (ROOT / "infra/docker/ffmpeg/APKBUILD").read_text()
         self.assertRegex(self.dockerfile, r"(?m)^ARG FFMPEG_BUILD_BASE=alpine:3\.24\.\d+@sha256:[0-9a-f]{64}$")
-        self.assertRegex(stage, r"ARG FFMPEG_SHA512=[0-9a-f]{128}")
-        self.assertIn("sha512sum -c -", stage)
-        self.assertLess(stage.index("sha512sum -c -"), stage.index("tar -xJf"))
-        self.assertIn("ARG FFMPEG_VERSION=9.0.2", stage)  # 9.0 fixes CVE-2026-70628, -70632 and -96611
+        self.assertIn("COPY --chown=builder:builder infra/docker/ffmpeg/APKBUILD", stage)
+        # Packaged as an apk named ffmpeg at the true version, so the scanner and the SBOM can see and judge it.
+        self.assertIn("pkgname=ffmpeg\n", apkbuild)
+        self.assertIn("pkgver=9.0.2\n", apkbuild)  # 9.0 fixes CVE-2026-70628, -70632 and -96611
+        self.assertRegex(apkbuild, r'(?s)sha512sums="\s*[0-9a-f]{128}  ffmpeg-9\.0\.2\.tar\.xz\s*"')
+        self.assertIn('source="https://ffmpeg.org/releases/ffmpeg-$pkgver.tar.xz"', apkbuild)
+        self.assertIn("abuild -r", stage)
+        configure = apkbuild[apkbuild.index("./configure"):apkbuild.index("make -j")]
         for flag in ("--disable-everything", "--disable-autodetect", "--disable-network", "--disable-avdevice",
                      "--disable-shared", "--enable-protocol=file", "--enable-protocol=pipe"):
-            self.assertIn(flag, stage)
-        enabled_protocols = re.findall(r"--enable-protocol=(\w+)", stage)
-        self.assertEqual(sorted(enabled_protocols), ["file", "pipe"])
-        configure = stage[stage.index("./configure"):stage.index("make -j")]
-        for forbidden in ("rtsp", "rtp", "http", "tcp", "udp", "tls", "libssh", "libzmq", "libpulse", "alsa", "--enable-network",
-                          "--enable-avdevice", "--enable-libx265", "--enable-libvpx"):
+            self.assertIn(flag, configure)
+        self.assertEqual(sorted(re.findall(r"--enable-protocol=(\w+)", configure)), ["file", "pipe"])
+        for forbidden in ("rtsp", "rtp", "http", "tcp", "udp", "tls", "libssh", "libzmq", "libpulse", "alsa",
+                          "--enable-network", "--enable-avdevice", "--enable-libx265", "--enable-libvpx"):
             self.assertNotIn(forbidden, configure)
-        self.assertEqual(sorted(re.findall(r"--enable-encoder=(\w+)", stage)), ["aac", "libx264", "mjpeg"])
-        self.assertEqual(re.findall(r"--enable-muxer=(\w+)", stage), ["mp4", "image2"])
-        self.assertEqual(re.findall(r"--enable-demuxer=(\w+)", stage), ["mov"])
+        self.assertEqual(sorted(re.findall(r"--enable-encoder=(\w+)", configure)), ["aac", "libx264", "mjpeg"])
+        self.assertEqual(re.findall(r"--enable-muxer=(\w+)", configure), ["mp4", "image2"])
+        self.assertEqual(re.findall(r"--enable-demuxer=(\w+)", configure), ["mov"])
         # The default build copies an empty directory, so the shared image never builds or contains FFmpeg.
         self.assertIn("ARG FFMPEG_SOURCE=ffmpeg-empty", self.dockerfile)
-        self.assertNotIn("ffmpeg", self.stages()["ffmpeg-empty"].lower().replace("ffmpeg-empty", ""))
+        self.assertNotIn("ffmpeg", self.stages()["ffmpeg-empty"].lower().replace("ffmpeg-empty", "").replace("/ffmpeg", ""))
 
     def test_the_media_job_verifies_the_minimal_build_and_runs_the_pipeline_test_in_the_image(self):
         media_job = self.workflow[self.workflow.index("  media-image-build:"):self.workflow.index("  build-and-verify:")]
