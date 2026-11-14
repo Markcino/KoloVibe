@@ -132,9 +132,9 @@ To inspect without deployment, run these steps from Cloud Shell:
 ```bash
 scp kolovibe_cluster.py swarm-manager:/home/ubuntu/
 scp kolovibe_cluster.py swarm-worker:/home/ubuntu/
-ssh swarm-worker 'sudo python3 /home/ubuntu/kolovibe_cluster.py worker-preflight' > worker-preflight.json &&
+ssh swarm-worker 'sudo python3 /home/ubuntu/kolovibe_cluster.py worker-preflight --profile oracle-staging' > worker-preflight.json &&
 scp worker-preflight.json swarm-manager:/home/ubuntu/kolovibe-cluster-evidence.json &&
-ssh swarm-manager 'sudo python3 /home/ubuntu/kolovibe_cluster.py plan --worker-evidence /home/ubuntu/kolovibe-cluster-evidence.json'
+ssh swarm-manager 'sudo python3 /home/ubuntu/kolovibe_cluster.py plan --profile oracle-staging --worker-evidence /home/ubuntu/kolovibe-cluster-evidence.json'
 ```
 
 The worker evidence expires after five minutes. Generate fresh evidence before

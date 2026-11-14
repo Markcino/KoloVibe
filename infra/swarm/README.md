@@ -194,6 +194,10 @@ or silently implied here.
 
 ## Moving running services to a new approved image
 
+Every mode except `verify-edge` needs an explicit `--profile <oracle-staging|aws-staging>`; see
+[Choosing the environment profile](#choosing-the-environment-profile). The commands below show
+`<profile>` for that reason.
+
 `scripts/ops/kolovibe_cluster.py deploy` only creates missing services; it never touches a
 running one. Moving services is a separate, explicit step run on VM1 after a fresh VM2
 `worker-preflight`. No image is defaulted anywhere: every command that needs one takes the
@@ -202,7 +206,7 @@ published `published-image-<sha>` CI artifact (`--release-dir`, preferred) or an
 baseline, and a release whose evidence lists SQLite or a different service set.
 
 ```bash
-python3 kolovibe_cluster.py update-plan --worker-evidence worker.json --release-dir published-image \
+python3 kolovibe_cluster.py update-plan --profile <profile> --worker-evidence worker.json --release-dir published-image \
   --services audit,identity --restore-point-ref <approved-restore-point>
 ```
 
@@ -225,9 +229,55 @@ Image rollback restores each service's previous spec, Gateway first, without a r
 credential (the previous image is cached on the worker). Dry run unless confirmed:
 
 ```bash
-python3 kolovibe_cluster.py rollback --services audit,identity --confirm-rollback identity,audit
+python3 kolovibe_cluster.py rollback --profile <profile> --services audit,identity --confirm-rollback identity,audit
 ```
 
 **Rollback never reverses migrations.** Treat schema changes as forward-only and restore from
 the approved restore point; export Points 0005, Moderation 0003 and Audit 0004 evidence rows
 first. The tool does not run migrations, change secrets, or touch PostgreSQL, Nginx or DNS.
+
+### Choosing the environment profile
+
+`kolovibe_cluster.py` was written for the 3 November Oracle staging. The hostnames, service
+prefix, placement pin, database address and the secret names a service may mount are now a
+reviewed table of two profiles in the tool. The operator names one with `--profile`; it is
+never inferred from the hostname, and no guard is relaxed by either profile (an unknown or
+missing `--profile` stops the tool, and worker evidence is bound to the profile that wrote it).
+
+| | `oracle-staging` | `aws-staging` |
+| --- | --- | --- |
+| Manager / worker hostname (`root()`, node lookup) | `vm-swarm-manager` / `vm-swarm-worker` | `ip-172-31-30-236` / `ip-172-31-16-154` |
+| Service names | `kvtest-<name>` | `kolovibe-<name>` |
+| Worker pin every service must carry | `node.hostname == vm-swarm-worker` | `node.hostname==ip-172-31-16-154` (no spaces; no node labels needed) |
+| Database host in the Gateway | `vm-swarm-worker` | an IPv4 address inside `172.31.0.0/16` |
+| Database guard in `worker-preflight` | `/usr/local/sbin/kolovibe_db_route_fix.py` | none needed: TCP reach plus a PostgreSQL TLS handshake from the worker, to the address the Gateway itself uses |
+| Extra secret names allowed | gateway `trusted_peers` | identity: `kolovibe_account_uat_approval_20261110_v1`, `kolovibe_identity_smtp_user_20261110_v1`, `kolovibe_identity_smtp_password_20261110_v1`; gateway: `kolovibe_gateway_trusted_peers_accounts_20261110_v1`, `kolovibe_account_uat_approval_20261110_v1` |
+
+Secret names are matched exactly and only for the service listed; a listed name on another
+service, a rotated version of it, or any other foreign secret still stops the plan.
+
+Running the AWS profile, as root on each VM, copying the tool unmodified (do not rename hosts or
+edit it on the VM). Nothing below changes anything; `update` stays a dry run without
+`--confirm-image`.
+
+```bash
+# VM2 (worker): a fresh preflight; it prints the evidence JSON and records the profile in it
+sudo python3 kolovibe_cluster.py worker-preflight --profile aws-staging > worker-evidence.json
+
+# VM1 (manager): copy worker-evidence.json over (valid for five minutes), then read-only plans
+sudo python3 kolovibe_cluster.py plan --profile aws-staging --worker-evidence worker-evidence.json \
+  --release-dir release/
+sudo python3 kolovibe_cluster.py update-plan --profile aws-staging --worker-evidence worker-evidence.json \
+  --release-dir release/ --services audit,identity,creators,content,engagement,points,moderation
+```
+
+`verify-worker` (VM2) and `rollback` (VM1) take the same `--profile aws-staging`. `cloud-run`
+is Oracle-only (its SSH aliases are Oracle's) and refuses the AWS profile.
+
+What the AWS profile could not take from evidence, so it fails closed until the first dry run
+confirms it: the Gateway's networks must be `kolovibe_services` and `kolovibe_data` (plus,
+optionally, `kolovibe_db_host_access`), its database name `kolovibe_staging`, and the database
+logins `kv_<service>_run`. A `BLOCKED:` message names only the failed guard; report it rather than
+editing the profile on the VM. The certificate identity of the database is not judged by
+`worker-preflight` (no CA is readable from the host); `verify-worker` checks each service's own
+`verify-full` connection.
