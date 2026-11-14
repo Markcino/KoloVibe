@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Deploy or move KoloVibe services to an approved image and collect credential-free live evidence.
 
+Every mode except verify-edge needs an explicit `--profile` (oracle-staging or aws-staging): the
+reviewed table of hostnames, service prefix, placement pin, database address and the secret
+names a service may mount. The profile is never guessed, and no guard differs between profiles.
+
 Run worker-preflight on VM2; copy its JSON to VM1 before deploy/update. `deploy` only creates
 missing services. `update-plan`/`update` move named, already-deployed services to an explicit
 digest one at a time (dry-run unless confirmed), and `rollback` restores the previous spec.
@@ -16,6 +20,7 @@ from datetime import datetime, timezone
 import getpass
 import hashlib
 import http.client
+import ipaddress
 import json
 import os
 from pathlib import Path
@@ -29,6 +34,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from typing import NamedTuple
 from urllib.parse import urlencode
 from urllib.request import build_opener, HTTPSHandler, HTTPRedirectHandler, ProxyHandler, Request
 from urllib.error import HTTPError
@@ -70,6 +76,82 @@ EXTRA = {'identity': {'smtp_user': 'identity_smtp_user', 'smtp_password': 'ident
                     'account_approvals': 'identity_approvals'}}
 
 
+class Profile(NamedTuple):
+    """Everything that differs between staging environments, as reviewed constants.
+
+    A profile is chosen only by the operator's explicit `--profile`; it is never inferred from
+    a hostname, an address or whatever happens to be running. Every guard in this tool applies
+    to every profile: a profile may only change *which* exact names are expected.
+    """
+    name: str
+    manager_host: str          # `socket.gethostname()` required for every manager-side mode
+    worker_host: str           # `socket.gethostname()` required for worker modes; also the Swarm node name
+    service_prefix: str        # Swarm service name = prefix + service
+    worker_constraint: str     # exact placement constraint every pinned service must carry
+    db_name: str               # database every service must be connected to
+    db_host_exact: str         # required KOLOVIBE_DB_HOST, or '' when `db_network` applies
+    db_network: str            # required IPv4 network of KOLOVIBE_DB_HOST, or '' when `db_host_exact` applies
+    db_guard: str              # 'route-fix-script' (Oracle bridge) or 'tcp-tls-probe' (direct private address)
+    db_guard_address: str      # address the route guard must report ('' for the probe guard)
+    gateway_networks_required: frozenset
+    gateway_networks_allowed: frozenset
+    broker_needs_label: bool   # RabbitMQ must also carry the worker workload-label constraint
+    service_shared_secrets: dict   # service -> names mounted under their own name besides the CA secrets
+    service_allowed_secrets: dict  # service -> exact secret names it may mount although they lack its prefix
+
+
+NETWORKS = frozenset({'kolovibe_services', 'kolovibe_data', 'kolovibe_db_host_access'})
+ORACLE_STAGING = Profile(
+    name='oracle-staging', manager_host='vm-swarm-manager', worker_host='vm-swarm-worker',
+    service_prefix='kvtest-', worker_constraint='node.hostname == vm-swarm-worker',
+    db_name='kolovibe_staging', db_host_exact='vm-swarm-worker', db_network='',
+    db_guard='route-fix-script', db_guard_address='10.0.2.103',
+    gateway_networks_required=NETWORKS, gateway_networks_allowed=NETWORKS,
+    broker_needs_label=True, service_shared_secrets={'gateway': ('trusted_peers',)},
+    service_allowed_secrets={})
+# Observed on the AWS staging by read-only operator evidence on 14 November 2026. There are no node
+# labels and no Oracle route-fix script; the database is a private 172.31.x address reached directly.
+AWS_STAGING = Profile(
+    name='aws-staging', manager_host='ip-172-31-30-236', worker_host='ip-172-31-16-154',
+    service_prefix='kolovibe-', worker_constraint='node.hostname==ip-172-31-16-154',
+    db_name='kolovibe_staging', db_host_exact='', db_network='172.31.0.0/16',
+    db_guard='tcp-tls-probe', db_guard_address='',
+    gateway_networks_required=frozenset({'kolovibe_services', 'kolovibe_data'}),
+    gateway_networks_allowed=NETWORKS,
+    broker_needs_label=False, service_shared_secrets={},
+    service_allowed_secrets={
+        'identity': frozenset({'kolovibe_account_uat_approval_20261110_v1',
+                               'kolovibe_identity_smtp_user_20261110_v1',
+                               'kolovibe_identity_smtp_password_20261110_v1'}),  # pragma: allowlist secret
+        'gateway': frozenset({'kolovibe_gateway_trusted_peers_accounts_20261110_v1',
+                              'kolovibe_account_uat_approval_20261110_v1'})})
+PROFILES = {p.name: p for p in (ORACLE_STAGING, AWS_STAGING)}
+# `main()` always sets this from the required --profile. The Oracle default exists only so that
+# the module can still be imported by the offline tests and by the probe shipped into containers.
+PROFILE = ORACLE_STAGING
+
+
+def use_profile(name):
+    global PROFILE
+    if name not in PROFILES:
+        fail('Unknown profile; choose one of: ' + ', '.join(sorted(PROFILES)))
+    PROFILE = PROFILES[name]
+
+
+def svc(service):
+    """Swarm service name of one of the eight services in the selected profile."""
+    return PROFILE.service_prefix + service
+
+
+def db_host_ok(host):
+    if PROFILE.db_host_exact:
+        return host == PROFILE.db_host_exact
+    try:
+        return ipaddress.IPv4Address(host) in ipaddress.IPv4Network(PROFILE.db_network)
+    except ValueError:
+        return False
+
+
 def fail(message):
     raise RuntimeError('BLOCKED: ' + message)
 
@@ -83,7 +165,7 @@ def run(args, *, data=None, timeout=30):
 
 def root(host):
     if os.geteuid() != 0 or socket.gethostname() != host:
-        fail('Run with sudo on ' + host)
+        fail('Run with sudo on ' + host + ' (profile ' + PROFILE.name + ')')
 
 
 class DockerConnection(http.client.HTTPConnection):
@@ -285,23 +367,24 @@ def live_image(spec):
 
 
 def base_gateway(api, image=BASELINE_IMAGE):
-    gateway = docker('GET', '/v' + api + '/services/kvtest-gateway')
+    gateway = docker('GET', '/v' + api + '/services/' + svc('gateway'))
     spec = gateway['Spec']
     safe_spec(spec)
     c = spec['TaskTemplate']['ContainerSpec']
     env = env_dict(c)
     required = {'KOLOVIBE_ENV': 'staging', 'KOLOVIBE_SERVICE_NAME': 'gateway',
-                'KOLOVIBE_DB_HOST': 'vm-swarm-worker', 'KOLOVIBE_DB_NAME': 'kolovibe_staging',
+                'KOLOVIBE_DB_NAME': PROFILE.db_name,
                 'KOLOVIBE_DB_USER': 'kv_gateway_run', 'KOLOVIBE_STAGING_ACCOUNTS': '0',
                 'KOLOVIBE_STAGING_PRIVILEGED': '0'}
     # The Gateway is either still on the working baseline or already on a reviewed target.
-    if any(env.get(k) != v for k, v in required.items()) or c.get('Image') not in (BASELINE_IMAGE, image):
+    if (any(env.get(k) != v for k, v in required.items()) or not db_host_ok(env.get('KOLOVIBE_DB_HOST', ''))
+            or c.get('Image') not in (BASELINE_IMAGE, image)):
         fail('Gateway differs from the working pinned baseline')
     if not c.get('ReadOnly') or c.get('User') != '10001:10001':
         fail('Gateway runtime hardening differs')
     if (spec.get('EndpointSpec') or {}).get('Ports') or spec['Mode'] != {'Replicated': {'Replicas': 1}}:
         fail('Gateway must be private and single replica')
-    if 'node.hostname == vm-swarm-worker' not in spec['TaskTemplate']['Placement']['Constraints']:
+    if PROFILE.worker_constraint not in spec['TaskTemplate']['Placement']['Constraints']:
         fail('Gateway must remain pinned to VM2')
     nets = {}
     for attachment in spec['TaskTemplate'].get('Networks', []):
@@ -309,7 +392,7 @@ def base_gateway(api, image=BASELINE_IMAGE):
         nets[net['Name']] = net
         if net.get('Driver') != 'overlay' or 'encrypted' not in (net.get('Options') or {}):
             fail('Gateway overlay encryption differs')
-    if set(nets) != {'kolovibe_services', 'kolovibe_data', 'kolovibe_db_host_access'}:
+    if not PROFILE.gateway_networks_required <= set(nets) <= PROFILE.gateway_networks_allowed:
         fail('Gateway networks differ from working baseline')
     if not nets['kolovibe_services']['Internal'] or not nets['kolovibe_data']['Internal']:
         fail('Existing private networks must remain internal')
@@ -339,25 +422,24 @@ def owned_secret_names(service, spec):
     that service, and the mount targets must be exactly the expected ones."""
     live, expected = secret_refs(spec), convention_secrets(service)
     if set(live) != set(expected):
-        fail('Existing service secrets differ; inspect without overwriting: kvtest-' + service)
+        fail('Existing service secrets differ; inspect without overwriting: ' + svc(service))
     require_secrets_belong(service, spec)
     return {target: live[target] for target in expected}
 
-
-# Secrets mounted under their own name by one service in addition to the cluster-wide CA secrets.
-SERVICE_SHARED_SECRETS = {'gateway': ('trusted_peers',)}
 
 
 def require_secrets_belong(service, spec):
     """Every secret a live service mounts is either a cluster-wide CA secret mounted at its own
     target, a deliberately shared secret for that service, or one of the service's own
-    `<service>_...` secrets (including versioned names). Anything else fails closed. Names only
+    `<service>_...` secrets (including versioned names), or an exact name the selected profile
+    lists for that service. Anything else fails closed. Names only
     are examined and reported; secret values are never read."""
     for target, name in secret_refs(spec).items():
-        shared = name == target and (name in SHARED_SECRETS or name in SERVICE_SHARED_SECRETS.get(service, ()))
+        shared = name == target and (name in SHARED_SECRETS or name in PROFILE.service_shared_secrets.get(service, ()))
         own = target not in SHARED_SECRETS and name.startswith(service + '_')
-        if not (shared or own):
-            fail('Existing service mounts a secret that does not belong to it: kvtest-' + service)
+        listed = target not in SHARED_SECRETS and name in PROFILE.service_allowed_secrets.get(service, ())
+        if not (shared or own or listed):
+            fail('Existing service mounts a secret that does not belong to it: ' + svc(service))
 
 
 def require_gateway_secrets(known, gateway):
@@ -370,7 +452,7 @@ def require_gateway_secrets(known, gateway):
 
 def api_spec(gateway, service, all_secrets, image, revision, names=None):
     spec = copy.deepcopy(gateway['Spec'])
-    spec['Name'] = 'kvtest-' + service
+    spec['Name'] = svc(service)
     spec['Labels'] = {LABEL: '1', 'kolovibe.source-revision': revision}
     spec['TaskTemplate']['ContainerSpec']['Image'] = image
     spec.pop('UpdateConfig', None)
@@ -428,8 +510,10 @@ def broker_candidate(services, api):
     if not re.fullmatch(r'dhi.io/rabbitmq@sha256:[a-f0-9]{64}', c.get('Image', '')):
         return None, 'RabbitMQ candidate needs an immutable DHI digest'
     constraints = spec['TaskTemplate'].get('Placement', {}).get('Constraints', [])
-    if 'node.labels.kolovibe.workloads == true' not in constraints:
+    if PROFILE.broker_needs_label and 'node.labels.kolovibe.workloads == true' not in constraints:
         return None, 'RabbitMQ lacks the worker workload constraint'
+    if not PROFILE.broker_needs_label and PROFILE.worker_constraint not in constraints:
+        return None, 'RabbitMQ is not pinned to the worker'
     if (spec.get('EndpointSpec') or {}).get('Ports'):
         return None, 'RabbitMQ must not publish ports'
     required = {'kolovibe_rmq_ca', 'kolovibe_rmq_cert', 'kolovibe_rmq_key', 'kolovibe_rmq_definitions'}
@@ -452,7 +536,8 @@ def broker_candidate(services, api):
 
 def load_evidence(path):
     evidence = json.loads(Path(path).read_text())
-    if (evidence.get('kind') != 'KVB-CLUSTER-WORKER-V1' or evidence.get('host') != 'vm-swarm-worker'
+    if (evidence.get('kind') != 'KVB-CLUSTER-WORKER-V1' or evidence.get('host') != PROFILE.worker_host
+            or evidence.get('profile', ORACLE_STAGING.name) != PROFILE.name
             or not 0 <= time.time() - evidence.get('time', 0) <= 300
             or evidence.get('guard') is not True or evidence.get('gateway_live') is not True):
         fail('Fresh VM2 preflight with guard and Gateway TLS checks is required')
@@ -461,7 +546,7 @@ def load_evidence(path):
 
 def manager_checks():
     """Read-only preconditions shared by every manager-side mode; returns the API version."""
-    root('vm-swarm-manager')
+    root(PROFILE.manager_host)
     policy_baseline()
     version = docker('GET', '/version')['ApiVersion']
     if not re.fullmatch(r'\d+\.\d+', version):
@@ -485,7 +570,7 @@ def plan(evidence, image, revision):
     existing = {s['Spec']['Name']: s for s in entries}
     new = []
     for service in SERVICES[1:]:
-        name = 'kvtest-' + service
+        name = svc(service)
         actual = existing.get(name)
         if actual:
             # An existing service keeps its own release pin; moving it is `update`'s job.
@@ -508,12 +593,12 @@ def plan(evidence, image, revision):
     if evidence.get('available_memory_bytes', 0) < need:
         fail('VM2 capacity: need at least ' + str(need//MIB) + ' MiB available for planned limits plus headroom; observed '
              + str(evidence.get('available_memory_bytes', 0)//MIB) + ' MiB')
-    worker = [n for n in docker('GET', '/v' + version + '/nodes') if n['Description']['Hostname'] == 'vm-swarm-worker']
+    worker = [n for n in docker('GET', '/v' + version + '/nodes') if n['Description']['Hostname'] == PROFILE.worker_host]
     if len(worker) != 1 or worker[0]['Status']['State'] != 'ready' or worker[0]['Spec']['Availability'] != 'active':
         fail('VM2 must be Ready/Active')
     if broker:
         for constraint in broker['Spec']['TaskTemplate']['Placement']['Constraints']:
-            if constraint == 'node.hostname == vm-swarm-worker':
+            if constraint == PROFILE.worker_constraint:
                 continue
             match = re.fullmatch(r'node.labels.([a-z.]+) == ([a-z0-9]+)', constraint)
             if not match or worker[0]['Spec'].get('Labels', {}).get(match[1]) != match[2]:
@@ -551,7 +636,7 @@ def deploy(path, username, image, revision, dry_run=False):
     evidence = load_evidence(path)
     api, gateway, new, broker, blocked = plan(evidence, image, revision)
     print('PLAN: create ' + ', '.join(s['Name'] for s in new) + ' from ' + image
-          + '; preserve kvtest-gateway unchanged; existing services keep their pin (use update-plan)', file=sys.stderr)
+          + '; preserve ' + svc('gateway') + ' unchanged; existing services keep their pin (use update-plan)', file=sys.stderr)
     if blocked:
         print('PENDING RabbitMQ: ' + blocked, file=sys.stderr)
     if dry_run:
@@ -568,15 +653,15 @@ def deploy(path, username, image, revision, dry_run=False):
         updated = copy.deepcopy(broker['Spec'])
         updated['Mode']['Replicated']['Replicas'] = 1
         constraints = updated['TaskTemplate']['Placement']['Constraints']
-        if 'node.hostname == vm-swarm-worker' not in constraints:
-            constraints.append('node.hostname == vm-swarm-worker')
+        if PROFILE.worker_constraint not in constraints:
+            constraints.append(PROFILE.worker_constraint)
         path_api = '/v' + api + '/services/' + broker['ID'] + '/update'
         query = '?version=' + str(broker['Version']['Index']) + '&registryAuthFrom=spec'
         with allow_once(api, path_api, updated):
             docker('POST', path_api + query, updated)
         wait_running(api, broker['ID'])
         print('RUNNING: ' + updated['Name'] + '; broker verification still required', file=sys.stderr)
-    if docker('GET', '/v' + api + '/services/kvtest-gateway')['Spec'] != gateway['Spec']:
+    if docker('GET', '/v' + api + '/services/' + svc('gateway'))['Spec'] != gateway['Spec']:
         fail('Gateway changed concurrently; investigate')
     if blocked:
         fail('APIs submitted; RabbitMQ remains pending: ' + blocked)
@@ -607,7 +692,7 @@ def update_plan(evidence, image, revision, services, restore_ref=None):
     existing = {s['Spec']['Name']: s for s in docker('GET', '/v' + api + '/services')}
     entries = []
     for service in names:
-        name = 'kvtest-' + service
+        name = svc(service)
         live = existing.get(name)
         if not live:
             fail(name + ' is not deployed; update never creates services (use deploy)')
@@ -712,9 +797,9 @@ def update(path, username, image, revision, services, restore_ref, confirm_image
     load_evidence(path)  # Recheck freshness after the interactive credential prompt.
     api = report['api']
     remaining = [e['service'] for e in todo]
-    gateway_before = None if 'gateway' in services else docker('GET', '/v' + api + '/services/kvtest-gateway')['Spec']
+    gateway_before = None if 'gateway' in services else docker('GET', '/v' + api + '/services/' + svc('gateway'))['Spec']
     for entry in todo:
-        name = 'kvtest-' + entry['service']
+        name = svc(entry['service'])
         live = docker('GET', '/v' + api + '/services/' + name)
         if spec_digest(live['Spec']) != entry['spec_sha256']:
             fail(name + ' changed since it was planned; stop and re-plan. Untouched: ' + ', '.join(remaining))
@@ -731,7 +816,7 @@ def update(path, username, image, revision, services, restore_ref, confirm_image
                  + (', '.join(remaining[1:]) or 'none') + '. Rollback record: ' + str(rollback_file))
         remaining.pop(0)
         print('UPDATED: ' + name + '; run verify-worker before the next service', file=sys.stderr)
-    if gateway_before is not None and docker('GET', '/v' + api + '/services/kvtest-gateway')['Spec'] != gateway_before:
+    if gateway_before is not None and docker('GET', '/v' + api + '/services/' + svc('gateway'))['Spec'] != gateway_before:
         fail('Gateway changed during the update; investigate')
 
 
@@ -742,17 +827,17 @@ def rollback(services, confirm):
     existing = {s['Spec']['Name']: s for s in docker('GET', '/v' + api + '/services')}
     steps = []
     for service in names:
-        live = existing.get('kvtest-' + service)
+        live = existing.get(svc(service))
         if not live:
-            fail('kvtest-' + service + ' is not deployed')
+            fail(svc(service) + ' is not deployed')
         previous = live.get('PreviousSpec')
         target = live_image(previous or {})
         if not previous or not IMAGE_RE.fullmatch(target):
-            fail('kvtest-' + service + ' has no previous spec; re-pin with update and the prior approved digest')
+            fail(svc(service) + ' has no previous spec; re-pin with update and the prior approved digest')
         safe_spec(live['Spec'])
         steps.append((service, live, target))
     for service, live, target in steps:
-        print('ROLLBACK PLAN: kvtest-' + service + ' ' + live_image(live['Spec']) + ' -> ' + target, file=sys.stderr)
+        print('ROLLBACK PLAN: ' + svc(service) + ' ' + live_image(live['Spec']) + ' -> ' + target, file=sys.stderr)
     print('Schema is NOT rolled back; restore from the approved restore point if migrations must be reversed.',
           file=sys.stderr)
     if confirm is None:
@@ -769,7 +854,7 @@ def rollback(services, confirm):
             docker('POST', path_api + '?version=' + str(live['Version']['Index']) + '&rollback=previous', spec)
         wait_update(api, live['ID'], started, target, rollback=True)
         wait_running(api, live['ID'])
-        print('ROLLED BACK: kvtest-' + service + '; run verify-worker', file=sys.stderr)
+        print('ROLLED BACK: ' + svc(service) + '; run verify-worker', file=sys.stderr)
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -846,7 +931,7 @@ def container_tests(service):
             cursor.execute('SELECT current_user,current_schema(),current_database(), '
                            '(SELECT ssl FROM pg_stat_ssl WHERE pid=pg_backend_pid())')
             user, schema, database, tls = cursor.fetchone()
-            if (user, schema, database, tls) != ('kv_' + service + '_run', service, 'kolovibe_staging', True):
+            if (user, schema, database, tls) != ('kv_' + service + '_run', service, PROFILE.db_name, True):
                 raise ValueError('Unexpected database identity')
             if connection.settings_dict['OPTIONS']['sslmode'] != 'verify-full':
                 raise ValueError('Database TLS identity disabled')
@@ -932,7 +1017,7 @@ def public_tests(rows, call, collect=record):
 
 
 def container_id(service):
-    ids = run(['docker', 'ps', '--filter', 'label=com.docker.swarm.service.name=kvtest-' + service,
+    ids = run(['docker', 'ps', '--filter', 'label=com.docker.swarm.service.name=' + svc(service),
                '--filter', 'status=running', '--format', '{{.ID}}']).splitlines()
     if len(ids) != 1:
         fail('Expected one running container for ' + service)
@@ -947,7 +1032,7 @@ def inside(service, mode, image):
         fail('Container digest differs: ' + service)
     # Source is sent through stdin, no file or secret copy inside the container.
     source = Path(__file__).read_text()
-    code = source + '\nprint(json.dumps(container_tests(' + repr(service) + ')))\n' if mode == 'tests' else (
+    code = source + '\nuse_profile(' + repr(PROFILE.name) + ')\nprint(json.dumps(container_tests(' + repr(service) + ')))\n' if mode == 'tests' else (
         source + '\nprint(json.dumps(https_check("https://gateway:8000", "/health/live", '
         'ca=os.environ["KOLOVIBE_INTERNAL_CA_FILE"], internal=True)))\n')
     return json.loads(run(['docker', 'exec', '-i', cid, 'python', '-c',
@@ -955,16 +1040,60 @@ def inside(service, mode, image):
                          data=code, timeout=240))
 
 
+def probe_database(host, port, timeout=5):
+    """Reachability and TLS of the PostgreSQL endpoint, from the worker; no credential is sent.
+
+    PostgreSQL's SSLRequest asks whether the server will speak TLS before any login. The server
+    must answer 'S' and complete a TLS 1.2+ handshake. Certificate identity is deliberately not
+    judged here (no CA file is readable from the host); `verify-worker` checks the services' own
+    verify-full connections and schema isolation inside each container.
+    """
+    if not db_host_ok(host) or not str(port).isdigit() or not 0 < int(port) < 65536:
+        fail('Database address is outside the ' + PROFILE.name + ' profile')
+    try:
+        with socket.create_connection((host, int(port)), timeout=timeout) as raw:
+            raw.sendall(b'\x00\x00\x00\x08\x04\xd2\x16\x2f')
+            if raw.recv(1) != b'S':
+                fail('Database does not offer TLS')
+            context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            context.minimum_version = ssl.TLSVersion.TLSv1_2
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+            with context.wrap_socket(raw, server_hostname=None) as secured:
+                if not secured.version():
+                    fail('Database TLS handshake failed')
+    except ssl.SSLError:
+        fail('Database TLS handshake failed')
+    except OSError:
+        fail('Database is not reachable from the worker')
+    return {'guard': True, 'db': host}
+
+
+def gateway_database_endpoint():
+    """(host, port) from the running Gateway's own configuration; no other value is read."""
+    info = json.loads(run(['docker', 'inspect', container_id('gateway')]))[0]
+    env = dict(item.split('=', 1) for item in info['Config'].get('Env') or [] if '=' in item)
+    return env.get('KOLOVIBE_DB_HOST', ''), env.get('KOLOVIBE_DB_PORT', '5432')
+
+
+def database_guard():
+    if PROFILE.db_guard == 'route-fix-script':
+        guard = json.loads(run(['python3', '/usr/local/sbin/kolovibe_db_route_fix.py', '--worker-evidence']))
+        if guard.get('guard') is not True or guard.get('db') != PROFILE.db_guard_address:
+            fail('Working bridge guard is not verified')
+        return guard
+    return probe_database(*gateway_database_endpoint())
+
+
 def worker_preflight():
-    root('vm-swarm-worker')
-    guard = json.loads(run(['python3', '/usr/local/sbin/kolovibe_db_route_fix.py', '--worker-evidence']))
-    if guard.get('guard') is not True or guard.get('db') != '10.0.2.103':
-        fail('Working bridge guard is not verified')
+    root(PROFILE.worker_host)
+    database_guard()
     live = inside('gateway', 'live', None)
     if live != [200, {'status': 'ok'}]:
         fail('Existing Gateway HTTPS liveness failed')
     memory = dict(line.split(':', 1) for line in Path('/proc/meminfo').read_text().splitlines())
-    return {'kind': 'KVB-CLUSTER-WORKER-V1', 'host': 'vm-swarm-worker', 'time': int(time.time()),
+    return {'kind': 'KVB-CLUSTER-WORKER-V1', 'host': PROFILE.worker_host, 'profile': PROFILE.name,
+            'time': int(time.time()),
             'guard': True, 'gateway_live': True,
             'available_memory_bytes': int(memory['MemAvailable'].split()[0])*1024}
 
@@ -972,7 +1101,7 @@ def worker_preflight():
 def verify_worker(image, services=SERVICES):
     """Verify `services` (all by default) are running exactly `image`; a staged rollout
     verifies each service as it moves, so the rest are not claimed."""
-    root('vm-swarm-worker')
+    root(PROFILE.worker_host)
     reports = []
     for service in services:
         try:
@@ -1028,7 +1157,13 @@ def has_failures(report):
 
 
 def cloud_run(username, image, revision):
-    """Use the operator's existing Cloud Shell SSH aliases, never copy SSH keys."""
+    """Use the operator's existing Cloud Shell SSH aliases, never copy SSH keys.
+
+    The aliases and remote paths are the Oracle environment's; the AWS staging is run by hand
+    on each VM, so this mode refuses every other profile.
+    """
+    if PROFILE is not ORACLE_STAGING:
+        fail('cloud-run only supports --profile ' + ORACLE_STAGING.name + '; run the AWS modes on the VMs')
     if not username or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9-]{0,38}', username):
         fail('Supply --registry-user with the GitHub registry username')
     source = Path(__file__).resolve()
@@ -1037,17 +1172,17 @@ def cloud_run(username, image, revision):
     output.mkdir(mode=0o700)
     for host in ('swarm-manager', 'swarm-worker'):
         run(['scp', str(source), host + ':' + destination], timeout=60)
-    worker = run(['ssh', 'swarm-worker', 'sudo python3 ' + destination + ' worker-preflight'], timeout=60)
+    worker = run(['ssh', 'swarm-worker', 'sudo python3 ' + destination + ' worker-preflight --profile ' + PROFILE.name], timeout=60)
     evidence = output / 'worker-preflight.json'
     json.loads(worker)
     evidence.write_text(worker)
     remote_evidence = '/home/ubuntu/kolovibe-cluster-evidence.json'
     run(['scp', str(evidence), 'swarm-manager:' + remote_evidence], timeout=60)
     result = subprocess.call(['ssh', '-t', 'swarm-manager', 'sudo python3 ' + destination
-                              + ' deploy --worker-evidence ' + remote_evidence + ' --registry-user ' + username
+                              + ' deploy --profile ' + PROFILE.name + ' --worker-evidence ' + remote_evidence + ' --registry-user ' + username
                               + ' --image ' + image + ' --revision ' + revision])
     # Even a partially blocked deployment gets an honest private/public report.
-    command = ['ssh', 'swarm-worker', 'sudo python3 ' + destination + ' verify-worker --image ' + image]
+    command = ['ssh', 'swarm-worker', 'sudo python3 ' + destination + ' verify-worker --profile ' + PROFILE.name + ' --image ' + image]
     checked = subprocess.run(command, capture_output=True, text=True, timeout=1200)
     if checked.stdout:
         try:
@@ -1078,6 +1213,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('mode', choices=('cloud-run', 'worker-preflight', 'plan', 'deploy', 'update-plan', 'update',
                                          'rollback', 'verify-worker', 'verify-edge'))
+    parser.add_argument('--profile', choices=sorted(PROFILES),
+                        help='staging environment; required, never inferred from the hostname (not used by verify-edge)')
     parser.add_argument('--worker-evidence')
     parser.add_argument('--registry-user')
     parser.add_argument('--release-dir', help='downloaded published-image-<sha> CI artifact (preferred)')
@@ -1091,6 +1228,10 @@ def main():
     parser.add_argument('--accept-ungated', action='store_true',
                         help='update services with no healthcheck; verify-worker/verify-edge must follow')
     args = parser.parse_args()
+    if args.mode != 'verify-edge':
+        if not args.profile:
+            parser.error('--profile is required: ' + ' or '.join(sorted(PROFILES)))
+        use_profile(args.profile)
     if args.mode in ('plan', 'deploy', 'update-plan', 'update', 'cloud-run'):
         image, revision = resolve_release(args.image, args.revision, args.release_dir)
     if args.mode == 'cloud-run':
