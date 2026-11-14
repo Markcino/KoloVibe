@@ -2,6 +2,8 @@
 
 **Status: PLANNING ONLY. Nothing here is approved for AWS, executed on AWS or applied to GitHub settings.** Built from `main` `939f6a45bddf2831bcecfc5c78fb4c52ea5d05ad`. Owner decisions in force: read-only inspection, repository-only fixes, a branch-protection *proposal*, and OPA rehearsal on a **disposable** environment only. Not approved: any change to the AWS manager, Docker, SSH, Nginx, cloudflared, EC2, security groups, firewalls, IAM, networking, Swarm placement, containers, images, secrets, migrations or data.
 
+**Update after PR #69 (14 Nov):** PR-A merged as `a92b8e9` (head `fa1edd2`); `main` CI run `43588451444` is green on it. Rows below that describe the failure on `939f6a4` are the historical evidence, kept unchanged. The AWS gateway flags (PR #70, draft) and the other AWS facts remain unverified; this update changes no approval and authorizes nothing on AWS. R1 AWS deployment remains NO-GO.
+
 ## 1. Evidence state
 
 | Item | Finding |
