@@ -370,17 +370,19 @@ jobs:
       - name: End-to-end media pipeline test inside the image
         run: |
           set -euo pipefail
-          # The release image has no SQLite, so the repository's real encode and poster tests run under unittest
-          # (they use no database) rather than through the Django test runner. The real-encode test must pass, not skip.
+          # The release image has no SQLite, so the settings use the PostgreSQL profile with placeholder files (no
+          # connection is ever opened: the tests use no database) and the repository's real encode and poster tests
+          # run under unittest rather than the Django test runner. The real-encode test must pass, not skip.
           docker run --rm -e KOLOVIBE_ENV=local -e DJANGO_SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')" \
-            -e DJANGO_SETTINGS_MODULE=service.settings --workdir /app/services/content --entrypoint python \
-            "kolovibe/media-worker:ci" -c '
+            -e DJANGO_SETTINGS_MODULE=service.settings -e KOLOVIBE_DB_NAME=placeholder -e KOLOVIBE_DB_USER=placeholder \
+            -e KOLOVIBE_DB_HOST=placeholder.invalid -e KOLOVIBE_DB_PASSWORD_FILE=/tmp/placeholder -e KOLOVIBE_DB_SSLROOTCERT=/tmp/placeholder \
+            --workdir /app/services/content --entrypoint sh "kolovibe/media-worker:ci" -c 'printf placeholder > /tmp/placeholder && python -c "
           import sys, unittest
-          sys.path.insert(0, ".")
+          sys.path.insert(0, \".\")
           import django
           django.setup()
-          result = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromName("tests.test_posters"))
-          sys.exit(0 if result.wasSuccessful() and not result.skipped else 1)' 2>&1 | tee media-e2e.log
+          result = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromName(\"tests.test_posters\"))
+          sys.exit(0 if result.wasSuccessful() and not result.skipped else 1)"' 2>&1 | tee media-e2e.log
           grep -q 'test_real_bounded_encoding_and_jpeg_render_for_short_and_longer_clips.* ok' media-e2e.log
       - name: Verify the media image has no SQLite
         run: |
