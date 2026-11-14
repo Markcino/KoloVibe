@@ -56,7 +56,7 @@ class ImageSecurityContractTests(unittest.TestCase):
 
     def test_release_is_the_default_last_stage_and_local_keeps_sqlite(self):
         stages = self.stages()
-        self.assertEqual(list(stages), ["local", "ffmpeg-minimal", "ffmpeg-empty", "release"])
+        self.assertEqual(list(stages), ["local", "ffmpeg-minimal", "ffmpeg-empty", "ffmpeg-source", "release"])
         # A bare `docker build` must produce the PostgreSQL-only image.
         self.assertEqual(re.findall(r"(?m)^FROM .* AS ([\w-]+)$", self.dockerfile)[-1], "release")
         self.assertIn("FROM local AS release", self.dockerfile)
@@ -82,11 +82,12 @@ class ImageSecurityContractTests(unittest.TestCase):
         self.assertIn("ARG WITH_FFMPEG=0", release)
         # Alpine's full ffmpeg package is never installed; the minimal build is copied in and its runtime library added.
         self.assertNotIn("apk add --no-cache ffmpeg", release)
-        self.assertIn("COPY --from=${FFMPEG_SOURCE} /out/ /", release)
-        self.assertGreater(release.index("COPY --from=${FFMPEG_SOURCE}"), release.index("apk del .python-rundeps sqlite-libs"))
+        self.assertIn("COPY --from=ffmpeg-source /out/ /", release)
+        self.assertIn("FROM ${FFMPEG_SOURCE} AS ffmpeg-source", self.dockerfile)
+        self.assertGreater(release.index("COPY --from=ffmpeg-source"), release.index("apk del .python-rundeps sqlite-libs"))
         self.assertRegex(release, r'if \[ "\$WITH_FFMPEG" = "1" \]; then[^#]*apk add --no-cache x264-libs')
         self.assertIn("FFmpeg must not be in the shared image", release)
-        tail = release[release.index("COPY --from=${FFMPEG_SOURCE}"):]
+        tail = release[release.index("COPY --from=ffmpeg-source"):]
         for check in ("ffmpeg -version", "ffprobe -version", "A network protocol is compiled into FFmpeg",
                       "apk list -I | grep -qi sqlite", "import sqlite3"):
             self.assertIn(check, tail)
