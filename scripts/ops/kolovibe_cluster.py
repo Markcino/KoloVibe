@@ -100,12 +100,22 @@ class Profile(NamedTuple):
     service_shared_secrets: dict   # service -> names mounted under their own name besides the CA secrets
     service_allowed_secrets: dict  # service -> exact secret names it may mount although they lack its prefix
     service_flags: dict        # service -> the two staging capability flags it must carry, exact values ('0' or '1')
+    opa_waiver: str = ''       # owner waiver reference when this profile runs without the OPA Docker plugin
+    r1_flags: dict = None      # service -> the exact R1 flag row (see FLAG_R1_NAMES), enabled by --enable-r1-capabilities
+    r1_rollout: dict = None    # service -> reviewed env, secret mounts and networks the R1 rollout adds
 
 
 NETWORKS = frozenset({'kolovibe_services', 'kolovibe_data', 'kolovibe_db_host_access'})
 FLAG_ACCOUNTS = 'KOLOVIBE_STAGING_ACCOUNTS'
 FLAG_PRIVILEGED = 'KOLOVIBE_STAGING_PRIVILEGED'
 FLAG_NAMES = (FLAG_ACCOUNTS, FLAG_PRIVILEGED)
+FLAG_ONBOARDING = 'KOLOVIBE_STAGING_CREATOR_ONBOARDING'
+FLAG_CAPABILITIES = 'KOLOVIBE_STAGING_CAPABILITIES'
+FLAG_R1_NAMES = (FLAG_ACCOUNTS, FLAG_PRIVILEGED, FLAG_ONBOARDING, FLAG_CAPABILITIES)
+# Owner decision of 14 November 2026: OPA installation/rehearsal and backup/restore are waived for the
+# restricted R1 staging milestone. The waiver authorizes neither deployment nor merging.
+OPA_WAIVER = 'APPROVED-WAIVED-FOR-RESTRICTED-R1-STAGING-20261114'
+RESTORE_WAIVER = 'WAIVED-R1-STAGING-20261114'
 
 
 def flag_table(**on):
@@ -114,6 +124,83 @@ def flag_table(**on):
     if unknown:
         raise ValueError('Unknown service in flag table: ' + ', '.join(sorted(unknown)))
     return {service: dict(zip(FLAG_NAMES, on.get(service, ('0', '0')))) for service in SERVICES}
+
+
+def r1_flag_table():
+    """The exact R1 row per service (mirrors `staging_runtime.capabilities`; a test keeps them equal)."""
+    def row(accounts, privileged, onboarding, caps):
+        return {FLAG_ACCOUNTS: accounts, FLAG_PRIVILEGED: privileged, FLAG_ONBOARDING: onboarding,
+                FLAG_CAPABILITIES: caps}
+    return {
+        'gateway': row('1', '1', '1', 'account_management,analytics,engagement,media,moderation,points,watch'),
+        'identity': row('1', '1', '0', 'account_management,moderation'),
+        'creators': row('0', '0', '1', 'media'),
+        'content': row('0', '0', '0', 'analytics,engagement,media,moderation'),
+        'engagement': row('0', '0', '0', 'analytics,engagement,points,watch'),
+        'points': row('0', '0', '0', 'points'),
+        'moderation': row('0', '0', '0', 'moderation'),
+        'audit': row('0', '0', '0', ''),
+    }
+
+
+# Mirrors `staging_runtime.capabilities` (APPLICABLE, REQUIRES); scripts/test_cluster_r1_rollout.py keeps them equal.
+R1_CAPABILITIES = frozenset({'account_management', 'analytics', 'engagement', 'media', 'moderation', 'points', 'watch'})
+R1_APPLICABLE = {
+    'gateway': R1_CAPABILITIES, 'identity': frozenset({'account_management', 'moderation'}),
+    'creators': frozenset({'media'}), 'content': frozenset({'analytics', 'engagement', 'media', 'moderation'}),
+    'engagement': frozenset({'analytics', 'engagement', 'points', 'watch'}), 'points': frozenset({'points'}),
+    'moderation': frozenset({'moderation'}), 'audit': frozenset()}
+R1_REQUIRES = {'analytics': frozenset({'engagement', 'media'}), 'points': frozenset({'engagement'}),
+               'watch': frozenset({'media', 'points'})}
+MESSAGING_NETWORK = 'kolovibe_messaging'
+R1_SECRET_SUFFIX = '_r1_v1'  # pragma: allowlist secret
+
+
+def r1_rollout_table():
+    """What the R1 rollout adds to each existing service: names only, never values.
+
+    `mounts` are new owner-only Swarm secret mounts (target -> exact Swarm secret name; the owner creates
+    them first); `env` is fixed, non-secret configuration; `operator_env` names the non-secret identifiers
+    the operator must pass with --set-env; `networks` are extra overlay networks. Gateway and Identity
+    already mount their peers, keys and approvals, which change through the existing --secret-override.
+    """
+    def own(service, purpose):
+        return 'kolovibe_' + service + '_' + purpose + R1_SECRET_SUFFIX
+
+    broker = {'rabbitmq_url': 'KOLOVIBE_RABBITMQ_URL_FILE', 'rabbitmq_ca': 'KOLOVIBE_RABBITMQ_CA_FILE'}
+    table = {service: {'mounts': {}, 'env': {}, 'operator_env': (), 'networks': ()} for service in SERVICES}
+    table['content'] = {
+        'mounts': {'r2_access_key': own('content', 'r2_access_key'), 'r2_secret_key': own('content', 'r2_secret_key'),
+                   'rabbitmq_url': own('content', 'rabbitmq_url'), 'rabbitmq_ca': 'kolovibe_rmq_ca'},
+        'env': {'KOLOVIBE_R2_ACCESS_KEY_FILE': '/run/secrets/r2_access_key',
+                'KOLOVIBE_R2_SECRET_KEY_FILE': '/run/secrets/r2_secret_key',
+                'KOLOVIBE_RABBITMQ_URL_FILE': '/run/secrets/rabbitmq_url',
+                'KOLOVIBE_RABBITMQ_CA_FILE': '/run/secrets/rabbitmq_ca'},
+        'operator_env': ('KOLOVIBE_R2_ACCOUNT_ID', 'KOLOVIBE_R2_MEDIA_BUCKET'), 'networks': (MESSAGING_NETWORK,)}
+    for service in ('engagement', 'points'):
+        table[service] = {
+            'mounts': {'rabbitmq_url': own(service, 'rabbitmq_url'), 'rabbitmq_ca': 'kolovibe_rmq_ca'},
+            'env': {'KOLOVIBE_RABBITMQ_URL_FILE': '/run/secrets/rabbitmq_url',
+                    'KOLOVIBE_RABBITMQ_CA_FILE': '/run/secrets/rabbitmq_ca'},
+            'operator_env': (), 'networks': (MESSAGING_NETWORK,)}
+    table['points']['mounts'].update(outbound_key=own('points', 'outbound_key'), trusted_peers=own('points', 'audit_peers'))
+    table['points']['env'].update(KOLOVIBE_OUTBOUND_KEY_FILE='/run/secrets/outbound_key',
+                                  KOLOVIBE_TRUSTED_PEERS_FILE='/run/secrets/trusted_peers')
+    # Privileged MFA sessions need Identity's MFA key and its audit signing key and peers. The live AWS
+    # Identity does not mount them yet (read-only secret list, 14 November 2026), so the rollout adds them.
+    table['identity'] = {
+        'mounts': {'mfa_encryption_key': 'identity_mfa_encryption', 'audit_signing_key': 'identity_audit_signing',
+                   'audit_peers': 'identity_audit_peers'},
+        'env': {'KOLOVIBE_MFA_ENCRYPTION_KEY_FILE': '/run/secrets/mfa_encryption_key',
+                'KOLOVIBE_OUTBOUND_KEY_FILE': '/run/secrets/audit_signing_key',
+                'KOLOVIBE_TRUSTED_PEERS_FILE': '/run/secrets/audit_peers'},
+        'operator_env': (), 'networks': ()}
+    table['moderation'] = {
+        'mounts': {'outbound_key': own('moderation', 'outbound_key'), 'trusted_peers': own('moderation', 'peers')},
+        'env': {'KOLOVIBE_OUTBOUND_KEY_FILE': '/run/secrets/outbound_key',
+                'KOLOVIBE_TRUSTED_PEERS_FILE': '/run/secrets/trusted_peers'},
+        'operator_env': (), 'networks': ()}
+    return table
 
 
 ORACLE_STAGING = Profile(
@@ -125,8 +212,24 @@ ORACLE_STAGING = Profile(
     broker_needs_label=True, service_shared_secrets={'gateway': ('trusted_peers',)},
     service_allowed_secrets={},
     service_flags=flag_table())
-# Observed on the AWS staging by read-only operator evidence on 14 November 2026. There are no node
-# labels and no Oracle route-fix script; the database is a private 172.31.x address reached directly.
+def _aws_allowed_secrets():
+    """Exact names an AWS service may mount although they lack its own `<service>_` prefix: the 10 November
+    account-wave secrets, and the R1 secrets (new mounts and new versions of the Gateway and Identity files)."""
+    allowed = {
+        'identity': {'kolovibe_account_uat_approval_20261110_v1', 'kolovibe_identity_smtp_user_20261110_v1',
+                     'kolovibe_identity_smtp_password_20261110_v1'},  # pragma: allowlist secret
+        'gateway': {'kolovibe_gateway_trusted_peers_accounts_20261110_v1', 'kolovibe_account_uat_approval_20261110_v1'}}
+    allowed['gateway'] |= {'kolovibe_gateway_trusted_peers' + R1_SECRET_SUFFIX, 'kolovibe_gateway_outbound' + R1_SECRET_SUFFIX,
+                           'kolovibe_account_approval' + R1_SECRET_SUFFIX}
+    allowed['identity'] |= {'kolovibe_account_approval' + R1_SECRET_SUFFIX}
+    for service, rollout in r1_rollout_table().items():
+        allowed.setdefault(service, set()).update(rollout['mounts'].values())
+    return {service: frozenset(names) for service, names in allowed.items()}
+
+
+AWS_ALLOWED_SECRETS = _aws_allowed_secrets()
+# Observed on the AWS staging by read-only operator evidence on 14 November 2026. This profile never relies on
+# node labels (a later read-only check found two on the worker, which it ignores) and has no Oracle route-fix script; the database is a private 172.31.x address reached directly.
 AWS_STAGING = Profile(
     name='aws-staging', manager_host='ip-172-31-30-236', worker_host='ip-172-31-16-154',
     service_prefix='kolovibe-', worker_constraint='node.hostname==ip-172-31-16-154',
@@ -135,17 +238,13 @@ AWS_STAGING = Profile(
     gateway_networks_required=frozenset({'kolovibe_services', 'kolovibe_data'}),
     gateway_networks_allowed=NETWORKS,
     broker_needs_label=False, service_shared_secrets={},
-    service_allowed_secrets={
-        'identity': frozenset({'kolovibe_account_uat_approval_20261110_v1',
-                               'kolovibe_identity_smtp_user_20261110_v1',
-                               'kolovibe_identity_smtp_password_20261110_v1'}),  # pragma: allowlist secret
-        'gateway': frozenset({'kolovibe_gateway_trusted_peers_accounts_20261110_v1',
-                              'kolovibe_account_uat_approval_20261110_v1'})},
+    service_allowed_secrets=AWS_ALLOWED_SECRETS,
     # The account wave (register, verify, login, refresh, logout) is live on the AWS Gateway and its
     # Identity service, which the staging middleware only allows with ACCOUNTS=1 on both; privileged
     # routes stay at the documented default. Read back from the live services on 14 November 2026.
     # Exact values, never "either": a different live value stops the tool until a reviewed change.
-    service_flags=flag_table(gateway=('1', '0'), identity=('1', '0')))
+    service_flags=flag_table(gateway=('1', '0'), identity=('1', '0')),
+    opa_waiver=OPA_WAIVER, r1_flags=r1_flag_table(), r1_rollout=r1_rollout_table())
 PROFILES = {p.name: p for p in (ORACLE_STAGING, AWS_STAGING)}
 
 
@@ -166,6 +265,49 @@ def check_flag_table(profile):
             raise ValueError(profile.name + ': privileged capability needs accounts on gateway or identity')
     if table['gateway'][FLAG_ACCOUNTS] != table['identity'][FLAG_ACCOUNTS]:
         raise ValueError(profile.name + ': gateway and identity must agree on the accounts capability')
+    if profile.r1_flags is not None:
+        check_r1_table(profile)
+
+
+def check_r1_table(profile):
+    """The R1 rows must be exactly what the staging runtime's capability policy would accept."""
+    table = profile.r1_flags
+    if set(table) != set(SERVICES):
+        raise ValueError(profile.name + ': R1 table must name exactly the eight services')
+    for service, row in table.items():
+        if set(row) != set(FLAG_R1_NAMES):
+            raise ValueError(profile.name + ': ' + service + ' R1 row must carry exactly the four flag names')
+        if any(row[name] not in ('0', '1') for name in (FLAG_ACCOUNTS, FLAG_PRIVILEGED, FLAG_ONBOARDING)):
+            raise ValueError(profile.name + ': ' + service + ' R1 flags must be 0 or 1')
+        caps = row[FLAG_CAPABILITIES]
+        names = caps.split(',') if caps else []
+        if names != sorted(set(names)) or set(names) - R1_CAPABILITIES:
+            raise ValueError(profile.name + ': ' + service + ' capabilities must be sorted, unique and known')
+        if set(names) - R1_APPLICABLE[service]:
+            raise ValueError(profile.name + ': ' + service + ' carries a capability that does not apply to it')
+        if row[FLAG_ACCOUNTS] == '1' and service not in ('gateway', 'identity'):
+            raise ValueError(profile.name + ': accounts capability belongs only to gateway and identity')
+        if row[FLAG_PRIVILEGED] == '1' and (row[FLAG_ACCOUNTS] != '1' or service not in ('gateway', 'identity')):
+            raise ValueError(profile.name + ': privileged capability needs accounts on gateway or identity')
+        if row[FLAG_ONBOARDING] == '1' and service not in ('gateway', 'creators'):
+            raise ValueError(profile.name + ': creator onboarding belongs only to gateway and creators')
+        if {'account_management', 'moderation'} & set(names) and service in ('gateway', 'identity') \
+                and row[FLAG_ACCOUNTS] != '1':
+            raise ValueError(profile.name + ': account and moderation capabilities need accounts')
+        if 'moderation' in names and service in ('gateway', 'identity') and row[FLAG_PRIVILEGED] != '1':
+            raise ValueError(profile.name + ': moderation needs privileged MFA sessions')
+    if table['gateway'][FLAG_ONBOARDING] != table['creators'][FLAG_ONBOARDING]:
+        raise ValueError(profile.name + ': gateway and creators must agree on creator onboarding')
+    gateway = set(table['gateway'][FLAG_CAPABILITIES].split(','))
+    for needs in R1_REQUIRES.items():
+        if needs[0] in gateway and needs[1] - gateway:
+            raise ValueError(profile.name + ': a gateway capability is missing what it depends on')
+    for service, row in table.items():
+        if service != 'gateway' and set(filter(None, row[FLAG_CAPABILITIES].split(','))) != gateway & R1_APPLICABLE[service]:
+            raise ValueError(profile.name + ': ' + service + ' must carry exactly the gateway set that applies to it')
+    for service, rollout in (profile.r1_rollout or {}).items():
+        if set(rollout) != {'mounts', 'env', 'operator_env', 'networks'}:
+            raise ValueError(profile.name + ': ' + service + ' rollout must name mounts, env, operator_env and networks')
 
 
 for _profile in PROFILES.values():
@@ -175,9 +317,27 @@ for _profile in PROFILES.values():
 PROFILE = ORACLE_STAGING
 
 
+def _differs(row, env):
+    return sorted(key for key, value in row.items() if (env.get(key) or '') != value)
+
+
+def flag_state(service, env):
+    """'baseline' (the 14 November read-back), 'r1' (the reviewed R1 row) or None; exact matches only."""
+    baseline = dict(PROFILE.service_flags[service])
+    # The baseline predates the capability variables: they must be absent, never merely ignored.
+    baseline.update({FLAG_ONBOARDING: '', FLAG_CAPABILITIES: ''})
+    if not _differs(baseline, env):
+        return 'baseline'
+    if PROFILE.r1_flags is not None and not _differs(PROFILE.r1_flags[service], env):
+        return 'r1'
+    return None
+
+
 def flag_mismatch(service, env):
     """Names, never values, of the capability flags a service's environment gets wrong."""
-    return sorted(key for key, value in PROFILE.service_flags[service].items() if env.get(key) != value)
+    if flag_state(service, env):
+        return []
+    return _differs(dict(PROFILE.service_flags[service], **{FLAG_ONBOARDING: '', FLAG_CAPABILITIES: ''}), env)
 
 
 def use_profile(name):
@@ -267,6 +427,9 @@ def atomic_policy(raw):
 @contextmanager
 def allow_once(api, path, body):
     """Exact method/path/body, independent timer, unconditional policy restoration."""
+    if PROFILE.opa_waiver:
+        yield  # no policy window to open: the profile runs under the recorded OPA waiver
+        return
     original = policy_baseline()
     suffix = secrets.token_hex(6)
     backup = POLICY.parent / ('.kv-cluster-backup-' + suffix)
@@ -527,6 +690,8 @@ def api_spec(gateway, service, all_secrets, image, revision, names=None):
                KOLOVIBE_DB_USER='kv_' + service + '_run')
     # Capability flags come from the profile for this service, never from the Gateway's environment.
     env.update(PROFILE.service_flags[service])
+    for key in (FLAG_ONBOARDING, FLAG_CAPABILITIES):
+        env.pop(key, None)  # never inherited from the Gateway; the R1 rollout adds them per service
     # Gateway-only configuration is never copied into another service: peers and outbound key are
     # replaced below, and the account approval file and creator-onboarding flag are not a receiver's.
     for key in ('KOLOVIBE_TRUSTED_PEERS_FILE', 'KOLOVIBE_OUTBOUND_KEY_FILE',
@@ -611,6 +776,19 @@ def load_evidence(path):
 def manager_checks():
     """Read-only preconditions shared by every manager-side mode; returns the API version."""
     root(PROFILE.manager_host)
+    if PROFILE.opa_waiver:
+        # Owner decision: no OPA Docker plugin on this profile. The waiver is recorded, never inferred, and a
+        # half-installed plugin is refused rather than silently mixed with it.
+        version = docker('GET', '/version')['ApiVersion']
+        if not re.fullmatch(r'\d+\.\d+', version):
+            fail('Invalid Docker API version')
+        info = docker('GET', '/v' + version + '/info')
+        if not info['Swarm'].get('ControlAvailable'):
+            fail('A Swarm manager is required')
+        if (info.get('Plugins') or {}).get('Authorization'):
+            fail('A Docker authorization plugin is active but profile ' + PROFILE.name + ' runs under an OPA waiver')
+        print('NOTE: OPA ' + PROFILE.opa_waiver + '; every other guard of this tool still applies', file=sys.stderr)
+        return version
     policy_baseline()
     version = docker('GET', '/version')['ApiVersion']
     if not re.fullmatch(r'\d+\.\d+', version):
@@ -742,7 +920,8 @@ def ordered(services, reverse=False):
     return [s for s in order if s in services]
 
 
-def update_plan(evidence, image, revision, services, restore_ref=None, secret_overrides=None):
+def update_plan(evidence, image, revision, services, restore_ref=None, secret_overrides=None, r1=False,
+                set_env=None):
     """Read-only plan to move named, already-deployed services to the approved image.
 
     Every entry records what a rollback needs *before* anything is changed. The spec for
@@ -752,9 +931,13 @@ def update_plan(evidence, image, revision, services, restore_ref=None, secret_ov
     """
     names = ordered(services)
     overrides = parse_secret_overrides(secret_overrides, names)
+    if r1 and PROFILE.r1_flags is None:
+        fail('R1 capabilities are not defined for profile ' + PROFILE.name)
+    operator_env = parse_set_env(set_env, names, r1)
     api = manager_checks()
     gateway = base_gateway(api, image)
     known = {s['Spec']['Name']: s['ID'] for s in docker('GET', '/v' + api + '/secrets')}
+    networks = {n['Name']: n for n in docker('GET', '/v' + api + '/networks')} if r1 else {}
     require_gateway_secrets(known, gateway)
     existing = {s['Spec']['Name']: s for s in docker('GET', '/v' + api + '/services')}
     entries = []
@@ -771,6 +954,7 @@ def update_plan(evidence, image, revision, services, restore_ref=None, secret_ov
                  + ' profile: ' + ', '.join(off))
         require_secrets_belong(service, spec)
         changes = secret_changes(service, spec, overrides.get(service, {}), known)
+        delta = r1_delta(service, spec, known, networks, operator_env.get(service, {})) if r1 else None
         current = live_image(spec)
         if not IMAGE_RE.fullmatch(current):
             fail(name + ' is not pinned to an immutable GHCR digest; inspect before updating')
@@ -784,10 +968,10 @@ def update_plan(evidence, image, revision, services, restore_ref=None, secret_ov
             'service': service, 'service_id': live['ID'], 'version_index': live['Version']['Index'],
             'current_image': current, 'current_revision': revision_now,
             'target_image': image, 'target_revision': revision,
-            'action': 'unchanged' if current == image and not changes else 'update',
-            'secret_changes': public_changes(changes),
+            'action': 'unchanged' if current == image and not changes and not delta else 'update',
+            'secret_changes': public_changes(changes), 'r1_changes': public_delta(delta),
             'health_gated': health not in ('NONE', ''), 'spec_sha256': spec_digest(spec),
-            'update_spec': update_spec(spec, image, revision, changes),
+            'update_spec': update_spec(spec, image, revision, changes, delta, service),
             'previous_spec_available': bool(live.get('PreviousSpec')),
             'rollback': {
                 'image_rollback': 'python3 kolovibe_cluster.py rollback --services ' + service
@@ -802,9 +986,10 @@ def update_plan(evidence, image, revision, services, restore_ref=None, secret_ov
             'entries': entries, 'evidence_time': evidence.get('time')}
 
 
-def update_spec(spec, image, revision, changes=None):
+def update_spec(spec, image, revision, changes=None, delta=None, service=None):
     """The live spec with the release pin, the rolling guards and (only when `changes` names
-    them) the Swarm secret behind specific mount targets replaced. Nothing else may differ."""
+    them) the Swarm secret behind specific mount targets replaced, plus, only when the reviewed R1
+    `delta` is given, exactly that delta. Nothing else may differ."""
     new = pinned(spec, image, revision)
     new['UpdateConfig'] = dict(UPDATE_CONFIG)
     new['RollbackConfig'] = dict(ROLLBACK_CONFIG)
@@ -816,10 +1001,132 @@ def update_spec(spec, image, revision, changes=None):
                 ref['SecretName'], ref['SecretID'] = change['to'], change['id']
     expected = secret_refs(spec)
     expected.update({target: change['to'] for target, change in (changes or {}).items()})
-    if release_neutral(new, targets) != release_neutral(spec, targets) or secret_refs(new) != expected:
-        fail('Update would change more than the release pin' + (' and the named secret references' if targets else ''))
+    if delta:
+        new = apply_r1(new, delta)
+        expected.update({target: name for target, (name, _) in delta['mounts'].items()})
+        before, after = r1_strip(spec, service, delta), r1_strip(new, service, delta)
+    else:
+        before, after = spec, new
+    if release_neutral(after, targets) != release_neutral(before, targets) or secret_refs(new) != expected:
+        fail('Update would change more than the release pin' + (' and the named secret references' if targets else '')
+             + (' and the reviewed R1 additions' if delta else ''))
     safe_spec(new)
     return new
+
+
+R1_ENV_RE = re.compile(r'([a-z]+):([A-Z][A-Z0-9_]{0,63})=([A-Za-z0-9][A-Za-z0-9._-]{0,63})')
+R1_ENV_FORMS = {'KOLOVIBE_R2_ACCOUNT_ID': re.compile(r'[0-9a-f]{32}'),
+                'KOLOVIBE_R2_MEDIA_BUCKET': re.compile(r'[a-z0-9][a-z0-9-]{1,61}[a-z0-9]')}
+
+
+def parse_set_env(values, services, r1):
+    """`--set-env <service>:<NAME>=<value>` for the non-secret R1 identifiers only (R2 account and bucket)."""
+    parsed = {}
+    for value in values or ():
+        if not r1:
+            fail('--set-env is only valid with --enable-r1-capabilities')
+        match = R1_ENV_RE.fullmatch(value)
+        if not match:
+            fail('--set-env must look like <service>:<NAME>=<value>')
+        service, name, text = match.groups()
+        if service not in services or service not in (PROFILE.r1_rollout or {}) \
+                or name not in PROFILE.r1_rollout[service]['operator_env']:
+            fail('--set-env names a variable the reviewed R1 rollout does not take for that service')
+        if not R1_ENV_FORMS[name].fullmatch(text):
+            fail('--set-env value has the wrong form for ' + name)
+        if name in parsed.setdefault(service, {}):
+            fail('--set-env names the same variable twice: ' + service + ':' + name)
+        parsed[service][name] = text
+    return parsed
+
+
+def r1_delta(service, spec, known, networks, operator_env):
+    """The reviewed R1 additions this service still needs, or None. Reads names only; stops on any surprise."""
+    state = flag_state(service, env_dict(spec['TaskTemplate']['ContainerSpec']))
+    if state is None:
+        fail('Staging capability flags of ' + svc(service) + ' differ from the ' + PROFILE.name + ' profile')
+    rollout, flags = PROFILE.r1_rollout[service], PROFILE.r1_flags[service]
+    live_env = env_dict(spec['TaskTemplate']['ContainerSpec'])
+    env = {key: value for key, value in flags.items() if value != ''}
+    env.update(rollout['env'])
+    for name in rollout['operator_env']:
+        value = operator_env.get(name) or live_env.get(name)
+        if not value:
+            fail(svc(service) + ' needs --set-env ' + service + ':' + name + '=<value> (an identifier, not a secret)')
+        env[name] = value
+    live_mounts = secret_refs(spec)
+    mounts = {}
+    for target, name in rollout['mounts'].items():
+        if name not in known:
+            fail('R1 secret does not exist in Swarm (create it first, values never in Git): ' + name)
+        if target in live_mounts:
+            if live_mounts[target] != name:
+                fail(svc(service) + ' already mounts a different secret at ' + target + '; refusing the R1 mount')
+            continue
+        mounts[target] = (name, known[name])
+    attached = {a['Target'] for a in spec['TaskTemplate'].get('Networks') or []}
+    nets = []
+    for name in rollout['networks']:
+        net = networks.get(name)
+        if not net or net.get('Driver') != 'overlay' or not net.get('Internal') \
+                or 'encrypted' not in (net.get('Options') or {}):
+            fail('R1 network is missing, not an internal encrypted overlay: ' + name)
+        if net['ID'] not in attached:
+            nets.append((name, net['ID']))
+    wanted_env = {k: v for k, v in env.items() if live_env.get(k) != v}
+    if not wanted_env and not mounts and not nets:
+        return None
+    require_flags_complete = state in ('baseline', 'r1')
+    assert require_flags_complete
+    candidate = copy.deepcopy(spec)
+    for target, (name, _) in mounts.items():
+        candidate['TaskTemplate']['ContainerSpec'].setdefault('Secrets', []).append(
+            {'SecretName': name, 'File': {'Name': target}})
+    require_secrets_belong(service, candidate)
+    return {'env': env, 'mounts': mounts, 'networks': nets, 'all_env': sorted(env)}
+
+
+def apply_r1(spec, delta):
+    spec = copy.deepcopy(spec)
+    container = spec['TaskTemplate']['ContainerSpec']
+    # Existing variables keep their order and position; only the reviewed ones are replaced or appended.
+    wanted, seen, env = dict(delta['env']), set(), []
+    for item in container.get('Env', []):
+        key = item.split('=', 1)[0]
+        if key in wanted:
+            env.append(key + '=' + wanted[key])
+            seen.add(key)
+        else:
+            env.append(item)
+    env += [key + '=' + value for key, value in sorted(wanted.items()) if key not in seen]
+    container['Env'] = env
+    for target, (name, sid) in sorted(delta['mounts'].items()):
+        container.setdefault('Secrets', []).append(
+            {'SecretID': sid, 'SecretName': name, 'File': {'Name': target, 'UID': '10001', 'GID': '10001', 'Mode': 256}})
+    for _, net_id in delta['networks']:
+        spec['TaskTemplate'].setdefault('Networks', []).append({'Target': net_id})
+    return spec
+
+
+def r1_strip(spec, service, delta):
+    """The spec without anything the R1 delta owns, so the two sides compare on everything else."""
+    spec = copy.deepcopy(spec)
+    container = spec['TaskTemplate']['ContainerSpec']
+    owned = set(delta['all_env'])
+    container['Env'] = [e for e in container.get('Env', []) if e.split('=', 1)[0] not in owned]
+    targets = set(delta['mounts'])
+    container['Secrets'] = [r for r in container.get('Secrets') or [] if r['File']['Name'] not in targets]
+    ids = {net_id for _, net_id in delta['networks']}
+    spec['TaskTemplate']['Networks'] = [a for a in spec['TaskTemplate'].get('Networks') or [] if a['Target'] not in ids]
+    return spec
+
+
+def public_delta(delta):
+    """What the R1 rollout adds, as names only: variables, mount targets and networks."""
+    if not delta:
+        return None
+    return {'env': sorted(delta['env']), 'secret_mounts': sorted(delta['mounts']),
+            'networks': sorted(name for name, _ in delta['networks'])}
 
 
 OVERRIDE_RE = re.compile(r'([a-z]+):([a-z][a-z0-9_]{0,63})=([A-Za-z0-9][A-Za-z0-9._-]{0,63})')
@@ -910,10 +1217,10 @@ def wait_update(api, sid, previous_started, expected_image, *, rollback=False, t
 
 
 def update(path, username, image, revision, services, restore_ref, confirm_image, rollback_file, accept_ungated,
-           secret_overrides=None):
+           secret_overrides=None, r1=False, set_env=None):
     """Dry-run unless --confirm-image repeats the approved digest exactly."""
     evidence = load_evidence(path)
-    report = update_plan(evidence, image, revision, services, restore_ref, secret_overrides)
+    report = update_plan(evidence, image, revision, services, restore_ref, secret_overrides, r1, set_env)
     shown = public_plan(report)
     print(json.dumps(shown, indent=2), file=sys.stderr)
     todo = [e for e in report['entries'] if e['action'] == 'update']
@@ -951,8 +1258,11 @@ def update(path, username, image, revision, services, restore_ref, confirm_image
             docker('POST', path_api + '?version=' + str(live['Version']['Index']), spec, auth)
         try:
             wait_update(api, live['ID'], started, image)
-            if secret_refs(docker('GET', '/v' + api + '/services/' + live['ID'])['Spec']) != secret_refs(spec):
+            after = docker('GET', '/v' + api + '/services/' + live['ID'])['Spec']
+            if secret_refs(after) != secret_refs(spec):
                 fail('Service finished updating with different secret references than planned')
+            if r1 and flag_state(entry['service'], env_dict(after['TaskTemplate']['ContainerSpec'])) != 'r1':
+                fail('Service finished updating without the reviewed R1 capability flags')
             wait_running(api, live['ID'])
         except RuntimeError as error:
             fail(str(error).replace('BLOCKED: ', '') + ' Not yet updated: '
@@ -1382,6 +1692,11 @@ def main():
     parser.add_argument('--secret-override', action='append', metavar='SERVICE:TARGET=SECRET',
                         help='update-plan/update only; repeatable and never defaulted: replace the Swarm secret '
                              'mounted at one exact target of one named service, e.g. gateway:outbound_key=gateway_outbound_2')
+    parser.add_argument('--enable-r1-capabilities', action='store_true',
+                        help='update-plan/update only: also add the reviewed R1 capability flags, secret mounts and '
+                             'messaging network of the selected profile (nothing else changes)')
+    parser.add_argument('--set-env', action='append', metavar='SERVICE:NAME=VALUE',
+                        help='with --enable-r1-capabilities: a non-secret R1 identifier, e.g. content:KOLOVIBE_R2_ACCOUNT_ID=...')
     parser.add_argument('--accept-ungated', action='store_true',
                         help='update services with no healthcheck; verify-worker/verify-edge must follow')
     args = parser.parse_args()
@@ -1391,6 +1706,8 @@ def main():
         use_profile(args.profile)
     if args.secret_override and args.mode not in ('update-plan', 'update'):
         parser.error('--secret-override is only valid with update-plan or update')
+    if (args.enable_r1_capabilities or args.set_env) and args.mode not in ('update-plan', 'update'):
+        parser.error('--enable-r1-capabilities and --set-env are only valid with update-plan or update')
     if args.mode in ('plan', 'deploy', 'update-plan', 'update', 'cloud-run'):
         image, revision = resolve_release(args.image, args.revision, args.release_dir)
     if args.mode == 'cloud-run':
@@ -1406,7 +1723,7 @@ def main():
         stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
         update(args.worker_evidence, args.registry_user, image, revision, csv(args.services),
                args.restore_point_ref, confirm, args.rollback_file or 'kolovibe-rollback-' + stamp + '.json',
-               args.accept_ungated, args.secret_override)
+               args.accept_ungated, args.secret_override, args.enable_r1_capabilities, args.set_env)
         return
     if args.mode == 'rollback':
         rollback(csv(args.services), args.confirm_rollback)

@@ -57,10 +57,11 @@ void main() {
 
   testWidgets('screens without a live contract stay protected fallbacks',
       (tester) async {
-    // M-045: no frame API. M-050-M-057: outcomes and management, M-058-M-060:
+    // M-045: no frame API. M-050-M-057: outcomes (M-053 manage, with its M-054-M-056 dialogs, is live and
+    // needs a video id; see live_manage_video_test.dart), M-058-M-060:
     // analytics. Each is a later journey; none may show design sample data.
     final live = AppDependencies.live('https://api.example.test/api/v1');
-    for (final screen in [45, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60]) {
+    for (final screen in [45, 50, 51, 52, 54, 55, 56, 57, 58, 59, 60]) {
       expect(build(screen, live), isNull, reason: 'M-0$screen');
     }
   });

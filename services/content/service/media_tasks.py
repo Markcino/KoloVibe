@@ -1,4 +1,4 @@
-"""Explicit local Celery/RabbitMQ worker for R2 media."""
+"""Celery/RabbitMQ worker for R2 media: local development or the approved staging `media` capability."""
 
 import os
 import ssl
@@ -16,8 +16,14 @@ QUEUE = "kolovibe.content.media"
 
 def _build_app():
     if not settings.LOCAL_MEDIA_ENABLED:
-        raise RuntimeError("Local media processing is disabled")
-    broker = os.environ.get("KOLOVIBE_RABBITMQ_URL", "")
+        raise RuntimeError("Media processing is disabled")
+    ca_file = None
+    if settings.ENVIRONMENT == "staging":
+        from staging_runtime import broker_ca, broker_url
+
+        broker, ca_file = broker_url(), broker_ca()
+    else:
+        broker = os.environ.get("KOLOVIBE_RABBITMQ_URL", "")
     try:
         uri = urlsplit(broker)
         valid = (uri.scheme == "amqps" and uri.hostname and uri.username and uri.password
@@ -28,7 +34,7 @@ def _build_app():
         raise RuntimeError("Media worker requires an authenticated AMQPS broker")
     app = Celery("kolovibe-content-media", broker=broker)
     app.conf.update(
-        broker_use_ssl={"cert_reqs": ssl.CERT_REQUIRED},
+        broker_use_ssl={"cert_reqs": ssl.CERT_REQUIRED, **({"ca_certs": ca_file} if ca_file else {})},
         broker_connection_retry_on_startup=True,
         broker_transport_options={"confirm_publish": True},
         broker_connection_timeout=5, broker_heartbeat=30,

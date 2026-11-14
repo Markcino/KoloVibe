@@ -19,12 +19,12 @@ for workers needs a reviewed credential/provisioning lifecycle: do not store
 registry credentials in Git or commit an `.env` file.
 
 **Placement profiles:** the label constraints described next, and in `staging.yml`, are the
-`oracle-staging` profile. The AWS staging nodes carry **no Swarm labels** (operator read-back of
-14 November 2026), so on AWS placement is the exact `node.hostname==<worker>` pin of the
+`oracle-staging` profile. The AWS profile does not use Swarm labels (the first operator read-back of
+14 November 2026 showed none; a later read-only check found two on the worker, see below), so on AWS placement is the exact `node.hostname==<worker>` pin of the
 `aws-staging` profile of `scripts/ops/kolovibe_cluster.py`, and `staging.yml` must not be deployed
-there. `scripts/validate_staging_stack.py --profile aws-staging` refuses explicitly. Giving the
-worker, Celery and media services (matrix packages D, E) a stack file for AWS needs an owner decision
-between a hostname-pinned AWS stack file and applying the labels, which changes Swarm node metadata.
+there. `scripts/validate_staging_stack.py --profile aws-staging` refuses explicitly. The worker, Celery and media
+services (matrix packages D, E) have a hostname-pinned AWS stack file, [`staging-aws.yml`](staging-aws.yml)
+(owner decision of 14 November 2026: no Swarm node metadata is changed).
 
 **Worker-only scheduling:** All eight API services require
 `node.labels.kolovibe.workloads == true`. RabbitMQ requires both that label
@@ -35,7 +35,7 @@ label. Do not add the latter until the broker's storage/capacity review passes.
 These placement constraints do not establish memory sufficiency or authorize
 activation. All nine services continue to default to `replicas: 0`.
 
-[staging.yml](staging.yml) is the **single deployment YAML** defining all eight API
+[staging.yml](staging.yml) is the **single Oracle deployment YAML** defining all eight API
 services and RabbitMQ, with Gunicorn for APIs,
 verified TLS, external owner-only secrets, a private overlay, read-only non-root
 filesystems, readiness checks, resource bounds and rollback-on-update-failure.
@@ -300,6 +300,40 @@ re-reads the service and stops if its secrets differ from the previous spec. **T
 secret versions in Swarm until the soak is over** (do not retire `gateway_outbound` or the old
 `_callers` secrets before then). Rollback restores the *previous* spec only, one step: to move back
 further, re-pin with `update` and the prior approved release.
+
+### AWS R1 capability rollout (candidate; not approved, not deployed)
+
+**Owner decisions of 14 November 2026, recorded: OPA installation and rehearsal: APPROVED — WAIVED FOR RESTRICTED R1 STAGING.
+Backup creation and restore testing: APPROVED — WAIVED FOR RESTRICTED R1 STAGING.** Neither waiver authorizes a deployment or a
+merge, and neither is a release blocker for this milestone. Consequences in the tool: the `aws-staging` profile runs with a
+recorded `opa_waiver` (it does not read `/etc/docker/policies`, opens no policy window, and stops if an authorization plugin
+is nevertheless active); `--restore-point-ref` may name the waiver (`WAIVED-R1-STAGING-20261114`). `oracle-staging` still
+requires OPA. Every other guard of the tool is unchanged.
+
+The R1 target for AWS is a reviewed, exact configuration: a per-service flag row (`KOLOVIBE_STAGING_ACCOUNTS`,
+`KOLOVIBE_STAGING_PRIVILEGED`, `KOLOVIBE_STAGING_CREATOR_ONBOARDING`, `KOLOVIBE_STAGING_CAPABILITIES`), new secret mounts,
+and the messaging overlay for the services that use RabbitMQ. It is applied to the eight running APIs with the existing
+`update` flow plus two options, and nothing else about a service may change:
+
+```bash
+sudo python3 kolovibe_cluster.py update-plan --profile aws-staging --worker-evidence worker-evidence.json \
+  --release-dir release/ --services audit,identity,creators,content,engagement,points,moderation \
+  --enable-r1-capabilities \
+  --set-env content:KOLOVIBE_R2_ACCOUNT_ID=<32 hex> --set-env content:KOLOVIBE_R2_MEDIA_BUCKET=<bucket>
+```
+
+`--set-env` takes only the two non-secret R2 identifiers. The plan prints names only (variables, mount targets, networks).
+It stops, changing nothing, if a reviewed R1 secret does not exist in Swarm, if a flag differs from the baseline or R1 row,
+if a different secret already sits at a target, if the messaging network is not an internal encrypted overlay, or if the
+resulting spec differs from the live one by anything but the reviewed additions. `rollback` restores the previous spec,
+including flags, mounts and networks. The seven worker and job processes (media worker, queue consumers, schedulers) are
+declared in [`staging-aws.yml`](staging-aws.yml): the AWS-specific, hostname-pinned stack, at zero replicas, validated offline
+by `python scripts/validate_staging_stack.py --aws-stack` and by `scripts/test_aws_stack.py`. It is not the Oracle stack and
+shares none of its label placement.
+
+Worker labels, read-only observation of 14 November 2026 (second read): the AWS worker **does** carry the Swarm labels
+`kolovibe.workloads=true` and `kolovibe.rabbitmq=true` and the manager none. The AWS profile never uses them; services stay
+placed by the exact hostname pin.
 
 ### Choosing the environment profile
 

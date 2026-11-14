@@ -217,6 +217,16 @@ jobs:
               echo "::error::Shared image accepted invalid service selection"; exit 1
             fi
           done
+      - name: Verify FFmpeg for the media worker on the sandbox PATH
+        run: |
+          set -euo pipefail
+          for tool in ffmpeg ffprobe; do
+            docker run --rm --entrypoint python "kolovibe/services:ci" -c \
+              "import os, shutil, sys; sys.exit(0 if shutil.which('$tool', path=os.defpath) else 1)" || {
+              echo "::error::$tool is not on the encoder's fixed PATH"; exit 1;
+            }
+            docker run --rm --entrypoint "$tool" "kolovibe/services:ci" -version >/dev/null
+          done
       - name: Verify the release image has no SQLite
         run: |
           set -euo pipefail

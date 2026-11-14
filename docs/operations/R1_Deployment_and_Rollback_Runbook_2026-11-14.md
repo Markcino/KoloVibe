@@ -7,9 +7,9 @@ Rules for every step: run as the named operator; never paste, print or store a s
 ## 0. Entry conditions (all must be true; otherwise stop)
 
 1. The release PR is merged and `main` CI is green; the digest to deploy was published by that CI run from the merged commit. Any other digest is out of scope.
-2. The staging stack can actually serve the R1 journeys (evidence record section 4: capability gates, media worker, consumers, R2 secrets). **Today it cannot.**
-3. A restore point exists that has been **restored and validated** on a disposable host (section 5).
-4. OPA decision taken; if adopted, rehearsed on a disposable host (section 4).
+2. The staging stack can serve the R1 journeys: the capability policy, media worker, consumers and schedulers of the [runtime release candidate](R1_Runtime_Release_Candidate_2026-11-14.md) are merged and every R1 secret in its section 6 exists.
+3. **Backup and restore: APPROVED — WAIVED FOR RESTRICTED R1 STAGING** (owner, 14 November 2026). Not a blocker. Use `--restore-point-ref WAIVED-R1-STAGING-20261114`. Consequence: migrations cannot be undone; the owner approves them explicitly (release candidate section 4).
+4. **OPA: APPROVED — WAIVED FOR RESTRICTED R1 STAGING.** The `aws-staging` profile runs without the plugin; sections 4 and 5 below are retained for a later production request only.
 5. Written deployment approval per remediation plans section 4.1 (valid 24 hours, one run).
 6. Operator, stop authority and window are named.
 
@@ -62,11 +62,11 @@ docker exec <rabbitmq-container> rabbitmqctl list_queues name messages consumers
 
 Pass: 1/1 replicas, no restarts or errors, no alarms, TLS listener, expected application vhost. End-to-end messaging (publish, consume, redelivery, duplicate suppression, dead-letter, restart recovery: exactly one effect per event id) needs the consumer services that do not exist in the current stack; until they do this gate stays **UNVERIFIED**. `scripts/test_rabbitmq_celery.py` and the PostgreSQL event tests prove the code path only, not the broker.
 
-## 4. OPA authorization rehearsal (disposable environment only)
+## 4. OPA authorization rehearsal: WAIVED for restricted R1 staging (kept for production)
 
 Follow remediation plans section 5 (tests T1 to T15). The existing AWS manager is not a rehearsal target. Evidence to attach: Docker and plugin versions and architecture, plugin state with the required args, the atomic-rename reload result (T4), `allow_once` exact-body behaviour and its 403 proofs (T6), cleanup under signals including `kill -9` (T7), the lockout recovery drill and its timing (T13). Pass only if every test passes; a failed T4 means the tool's design needs a reviewed change. Production use needs a separate approval naming the commands, a second out-of-band access path, saved `daemon.json` and policy copies, and an EBS snapshot.
 
-## 5. PostgreSQL encrypted backup and restore test
+## 5. PostgreSQL encrypted backup and restore test: WAIVED for restricted R1 staging (kept for production)
 
 Follow remediation plans section 6. Summary of what must be attached: PostgreSQL version and data size; `pg_dump -Fc` plus globals dump streamed to the operator workstation and encrypted on arrival (no plaintext dump on the VM); encrypted-file SHA-256; restore on a disposable host with the same major version (**PostgreSQL 16; the developer workstation tests ran on 14**); object and per-schema row counts equal; `scripts/verify_postgres_isolation.py` passes on the copy; `showmigrations` against the release digest; the forward migrations rehearsed on the copy, including the case-insensitive creator-handle collision report before `creators 0004`; measured restore duration (RTO) and the owner-set RPO/RTO. The dumps contain tester personal data: encrypt, restrict and destroy them, and record the destruction.
 
@@ -86,6 +86,8 @@ sudo python3 kolovibe_cluster.py worker-preflight --profile aws-staging > worker
 sudo python3 kolovibe_cluster.py update-plan --profile aws-staging --worker-evidence worker-evidence.json \
   --release-dir release/ --services <approved,list,in,order>
 
+# R1 rollout: add --enable-r1-capabilities (and --set-env content:KOLOVIBE_R2_ACCOUNT_ID=... / KOLOVIBE_R2_MEDIA_BUCKET=...)
+# to both update-plan and update; see infra/swarm/README.md "AWS R1 capability rollout".
 # VM1: apply, one named service at a time, receivers first, gateway last
 sudo python3 kolovibe_cluster.py update --profile aws-staging --worker-evidence worker-evidence.json \
   --release-dir release/ --services <one-service> --restore-point-ref <approved-ref> \

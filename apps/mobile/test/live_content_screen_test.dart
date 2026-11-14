@@ -79,7 +79,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('rejected and removed videos link to their notice, others do not',
+  testWidgets('every non-draft video opens its management screen (M-053)',
       (tester) async {
     final repository = _ContentFixture();
     OwnedVideo video(int n, String state) => OwnedVideo(
@@ -110,11 +110,13 @@ void main() {
       },
     ));
     await tester.pumpAndSettle();
-    expect(find.text('View notice'), findsNWidgets(2));
-    await tester.tap(find.text('View notice').first);
+    expect(find.text('Manage'), findsNWidgets(3));
+    expect(find.text('View notice'),
+        findsNothing); // the notice link lives on the manage screen
+    await tester.tap(find.text('Manage').first);
     await tester.pumpAndSettle();
     final route = pushed.last.arguments as ScreenRoute;
-    expect(route.screen, 76);
+    expect(route.screen, 53);
     expect(route.entityId, '00000000-0000-4000-8000-000000000101');
   });
 }

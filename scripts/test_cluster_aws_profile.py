@@ -78,6 +78,8 @@ class AwsSwarm(FakeSwarm):
                                         names=aws_names(service))
                 self.services[spec['Name']] = {'ID': 'id-' + service, 'Version': {'Index': 3}, 'Spec': spec}
         self.static['/v1.52/secrets'] = [{'ID': 'id-' + n, 'Spec': {'Name': n}} for n in known]
+        # The AWS profile runs under the owner's OPA waiver: no Docker authorization plugin is installed.
+        self.static['/v1.52/info'] = dict(self.static['/v1.52/info'], Plugins={'Authorization': None})
         self.static['/v1.52/nodes'] = [node or {'Description': {'Hostname': WORKER}, 'Status': {'State': 'ready'},
                                                  'Spec': {'Availability': 'active', 'Labels': {}}}]
 
@@ -159,10 +161,9 @@ class HostGuardTests(unittest.TestCase):
 
     def test_manager_modes_demand_the_manager_not_the_worker(self):
         with patch.object(cluster, 'PROFILE', AWS), patch.object(cluster, 'root') as guard, \
-                patch.object(cluster, 'policy_baseline'), patch.object(cluster, 'docker', side_effect=[
-                    {'ApiVersion': '1.52'}, {'Swarm': {'ControlAvailable': True},
-                                             'Plugins': {'Authorization': ['openpolicyagent/opa-docker-authz-v2:0.9']}}]), \
-                patch.object(cluster, 'run', return_value='true ["-policy-file","/opa/policies/authz.rego","-quiet"]'):
+                patch.object(cluster, 'docker', side_effect=[
+                    {'ApiVersion': '1.52'}, {'Swarm': {'ControlAvailable': True}, 'Plugins': {'Authorization': None}}]), \
+                patch('sys.stderr'):
             cluster.manager_checks()
         guard.assert_called_once_with(MANAGER)
 
@@ -677,6 +678,56 @@ class ServiceFlagTableTests(unittest.TestCase):
                 self.assertNotIn('KOLOVIBE_STAGING_CREATOR_ONBOARDING', env, service)
                 # Only Identity is given the account approval file, and it is set explicitly for it.
                 self.assertEqual('KOLOVIBE_ACCOUNT_APPROVAL_FILE' in env, service == 'identity', service)
+
+
+class OpaWaiverTests(unittest.TestCase):
+    """The owner waived OPA for restricted R1 staging; the waiver is a recorded, profile-bound fact."""
+
+    def test_only_the_aws_profile_carries_the_recorded_waiver(self):
+        self.assertEqual(AWS.opa_waiver, cluster.OPA_WAIVER)
+        self.assertIn('WAIVED', cluster.OPA_WAIVER)
+        self.assertEqual(cluster.ORACLE_STAGING.opa_waiver, '')
+
+    def test_oracle_still_requires_the_opa_plugin_and_policy(self):
+        with patch.object(cluster, 'PROFILE', cluster.ORACLE_STAGING), patch.object(cluster, 'root'), \
+                patch.object(cluster, 'policy_baseline', side_effect=RuntimeError('BLOCKED: policy')) as baseline:
+            with self.assertRaisesRegex(RuntimeError, 'policy'):
+                cluster.manager_checks()
+        baseline.assert_called_once()
+
+    def test_a_waived_profile_does_not_read_or_check_the_policy_file(self):
+        with patch.object(cluster, 'PROFILE', AWS), patch.object(cluster, 'root'), \
+                patch.object(cluster, 'policy_baseline') as baseline, \
+                patch.object(cluster, 'docker', side_effect=[
+                    {'ApiVersion': '1.52'}, {'Swarm': {'ControlAvailable': True}, 'Plugins': {'Authorization': []}}]), \
+                patch('sys.stderr'):
+            self.assertEqual(cluster.manager_checks(), '1.52')
+        baseline.assert_not_called()
+
+    def test_a_live_authorization_plugin_stops_a_waived_profile_rather_than_mixing_modes(self):
+        with patch.object(cluster, 'PROFILE', AWS), patch.object(cluster, 'root'), \
+                patch.object(cluster, 'docker', side_effect=[
+                    {'ApiVersion': '1.52'}, {'Swarm': {'ControlAvailable': True},
+                                             'Plugins': {'Authorization': ['other/plugin']}}]):
+            with self.assertRaisesRegex(RuntimeError, 'authorization plugin is active'):
+                cluster.manager_checks()
+
+    def test_a_waived_profile_needs_a_swarm_manager(self):
+        with patch.object(cluster, 'PROFILE', AWS), patch.object(cluster, 'root'), \
+                patch.object(cluster, 'docker', side_effect=[
+                    {'ApiVersion': '1.52'}, {'Swarm': {'ControlAvailable': False}, 'Plugins': {}}]):
+            with self.assertRaisesRegex(RuntimeError, 'Swarm manager'):
+                cluster.manager_checks()
+
+    def test_no_policy_window_is_opened_under_the_waiver_and_oracle_still_opens_one(self):
+        with patch.object(cluster, 'PROFILE', AWS), patch.object(cluster, 'policy_baseline') as baseline:
+            with cluster.allow_once('1.52', '/x', {}):
+                pass
+        baseline.assert_not_called()
+        with patch.object(cluster, 'PROFILE', cluster.ORACLE_STAGING), \
+                patch.object(cluster, 'policy_baseline', side_effect=RuntimeError('BLOCKED: policy')):
+            with self.assertRaisesRegex(RuntimeError, 'policy'), cluster.allow_once('1.52', '/x', {}):
+                pass
 
 
 if __name__ == '__main__':
