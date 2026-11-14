@@ -120,6 +120,13 @@ class ImageSecurityContractTests(unittest.TestCase):
         self.assertIn("ARG FFMPEG_SOURCE=ffmpeg-empty", self.dockerfile)
         self.assertNotIn("ffmpeg", self.stages()["ffmpeg-empty"].lower().replace("ffmpeg-empty", "").replace("/ffmpeg", ""))
 
+    def test_the_build_context_excludes_infra_except_the_ffmpeg_apkbuild(self):
+        rules = [line.strip() for line in (ROOT / ".dockerignore").read_text().splitlines()
+                 if line.strip() and not line.startswith("#")]
+        self.assertIn("infra", rules)
+        self.assertEqual([r for r in rules if r.startswith("!")], ["!infra/docker/ffmpeg/APKBUILD"])
+        self.assertLess(rules.index("infra"), rules.index("!infra/docker/ffmpeg/APKBUILD"))
+
     def test_the_media_job_verifies_the_minimal_build_and_runs_the_pipeline_test_in_the_image(self):
         media_job = self.workflow[self.workflow.index("  media-image-build:"):self.workflow.index("  build-and-verify:")]
         self.assertIn("--build-arg FFMPEG_SOURCE=ffmpeg-minimal", media_job)
