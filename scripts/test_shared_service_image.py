@@ -124,7 +124,9 @@ class ImageSecurityContractTests(unittest.TestCase):
             self.assertIn(needle, verify)
         for absent in ("libvpx", "libopus", "rtsp", "http", "tcp"):
             self.assertIn(absent, verify)
-        self.assertIn("python manage.py test tests.test_posters", media_job)
+        self.assertIn("tests.test_posters", media_job)
+        self.assertNotIn("manage.py test", media_job)  # the release image has no SQLite for the test runner
+        self.assertIn("not result.skipped", media_job)
         self.assertLess(media_job.index("End-to-end media pipeline test"), media_job.index("Scan media image vulnerabilities"))
 
     def test_the_shared_image_job_proves_no_ffmpeg_and_the_media_job_proves_it_on_the_sandbox_path(self):
