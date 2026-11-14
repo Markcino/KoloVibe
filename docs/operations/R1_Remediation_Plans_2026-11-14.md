@@ -69,6 +69,23 @@ Why each matters: labels and RAM settle section 2; the flags decide whether the 
 
 **Publication** means CI built, scanned and stored an immutable image and recorded evidence. It authorizes nothing on AWS. **Deployment authorization** is a separate, written owner decision that names this exact digest, the operator, the restore point and the services in scope; it is not requested in this document.
 
+### 4.1 Release approval plan: what a deployment approval must contain
+
+A deployment approval is a written record from the owner; silence, a merged PR or a green CI run is never approval. It is valid only for one run and lapses after 24 hours or on any change to the items below.
+
+| Field | Required content |
+| --- | --- |
+| Preconditions (all true, evidence linked) | `main` CI green; the CI-fix, gateway-flag and placement PRs merged; live gateway flags read back and equal to the AWS profile; OPA decision taken and, if adopted, rehearsed (section 5); no unresolved BLOCKED output from the tool's dry runs |
+| Release | The exact digest from section 4 and the `published-image-<sha>` artifact used as `--release-dir`; any other digest is out of scope |
+| Restore point | A reference to a backup that has been **restored and validated** (section 6), with the evidence package attached |
+| Operator and window | A named operator on VM1 and VM2, start and end time, and who can stop the run |
+| Scope and order | Services named explicitly; receivers one at a time with `verify-worker` after each, gateway last; no service outside the list |
+| Secrets | Secret **names** only (never values), who created them, and the `--secret-override` pairs; per-peer keys exist before the gateway moves |
+| Migrations | Explicit yes/no; if yes, order, logins, the handle-collision report and the rehearsal result on the restored copy |
+| Stop conditions | Any BLOCKED message, failed `verify-worker` or `verify-edge`, Swarm `rollback_*` or `paused` state, or an unexpected service change: stop and report |
+| Rollback owner | Who runs `rollback` and who decides on restoring data (schema changes are forward-only) |
+| Evidence | Commands, UTC times, HTTP statuses, digest per service from `docker service inspect`, redacted logs |
+
 ## 5. OPA test plan (disposable environment only)
 
 ### 5.1 What the tool needs, and what has never been proven
