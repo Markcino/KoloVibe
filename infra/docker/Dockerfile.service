@@ -56,7 +56,9 @@ RUN set -eux; \
     chown -R builder:builder /home/builder
 COPY --chown=builder:builder infra/docker/ffmpeg/APKBUILD /home/builder/ffmpeg/APKBUILD
 RUN set -eux; \
-    su builder -c 'cd /home/builder/ffmpeg && abuild-keygen -a -n >/dev/null && abuild -r'; \
+    su builder -c 'abuild-keygen -a -n >/dev/null'; \
+    cp /home/builder/.abuild/*.rsa.pub /etc/apk/keys/; \
+    su builder -c 'cd /home/builder/ffmpeg && abuild -r'; \
     cp /home/builder/packages/*/*/ffmpeg-9.0.2-r0.apk /out/apk/; \
     ls -l /out/apk
 
