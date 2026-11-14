@@ -53,7 +53,37 @@ Nothing was weakened: the scan step text, `fail-build: true`, `severity-cutoff: 
 
 ## 5. CI results
 
-*(filled in from the pull request run; see section 11)*
+Pull request run `43598874335` on commit `c4abb61` (all jobs finished):
+
+| Job | Result |
+| --- | --- |
+| Django services and reproducibility (includes the new read-only database preflight verifier, 11 cases) | **PASS** |
+| Flutter static and widget tests | **PASS** |
+| Security scans and SBOM (secret scan, pip-audit, Bandit, SBOM) | **PASS** (after allowlisting three secret-name false positives found by an earlier run of this PR) |
+| Python and Flutter dependency advisories / osv-scan | **PASS** |
+| **Build and scan shared service image** (no FFmpeg, Alpine 3.23, unchanged gate) | **PASS** |
+| Image build and security, eight-service PostgreSQL smoke matrix | **PASS** (8 of 8) |
+| **Build and scan media worker image** (Alpine 3.24, FFmpeg 8.1.3-r0) | **FAIL at the scan step**: build, inspection, FFmpeg-on-sandbox-PATH and no-SQLite steps passed; the Grype scan ("severity-cutoff: high") found High and Critical findings. SBOM, artifact and publication steps were skipped |
+| Publish | Not run (pull request) |
+
+**The shared image blocker is resolved**: the corrected source's shared image passes the unweakened scan and all eight service smoke checks. **The media image is not yet publishable.** Distinct High or Critical findings in its scan (164 package/CVE rows in all):
+
+| Package | Version | Severity | Fix available | Reachable in this pipeline |
+| --- | --- | --- | --- | --- |
+| ffmpeg (CLI and eight libraries) | 8.1.3-r0 | CVE-2026-70628, CVE-2026-70632, CVE-2026-96611 High; CVE-2026-107696 High | 70628, 70632 and 96611 are fixed in FFmpeg 9.0 (NVD ranges end at 9.0; Alpine 3.24 does not ship 9.x). **CVE-2026-107696 (RTSP redirect loop) affects every release through 9.0.2, the newest upstream** | RTSP and the other network protocols are refused by the encoder's `-protocol_whitelist file,pipe` |
+| cjson | 1.7.19-r1 | CVE-2026-16554, CVE-2026-67215, CVE-2026-67216 High | none on any Alpine branch | not used; pulled in by FFmpeg's optional libraries |
+| alsa-lib | 1.2.15.3-r0 | CVE-2026-56109 High | none listed | audio devices; not used |
+| glib | 2.88.1-r1 | CVE-2026-58016 **Critical** | fixed in glib 2.89.0 (Alpine edge has 2.90.0, 3.24 does not) | D-Bus XML parsing; not used |
+
+Progress from the first design (FFmpeg 8.0.1-r1 on Alpine 3.23: 49 distinct CVEs on the FFmpeg packages, 1 Critical, 26 High, 22 Medium): on Alpine 3.24 the named CVE-2026-52297 and CVE-2026-8461 and the earlier Critical CVE-2026-40962 are no longer reported; FFmpeg's own findings fell to 4 High and 14 Medium.
+
+**Conclusion: no released FFmpeg passes a "High, regardless of fix state" gate today.** Alpine 3.24's package is the newest packaged build and still reports four High; the newest upstream release, 9.0.2, is itself affected by CVE-2026-107696. The remaining High and Critical findings in cjson, alsa-lib and glib come only from FFmpeg's full dependency closure, which this pipeline does not need.
+
+**Decision needed from the owner (not made here):**
+
+1. *Recommended path.* Build a **minimal FFmpeg 9.0.2** from upstream source in the media image: only the MP4/H.264/HEVC/AAC decoders, libx264 and AAC encoders, the JPEG poster path, the scale and format filters, and the `file` and `pipe` protocols; RTSP and every other network protocol, devices and optional libraries compiled out. That removes cjson, alsa-lib, glib, libssh and the rest of the closure, and fixes the three CVEs fixed in 9.0. The one CVE no release fixes, CVE-2026-107696, concerns code that would not be compiled in. If the scan still reports it, the media image can pass only with a **narrow, named-CVE exception for the media image** (Grype ignore for exactly that ID, with this rationale and an expiry), which is a deliberate relaxation of the gate and so the owner's decision.
+2. *No exception.* Keep the gate as is. Then the media image stays unpublished until upstream fixes CVE-2026-107696, and R1 is deployed without the media worker (no upload, processing or playback; every other capability can still be exercised). The CI would be split so the shared image can publish on its own.
+3. *Change the architecture* (not recommended: the R2 plus FFmpeg pipeline is approved).
 
 ## 6. Corrections found by replaying the cluster tool against the live specs
 
@@ -127,8 +157,9 @@ Migration effects, restated (details in the release candidate record): content `
 | Gate | Status |
 | --- | --- |
 | FFmpeg blocker: root cause, patched package, design, implementation | Done (sections 1 to 4) |
-| Media and shared images pass the unweakened scan | **See section 11 (CI)** |
-| Immutable published digests from the corrected source | Produced only by `main` CI after merge; **UNVERIFIED until then** (section 11) |
+| Shared image passes the unweakened scan and the 8-service smoke matrix | **PASS** (section 5) |
+| Media image passes the unweakened scan | **FAIL**: no released FFmpeg passes; owner decision needed (section 5) |
+| Immutable published digests from the corrected source | Produced only by `main` CI after merge, and only when both image jobs pass; **UNVERIFIED** (nothing is published from a pull request) |
 | AWS profile consistent with live services (replay) | **PASS** (section 6); live apply still unverified |
 | R2 credentials, bucket, lifecycle | **BLOCKED** |
 | 12 R1 secrets and the new versions | **BLOCKED** (none exist) |
@@ -137,11 +168,11 @@ Migration effects, restated (details in the release candidate record): content `
 | OPA, backup and restore | Waived (approved) |
 | Irreversible migrations, deployment, each AWS mutation | **BLOCKED**: no approval requested |
 
-**NO-GO.** The code and image path no longer have a known blocker once CI is green on both images; the deployment still has none of its secrets, no R2 account, and no approval.
+**NO-GO.** The shared image blocker is fixed and verified by CI. The media image still fails the scan and needs the owner's decision in section 5; the deployment also has none of its secrets, no R2 account, and no approval.
 
 ## 10. Exact next steps
 
-1. Review and merge the pull request when CI is green; main CI then publishes both digests.
+1. Decide the media image path (section 5, options 1 to 3). Review and merge the pull request when both image jobs are green; main CI then publishes both digests.
 2. Verify both manifests (a `read:packages` credential, or the pull inside `update`).
 3. Supply R2 (identifiers, scoped keys, lifecycle); create the 12 objects and the new versions of section 7 (names there; values by the owner).
 4. Verify RabbitMQ accounts and enroll a reviewer's MFA.
