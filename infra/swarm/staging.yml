@@ -1,5 +1,9 @@
 version: "3.8"
 # Candidate only: all replicas stay zero until capacity, secrets and release approvals.
+# PLACEMENT PROFILE: oracle-staging only. The `node.labels.kolovibe.*` constraints below match the
+# labelled Oracle VM2. The AWS staging nodes carry no Swarm labels, so this file would leave every
+# service unschedulable there; AWS services are placed by `node.hostname==<worker>` through the
+# aws-staging profile of scripts/ops/kolovibe_cluster.py. Do not `docker stack deploy` this file on AWS.
 
 x-environment: &environment
   KOLOVIBE_ENV: staging
