@@ -317,6 +317,7 @@ jobs:
             --target release \
             --build-arg "PYTHON_BASE=$MEDIA_PYTHON_BASE" \
             --build-arg WITH_FFMPEG=1 \
+            --build-arg FFMPEG_SOURCE=ffmpeg-minimal \
             --file infra/docker/Dockerfile.service \
             --label "org.opencontainers.image.revision=$GITHUB_SHA" \
             --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
@@ -344,6 +345,30 @@ jobs:
             }
             docker run --rm --entrypoint "$tool" "kolovibe/media-worker:ci" -version >/dev/null
           done
+      - name: Verify FFmpeg is the minimal build the pipeline needs and nothing more
+        run: |
+          set -euo pipefail
+          run() { docker run --rm --entrypoint "$1" "kolovibe/media-worker:ci" "${@:2}"; }
+          run ffmpeg -hide_banner -version | head -1 | grep -q '^ffmpeg version 9\.0\.2'
+          protocols="$(run ffmpeg -hide_banner -protocols 2>&1 | grep -vE '^(Supported|Input|Output)' | tr -s ' \n' ' ')"
+          test "$(printf '%s' "$protocols" | tr ' ' '\n' | grep -v '^$' | sort -u | tr '\n' ' ')" = "file pipe " || {
+            echo "::error::FFmpeg must support only the file and pipe protocols, got: $protocols"; exit 1; }
+          for encoder in libx264 aac mjpeg; do run ffmpeg -hide_banner -encoders 2>&1 | grep -qE " $encoder " || {
+            echo "::error::FFmpeg lacks the $encoder encoder"; exit 1; }; done
+          for absent in libvpx libopus libx265 rtsp rtp http tcp udp tls; do
+            if run ffmpeg -hide_banner -encoders -decoders -demuxers -muxers -protocols 2>&1 | grep -qiE "(^| )$absent( |$)"; then
+              echo "::error::FFmpeg must not include $absent"; exit 1; fi
+          done
+          run ffprobe -hide_banner -version >/dev/null
+          # No device library, no network or audio-device libraries in the image's dependency closure.
+          if docker run --rm --entrypoint apk "kolovibe/media-worker:ci" list -I | grep -E '^(cjson|alsa-lib|glib|libssh|libzmq|libpulse|libsrt|dbus-libs)-'; then
+            echo "::error::The media image carries a library FFmpeg does not need"; exit 1
+          fi
+      - name: End-to-end media pipeline test inside the image
+        run: |
+          set -euo pipefail
+          docker run --rm -e KOLOVIBE_ENV=local -e DJANGO_SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')" \
+            --entrypoint sh "kolovibe/media-worker:ci" -c 'cd /app/services/content && python manage.py test tests.test_posters -v 2'
       - name: Verify the media image has no SQLite
         run: |
           set -euo pipefail
