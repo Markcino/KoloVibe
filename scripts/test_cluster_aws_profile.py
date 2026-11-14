@@ -29,7 +29,8 @@ AWS_ONLY = (APPROVAL, SMTP_USER, SMTP_PASSWORD, PEERS)
 
 
 def mount(target, name):
-    return {'SecretName': name, 'SecretID': 'id-' + name, 'File': {'Name': target}}
+    # Offline fixture: a Swarm secret *name* and a placeholder id; no value exists here.
+    return {'SecretName': name, 'SecretID': 'id-' + name, 'File': {'Name': target}}  # pragma: allowlist secret
 
 
 def aws_gateway(constraint=PIN, db_host=DB, networks=('services-net', 'data-net'), extra_mounts=()):
