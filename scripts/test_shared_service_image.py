@@ -33,16 +33,22 @@ class ImageSecurityContractTests(unittest.TestCase):
                         self.dockerfile.index("pip install"))
 
     def test_base_image_stays_digest_pinned(self):
-        self.assertRegex(self.dockerfile, r"(?m)^FROM python:[^@\s]+@sha256:[0-9a-f]{64}( AS \w+)?$")
-        self.assertEqual(len(re.findall(r"(?m)^FROM python:", self.dockerfile)), 1)
+        # One parameterized base, pinned by digest, used by exactly one FROM; the default is the Alpine 3.23 image.
+        self.assertRegex(self.dockerfile, r"(?m)^ARG PYTHON_BASE=python:3\.12\.16-alpine3\.23@sha256:[0-9a-f]{64}$")
+        self.assertEqual(re.findall(r"(?m)^FROM [^\n]+$", self.dockerfile)[0], "FROM ${PYTHON_BASE} AS local")
+        self.assertEqual(len(re.findall(r"(?m)^FROM python:", self.dockerfile)), 0)
+        # The media image's Alpine 3.24 base is named only in CI, by digest.
+        self.assertRegex(self.workflow, r"(?m)^\s+MEDIA_PYTHON_BASE: python:3\.12\.16-alpine3\.24@sha256:[0-9a-f]{64}$")
 
     def test_image_scan_gate_is_not_weakened(self):
-        start = self.workflow.index("Scan local image vulnerabilities")
-        step = self.workflow[start:self.workflow.index("- name:", start + 1)]
-        self.assertIn("fail-build: true", step)
-        self.assertIn("severity-cutoff: high", step)
-        for weakening in ("only-fixed", "ignore", "grype.yaml", "continue-on-error"):
-            self.assertNotIn(weakening, step)
+        for name in ("Scan local image vulnerabilities", "Scan media image vulnerabilities"):
+            start = self.workflow.index(name)
+            step = self.workflow[start:self.workflow.index("- name:", start + 1)]
+            self.assertIn("fail-build: true", step, name)
+            self.assertIn("severity-cutoff: high", step, name)
+            for weakening in ("only-fixed", "ignore", "grype.yaml", "continue-on-error", "severity-cutoff: critical"):
+                self.assertNotIn(weakening, step, name)
+        self.assertEqual(self.workflow.count("fail-build: true"), 2)
 
     def stages(self):
         parts = re.split(r"(?m)^FROM [^\n]+ AS (\w+)\n", self.dockerfile)
@@ -71,17 +77,35 @@ class ImageSecurityContractTests(unittest.TestCase):
         self.assertTrue(release.rstrip().endswith("USER 10001:10001"))
         self.assertIn("USER root", release)
 
-    def test_release_stage_installs_ffmpeg_after_sqlite_removal_and_rechecks(self):
+    def test_ffmpeg_is_installed_only_for_the_media_build_after_sqlite_removal_and_rechecked(self):
         release = self.stages()["release"]
-        self.assertIn("apk add --no-cache ffmpeg", release)
+        self.assertIn("ARG WITH_FFMPEG=0", release)
+        self.assertEqual(release.count("apk add --no-cache ffmpeg"), 1)
         self.assertGreater(release.index("apk add --no-cache ffmpeg"), release.index("apk del .python-rundeps sqlite-libs"))
+        # The encoder is installed only inside the WITH_FFMPEG=1 branch; the default branch refuses to ship it.
+        self.assertRegex(release, r'if \[ "\$WITH_FFMPEG" = "1" \]; then[^#]*apk add --no-cache ffmpeg')
+        self.assertIn("FFmpeg must not be in the shared image", release)
         tail = release[release.index("apk add --no-cache ffmpeg"):]
         for check in ("ffmpeg -version", "ffprobe -version", "apk list -I | grep -qi sqlite", "import sqlite3"):
             self.assertIn(check, tail)
         self.assertTrue(release.rstrip().endswith("USER 10001:10001"))
-        self.assertIn("Verify FFmpeg for the media worker on the sandbox PATH", self.workflow)
-        self.assertLess(self.workflow.index("Verify FFmpeg for the media worker"),
-                        self.workflow.index("Scan local image vulnerabilities"))
+
+    def test_the_shared_image_job_proves_no_ffmpeg_and_the_media_job_proves_it_on_the_sandbox_path(self):
+        shared_job = self.workflow[self.workflow.index("  image-build:"):self.workflow.index("  media-image-build:")]
+        media_job = self.workflow[self.workflow.index("  media-image-build:"):self.workflow.index("  build-and-verify:")]
+        self.assertIn("Verify the shared image carries no FFmpeg", shared_job)
+        self.assertNotIn("WITH_FFMPEG", shared_job)
+        self.assertNotIn("--build-arg", shared_job)
+        self.assertIn("--build-arg WITH_FFMPEG=1", media_job)
+        self.assertIn('--build-arg "PYTHON_BASE=$MEDIA_PYTHON_BASE"', media_job)
+        self.assertIn("--target release", media_job)
+        self.assertIn("Verify FFmpeg for the media worker on the sandbox PATH", media_job)
+        self.assertIn("os.defpath", media_job)
+        self.assertLess(media_job.index("Verify FFmpeg for the media worker"),
+                        media_job.index("Scan media image vulnerabilities"))
+        self.assertLess(media_job.index("Verify the media image has no SQLite"),
+                        media_job.index("Scan media image vulnerabilities"))
+        self.assertIn('"ffmpeg" not in names', media_job)
 
     def test_ci_builds_scans_and_publishes_only_the_release_target(self):
         build = self.workflow[self.workflow.index("- name: Build shared service image"):

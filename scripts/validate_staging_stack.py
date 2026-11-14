@@ -135,6 +135,24 @@ AWS_ROLES = {
 }
 AWS_NETWORKS = {"private": "kolovibe_services", "data_private": "kolovibe_data", "broker_private": "kolovibe_messaging"}
 MAX_PROCESS_MEMORY = 1024 ** 3
+MEDIA_IMAGE = r"ghcr\.io/markcino/kolovibe/media-worker@sha256:[0-9a-f]{64}"
+
+
+def check_release_evidence(directory, stack):
+    """The stack's two digests must be exactly the ones the `published-image-<sha>` artifact recorded."""
+    base = Path(directory)
+    read = lambda name: (base / name).read_text().strip()  # noqa: E731
+    revision = read("revision.txt")
+    if not re.fullmatch(r"[0-9a-f]{40}", revision):
+        raise ValueError("Release evidence has no valid revision")
+    shared, media = read("published-digest.txt"), read("published-media-digest.txt")
+    if stack["services"]["media-worker"]["image"] != media:
+        raise ValueError("The media worker image is not the published media-worker digest")
+    if any(d["image"] != shared for n, d in stack["services"].items() if n != "media-worker"):
+        raise ValueError("A process image is not the published shared digest")
+    if not re.fullmatch(MEDIA_IMAGE, media) or media == shared:
+        raise ValueError("The media-worker digest is invalid")
+    return revision
 
 
 def _aws_references():
@@ -159,9 +177,12 @@ def validate_aws(stack):
     for name, expected in AWS_NETWORKS.items():
         if stack["networks"].get(name) != {"external": True, "name": expected}:
             raise ValueError("AWS networks must be the existing approved external overlays")
-    images = {definition["image"] for definition in stack["services"].values()}
-    if len(images) != 1 or not re.fullmatch(r"ghcr\.io/markcino/kolovibe/services@sha256:[0-9a-f]{64}", next(iter(images))):
-        raise ValueError("Every AWS process must use the one immutable shared image digest")
+    media = stack["services"]["media-worker"]["image"]
+    if not re.fullmatch(MEDIA_IMAGE, media):
+        raise ValueError("The media worker must use the immutable media-worker image digest")
+    shared = {definition["image"] for name, definition in stack["services"].items() if name != "media-worker"}
+    if len(shared) != 1 or not re.fullmatch(r"ghcr\.io/markcino/kolovibe/services@sha256:[0-9a-f]{64}", next(iter(shared))):
+        raise ValueError("Every other AWS process must use the one immutable shared image digest")
     budget = {}
     for name, (service, role) in AWS_ROLES.items():
         definition = stack["services"][name]
@@ -242,11 +263,15 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--profile", choices=PROFILES, default=ORACLE_PROFILE)
+    parser.add_argument("--release-dir", help="with --aws-stack: the downloaded published-image-<sha> artifact")
     parser.add_argument("--aws-stack", action="store_true",
                         help="validate infra/swarm/staging-aws.yml (the AWS R1 worker and job services) instead")
     args = parser.parse_args()
     if args.aws_stack:
-        budget = validate_aws(load_stack(AWS_STACK, os.environ))
+        loaded = load_stack(AWS_STACK, os.environ)
+        budget = validate_aws(loaded)
+        if args.release_dir:
+            print("release evidence matches both digests; revision", check_release_evidence(args.release_dir, loaded))
         print("AWS R1 worker stack passed offline; planned memory limits (MiB):",
               {name: limit // 1024 ** 2 for name, limit in budget.items()},
               "total", sum(budget.values()) // 1024 ** 2, "MiB; live capacity and secrets still unverified")

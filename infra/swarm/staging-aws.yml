@@ -8,8 +8,10 @@ version: "3.8"
 #
 # The eight API services already run on AWS and are moved to the R1 configuration with
 # `kolovibe_cluster.py update --profile aws-staging --enable-r1-capabilities` (see README), not by this file.
-# This file adds the seven processes that do not exist yet. Every one is the same shared image digest as the
-# APIs, selected by `--role`; each mounts exactly the secrets of the API service it belongs to (the staging
+# This file adds the seven processes that do not exist yet. Six are the same shared image digest as the
+# APIs, selected by `--role` (the media worker alone uses the separate media-worker image: only it carries FFmpeg,
+# on the Alpine 3.24 base; both digests come from the same `published-image-<sha>` CI artifact); each mounts
+# exactly the secrets of the API service it belongs to (the staging
 # runtime validates the same configuration for a worker as for the API), and carries the same exact flag row.
 #
 # All services start at ZERO replicas. Scale each up one at a time, after the read-only capacity check and
@@ -69,6 +71,8 @@ services:
   # --- Content: the bounded FFmpeg/R2 media worker ----------------------------------------------------------
   media-worker:
     <<: *process
+    # The only process on the media-worker image (FFmpeg lives nowhere else).
+    image: ${KOLOVIBE_MEDIA_IMAGE:?verified media-worker GHCR digest required}
     command: ["--role", "media-worker"]
     networks: [private, data_private, broker_private]
     environment:
