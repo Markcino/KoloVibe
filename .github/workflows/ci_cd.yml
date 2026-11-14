@@ -355,9 +355,12 @@ jobs:
             echo "::error::FFmpeg must support only the file and pipe protocols, got: $protocols"; exit 1; }
           for encoder in libx264 aac mjpeg; do run ffmpeg -hide_banner -encoders 2>&1 | grep -qE " $encoder " || {
             echo "::error::FFmpeg lacks the $encoder encoder"; exit 1; }; done
-          for absent in libvpx libopus libx265 rtsp rtp http tcp udp tls; do
-            if run ffmpeg -hide_banner -encoders -decoders -demuxers -muxers -protocols 2>&1 | grep -qiE "(^| )$absent( |$)"; then
-              echo "::error::FFmpeg must not include $absent"; exit 1; fi
+          # Each listing is a separate invocation: ffmpeg exits after the first information option.
+          for listing in -encoders -decoders -demuxers -muxers -protocols; do
+            for absent in libvpx libopus libx265 rtsp rtp http tcp udp tls; do
+              if run ffmpeg -hide_banner "$listing" 2>&1 | grep -qiE "(^| )$absent( |$)"; then
+                echo "::error::FFmpeg $listing must not include $absent"; exit 1; fi
+            done
           done
           run ffprobe -hide_banner -version >/dev/null
           # No device library, no network or audio-device libraries in the image's dependency closure.
