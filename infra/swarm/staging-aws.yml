@@ -95,7 +95,7 @@ services:
       - {source: content_callers, target: caller_keys, uid: "10001", gid: "10001", mode: 0400}
       - {source: content_probe, target: probe_token, uid: "10001", gid: "10001", mode: 0400}
       - {source: internal_ca, target: internal_ca, uid: "10001", gid: "10001", mode: 0400}
-      - {source: db_ca, target: db_ca, uid: "10001", gid: "10001", mode: 0400}
+      - {source: kolovibe_pg_ca_v1, target: db_ca, uid: "10001", gid: "10001", mode: 0400}
       - {source: kolovibe_content_r2_access_key_r1_v1, target: r2_access_key, uid: "10001", gid: "10001", mode: 0400}
       - {source: kolovibe_content_r2_secret_key_r1_v1, target: r2_secret_key, uid: "10001", gid: "10001", mode: 0400}
       - {source: kolovibe_content_rabbitmq_url_r1_v1, target: rabbitmq_url, uid: "10001", gid: "10001", mode: 0400}
@@ -127,7 +127,7 @@ services:
       - {source: engagement_callers, target: caller_keys, uid: "10001", gid: "10001", mode: 0400}
       - {source: engagement_probe, target: probe_token, uid: "10001", gid: "10001", mode: 0400}
       - {source: internal_ca, target: internal_ca, uid: "10001", gid: "10001", mode: 0400}
-      - {source: db_ca, target: db_ca, uid: "10001", gid: "10001", mode: 0400}
+      - {source: kolovibe_pg_ca_v1, target: db_ca, uid: "10001", gid: "10001", mode: 0400}
       - {source: kolovibe_engagement_rabbitmq_url_r1_v1, target: rabbitmq_url, uid: "10001", gid: "10001", mode: 0400}
       - {source: kolovibe_rmq_ca, target: rabbitmq_ca, uid: "10001", gid: "10001", mode: 0400}
     deploy:
@@ -176,7 +176,7 @@ services:
       - {source: points_callers, target: caller_keys, uid: "10001", gid: "10001", mode: 0400}
       - {source: points_probe, target: probe_token, uid: "10001", gid: "10001", mode: 0400}
       - {source: internal_ca, target: internal_ca, uid: "10001", gid: "10001", mode: 0400}
-      - {source: db_ca, target: db_ca, uid: "10001", gid: "10001", mode: 0400}
+      - {source: kolovibe_pg_ca_v1, target: db_ca, uid: "10001", gid: "10001", mode: 0400}
       - {source: kolovibe_points_rabbitmq_url_r1_v1, target: rabbitmq_url, uid: "10001", gid: "10001", mode: 0400}
       - {source: kolovibe_rmq_ca, target: rabbitmq_ca, uid: "10001", gid: "10001", mode: 0400}
       - {source: kolovibe_points_outbound_key_r1_v1, target: outbound_key, uid: "10001", gid: "10001", mode: 0400}
@@ -227,7 +227,7 @@ services:
       - {source: moderation_callers, target: caller_keys, uid: "10001", gid: "10001", mode: 0400}
       - {source: moderation_probe, target: probe_token, uid: "10001", gid: "10001", mode: 0400}
       - {source: internal_ca, target: internal_ca, uid: "10001", gid: "10001", mode: 0400}
-      - {source: db_ca, target: db_ca, uid: "10001", gid: "10001", mode: 0400}
+      - {source: kolovibe_pg_ca_v1, target: db_ca, uid: "10001", gid: "10001", mode: 0400}
       - {source: kolovibe_moderation_outbound_key_r1_v1, target: outbound_key, uid: "10001", gid: "10001", mode: 0400}
       - {source: kolovibe_moderation_peers_r1_v1, target: trusted_peers, uid: "10001", gid: "10001", mode: 0400}
     deploy:
@@ -266,7 +266,7 @@ services:
       - {source: identity_callers, target: caller_keys, uid: "10001", gid: "10001", mode: 0400}
       - {source: identity_probe, target: probe_token, uid: "10001", gid: "10001", mode: 0400}
       - {source: internal_ca, target: internal_ca, uid: "10001", gid: "10001", mode: 0400}
-      - {source: db_ca, target: db_ca, uid: "10001", gid: "10001", mode: 0400}
+      - {source: kolovibe_pg_ca_v1, target: db_ca, uid: "10001", gid: "10001", mode: 0400}
       - {source: kolovibe_identity_smtp_user_20261110_v1, target: smtp_user, uid: "10001", gid: "10001", mode: 0400}
       - {source: kolovibe_identity_smtp_password_20261110_v1, target: smtp_password, uid: "10001", gid: "10001", mode: 0400}
       - {source: identity_mfa_encryption, target: mfa_encryption_key, uid: "10001", gid: "10001", mode: 0400}
@@ -286,7 +286,7 @@ networks:
 
 secrets:
   internal_ca: {external: true}
-  db_ca: {external: true}
+  kolovibe_pg_ca_v1: {external: true}  # the database CA every AWS service mounts at target db_ca
   kolovibe_rmq_ca: {external: true}
   content_django: {external: true}
   content_db: {external: true}

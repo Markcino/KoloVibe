@@ -238,8 +238,11 @@ def validate_aws(stack):
         if reservation > limit or limit > MAX_PROCESS_MEMORY:
             raise ValueError("A process memory budget must be bounded and its reservation within its limit")
         mounted = {secret["target"]: secret["source"] for secret in definition["secrets"]}
-        expected = {target: (name if not name.startswith("kolovibe_") else name)
-                    for target, name in cluster.convention_secrets(service).items()}
+        previous, cluster.PROFILE = cluster.PROFILE, profile  # the profile names the environment's CA secret
+        try:
+            expected = dict(cluster.convention_secrets(service))
+        finally:
+            cluster.PROFILE = previous
         if service == "identity":
             expected.update(smtp_user="kolovibe_identity_smtp_user_20261110_v1",
                             smtp_password="kolovibe_identity_smtp_password_20261110_v1",  # pragma: allowlist secret

@@ -103,6 +103,8 @@ class Profile(NamedTuple):
     opa_waiver: str = ''       # owner waiver reference when this profile runs without the OPA Docker plugin
     r1_flags: dict = None      # service -> the exact R1 flag row (see FLAG_R1_NAMES), enabled by --enable-r1-capabilities
     r1_rollout: dict = None    # service -> reviewed env, secret mounts and networks the R1 rollout adds
+    ca_secret_names: dict = None  # shared-CA mount target -> the Swarm secret name this environment uses for it
+    db_user_format: str = 'kv_{service}_run'  # runtime database login of each service, from the live specs
 
 
 NETWORKS = frozenset({'kolovibe_services', 'kolovibe_data', 'kolovibe_db_host_access'})
@@ -233,7 +235,7 @@ AWS_ALLOWED_SECRETS = _aws_allowed_secrets()
 AWS_STAGING = Profile(
     name='aws-staging', manager_host='ip-172-31-30-236', worker_host='ip-172-31-16-154',
     service_prefix='kolovibe-', worker_constraint='node.hostname==ip-172-31-16-154',
-    db_name='kolovibe_staging', db_host_exact='', db_network='172.31.0.0/16',
+    db_name='kolovibe_staging', db_host_exact='kolovibe-postgres', db_network='172.31.0.0/16',
     db_guard='tcp-tls-probe', db_guard_address='',
     gateway_networks_required=frozenset({'kolovibe_services', 'kolovibe_data'}),
     gateway_networks_allowed=NETWORKS,
@@ -244,7 +246,13 @@ AWS_STAGING = Profile(
     # routes stay at the documented default. Read back from the live services on 14 November 2026.
     # Exact values, never "either": a different live value stops the tool until a reviewed change.
     service_flags=flag_table(gateway=('1', '0'), identity=('1', '0')),
-    opa_waiver=OPA_WAIVER, r1_flags=r1_flag_table(), r1_rollout=r1_rollout_table())
+    opa_waiver=OPA_WAIVER, r1_flags=r1_flag_table(), r1_rollout=r1_rollout_table(),
+    # Read-only service inspection of 14 November 2026: every AWS service mounts the database CA from the
+    # Swarm secret `kolovibe_pg_ca_v1` at target `db_ca`; no secret is named `db_ca` there.
+    ca_secret_names={'db_ca': 'kolovibe_pg_ca_v1'},
+    # Read-only service inspection of 14 November 2026: logins are `kolovibe_<service>_app` and the database host
+    # is the Swarm service name `kolovibe-postgres` (the 13 November note of a 172.31.x address is superseded).
+    db_user_format='kolovibe_{service}_app')
 PROFILES = {p.name: p for p in (ORACLE_STAGING, AWS_STAGING)}
 
 
@@ -353,12 +361,19 @@ def svc(service):
 
 
 def db_host_ok(host):
-    if PROFILE.db_host_exact:
-        return host == PROFILE.db_host_exact
+    """The exact host the profile names, or (where it also names a network) an address inside that network."""
+    if PROFILE.db_host_exact and host == PROFILE.db_host_exact:
+        return True
+    if not PROFILE.db_network:
+        return False
     try:
         return ipaddress.IPv4Address(host) in ipaddress.IPv4Network(PROFILE.db_network)
     except ValueError:
         return False
+
+
+def db_user(service):
+    return PROFILE.db_user_format.format(service=service)
 
 
 def fail(message):
@@ -593,7 +608,7 @@ def base_gateway(api, image=BASELINE_IMAGE):
     env = env_dict(c)
     required = {'KOLOVIBE_ENV': 'staging', 'KOLOVIBE_SERVICE_NAME': 'gateway',
                 'KOLOVIBE_DB_NAME': PROFILE.db_name,
-                'KOLOVIBE_DB_USER': 'kv_gateway_run'}
+                'KOLOVIBE_DB_USER': db_user('gateway')}
     # Capability flags are part of the profile and are compared exactly; only their names are reported.
     off = flag_mismatch('gateway', env)
     if off:
@@ -634,7 +649,7 @@ def convention_secrets(service):
     """Secret names a new service is given, in mount order."""
     selected = {target: service + suffix for target, suffix in COMMON.items()}
     selected.update(EXTRA.get(service, {}))
-    selected.update({name: name for name in SHARED_SECRETS})
+    selected.update({name: (PROFILE.ca_secret_names or {}).get(name, name) for name in SHARED_SECRETS})
     return selected
 
 
@@ -657,7 +672,10 @@ def require_secrets_belong(service, spec):
     lists for that service. Anything else fails closed. Names only
     are examined and reported; secret values are never read."""
     for target, name in secret_refs(spec).items():
-        shared = name == target and (name in SHARED_SECRETS or name in PROFILE.service_shared_secrets.get(service, ()))
+        # A shared secret is mounted under its own name, except where the profile records the environment's name
+        # for a cluster CA (AWS: the database CA is `kolovibe_pg_ca_v1`, mounted at target `db_ca`).
+        shared = name == (PROFILE.ca_secret_names or {}).get(target, target) and (
+            target in SHARED_SECRETS or name in PROFILE.service_shared_secrets.get(service, ()))
         own = target not in SHARED_SECRETS and name.startswith(service + '_')
         listed = target not in SHARED_SECRETS and name in PROFILE.service_allowed_secrets.get(service, ())
         if not (shared or own or listed):
@@ -687,7 +705,7 @@ def api_spec(gateway, service, all_secrets, image, revision, names=None):
     env = env_dict(c)
     # Retain the proven DB host and hosts entry. Replace service-specific identity.
     env.update(KOLOVIBE_SERVICE_NAME=service, KOLOVIBE_ALLOWED_HOSTS=service,
-               KOLOVIBE_DB_USER='kv_' + service + '_run')
+               KOLOVIBE_DB_USER=db_user(service))
     # Capability flags come from the profile for this service, never from the Gateway's environment.
     env.update(PROFILE.service_flags[service])
     for key in (FLAG_ONBOARDING, FLAG_CAPABILITIES):
@@ -1388,14 +1406,19 @@ def container_tests(service):
     record(rows, 'internal denies unsigned caller', lambda: call('/internal/probe'), (403,))
     record(rows, 'wrong Host rejected', lambda: call('/health/live', host='evil.example.test'), (400,))
     record(rows, 'liveness POST rejected', lambda: call('/health/live', method='POST', data=b'{}'), (405,))
-    for path in ('/admin', '/api/v1/points', '/api/v1/auth/login'):
+    for path in ('/admin', '/api/v1/points'):
         record(rows, 'gated ' + path, lambda p=path: call(p), (403,))
+    if os.environ.get('KOLOVIBE_STAGING_ACCOUNTS') == '1':
+        # The account wave is approved on this service: the login route is open, so a GET reaches the view (405).
+        record(rows, 'login route open but POST-only', lambda: call('/api/v1/auth/login'), (405,))
+    else:
+        record(rows, 'gated /api/v1/auth/login', lambda: call('/api/v1/auth/login'), (403,))
     try:
         with connection.cursor() as cursor:
             cursor.execute('SELECT current_user,current_schema(),current_database(), '
                            '(SELECT ssl FROM pg_stat_ssl WHERE pid=pg_backend_pid())')
             user, schema, database, tls = cursor.fetchone()
-            if (user, schema, database, tls) != ('kv_' + service + '_run', service, PROFILE.db_name, True):
+            if (user, schema, database, tls) != (db_user(service), service, PROFILE.db_name, True):
                 raise ValueError('Unexpected database identity')
             if connection.settings_dict['OPTIONS']['sslmode'] != 'verify-full':
                 raise ValueError('Database TLS identity disabled')
@@ -1546,7 +1569,16 @@ def database_guard():
         if guard.get('guard') is not True or guard.get('db') != PROFILE.db_guard_address:
             fail('Working bridge guard is not verified')
         return guard
-    return probe_database(*gateway_database_endpoint())
+    host, port = gateway_database_endpoint()
+    if host == PROFILE.db_host_exact and not re.fullmatch(r'\d+\.\d+\.\d+\.\d+', host):
+        # A Swarm service name resolves only on the overlay, not from the host: the proof that it answers over verified
+        # TLS is `verify-worker`'s per-service `verify-full` connection. From the host only check the service runs.
+        running = run(['docker', 'ps', '--filter', 'status=running', '--filter',
+                       'label=com.docker.swarm.service.name=' + host, '--format', '{{.ID}}'])
+        if not running.strip():
+            fail('The database service is not running on this worker')
+        return {'guard': True, 'db': host}
+    return probe_database(host, port)
 
 
 def worker_preflight():

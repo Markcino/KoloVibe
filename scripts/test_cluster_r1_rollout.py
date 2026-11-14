@@ -101,6 +101,63 @@ class R1TableTests(unittest.TestCase):
         self.assertNotIn('kolovibe_content_r2_access_key_r1_v1', AWS.service_allowed_secrets['gateway'])
 
 
+class DatabaseCaNameTests(unittest.TestCase):
+    """Live AWS mounts the database CA from `kolovibe_pg_ca_v1` at target `db_ca` (read-only inspection)."""
+
+    def spec(self, name, target='db_ca'):
+        return {'TaskTemplate': {'ContainerSpec': {'Secrets': [
+            {'SecretName': name, 'SecretID': 'x', 'File': {'Name': target}}]}}}
+
+    def test_aws_accepts_only_its_recorded_database_ca_name_at_the_db_ca_target(self):
+        with patch.object(cluster, 'PROFILE', AWS):
+            cluster.require_secrets_belong('audit', self.spec('kolovibe_pg_ca_v1'))
+            for name, target in (('db_ca', 'db_ca'), ('kolovibe_pg_ca_v1', 'internal_ca'), ('kolovibe_rmq_ca', 'db_ca'),
+                                 ('audit_db_ca', 'db_ca'), ('kolovibe_pg_ca_v2', 'db_ca')):
+                with self.subTest(name, target=target), self.assertRaisesRegex(RuntimeError, 'does not belong to it'):
+                    cluster.require_secrets_belong('audit', self.spec(name, target))
+            self.assertEqual(cluster.convention_secrets('audit')['db_ca'], 'kolovibe_pg_ca_v1')
+            self.assertEqual(cluster.convention_secrets('audit')['internal_ca'], 'internal_ca')
+
+    def test_oracle_still_demands_the_cluster_ca_under_its_own_name(self):
+        with patch.object(cluster, 'PROFILE', cluster.ORACLE_STAGING):
+            cluster.require_secrets_belong('audit', self.spec('db_ca'))
+            with self.assertRaisesRegex(RuntimeError, 'does not belong to it'):
+                cluster.require_secrets_belong('audit', self.spec('kolovibe_pg_ca_v1'))
+            self.assertEqual(cluster.convention_secrets('audit')['db_ca'], 'db_ca')
+
+
+class LiveShapeTests(unittest.TestCase):
+    """AWS constants read from the live services on 14 November 2026 (read-only inspection), names only."""
+
+    def test_database_host_and_logins_match_the_live_services(self):
+        with patch.object(cluster, 'PROFILE', AWS):
+            self.assertTrue(cluster.db_host_ok('kolovibe-postgres'))
+            self.assertTrue(cluster.db_host_ok('172.31.16.20'))  # the earlier address form stays accepted
+            for bad in ('postgres', 'kolovibe-postgres.evil.test', 'kolovibe-postgres ', '', 'vm-swarm-worker', '172.32.0.1'):
+                self.assertFalse(cluster.db_host_ok(bad), bad)
+            self.assertEqual(cluster.db_user('gateway'), 'kolovibe_gateway_app')
+            self.assertEqual(cluster.db_user('audit'), 'kolovibe_audit_app')
+        with patch.object(cluster, 'PROFILE', cluster.ORACLE_STAGING):
+            self.assertEqual(cluster.db_user('gateway'), 'kv_gateway_run')
+            self.assertFalse(cluster.db_host_ok('kolovibe-postgres'))
+
+    def test_a_service_name_database_is_guarded_by_a_running_task_not_a_host_probe(self):
+        with patch.object(cluster, 'PROFILE', AWS), \
+                patch.object(cluster, 'gateway_database_endpoint', return_value=('kolovibe-postgres', '5432')), \
+                patch.object(cluster, 'probe_database') as probe:
+            with patch.object(cluster, 'run', return_value='abc123\n') as run:
+                self.assertEqual(cluster.database_guard(), {'guard': True, 'db': 'kolovibe-postgres'})
+            self.assertIn('label=com.docker.swarm.service.name=kolovibe-postgres', run.call_args[0][0])
+            probe.assert_not_called()
+            with patch.object(cluster, 'run', return_value=''), self.assertRaisesRegex(RuntimeError, 'not running'):
+                cluster.database_guard()
+        with patch.object(cluster, 'PROFILE', AWS), \
+                patch.object(cluster, 'gateway_database_endpoint', return_value=('172.31.16.20', '5432')), \
+                patch.object(cluster, 'probe_database', return_value={'guard': True, 'db': '172.31.16.20'}) as probe:
+            cluster.database_guard()
+            probe.assert_called_once_with('172.31.16.20', '5432')
+
+
 class R1PlanTests(unittest.TestCase):
     def test_plan_adds_exactly_the_reviewed_flags_mounts_and_network_as_names(self):
         report = plan(R1Swarm())
