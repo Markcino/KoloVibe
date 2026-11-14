@@ -11,7 +11,7 @@
 | C | Staging capability gates for approved R1 routes | none in code; deploys through B | Acceptance phases E to I | `staging_runtime` middleware, settings flags, stack environment | Which flags to enable first, per service |
 | D | Sandboxed media worker (FFmpeg, R2) | B for rollout; E for queue wiring (to confirm) | Acceptance phase F | New worker image target and stack service | R2 account, bucket and key secrets provisioned |
 | E | RabbitMQ consumers, schedulers, audit delivery | B for rollout | Acceptance phases G, H, I | Worker services and schedulers in `infra/swarm/staging.yml`; messaging secrets | Approved broker URLs, retry cadence, lag alerts |
-| F | Deployment validation, health checks, logs, resource limits | C, D, E define what to validate | Capacity sign-off | `validate_staging_stack.py` and stack limits | Approved memory limits for the two ~956 MiB VMs |
+| F | Deployment validation, health checks, logs, resource limits | C, D, E define what to validate | Capacity sign-off | `validate_staging_stack.py` and stack limits | Approved memory limits. The ~956 MiB figure is the **Oracle** VM size; the AWS instance size is unrecorded (see the 14 Nov remediation plans) |
 | G | Migration validation and restore requirements | none in code | Any migration run on staging | PostgreSQL migration check, rollback classification, restore runbook | Approved restore point and a tested restore (FND-16) |
 | H | CI and staging-config regression tests | A to G | Final readiness claim | Test and workflow wiring | none |
 

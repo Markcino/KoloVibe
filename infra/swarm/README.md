@@ -29,8 +29,8 @@ between a hostname-pinned AWS stack file and applying the labels, which changes 
 **Worker-only scheduling:** All eight API services require
 `node.labels.kolovibe.workloads == true`. RabbitMQ requires both that label
 and `node.labels.kolovibe.rabbitmq == true` on the same worker, following
-durable-volume and capacity approval. The November 1 worker readback confirms
-only VM2 carries the workload label; neither node has the separate RabbitMQ
+durable-volume and capacity approval. The November 1 **Oracle** worker readback confirms
+only Oracle VM2 carries the workload label; neither node has the separate RabbitMQ
 label. Do not add the latter until the broker's storage/capacity review passes.
 These placement constraints do not establish memory sufficiency or authorize
 activation. All nine services continue to default to `replicas: 0`.
@@ -41,7 +41,8 @@ verified TLS, external owner-only secrets, a private overlay, read-only non-root
 filesystems, readiness checks, resource bounds and rollback-on-update-failure.
 There are no published ports, database containers or enabled account/points APIs.
 This is a candidate, not a deployed/accepted stack. All nine services default to
-**zero replicas**: definition does not authorize activation. The two ~956 MiB VMs
+**zero replicas**: definition does not authorize activation. The two **Oracle** ~956 MiB VMs
+(1 and 3 November read-backs; the AWS instance size is unrecorded and must be read back)
 cannot be assumed to fit eight Django processes plus RabbitMQ and existing
 workloads. `API_MEMORY_LIMIT`, `API_MEMORY_RESERVATION` and `RABBITMQ_MEMORY_LIMIT`
 are required reviewed inputs, not invented defaults. The validator rejects

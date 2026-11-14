@@ -527,7 +527,10 @@ def api_spec(gateway, service, all_secrets, image, revision, names=None):
                KOLOVIBE_DB_USER='kv_' + service + '_run')
     # Capability flags come from the profile for this service, never from the Gateway's environment.
     env.update(PROFILE.service_flags[service])
-    for key in ('KOLOVIBE_TRUSTED_PEERS_FILE', 'KOLOVIBE_OUTBOUND_KEY_FILE'):
+    # Gateway-only configuration is never copied into another service: peers and outbound key are
+    # replaced below, and the account approval file and creator-onboarding flag are not a receiver's.
+    for key in ('KOLOVIBE_TRUSTED_PEERS_FILE', 'KOLOVIBE_OUTBOUND_KEY_FILE',
+                'KOLOVIBE_ACCOUNT_APPROVAL_FILE', 'KOLOVIBE_STAGING_CREATOR_ONBOARDING'):
         env.pop(key, None)
     if service == 'identity':
         env.update(KOLOVIBE_SMTP_USER_FILE='/run/secrets/smtp_user',

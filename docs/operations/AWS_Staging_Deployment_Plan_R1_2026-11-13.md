@@ -2,6 +2,12 @@
 
 **Status: NOT APPROVED, NOT EXECUTED.** Nothing was deployed, changed or contacted on AWS. This is a plan, built from the repository at `main` `aa9881f0b2ecd0daf43c5bac705be3b9f505de37` and the owner-supplied [10 November AWS record](AWS_Staging_Deployment_Verification_2026-11-10.md). The Oracle Cloud topology was not assumed.
 
+> **Corrections of 14 November 2026 (this plan's text below is kept as the historical record).**
+> * Section 1 and 3 item 1 (image pin, no published digest): superseded. The deploy tool no longer pins an image (PR #60), the `sqlite-libs` scan failure is fixed by the PostgreSQL-only release target (PR #54), and CI run `43516806784` published `ghcr.io/markcino/kolovibe/services@sha256:887c9a05…98e8` from `92e5a55` with evidence. GHCR manifest existence and pullability from the AWS nodes are **UNVERIFIED**; publication authorizes nothing ([remediation plans](R1_Remediation_Plans_2026-11-14.md) section 4).
+> * Worker labels: the AWS worker has **no Swarm labels** and services are pinned by hostname. The `kolovibe.workloads` label and the "~956 MiB" RAM figure in the repository describe the **Oracle** VMs, not AWS. The AWS instance size is unrecorded.
+> * Backup: no PostgreSQL backup exists or has been restored in any environment. Nothing in the repository documents an existing encrypted backup; the "existing encrypted overlays" in the Oracle record are network encryption.
+> * Section 3 items 2 to 4 (staging capability gates, worker services, FFmpeg/R2) remain open and are re-verified against source in the [R1 release-candidate evidence record](R1_Release_Candidate_Evidence_2026-11-14.md).
+
 ## 1. Preconditions
 
 | Precondition | Met? | Evidence |

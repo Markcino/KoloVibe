@@ -574,9 +574,6 @@ class GatewayStagingFlagTests(unittest.TestCase):
             self.plan(cluster.ORACLE_STAGING, swarm)
 
 
-if __name__ == '__main__':
-    unittest.main()
-
 
 class ServiceFlagTableTests(unittest.TestCase):
     """Every service has an exact, reviewed flag pair; Identity is guarded like the Gateway."""
@@ -666,3 +663,21 @@ class ServiceFlagTableTests(unittest.TestCase):
         self.edit(broken, 'identity', {self.ON: '1', self.OFF: '0'}, prefix='kvtest-')
         with self.assertRaisesRegex(RuntimeError, 'flags of kvtest-identity differ from the oracle-staging profile'):
             self.plan(broken, 'identity', cluster.ORACLE_STAGING)
+
+    def test_new_services_never_inherit_other_gateway_only_configuration(self):
+        gateway = aws_gateway()
+        gateway['Spec']['TaskTemplate']['ContainerSpec']['Env'] += [
+            'KOLOVIBE_STAGING_CREATOR_ONBOARDING=1', 'KOLOVIBE_GATEWAY_ONLY_SENTINEL=1']
+        known = {**all_secrets(), **{n: 'id-' + n for n in AWS_ONLY}}
+        with patch.object(cluster, 'PROFILE', AWS):
+            for service in cluster.SERVICES[1:]:
+                spec = cluster.api_spec(gateway, service, known, cluster.BASELINE_IMAGE, cluster.BASELINE_REVISION,
+                                        names=aws_names(service))
+                env = cluster.env_dict(spec['TaskTemplate']['ContainerSpec'])
+                self.assertNotIn('KOLOVIBE_STAGING_CREATOR_ONBOARDING', env, service)
+                # Only Identity is given the account approval file, and it is set explicitly for it.
+                self.assertEqual('KOLOVIBE_ACCOUNT_APPROVAL_FILE' in env, service == 'identity', service)
+
+
+if __name__ == '__main__':
+    unittest.main()
