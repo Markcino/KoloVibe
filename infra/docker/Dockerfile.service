@@ -62,7 +62,7 @@ RUN set -eux; \
     cd "ffmpeg-${FFMPEG_VERSION}"; \
     ./configure --prefix=/usr \
       --disable-everything --disable-autodetect --disable-network --disable-doc --disable-debug \
-      --disable-ffplay --disable-avdevice --disable-postproc --disable-shared --enable-static --enable-pic --enable-pie \
+      --disable-ffplay --disable-avdevice --disable-shared --enable-static --enable-pic \
       --enable-gpl --enable-libx264 --enable-zlib --enable-ffmpeg --enable-ffprobe \
       --enable-protocol=file --enable-protocol=pipe \
       --enable-demuxer=mov --enable-muxer=mp4 --enable-muxer=image2 \
@@ -74,7 +74,8 @@ RUN set -eux; \
       --enable-filter=scale --enable-filter=format --enable-filter=aformat --enable-filter=aresample \
       --enable-filter=null --enable-filter=anull --enable-filter=buffer --enable-filter=buffersink \
       --enable-filter=abuffer --enable-filter=abuffersink --enable-filter=color --enable-filter=anullsrc \
-      --extra-cflags='-O2 -fstack-protector-strong' --extra-ldflags='-Wl,-z,relro -Wl,-z,now'; \
+      --extra-cflags='-O2 -fstack-protector-strong -fPIE' --extra-ldflags='-Wl,-z,relro -Wl,-z,now' \
+      --extra-ldexeflags='-pie'; \
     make -j"$(nproc)" ffmpeg ffprobe; \
     make install-progs DESTDIR=/out; \
     strip /out/usr/bin/ffmpeg /out/usr/bin/ffprobe; \
