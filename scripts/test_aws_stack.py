@@ -9,11 +9,13 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from validate_staging_stack import AWS_ROLES, AWS_STACK, load_stack, memory_bytes, validate, validate_aws  # noqa: E402
+from validate_staging_stack import (AWS_ROLES, AWS_STACK, check_release_evidence, load_stack,  # noqa: E402
+                                     memory_bytes, validate, validate_aws)
 
 INPUTS = {
     "STAGING_DB_NAME": "kolovibe_staging", "STAGING_DB_HOST": "172.31.16.20",
     "KOLOVIBE_IMAGE": "ghcr.io/markcino/kolovibe/services@sha256:" + "a" * 64,
+    "KOLOVIBE_MEDIA_IMAGE": "ghcr.io/markcino/kolovibe/media-worker@sha256:" + "e" * 64,
     "R2_ACCOUNT_ID": "1" * 32, "R2_MEDIA_BUCKET": "kolovibe-media", "SMTP_HOST": "smtp.example.test",
     "SMTP_PORT": "587", "FROM_EMAIL": "noreply@example.test",
     **{service.upper() + "_DB_USER": "runtime_" + service
@@ -36,7 +38,7 @@ class AwsStackTests(unittest.TestCase):
             validate({}, "aws-staging")
 
     def test_inputs_are_required_non_secret_identifiers(self):
-        for name in ("R2_ACCOUNT_ID", "R2_MEDIA_BUCKET", "KOLOVIBE_IMAGE", "STAGING_DB_HOST"):
+        for name in ("R2_ACCOUNT_ID", "R2_MEDIA_BUCKET", "KOLOVIBE_IMAGE", "KOLOVIBE_MEDIA_IMAGE", "STAGING_DB_HOST"):
             environment = dict(INPUTS)
             del environment[name]
             with self.subTest(name), self.assertRaises(ValueError):
@@ -73,7 +75,11 @@ class AwsStackRejectionTests(unittest.TestCase):
         s = lambda d, n="media-worker": d["services"][n]  # noqa: E731
         self.rejected("extra service", lambda d: d["services"].update(extra=copy.deepcopy(s(d))))
         self.rejected("missing service", lambda d: d["services"].pop("points-audit"))
-        self.rejected("two images", lambda d: s(d, "points-audit").update(image="ghcr.io/markcino/kolovibe/services@sha256:" + "b" * 64))
+        self.rejected("two shared images", lambda d: s(d, "points-audit").update(image="ghcr.io/markcino/kolovibe/services@sha256:" + "b" * 64))
+        self.rejected("media worker on the shared image", lambda d: s(d).update(image="ghcr.io/markcino/kolovibe/services@sha256:" + "a" * 64))
+        self.rejected("a consumer on the media image", lambda d: s(d, "points-consumer").update(image=s(d)["image"]))
+        self.rejected("media tag not digest", lambda d: s(d).update(image="ghcr.io/markcino/kolovibe/media-worker:latest"))
+        self.rejected("media image from another repository", lambda d: s(d).update(image="ghcr.io/other/media-worker@sha256:" + "e" * 64))
         self.rejected("tag not digest", lambda d: [x.update(image="ghcr.io/markcino/kolovibe/services:latest") for x in d["services"].values()])
         self.rejected("port", lambda d: s(d).update(ports=["8000:8000"]))
         self.rejected("host mount", lambda d: s(d).update(volumes=["/var/lib:/data"]))
@@ -145,6 +151,29 @@ class AwsStackRejectionTests(unittest.TestCase):
         self.rejected("root-owned", lambda d: s(d)["secrets"][0].update(uid="0"))
         self.rejected("secret defined in the stack", lambda d: d["secrets"].update(content_django={"file": "./x"}))
         self.rejected("unused secret declared", lambda d: d["secrets"].update(orphan={"external": True}))
+
+    def test_release_evidence_must_carry_exactly_the_stacks_two_digests(self):
+        import tempfile
+
+        loaded = stack()
+        shared, media = INPUTS["KOLOVIBE_IMAGE"], INPUTS["KOLOVIBE_MEDIA_IMAGE"]
+
+        def check(**changes):
+            files = {"revision.txt": "d" * 40, "published-digest.txt": shared, "published-media-digest.txt": media, **changes}
+            with tempfile.TemporaryDirectory() as directory:
+                for name, text in files.items():
+                    (Path(directory) / name).write_text(text)
+                return check_release_evidence(directory, loaded)
+
+        self.assertEqual(check(), "d" * 40)
+        for label, changes in {
+            "other media digest": {"published-media-digest.txt": "ghcr.io/markcino/kolovibe/media-worker@sha256:" + "9" * 64},
+            "other shared digest": {"published-digest.txt": "ghcr.io/markcino/kolovibe/services@sha256:" + "9" * 64},
+            "bad revision": {"revision.txt": "nope"},
+            "media equals shared": {"published-media-digest.txt": shared},
+        }.items():
+            with self.subTest(label), self.assertRaises(ValueError):
+                check(**changes)
 
     def test_the_workers_secrets_equal_the_tools_rollout_for_the_same_service(self):
         sys.path.insert(0, str(ROOT / "scripts/ops"))

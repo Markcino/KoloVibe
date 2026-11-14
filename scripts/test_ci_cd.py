@@ -11,7 +11,7 @@ import unittest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-QUALITY = {"python", "security", "flutter", "osv", "image-build", "build-and-verify"}
+QUALITY = {"python", "security", "flutter", "osv", "image-build", "media-image-build", "build-and-verify"}
 SERVICES = {"gateway", "identity", "creators", "content", "engagement", "points",
             "moderation", "audit"}
 MAIN_PUSH = "github.event_name == 'push' && github.ref == 'refs/heads/main'"
@@ -136,6 +136,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(set(self.jobs["build-and-verify"]["strategy"]["matrix"]["service"]), SERVICES)
         self.assertNotIn("strategy", publish)
         self.assertNotIn("strategy", self.jobs["image-build"])
+        self.assertNotIn("strategy", self.jobs["media-image-build"])
         self.assertEqual(self.jobs["build-and-verify"]["needs"], ["image-build"])
 
     def test_pr_schedule_and_manual_runs_cannot_publish(self):
@@ -177,8 +178,12 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(matrix_download["with"], download["with"])
         all_commands = "\n".join(step.get("run", "") for job in self.jobs.values()
                                  for step in job.get("steps", []))
-        self.assertEqual(all_commands.count("docker build "), 1)
-        self.assertEqual(all_commands.count("docker push "), 1)
+        # Two images, each built once and pushed once: the shared service image and the media-worker image.
+        self.assertEqual(all_commands.count("docker build "), 2)
+        self.assertEqual(all_commands.count("docker push "), 2)
+        self.assertEqual(self.jobs["media-image-build"].get("needs"), None)
+        self.assertEqual(set(self.jobs["publish"]["needs"]) & {"image-build", "media-image-build"},
+                         {"image-build", "media-image-build"})
         self.assertIn('TARGET="ghcr.io/$REPOSITORY/services:', commands)
         smoke = next(step for step in matrix_steps if step.get("name") == "Run service PostgreSQL smoke check")
         self.assertEqual(smoke["env"], {"SERVICE": "${{ matrix.service }}"})
@@ -245,6 +250,70 @@ docker() {
                     self.assertIn("image inspect " + digest, calls)
                 else:
                     self.assertFalse((root / "verified-image/published-digest.txt").exists())
+
+    def test_media_image_publication_uses_remote_digest_and_verifies_the_pulled_image(self):
+        publish = next(step for step in self.jobs["publish"]["steps"]
+                       if step.get("name") == "Authenticate and publish media worker image")
+        self.assertNotIn("ref", publish.get("with", {}))
+        self.assertEqual(publish["env"]["REVISION"], "${{ github.sha }}")
+        lines = publish["run"].splitlines()
+        self.assertIn("scripts/verify_image_artifact.py verified-media-image", publish["run"])
+        start = next(index for index, line in enumerate(lines) if line.startswith("MEDIA_REPOSITORY="))
+        commands = """\
+set -euo pipefail
+docker() {
+  printf '%s\\n' "$*" >> "$DOCKER_CALLS"
+  case "$1" in
+    tag|push|pull) ;;
+    buildx) test "$MOCK_REGISTRY_STATUS" = ok || return 1; printf '%s\\n' "$MOCK_MANIFEST" ;;
+    image) printf '%s\\n' "$MOCK_IMAGE_ID" ;;
+    *) return 1 ;;
+  esac
+}
+""" + "\n".join(lines[start:])
+        image_id = "sha256:" + "b" * 64
+        remote_digest = "sha256:" + "a" * 64
+        for manifest, pulled_id, status, valid in (
+            (json.dumps({"digest": remote_digest}), image_id, "ok", True),
+            (json.dumps({"digest": "sha256:invalid"}), image_id, "ok", False),
+            ('{}', image_id, "ok", False),
+            (json.dumps({"digest": remote_digest}), "sha256:" + "c" * 64, "ok", False),
+            (json.dumps({"digest": remote_digest}), image_id, "error", False),
+        ):
+            with self.subTest(manifest=manifest, pulled_id=pulled_id, status=status), \
+                    tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                (root / "verified-image").mkdir()
+                (root / "verified-media-image").mkdir()
+                (root / "verified-media-image/image-id.txt").write_text(image_id)
+                (root / "verified-media-image/image-sbom.json").write_text("{}")
+                result = subprocess.run(
+                    ["bash", "-c", commands], cwd=root, capture_output=True, text=True, check=False,
+                    env={**os.environ, "GITHUB_REPOSITORY": "Markcino/KoloVibe", "GITHUB_RUN_NUMBER": "123",
+                         "GITHUB_RUN_ATTEMPT": "2", "REVISION": "d" * 40,
+                         "GITHUB_STEP_SUMMARY": str(root / "summary"), "DOCKER_CALLS": str(root / "calls"),
+                         "MOCK_MANIFEST": manifest, "MOCK_IMAGE_ID": pulled_id, "MOCK_REGISTRY_STATUS": status},
+                    timeout=5)
+                self.assertEqual(result.returncode == 0, valid, result.stderr)
+                if valid:
+                    repository = "ghcr.io/markcino/kolovibe/media-worker"
+                    digest = repository + "@" + remote_digest
+                    self.assertEqual((root / "verified-image/published-media-digest.txt").read_text().strip(), digest)
+                    self.assertEqual((root / "verified-image/published-media-tag.txt").read_text().strip(),
+                                     repository + ":v0.123.2")
+                    calls = (root / "calls").read_text()
+                    self.assertIn("buildx imagetools inspect " + repository + ":v0.123.2", calls)
+                    self.assertIn("pull " + digest, calls)
+                else:
+                    self.assertFalse((root / "verified-image/published-media-digest.txt").exists())
+        # The media artifact is handed off by the same exact-commit rule as the shared image.
+        upload = next(step for step in self.jobs["media-image-build"]["steps"]
+                      if step["name"] == "Upload the verified media image")
+        download = next(step for step in self.jobs["publish"]["steps"]
+                        if step.get("name") == "Download the verified media image from this run")
+        self.assertEqual(upload["with"]["name"], download["with"]["name"])
+        self.assertEqual(download["with"], {"name": "verified-media-image-${{ github.sha }}",
+                                            "path": "verified-media-image"})
 
     def test_permissions_are_job_scoped(self):
         self.assertEqual(self.workflow["permissions"], {"contents": "read"})

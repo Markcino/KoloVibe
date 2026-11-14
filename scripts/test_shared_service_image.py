@@ -12,6 +12,8 @@ import sys
 import tempfile
 import time
 import unittest
+
+import yaml
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -33,26 +35,32 @@ class ImageSecurityContractTests(unittest.TestCase):
                         self.dockerfile.index("pip install"))
 
     def test_base_image_stays_digest_pinned(self):
-        self.assertRegex(self.dockerfile, r"(?m)^FROM python:[^@\s]+@sha256:[0-9a-f]{64}( AS \w+)?$")
-        self.assertEqual(len(re.findall(r"(?m)^FROM python:", self.dockerfile)), 1)
+        # One parameterized base, pinned by digest, used by exactly one FROM; the default is the Alpine 3.23 image.
+        self.assertRegex(self.dockerfile, r"(?m)^ARG PYTHON_BASE=python:3\.12\.16-alpine3\.23@sha256:[0-9a-f]{64}$")
+        self.assertEqual(re.findall(r"(?m)^FROM [^\n]+$", self.dockerfile)[0], "FROM ${PYTHON_BASE} AS local")
+        self.assertEqual(len(re.findall(r"(?m)^FROM python:", self.dockerfile)), 0)
+        # The media image's Alpine 3.24 base is named only in CI, by digest.
+        self.assertRegex(self.workflow, r"(?m)^\s+MEDIA_PYTHON_BASE: python:3\.12\.16-alpine3\.24@sha256:[0-9a-f]{64}$")
 
     def test_image_scan_gate_is_not_weakened(self):
-        start = self.workflow.index("Scan local image vulnerabilities")
-        step = self.workflow[start:self.workflow.index("- name:", start + 1)]
-        self.assertIn("fail-build: true", step)
-        self.assertIn("severity-cutoff: high", step)
-        for weakening in ("only-fixed", "ignore", "grype.yaml", "continue-on-error"):
-            self.assertNotIn(weakening, step)
+        for name in ("Scan local image vulnerabilities", "Scan media image vulnerabilities"):
+            start = self.workflow.index(name)
+            step = self.workflow[start:self.workflow.index("- name:", start + 1)]
+            self.assertIn("fail-build: true", step, name)
+            self.assertIn("severity-cutoff: high", step, name)
+            for weakening in ("only-fixed", "ignore", "grype.yaml", "continue-on-error", "severity-cutoff: critical"):
+                self.assertNotIn(weakening, step, name)
+        self.assertEqual(self.workflow.count("fail-build: true"), 2)
 
     def stages(self):
-        parts = re.split(r"(?m)^FROM [^\n]+ AS (\w+)\n", self.dockerfile)
+        parts = re.split(r"(?m)^FROM [^\n]+ AS ([\w-]+)\n", self.dockerfile)
         return dict(zip(parts[1::2], parts[2::2]))
 
     def test_release_is_the_default_last_stage_and_local_keeps_sqlite(self):
         stages = self.stages()
-        self.assertEqual(list(stages), ["local", "release"])
+        self.assertEqual(list(stages), ["local", "ffmpeg-minimal", "ffmpeg-empty", "ffmpeg-source", "release"])
         # A bare `docker build` must produce the PostgreSQL-only image.
-        self.assertEqual(re.findall(r"(?m)^FROM .* AS (\w+)$", self.dockerfile)[-1], "release")
+        self.assertEqual(re.findall(r"(?m)^FROM .* AS ([\w-]+)$", self.dockerfile)[-1], "release")
         self.assertIn("FROM local AS release", self.dockerfile)
         # The local target is the unchanged SQLite-capable image: nothing is removed from it.
         for removal in ("apk del", "rm -rf", "_sqlite3"):
@@ -71,17 +79,108 @@ class ImageSecurityContractTests(unittest.TestCase):
         self.assertTrue(release.rstrip().endswith("USER 10001:10001"))
         self.assertIn("USER root", release)
 
-    def test_release_stage_installs_ffmpeg_after_sqlite_removal_and_rechecks(self):
+    def test_ffmpeg_is_installed_only_for_the_media_build_after_sqlite_removal_and_rechecked(self):
         release = self.stages()["release"]
-        self.assertIn("apk add --no-cache ffmpeg", release)
-        self.assertGreater(release.index("apk add --no-cache ffmpeg"), release.index("apk del .python-rundeps sqlite-libs"))
-        tail = release[release.index("apk add --no-cache ffmpeg"):]
-        for check in ("ffmpeg -version", "ffprobe -version", "apk list -I | grep -qi sqlite", "import sqlite3"):
+        self.assertIn("ARG WITH_FFMPEG=0", release)
+        # Alpine's full ffmpeg package is never installed; the minimal build is copied in and its runtime library added.
+        self.assertNotIn("apk add --no-cache ffmpeg", release)
+        self.assertIn("COPY --from=ffmpeg-source /out/ /tmp/ffmpeg-out/", release)
+        self.assertIn("FROM ${FFMPEG_SOURCE} AS ffmpeg-source", self.dockerfile)
+        self.assertGreater(release.index("COPY --from=ffmpeg-source"), release.index("apk del .python-rundeps sqlite-libs"))
+        self.assertRegex(release, r'if \[ "\$WITH_FFMPEG" = "1" \]; then[^#]*apk add --no-cache --allow-untrusted /tmp/ffmpeg-out/apk/ffmpeg-\*\.apk')
+        self.assertIn("rm -rf /tmp/ffmpeg-out", release)
+        self.assertIn("FFmpeg must not be in the shared image", release)
+        tail = release[release.index("COPY --from=ffmpeg-source"):]
+        for check in ("ffmpeg -version", "ffprobe -version", "A network protocol is compiled into FFmpeg",
+                      "apk list -I | grep -qi sqlite", "import sqlite3"):
             self.assertIn(check, tail)
         self.assertTrue(release.rstrip().endswith("USER 10001:10001"))
-        self.assertIn("Verify FFmpeg for the media worker on the sandbox PATH", self.workflow)
-        self.assertLess(self.workflow.index("Verify FFmpeg for the media worker"),
-                        self.workflow.index("Scan local image vulnerabilities"))
+
+    def test_the_minimal_ffmpeg_build_is_pinned_packaged_and_compiles_out_everything_the_pipeline_does_not_use(self):
+        stage = self.stages()["ffmpeg-minimal"]
+        apkbuild = (ROOT / "infra/docker/ffmpeg/APKBUILD").read_text()
+        self.assertRegex(self.dockerfile, r"(?m)^ARG FFMPEG_BUILD_BASE=alpine:3\.24\.\d+@sha256:[0-9a-f]{64}$")
+        self.assertIn("COPY --chown=builder:builder infra/docker/ffmpeg/APKBUILD", stage)
+        # Packaged as an apk named ffmpeg at the true version, so the scanner and the SBOM can see and judge it.
+        self.assertIn("pkgname=ffmpeg\n", apkbuild)
+        self.assertIn("pkgver=9.0.2\n", apkbuild)  # 9.0 fixes CVE-2026-70628, -70632 and -96611
+        self.assertRegex(apkbuild, r'(?s)sha512sums="\s*[0-9a-f]{128}  ffmpeg-9\.0\.2\.tar\.xz\s*"')
+        self.assertIn('source="https://ffmpeg.org/releases/ffmpeg-$pkgver.tar.xz"', apkbuild)
+        self.assertIn("abuild -r", stage)
+        configure = apkbuild[apkbuild.index("./configure"):apkbuild.index("make -j")]
+        for flag in ("--disable-everything", "--disable-autodetect", "--disable-network", "--disable-avdevice",
+                     "--disable-shared", "--enable-protocol=file", "--enable-protocol=pipe"):
+            self.assertIn(flag, configure)
+        self.assertEqual(sorted(re.findall(r"--enable-protocol=(\w+)", configure)), ["file", "pipe"])
+        for forbidden in ("rtsp", "rtp", "http", "tcp", "udp", "tls", "libssh", "libzmq", "libpulse", "alsa",
+                          "--enable-network", "--enable-avdevice", "--enable-libx265", "--enable-libvpx"):
+            self.assertNotIn(forbidden, configure)
+        self.assertEqual(sorted(re.findall(r"--enable-encoder=(\w+)", configure)), ["aac", "libx264", "mjpeg"])
+        self.assertEqual(re.findall(r"--enable-muxer=(\w+)", configure), ["mp4", "image2"])
+        self.assertEqual(re.findall(r"--enable-demuxer=(\w+)", configure), ["mov"])
+        # The default build copies an empty directory, so the shared image never builds or contains FFmpeg.
+        self.assertIn("ARG FFMPEG_SOURCE=ffmpeg-empty", self.dockerfile)
+        self.assertNotIn("ffmpeg", self.stages()["ffmpeg-empty"].lower().replace("ffmpeg-empty", "").replace("/ffmpeg", ""))
+
+    def test_the_only_scan_exception_is_the_approved_one_and_has_not_expired(self):
+        import datetime
+
+        config = (ROOT / ".grype.yaml").read_text()
+        rules = yaml.safe_load(config)
+        self.assertEqual(set(rules), {"ignore"})
+        self.assertEqual(rules["ignore"], [{"vulnerability": "CVE-2026-107696",
+                                            "package": {"name": "ffmpeg", "version": "9.0.2-r0", "type": "apk"}}])
+        # The exception is justified by the build having no network protocols, which CI verifies on every build.
+        media_job = self.workflow[self.workflow.index("  media-image-build:"):self.workflow.index("  build-and-verify:")]
+        for needle in ("rtsp", "http", "tcp", '= "file pipe "'):
+            self.assertIn(needle, media_job)
+        expiry = datetime.date.fromisoformat(re.search(r"(?m)^# Expires: (\d{4}-\d{2}-\d{2})$", config).group(1))
+        self.assertGreater(expiry, datetime.date.today(), "The CVE-2026-107696 scan exception expired: review or remove it")
+        self.assertLessEqual(expiry, datetime.date(2027, 3, 1))
+        # The gate steps themselves stay exactly as strict, and name no configuration file.
+        for name in ("Scan local image vulnerabilities", "Scan media image vulnerabilities"):
+            start = self.workflow.index(name)
+            step = self.workflow[start:self.workflow.index("- name:", start + 1)]
+            self.assertIn("fail-build: true", step)
+            self.assertIn("severity-cutoff: high", step)
+            self.assertNotIn("config", step)
+
+    def test_the_build_context_excludes_infra_except_the_ffmpeg_apkbuild(self):
+        rules = [line.strip() for line in (ROOT / ".dockerignore").read_text().splitlines()
+                 if line.strip() and not line.startswith("#")]
+        self.assertIn("infra", rules)
+        self.assertEqual([r for r in rules if r.startswith("!")], ["!infra/docker/ffmpeg/APKBUILD"])
+        self.assertLess(rules.index("infra"), rules.index("!infra/docker/ffmpeg/APKBUILD"))
+
+    def test_the_media_job_verifies_the_minimal_build_and_runs_the_pipeline_test_in_the_image(self):
+        media_job = self.workflow[self.workflow.index("  media-image-build:"):self.workflow.index("  build-and-verify:")]
+        self.assertIn("--build-arg FFMPEG_SOURCE=ffmpeg-minimal", media_job)
+        verify = media_job[media_job.index("Verify FFmpeg is the minimal build"):media_job.index("End-to-end media pipeline test")]
+        for needle in ("ffmpeg version 9", "file pipe", "libx264", "cjson|alsa-lib|glib|libssh"):
+            self.assertIn(needle, verify)
+        for absent in ("libvpx", "libopus", "rtsp", "http", "tcp"):
+            self.assertIn(absent, verify)
+        self.assertIn("tests.test_posters", media_job)
+        self.assertNotIn("manage.py test", media_job)  # the release image has no SQLite for the test runner
+        self.assertIn("not result.skipped", media_job)
+        self.assertLess(media_job.index("End-to-end media pipeline test"), media_job.index("Scan media image vulnerabilities"))
+
+    def test_the_shared_image_job_proves_no_ffmpeg_and_the_media_job_proves_it_on_the_sandbox_path(self):
+        shared_job = self.workflow[self.workflow.index("  image-build:"):self.workflow.index("  media-image-build:")]
+        media_job = self.workflow[self.workflow.index("  media-image-build:"):self.workflow.index("  build-and-verify:")]
+        self.assertIn("Verify the shared image carries no FFmpeg", shared_job)
+        self.assertNotIn("WITH_FFMPEG", shared_job)
+        self.assertNotIn("--build-arg", shared_job)
+        self.assertIn("--build-arg WITH_FFMPEG=1", media_job)
+        self.assertIn('--build-arg "PYTHON_BASE=$MEDIA_PYTHON_BASE"', media_job)
+        self.assertIn("--target release", media_job)
+        self.assertIn("Verify FFmpeg for the media worker on the sandbox PATH", media_job)
+        self.assertIn("os.defpath", media_job)
+        self.assertLess(media_job.index("Verify FFmpeg for the media worker"),
+                        media_job.index("Scan media image vulnerabilities"))
+        self.assertLess(media_job.index("Verify the media image has no SQLite"),
+                        media_job.index("Scan media image vulnerabilities"))
+        self.assertIn('"ffmpeg" not in names', media_job)
 
     def test_ci_builds_scans_and_publishes_only_the_release_target(self):
         build = self.workflow[self.workflow.index("- name: Build shared service image"):

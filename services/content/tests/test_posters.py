@@ -68,9 +68,12 @@ class PosterBoundaryTests(SimpleTestCase):
                 source = Path(directory) / f"source-{index}.mp4"
                 destination = Path(directory) / f"playback-{index}.mp4"
                 poster = Path(directory) / f"poster-{index}.jpg"
-                subprocess.run(["ffmpeg", "-v", "error", "-nostdin", "-f", "lavfi", "-i",
-                                "color=c=blue:s=64x64:r=25", "-t", str(duration), "-threads", "1",
-                                "-c:v", "libx264", "-pix_fmt", "yuv420p", str(source)],
+                # Source filters in a filtergraph (not the lavfi device), so the minimal production FFmpeg can run
+                # this: a short blue clip with a silent audio track exercises the video and the audio path.
+                subprocess.run(["ffmpeg", "-v", "error", "-nostdin", "-filter_complex",
+                                f"color=c=blue:s=64x64:r=25:d={duration}[v];anullsrc=r=44100:cl=mono:d={duration}[a]",
+                                "-map", "[v]", "-map", "[a]", "-threads", "1",
+                                "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", str(source)],
                                check=True, timeout=15, stdin=subprocess.DEVNULL, capture_output=True)
                 duration_ms = media_encoding.encode(source, destination)
                 self.assertGreater(duration_ms, 0)

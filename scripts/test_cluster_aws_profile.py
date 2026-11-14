@@ -25,7 +25,7 @@ APPROVAL = 'kolovibe_account_uat_approval_20261110_v1'
 SMTP_USER = 'kolovibe_identity_smtp_user_20261110_v1'
 SMTP_PASSWORD = 'kolovibe_identity_smtp_password_20261110_v1'  # pragma: allowlist secret
 PEERS = 'kolovibe_gateway_trusted_peers_accounts_20261110_v1'
-AWS_ONLY = (APPROVAL, SMTP_USER, SMTP_PASSWORD, PEERS)
+AWS_ONLY = (APPROVAL, SMTP_USER, SMTP_PASSWORD, PEERS, 'kolovibe_pg_ca_v1')
 
 
 def mount(target, name):
@@ -45,11 +45,13 @@ def aws_gateway(constraint=PIN, db_host=DB, networks=('services-net', 'data-net'
     spec['Name'] = 'kolovibe-gateway'
     container = spec['TaskTemplate']['ContainerSpec']
     container['Hosts'] = []
-    container['Env'] = [('KOLOVIBE_DB_HOST=' + db_host) if e.startswith('KOLOVIBE_DB_HOST=') else e
+    container['Env'] = [('KOLOVIBE_DB_HOST=' + db_host) if e.startswith('KOLOVIBE_DB_HOST=')
+                        else ('KOLOVIBE_DB_USER=' + cluster.AWS_STAGING.db_user_format.format(service='gateway'))
+                        if e.startswith('KOLOVIBE_DB_USER=') else e
                         for e in container['Env']]
     set_flags(container, flags or dict(AWS.service_flags['gateway']))
     container['Secrets'] = [mount('django_key', 'gateway_django'), mount('internal_ca', 'internal_ca'),
-                            mount('db_ca', 'db_ca'), mount('trusted_peers', PEERS),
+                            mount('db_ca', 'kolovibe_pg_ca_v1'), mount('trusted_peers', PEERS),
                             mount('account_approvals', APPROVAL), *extra_mounts]
     spec['TaskTemplate']['Networks'] = [{'Target': n} for n in networks]
     spec['TaskTemplate']['Placement'] = {'Constraints': [constraint]}

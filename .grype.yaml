@@ -1,0 +1,19 @@
+# The scan gate (anchore/scan-action: fail-build true, severity-cutoff high) is unchanged. This file holds the ONE
+# exception the owner approved on 14 November 2026 (decision "Minimal 9.0.2 build + exception"), and nothing else.
+#
+# CVE-2026-107696: FFmpeg through 9.0.2 loops forever in ff_rtsp_connect() on endless RTSP 3xx redirects. 9.0.2 is the
+# newest upstream release and no fixed release exists. The media-worker image builds FFmpeg 9.0.2 with every network
+# protocol compiled out (infra/docker/ffmpeg/APKBUILD), so the RTSP code is not in the binary: CI proves it on every
+# build (the "Verify FFmpeg is the minimal build" step fails if ffmpeg lists rtsp, rtp, http, tcp, udp or tls, or any
+# protocol but file and pipe), and the encoder additionally runs with -protocol_whitelist file,pipe.
+#
+# The rule matches only this CVE on the apk package `ffmpeg` at exactly version 9.0.2-r0. A different FFmpeg version,
+# any other CVE, and every other package stay fully gated, and the shared image has no ffmpeg package at all.
+# It expires: scripts/test_shared_service_image.py fails after the date below so the exception is reviewed or removed.
+# Expires: 2027-02-12
+ignore:
+  - vulnerability: CVE-2026-107696
+    package:
+      name: ffmpeg
+      version: 9.0.2-r0
+      type: apk

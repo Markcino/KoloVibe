@@ -3,6 +3,8 @@
 docs
 apps
 infra
+# The one file of infra/ the media image's FFmpeg build needs (the shared image copies only services/).
+!infra/docker/ffmpeg/APKBUILD
 scripts
 **/__pycache__
 **/*.pyc
