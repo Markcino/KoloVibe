@@ -34,9 +34,9 @@ def add_secrets(swarm, *names):
 def mount_outbound(swarm, gateway_name, oracle):
     """The live gateway mounts the single shared outbound secret at `outbound_key`."""
     refs = swarm.services[gateway_name]['Spec']['TaskTemplate']['ContainerSpec']['Secrets']
-    refs.append(dict(GATEWAY_MOUNT, SecretName='gateway_outbound', SecretID='id-gateway_outbound'))
+    refs.append(dict(GATEWAY_MOUNT, SecretName='gateway_outbound', SecretID='id-gateway_outbound'))  # pragma: allowlist secret
     if oracle:
-        refs.append({'SecretName': 'trusted_peers', 'SecretID': 'id-trusted_peers',
+        refs.append({'SecretName': 'trusted_peers', 'SecretID': 'id-trusted_peers',  # pragma: allowlist secret
                      'File': {'Name': 'trusted_peers', 'UID': '10001', 'GID': '10001', 'Mode': 256}})
 
 
@@ -232,7 +232,7 @@ class OverrideCases:
         def other_secret(new):
             for ref in new['TaskTemplate']['ContainerSpec']['Secrets']:
                 if ref['File']['Name'] == 'db_password':
-                    ref['SecretName'] = 'identity_probe'
+                    ref['SecretName'] = 'identity_probe'  # pragma: allowlist secret
 
         def environment(new):
             new['TaskTemplate']['ContainerSpec']['Env'].append('EXTRA=1')
@@ -268,7 +268,7 @@ class OverrideCases:
                 body = copy.deepcopy(body)
                 for ref in body['TaskTemplate']['ContainerSpec']['Secrets']:
                     if ref['File']['Name'] == 'caller_keys':
-                        ref['SecretName'] = 'identity_callers'
+                        ref['SecretName'] = 'identity_callers'  # pragma: allowlist secret
             return original(method, path, body, auth)
         with self.context(ignores_secrets), tempfile.TemporaryDirectory() as directory:
             with self.assertRaisesRegex(RuntimeError, 'different secret references than planned'), \
