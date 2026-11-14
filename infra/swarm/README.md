@@ -29,8 +29,8 @@ between a hostname-pinned AWS stack file and applying the labels, which changes 
 **Worker-only scheduling:** All eight API services require
 `node.labels.kolovibe.workloads == true`. RabbitMQ requires both that label
 and `node.labels.kolovibe.rabbitmq == true` on the same worker, following
-durable-volume and capacity approval. The November 1 worker readback confirms
-only VM2 carries the workload label; neither node has the separate RabbitMQ
+durable-volume and capacity approval. The November 1 **Oracle** worker readback confirms
+only Oracle VM2 carries the workload label; neither node has the separate RabbitMQ
 label. Do not add the latter until the broker's storage/capacity review passes.
 These placement constraints do not establish memory sufficiency or authorize
 activation. All nine services continue to default to `replicas: 0`.
@@ -41,7 +41,8 @@ verified TLS, external owner-only secrets, a private overlay, read-only non-root
 filesystems, readiness checks, resource bounds and rollback-on-update-failure.
 There are no published ports, database containers or enabled account/points APIs.
 This is a candidate, not a deployed/accepted stack. All nine services default to
-**zero replicas**: definition does not authorize activation. The two ~956 MiB VMs
+**zero replicas**: definition does not authorize activation. The two **Oracle** ~956 MiB VMs
+(1 and 3 November read-backs; the AWS instance size is unrecorded and must be read back)
 cannot be assumed to fit eight Django processes plus RabbitMQ and existing
 workloads. `API_MEMORY_LIMIT`, `API_MEMORY_RESERVATION` and `RABBITMQ_MEMORY_LIMIT`
 are required reviewed inputs, not invented defaults. The validator rejects
@@ -316,16 +317,22 @@ missing `--profile` stops the tool, and worker evidence is bound to the profile 
 | Database host in the Gateway | `vm-swarm-worker` | an IPv4 address inside `172.31.0.0/16` |
 | Database guard in `worker-preflight` | `/usr/local/sbin/kolovibe_db_route_fix.py` | none needed: TCP reach plus a PostgreSQL TLS handshake from the worker, to the address the Gateway itself uses |
 | Extra secret names allowed | gateway `trusted_peers` | identity: `kolovibe_account_uat_approval_20261110_v1`, `kolovibe_identity_smtp_user_20261110_v1`, `kolovibe_identity_smtp_password_20261110_v1`; gateway: `kolovibe_gateway_trusted_peers_accounts_20261110_v1`, `kolovibe_account_uat_approval_20261110_v1` |
-| Gateway staging flags (exact match) | `KOLOVIBE_STAGING_ACCOUNTS=0`, `KOLOVIBE_STAGING_PRIVILEGED=0` | `KOLOVIBE_STAGING_ACCOUNTS=1`, `KOLOVIBE_STAGING_PRIVILEGED=0` |
+| Staging flags per service (exact match) | all eight services `KOLOVIBE_STAGING_ACCOUNTS=0`, `KOLOVIBE_STAGING_PRIVILEGED=0` | Gateway and Identity `ACCOUNTS=1`, `PRIVILEGED=0`; the other six `0`/`0` |
 
-The two staging flags are compared exactly against the profile (no "either value"); the stop
-message names only the variable that differs, never its value or any other environment entry. The AWS
-`ACCOUNTS=1` follows from the account wave being live through the Gateway (the staging middleware
-allows `/api/v1/auth/*` only with it); `PRIVILEGED=0` is the documented default. **Read back from the
-live AWS Gateway on 14 November 2026:** `KOLOVIBE_STAGING_ACCOUNTS=1` and
-`KOLOVIBE_STAGING_PRIVILEGED=0`, equal to the profile (read-only read-back; only those two variables were extracted). A different live value still stops the tool until a reviewed change
-updates the profile. The same read-back showed the Identity service at `ACCOUNTS=1`/`PRIVILEGED=0` and
-the other six services at `0`/`0`; this table covers the Gateway only.
+The two staging flags are compared exactly against the profile's per-service table (no "either
+value"); the stop message names the service and only the variable that differs, never its value or any
+other environment entry. The Gateway is checked in every manager mode; every service named in
+`update-plan`/`update` is checked against its own row before anything changes, and `plan`/`deploy`
+build a new service's flags from its row, never by copying the Gateway's environment. A table must be
+one the staging runtime itself accepts (accounts only on Gateway and Identity, privileged only with
+accounts) and Gateway and Identity must agree on `ACCOUNTS`: a Gateway with accounts on in front of an
+Identity with accounts off answers every login with 403 while still reporting ready. The AWS
+`ACCOUNTS=1` follows from the account wave being live through the Gateway and Identity (the staging
+middleware allows `/api/v1/auth/*` and `/internal/auth/*` only with it); `PRIVILEGED=0` is the
+documented default. **Read back from the live AWS services on 14 November 2026** (read-only, only
+those two variables extracted): Gateway and Identity `ACCOUNTS=1`/`PRIVILEGED=0`, the other six
+services `0`/`0`, equal to the table. A different live value stops the tool until a reviewed change
+updates the profile.
 
 Secret names are matched exactly and only for the service listed; a listed name on another
 service, a rotated version of it, or any other foreign secret still stops the plan.

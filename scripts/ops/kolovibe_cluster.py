@@ -99,10 +99,23 @@ class Profile(NamedTuple):
     broker_needs_label: bool   # RabbitMQ must also carry the worker workload-label constraint
     service_shared_secrets: dict   # service -> names mounted under their own name besides the CA secrets
     service_allowed_secrets: dict  # service -> exact secret names it may mount although they lack its prefix
-    gateway_flags: dict        # staging capability flags the live Gateway must carry, exact values ('0' or '1')
+    service_flags: dict        # service -> the two staging capability flags it must carry, exact values ('0' or '1')
 
 
 NETWORKS = frozenset({'kolovibe_services', 'kolovibe_data', 'kolovibe_db_host_access'})
+FLAG_ACCOUNTS = 'KOLOVIBE_STAGING_ACCOUNTS'
+FLAG_PRIVILEGED = 'KOLOVIBE_STAGING_PRIVILEGED'
+FLAG_NAMES = (FLAG_ACCOUNTS, FLAG_PRIVILEGED)
+
+
+def flag_table(**on):
+    """Every service off, except the named ones given as (accounts, privileged) value pairs."""
+    unknown = set(on) - set(SERVICES)
+    if unknown:
+        raise ValueError('Unknown service in flag table: ' + ', '.join(sorted(unknown)))
+    return {service: dict(zip(FLAG_NAMES, on.get(service, ('0', '0')))) for service in SERVICES}
+
+
 ORACLE_STAGING = Profile(
     name='oracle-staging', manager_host='vm-swarm-manager', worker_host='vm-swarm-worker',
     service_prefix='kvtest-', worker_constraint='node.hostname == vm-swarm-worker',
@@ -111,7 +124,7 @@ ORACLE_STAGING = Profile(
     gateway_networks_required=NETWORKS, gateway_networks_allowed=NETWORKS,
     broker_needs_label=True, service_shared_secrets={'gateway': ('trusted_peers',)},
     service_allowed_secrets={},
-    gateway_flags={'KOLOVIBE_STAGING_ACCOUNTS': '0', 'KOLOVIBE_STAGING_PRIVILEGED': '0'})
+    service_flags=flag_table())
 # Observed on the AWS staging by read-only operator evidence on 14 November 2026. There are no node
 # labels and no Oracle route-fix script; the database is a private 172.31.x address reached directly.
 AWS_STAGING = Profile(
@@ -128,14 +141,43 @@ AWS_STAGING = Profile(
                                'kolovibe_identity_smtp_password_20261110_v1'}),  # pragma: allowlist secret
         'gateway': frozenset({'kolovibe_gateway_trusted_peers_accounts_20261110_v1',
                               'kolovibe_account_uat_approval_20261110_v1'})},
-    # The account wave (register, verify, login, refresh, logout) is live on the AWS Gateway, which the
-    # staging middleware only allows with ACCOUNTS=1; privileged routes stay at the documented default.
+    # The account wave (register, verify, login, refresh, logout) is live on the AWS Gateway and its
+    # Identity service, which the staging middleware only allows with ACCOUNTS=1 on both; privileged
+    # routes stay at the documented default. Read back from the live services on 14 November 2026.
     # Exact values, never "either": a different live value stops the tool until a reviewed change.
-    gateway_flags={'KOLOVIBE_STAGING_ACCOUNTS': '1', 'KOLOVIBE_STAGING_PRIVILEGED': '0'})
+    service_flags=flag_table(gateway=('1', '0'), identity=('1', '0')))
 PROFILES = {p.name: p for p in (ORACLE_STAGING, AWS_STAGING)}
+
+
+def check_flag_table(profile):
+    """A profile's flag table must be one the staging runtime would itself accept (the account
+    capability belongs only to gateway and identity; privileged needs accounts), and Gateway and
+    Identity must agree: a Gateway with accounts on in front of an Identity with accounts off answers
+    every login with 403 while still reporting ready."""
+    table = profile.service_flags
+    if set(table) != set(SERVICES):
+        raise ValueError(profile.name + ': flag table must name exactly the eight services')
+    for service, flags in table.items():
+        if set(flags) != set(FLAG_NAMES) or any(value not in ('0', '1') for value in flags.values()):
+            raise ValueError(profile.name + ': ' + service + ' flags must be exactly the two names with 0 or 1')
+        if flags[FLAG_ACCOUNTS] == '1' and service not in ('gateway', 'identity'):
+            raise ValueError(profile.name + ': accounts capability belongs only to gateway and identity')
+        if flags[FLAG_PRIVILEGED] == '1' and (flags[FLAG_ACCOUNTS] != '1' or service not in ('gateway', 'identity')):
+            raise ValueError(profile.name + ': privileged capability needs accounts on gateway or identity')
+    if table['gateway'][FLAG_ACCOUNTS] != table['identity'][FLAG_ACCOUNTS]:
+        raise ValueError(profile.name + ': gateway and identity must agree on the accounts capability')
+
+
+for _profile in PROFILES.values():
+    check_flag_table(_profile)
 # `main()` always sets this from the required --profile. The Oracle default exists only so that
 # the module can still be imported by the offline tests and by the probe shipped into containers.
 PROFILE = ORACLE_STAGING
+
+
+def flag_mismatch(service, env):
+    """Names, never values, of the capability flags a service's environment gets wrong."""
+    return sorted(key for key, value in PROFILE.service_flags[service].items() if env.get(key) != value)
 
 
 def use_profile(name):
@@ -390,7 +432,7 @@ def base_gateway(api, image=BASELINE_IMAGE):
                 'KOLOVIBE_DB_NAME': PROFILE.db_name,
                 'KOLOVIBE_DB_USER': 'kv_gateway_run'}
     # Capability flags are part of the profile and are compared exactly; only their names are reported.
-    off = sorted(key for key, value in PROFILE.gateway_flags.items() if env.get(key) != value)
+    off = flag_mismatch('gateway', env)
     if off:
         fail('Gateway staging capability flags differ from the ' + PROFILE.name + ' profile: ' + ', '.join(off))
     # The Gateway is either still on the working baseline or already on a reviewed target.
@@ -483,7 +525,12 @@ def api_spec(gateway, service, all_secrets, image, revision, names=None):
     # Retain the proven DB host and hosts entry. Replace service-specific identity.
     env.update(KOLOVIBE_SERVICE_NAME=service, KOLOVIBE_ALLOWED_HOSTS=service,
                KOLOVIBE_DB_USER='kv_' + service + '_run')
-    for key in ('KOLOVIBE_TRUSTED_PEERS_FILE', 'KOLOVIBE_OUTBOUND_KEY_FILE'):
+    # Capability flags come from the profile for this service, never from the Gateway's environment.
+    env.update(PROFILE.service_flags[service])
+    # Gateway-only configuration is never copied into another service: peers and outbound key are
+    # replaced below, and the account approval file and creator-onboarding flag are not a receiver's.
+    for key in ('KOLOVIBE_TRUSTED_PEERS_FILE', 'KOLOVIBE_OUTBOUND_KEY_FILE',
+                'KOLOVIBE_ACCOUNT_APPROVAL_FILE', 'KOLOVIBE_STAGING_CREATOR_ONBOARDING'):
         env.pop(key, None)
     if service == 'identity':
         env.update(KOLOVIBE_SMTP_USER_FILE='/run/secrets/smtp_user',
@@ -718,6 +765,10 @@ def update_plan(evidence, image, revision, services, restore_ref=None, secret_ov
             fail(name + ' is not deployed; update never creates services (use deploy)')
         spec = live['Spec']
         safe_spec(spec)
+        off = flag_mismatch(service, env_dict(spec['TaskTemplate']['ContainerSpec']))
+        if off:
+            fail('Staging capability flags of ' + name + ' differ from the ' + PROFILE.name
+                 + ' profile: ' + ', '.join(off))
         require_secrets_belong(service, spec)
         changes = secret_changes(service, spec, overrides.get(service, {}), known)
         current = live_image(spec)

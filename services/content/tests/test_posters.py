@@ -56,7 +56,12 @@ class PosterBoundaryTests(SimpleTestCase):
             with self.assertRaises(media_encoding.InvalidMedia):
                 media_encoding._run(["ffmpeg"], 15)
 
-    @skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "FFmpeg and ffprobe are required")
+    # The encoder deliberately runs with a fixed, minimal PATH (media_encoding.SAFE_ENV), so the guard
+    # looks for the binaries exactly where the runtime will: a Homebrew install under /usr/local/bin
+    # must not turn into a spurious failure, and the sandbox PATH must not be widened to hide it.
+    @skipUnless(shutil.which("ffmpeg", path=media_encoding.SAFE_ENV["PATH"])
+                and shutil.which("ffprobe", path=media_encoding.SAFE_ENV["PATH"]),
+                "FFmpeg and ffprobe are required on the sandbox PATH")
     def test_real_bounded_encoding_and_jpeg_render_for_short_and_longer_clips(self):
         with TemporaryDirectory() as directory:
             for index, duration in enumerate((0.4, 1.6)):

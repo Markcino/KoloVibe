@@ -12,11 +12,13 @@ The approved architecture amendment uses RabbitMQ + Celery,
 - `RABBITMQ_DHI_IMAGE` must be a reviewed, immutable `dhi.io/rabbitmq@sha256:...`
   reference. Registry entitlements and read-only pull credentials must be checked.
 - `RABBITMQ_MEMORY_LIMIT` is deliberately **required** and has no default.
-  Both OCI VMs have ~956 MiB of RAM and existing workloads. Do **not** reuse
+  The two **Oracle (OCI)** VMs have ~956 MiB of RAM and existing workloads (1 November
+  read-back). The AWS instance size is **not recorded anywhere in this repository**; it
+  must be read back (R1 remediation plans, section 3) before any AWS sizing. Do **not** reuse
   the previous 1024M limit or invent a capacity figure. Budget RabbitMQ memory,
   Erlang overhead, OS, Docker, Django and Celery before enabling placement.
   API memory limits/reservations are also required in the single deployment file.
-- The Swarm candidate now requires `node.labels.kolovibe.workloads == true` **and** `node.labels.kolovibe.rabbitmq == true` on the same worker. The observed VM2 has the workload label but no approved RabbitMQ label; preserve zero replicas until capacity and durable storage are accepted.
+- The Swarm candidate now requires `node.labels.kolovibe.workloads == true` **and** `node.labels.kolovibe.rabbitmq == true` on the same worker. The observed **Oracle** VM2 has the workload label but no approved RabbitMQ label; preserve zero replicas until capacity and durable storage are accepted. The AWS nodes carry no Swarm labels (14 November operator read-back) and use hostname pins instead; see `infra/swarm/README.md`.
 - Verify the manager-applied `node.labels.kolovibe.rabbitmq == true` placement
   selects a healthy node with durable storage; a named Docker local volume does
   not migrate with a Swarm task. Do not delete any existing worker volumes.
@@ -28,7 +30,9 @@ The approved architecture amendment uses RabbitMQ + Celery,
 - Test durable queues, publisher confirms, deduplication, retries, dead letters,
   memory/disk alarms and recovery after task/node failure.
 - Verify encrypted backups, monitoring, restoration and approval before rolling
-  the single-replica broker into service.
+  the single-replica broker into service. No broker or PostgreSQL backup exists or
+  has been restored in any environment; the procedure is a plan only
+  (`docs/operations/R1_Remediation_Plans_2026-11-14.md`, section 6).
 
 The repository's static preflight tests are not an image pull, live network probe,
 OPA authorization check, sizing test or a RabbitMQ deployment.
