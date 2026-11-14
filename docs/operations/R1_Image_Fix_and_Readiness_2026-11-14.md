@@ -43,7 +43,7 @@ So a supported, patched FFmpeg exists on Alpine 3.24, not on 3.23. For CVE-2026-
 
 | Area | Change |
 | --- | --- |
-| `Dockerfile.service` | Build arguments `PYTHON_BASE` (default: the unchanged Alpine 3.23 digest), `WITH_FFMPEG` (default `0`) and `FFMPEG_SOURCE` (default `ffmpeg-empty`). The same `release` target builds both images. The default build copies an empty directory, never builds FFmpeg, and **refuses to contain it**. The media build (`WITH_FFMPEG=1`, `FFMPEG_SOURCE=ffmpeg-minimal`, base `python:3.12.16-alpine3.24@sha256:c5ba3dee…dd89`) builds **FFmpeg 9.0.2 from the upstream tarball pinned by SHA-512** (the value Alpine's APKBUILD records) in a throwaway `alpine:3.24.1` stage, copies two static binaries, adds only `x264-libs`, fails if any network protocol is compiled in, and re-asserts that no SQLite package or module exists |
+| `Dockerfile.service`, `.dockerignore`, `infra/docker/ffmpeg/APKBUILD`, `.grype.yaml` | Build arguments `PYTHON_BASE` (default: the unchanged Alpine 3.23 digest), `WITH_FFMPEG` (default `0`) and `FFMPEG_SOURCE` (default `ffmpeg-empty`). The same `release` target builds both images. The default build copies an empty directory, never builds FFmpeg, and **refuses to contain it**. The media build (`WITH_FFMPEG=1`, `FFMPEG_SOURCE=ffmpeg-minimal`, base `python:3.12.16-alpine3.24@sha256:c5ba3dee…dd89`) builds **FFmpeg 9.0.2 from the upstream tarball pinned by SHA-512** (`infra/docker/ffmpeg/APKBUILD`; the value Alpine's own APKBUILD records) in a throwaway `alpine:3.24.1` stage as a real apk named `ffmpeg`, installs it (plus `x264-libs`) so the scanner and SBOM can see it, fails if any network protocol is compiled in, and re-asserts that no SQLite package or module exists |
 | CI | New job "Build and scan media worker image": build with the two arguments; inspect (non-root, working directory, no secret-like env, Alpine 3.24, invalid service refused); FFmpeg and ffprobe on the encoder's fixed `PATH`; no SQLite; **the same scan step and thresholds**; SBOM must list `ffmpeg` and no SQLite; artifact `verified-media-image-<sha>`. The shared job now proves FFmpeg is absent |
 | Publication | The publish job needs both images, verifies each artifact, pushes `…/services:vN` and `…/media-worker:vN`, resolves each remote digest, pulls it and compares image IDs. Both digests land in the one `published-image-<sha>` artifact (`published-digest.txt`, `published-media-digest.txt`) |
 | Deployment tooling | `staging-aws.yml`: only `media-worker` uses `KOLOVIBE_MEDIA_IMAGE`; the validator enforces the media repository and the shared digest on the other six, and `--release-dir` checks both digests against the published evidence. The cluster tool's `--release-dir` still resolves the shared image; the media image is deployed by `docker stack deploy` from the stack |
@@ -77,13 +77,30 @@ Pull request run `43598874335` on commit `c4abb61` (all jobs finished):
 
 Progress from the first design (FFmpeg 8.0.1-r1 on Alpine 3.23: 49 distinct CVEs on the FFmpeg packages, 1 Critical, 26 High, 22 Medium): on Alpine 3.24 the named CVE-2026-52297 and CVE-2026-8461 and the earlier Critical CVE-2026-40962 are no longer reported; FFmpeg's own findings fell to 4 High and 14 Medium.
 
-**Conclusion: no released FFmpeg passes a "High, regardless of fix state" gate today.** Alpine 3.24's package is the newest packaged build and still reports four High; the newest upstream release, 9.0.2, is itself affected by CVE-2026-107696. The remaining High and Critical findings in cjson, alsa-lib and glib come only from FFmpeg's full dependency closure, which this pipeline does not need.
+**Conclusion of that run: no packaged FFmpeg release passes a "High, regardless of fix state" gate.** The remaining High and Critical findings in cjson, alsa-lib and glib came only from FFmpeg's full dependency closure, which this pipeline does not need.
 
-**Decision needed from the owner (not made here):**
+### 5.1 The owner's decision and the final design
 
-1. *Recommended path.* Build a **minimal FFmpeg 9.0.2** from upstream source in the media image: only the MP4/H.264/HEVC/AAC decoders, libx264 and AAC encoders, the JPEG poster path, the scale and format filters, and the `file` and `pipe` protocols; RTSP and every other network protocol, devices and optional libraries compiled out. That removes cjson, alsa-lib, glib, libssh and the rest of the closure, and fixes the three CVEs fixed in 9.0. The one CVE no release fixes, CVE-2026-107696, concerns code that would not be compiled in. If the scan still reports it, the media image can pass only with a **narrow, named-CVE exception for the media image** (Grype ignore for exactly that ID, with this rationale and an expiry), which is a deliberate relaxation of the gate and so the owner's decision.
-2. *No exception.* Keep the gate as is. Then the media image stays unpublished until upstream fixes CVE-2026-107696, and R1 is deployed without the media worker (no upload, processing or playback; every other capability can still be exercised). The CI would be split so the shared image can publish on its own.
-3. *Change the architecture* (not recommended: the R2 plus FFmpeg pipeline is approved).
+The owner chose option 1: build a minimal FFmpeg 9.0.2 and, only if the scan still reported CVE-2026-107696, accept a narrow named-CVE exception for the media image. What happened, in order (each a separate CI run on the pull request):
+
+| Attempt | Outcome |
+| --- | --- |
+| Minimal FFmpeg 9.0.2 copied into the image as plain binaries | Built and passed all checks, **and the Grype step passed, but only because the scanner cannot see a binary copied into an image** (the SBOM step, which requires `ffmpeg` to be listed, failed, as designed). A pass like that proves nothing, so it was rejected |
+| Same build packaged as a real apk named `ffmpeg` at its true version (`infra/docker/ffmpeg/APKBUILD`, source pinned by SHA-512, built with abuild, installed with `apk add`) | Four packaging defects fixed one at a time (Docker context excluded `infra/`; build-user directory ownership; throwaway build key not trusted; a check that failed with "broken pipe" because early-closing readers broke `docker run` under `pipefail`). The scan then ran against a visible `ffmpeg 9.0.2-r0` |
+| Scan of the apk image | **The only High or Critical finding in the entire media image is CVE-2026-107696 on `ffmpeg 9.0.2-r0`.** Everything else is Medium or below: FFmpeg 10 Medium, Python 6 Medium, busybox and ssl_client Medium. The 49 earlier FFmpeg CVEs (1 Critical, 26 High), the cjson, alsa-lib and libssh Highs and the glib Critical are all gone |
+| `.grype.yaml` with the one approved rule | Scan, SBOM (791 components, `ffmpeg` present, no SQLite), artifact upload: **PASS** |
+
+**The exception, exactly:** `.grype.yaml` contains one rule: vulnerability `CVE-2026-107696`, package `ffmpeg`, version `9.0.2-r0`, type `apk`. The gate steps are unchanged (`fail-build: true`, `severity-cutoff: high`) and name no configuration file. Why it is acceptable: the CVE is an infinite redirect loop in FFmpeg's RTSP client; no release through the newest (9.0.2) fixes it; the build compiles every network protocol out and CI checks on every build that the binary supports only `file` and `pipe` and lists no RTSP, RTP, HTTP, TCP, UDP or TLS component; the encoder also runs with `-protocol_whitelist file,pipe`. It does not cover any other CVE or any other FFmpeg version (a new version un-matches the rule by itself), it does not touch the shared image (no `ffmpeg` package there), and `scripts/test_shared_service_image.py` fails after **2027-02-12** until it is reviewed or removed. Licensing note: the build uses libx264, so the binary is GPL-2.0-or-later; it is used internally and not redistributed.
+
+### 5.2 Final CI results (run `43609510272`, commit `ded5027`)
+
+| Job | Result |
+| --- | --- |
+| Build and scan shared service image (Alpine 3.23, no FFmpeg, unchanged gate) | **PASS** |
+| Image build and security, eight-service PostgreSQL smoke matrix | **PASS** 8 of 8 |
+| **Build and scan media worker image** (Alpine 3.24, minimal FFmpeg 9.0.2 apk): build, inspection, FFmpeg on the sandbox PATH, minimal-build checks, real encode and poster test inside the image, no SQLite, scan, SBOM, artifact | **PASS** |
+| Django services and reproducibility (includes the database preflight verifier), Flutter, Security scans and SBOM, osv-scan, GitGuardian | **PASS** |
+| Publish verified shared and media worker images | Not run: it runs only on `main` after merge |
 
 ## 6. Corrections found by replaying the cluster tool against the live specs
 
@@ -156,9 +173,9 @@ Migration effects, restated (details in the release candidate record): content `
 
 | Gate | Status |
 | --- | --- |
-| FFmpeg blocker: root cause, patched package, design, implementation | Done (sections 1 to 4) |
+| FFmpeg blocker: root cause, design, implementation, CI verification | Done (sections 1 to 5) |
 | Shared image passes the unweakened scan and the 8-service smoke matrix | **PASS** (section 5) |
-| Media image passes the unweakened scan | **FAIL**: no released FFmpeg passes; owner decision needed (section 5) |
+| Media image passes the scan | **PASS** with the one owner-approved, expiring, CVE-specific exception (section 5.1) |
 | Immutable published digests from the corrected source | Produced only by `main` CI after merge, and only when both image jobs pass; **UNVERIFIED** (nothing is published from a pull request) |
 | AWS profile consistent with live services (replay) | **PASS** (section 6); live apply still unverified |
 | R2 credentials, bucket, lifecycle | **BLOCKED** |
@@ -168,11 +185,11 @@ Migration effects, restated (details in the release candidate record): content `
 | OPA, backup and restore | Waived (approved) |
 | Irreversible migrations, deployment, each AWS mutation | **BLOCKED**: no approval requested |
 
-**NO-GO.** The shared image blocker is fixed and verified by CI. The media image still fails the scan and needs the owner's decision in section 5; the deployment also has none of its secrets, no R2 account, and no approval.
+**NO-GO.** Both images now pass CI (the media image with the one approved exception). What remains is not code: no immutable digest exists until the pull request is merged and `main` publishes it, the deployment has none of its secrets, there is no R2 account, and no approval has been requested.
 
 ## 10. Exact next steps
 
-1. Decide the media image path (section 5, options 1 to 3). Review and merge the pull request when both image jobs are green; main CI then publishes both digests.
+1. Review and merge the pull request (both image jobs are green); `main` CI then publishes both digests.
 2. Verify both manifests (a `read:packages` credential, or the pull inside `update`).
 3. Supply R2 (identifiers, scoped keys, lifecycle); create the 12 objects and the new versions of section 7 (names there; values by the owner).
 4. Verify RabbitMQ accounts and enroll a reviewer's MFA.

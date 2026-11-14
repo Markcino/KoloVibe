@@ -12,6 +12,8 @@ import sys
 import tempfile
 import time
 import unittest
+
+import yaml
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -119,6 +121,29 @@ class ImageSecurityContractTests(unittest.TestCase):
         # The default build copies an empty directory, so the shared image never builds or contains FFmpeg.
         self.assertIn("ARG FFMPEG_SOURCE=ffmpeg-empty", self.dockerfile)
         self.assertNotIn("ffmpeg", self.stages()["ffmpeg-empty"].lower().replace("ffmpeg-empty", "").replace("/ffmpeg", ""))
+
+    def test_the_only_scan_exception_is_the_approved_one_and_has_not_expired(self):
+        import datetime
+
+        config = (ROOT / ".grype.yaml").read_text()
+        rules = yaml.safe_load(config)
+        self.assertEqual(set(rules), {"ignore"})
+        self.assertEqual(rules["ignore"], [{"vulnerability": "CVE-2026-107696",
+                                            "package": {"name": "ffmpeg", "version": "9.0.2-r0", "type": "apk"}}])
+        # The exception is justified by the build having no network protocols, which CI verifies on every build.
+        media_job = self.workflow[self.workflow.index("  media-image-build:"):self.workflow.index("  build-and-verify:")]
+        for needle in ("rtsp", "http", "tcp", '= "file pipe "'):
+            self.assertIn(needle, media_job)
+        expiry = datetime.date.fromisoformat(re.search(r"(?m)^# Expires: (\d{4}-\d{2}-\d{2})$", config).group(1))
+        self.assertGreater(expiry, datetime.date.today(), "The CVE-2026-107696 scan exception expired: review or remove it")
+        self.assertLessEqual(expiry, datetime.date(2027, 3, 1))
+        # The gate steps themselves stay exactly as strict, and name no configuration file.
+        for name in ("Scan local image vulnerabilities", "Scan media image vulnerabilities"):
+            start = self.workflow.index(name)
+            step = self.workflow[start:self.workflow.index("- name:", start + 1)]
+            self.assertIn("fail-build: true", step)
+            self.assertIn("severity-cutoff: high", step)
+            self.assertNotIn("config", step)
 
     def test_the_build_context_excludes_infra_except_the_ffmpeg_apkbuild(self):
         rules = [line.strip() for line in (ROOT / ".dockerignore").read_text().splitlines()
