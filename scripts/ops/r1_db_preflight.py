@@ -170,15 +170,24 @@ def _finish(report):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--host", required=True)
+    parser.add_argument("--print-expected", action="store_true",
+                        help="print the migrations the repository at this commit expects, per service, and exit")
+    parser.add_argument("--host")
     parser.add_argument("--port", type=int, default=5432)
-    parser.add_argument("--dbname", required=True)
-    parser.add_argument("--user", required=True)
-    parser.add_argument("--password-file", required=True)
-    parser.add_argument("--sslrootcert", required=True)
+    parser.add_argument("--dbname")
+    parser.add_argument("--user")
+    parser.add_argument("--password-file")
+    parser.add_argument("--sslrootcert")
     parser.add_argument("--show-handles", action="store_true",
                         help="print colliding creator handles to this terminal for manual review")
+    args, _ = parser.parse_known_args(argv)
+    if args.print_expected:
+        print(json.dumps(expected_migrations(), indent=2))
+        return 0
     args = parser.parse_args(argv)
+    for name in ("host", "dbname", "user", "password_file", "sslrootcert"):
+        if not getattr(args, name):
+            parser.error("--" + name.replace("_", "-") + " is required")
     connection = connect(args.host, args.port, args.dbname, args.user, read_password(args.password_file), args.sslrootcert)
     try:
         report = run_checks(connection, expected_migrations(), show_handles=args.show_handles)

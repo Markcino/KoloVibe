@@ -179,6 +179,43 @@ class PreflightTests(unittest.TestCase):
             self.assertNotIn(self.admin_password, result.stdout + result.stderr)
 
 
+class SqlScriptTests(unittest.TestCase):
+    """The psql variant for operators without a Python path to the database."""
+
+    def run_sql(self, password, port, ca, user="kolovibe_ci_admin", dbname="kolovibe_ci"):
+        import os
+        import shutil
+
+        psql = shutil.which("psql")
+        if psql is None:
+            self.skipTest("psql is not installed")
+        env = dict(os.environ, PGPASSWORD=password, PGSSLMODE="verify-full", PGSSLROOTCERT=ca, PGGSSENCMODE="disable", PGHOSTADDR="127.0.0.1")
+        return subprocess.run([psql, "-X", "-v", "ON_ERROR_STOP=1", "-h", "localhost", "-p", str(port), "-U", user,
+                               "-d", dbname, "-f", str(Path(__file__).resolve().parents[1] / "infra/postgres/r1_readonly_preflight.sql")],
+                              capture_output=True, text=True, env=env, timeout=60)
+
+    def test_the_sql_script_is_read_only_prints_counts_and_never_selects_handles(self):
+        context = postgres_fixture()
+        base, environments = context.__enter__()
+        try:
+            env = environments["gateway"]
+            result = self.run_sql((base / "admin-password").read_text(), env["KOLOVIBE_DB_PORT"], env["KOLOVIBE_DB_SSLROOTCERT"],
+                                  dbname=env["KOLOVIBE_DB_NAME"])
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("transaction_read_only", result.stdout)
+            self.assertRegex(result.stdout, r"transaction_read_only[\s\S]*\bon\b")
+            self.assertIn("0004_creator_profile_fields", result.stdout)
+            self.assertRegex(result.stdout, r"colliding_groups[\s\S]*\b0\b")
+        finally:
+            context.__exit__(None, None, None)
+        sql = (Path(__file__).resolve().parents[1] / "infra/postgres/r1_readonly_preflight.sql").read_text()
+        code = "\n".join(line for line in sql.splitlines() if not line.lstrip().startswith("--") and not line.startswith("\\echo"))
+        self.assertNotRegex(code.upper(), r"\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|TRUNCATE|GRANT|COPY)\b")
+        self.assertNotRegex(code, r"SELECT\s+handle\b|,\s*handle\s*[,)]|array_agg")
+        self.assertTrue(code.lstrip().startswith("\\set QUIET on") or "BEGIN READ ONLY;" in code)
+        self.assertTrue(code.rstrip().endswith("ROLLBACK;"))
+
+
 class PureTests(unittest.TestCase):
     def test_expected_migrations_come_from_the_repository_for_every_service(self):
         expected = preflight.expected_migrations()
