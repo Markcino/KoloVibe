@@ -143,9 +143,11 @@ class PreflightTests(unittest.TestCase):
             columns = db.execute(
                 "SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'content' "
                 "AND table_name = 'service_video' AND is_nullable = 'NO' AND column_default IS NULL").fetchall()
-            names = ", ".join(c for c, _ in columns) + ", stream_upload_id"
-            values = ", ".join(defaults[t] for _, t in columns) + ", 'legacy-upload'"
-            db.execute(f'INSERT INTO "content".service_video ({names}) VALUES ({values})')
+            from psycopg import sql
+
+            db.execute(sql.SQL("INSERT INTO content.service_video ({names}) VALUES ({values})").format(
+                names=sql.SQL(", ").join([sql.Identifier(c) for c, _ in columns] + [sql.Identifier("stream_upload_id")]),
+                values=sql.SQL(", ").join([sql.SQL(defaults[t]) for _, t in columns] + [sql.Literal("legacy-upload")])))
         try:
             report = self.check()
             self.assertTrue(report["content_stream_upload_id"]["column_present"])

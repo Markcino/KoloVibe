@@ -72,6 +72,8 @@ def _table_exists(cursor, schema, table):
 
 def run_checks(connection, expected, *, show_handles=False):
     """The report: {'verdict': 'ok'|'stop', 'stops': [...], ...}. Only SELECT statements are executed."""
+    from psycopg import sql
+
     report = {"stops": [], "notes": []}
     with connection.cursor() as cursor:
         report["server"] = {
@@ -99,7 +101,8 @@ def run_checks(connection, expected, *, show_handles=False):
                 migrations[service] = {"applied": None, "pending": names, "ahead_of_code": [],
                                        "note": "no migration history: every migration is pending"}
                 continue
-            cursor.execute(f'SELECT name FROM "{service}".django_migrations WHERE app = %s ORDER BY id', ("service",))
+            cursor.execute(sql.SQL("SELECT name FROM {}.django_migrations WHERE app = %s ORDER BY id").format(
+                sql.Identifier(service)), ("service",))
             applied = [r[0] for r in cursor.fetchall()]
             pending = [n for n in names if n not in applied]
             ahead = [n for n in applied if n not in names]
