@@ -248,7 +248,7 @@ AWS_STAGING = Profile(
     service_flags=flag_table(gateway=('1', '0'), identity=('1', '0')),
     opa_waiver=OPA_WAIVER, r1_flags=r1_flag_table(), r1_rollout=r1_rollout_table(),
     # Read-only service inspection of 14 November 2026: every AWS service mounts the database CA from the
-    # Swarm secret `kolovibe_pg_ca_v1` at target `db_ca`; no secret is named `db_ca` there.
+    # Swarm secret `kolovibe_pg_ca_v1` at target `db_ca`; no secret is named `db_ca` there.  # pragma: allowlist secret
     ca_secret_names={'db_ca': 'kolovibe_pg_ca_v1'},
     # Read-only service inspection of 14 November 2026: logins are `kolovibe_<service>_app` and the database host
     # is the Swarm service name `kolovibe-postgres` (the 13 November note of a 172.31.x address is superseded).
