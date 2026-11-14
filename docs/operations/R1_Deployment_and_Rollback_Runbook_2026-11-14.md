@@ -42,6 +42,14 @@ docker buildx imagetools inspect ghcr.io/markcino/kolovibe/services@sha256:<appr
 
 Pass: the manifest resolves for the approved digest, the platform matches the AWS architecture (from section 1), and the digest printed equals the approval. A tag, a different digest, or a manifest that cannot be read is a stop. Pullability from VM2 is proven by the tool's own `update` step (it pulls with a hidden-prompt credential); do not pre-pull on VM1.
 
+## 2b. Read-only database preflight (separate approval; no write, no commit)
+
+Before any migration approval run **one** of: `infra/postgres/r1_readonly_preflight.sql` through `psql -X -v ON_ERROR_STOP=1 -f` as a login that can read all schemas, or `python3 scripts/ops/r1_db_preflight.py` where a TLS path exists (`--print-expected` lists the migrations the commit carries). Stop on: a migration the database has and the commit lacks; creators 0004 pending with case-only handle collisions (resolve by hand, never by script); `stream_upload_id` holding data; PostgreSQL major not 16 (note it). Details: [image fix and readiness](R1_Image_Fix_and_Readiness_2026-11-14.md) section 8.
+
+## 2c. Two images
+
+`main` CI publishes two digests into one `published-image-<sha>` artifact: `published-digest.txt` (services: eight APIs and the six non-media processes) and `published-media-digest.txt` (media worker only, the only image with FFmpeg). Export `KOLOVIBE_IMAGE` and `KOLOVIBE_MEDIA_IMAGE` from them and run `python scripts/validate_staging_stack.py --aws-stack --release-dir <artifact dir>`; it fails if either differs from the evidence. The cluster tool moves only the services image.
+
 ## 3. PostgreSQL, RabbitMQ and messaging health
 
 READ-ONLY, from VM1 (manager). The PostgreSQL and RabbitMQ service names on AWS are not recorded in the repository; take them from `docker service ls` (section 1) and substitute them below.

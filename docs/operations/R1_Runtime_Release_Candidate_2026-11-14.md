@@ -25,7 +25,9 @@
 | 7 | Flutter publish, unpublish, manage | `ownedVideo`, `setVisibility`, `editDetails`, `deleteVideo`; `ManageVideoController`; M-053 screen with M-054 edit, M-055 unpublish and M-056 delete confirmations; library opens it for every non-draft video; M-052 notice link on it | `live_manage_video_test.dart` (26 tests) |
 | 8 | Mobile paths, persistent auth, errors | Every distinct Flutter path resolves to a gateway route; session restore, refresh rotation, logout and expiry tests unchanged and passing | section 5 |
 
-Image decision (reviewed, recorded): FFmpeg is installed in the **single shared release image**, not a second image. A separate media image would break the CI invariants "one build, one push, one publication record" and the tool's one-digest release evidence. Cost: the encoder's 113 Alpine packages sit in every service container (no SQLite among them, re-checked in the Dockerfile and CI). Only the media worker executes it, with a fixed minimal `PATH`. If the image scan finds a High CVE in them, the image gate fails and nothing publishes; it is never excepted. A separate hardened media image remains the preferred future step.
+**Superseded by [R1 image fix and readiness](R1_Image_Fix_and_Readiness_2026-11-14.md):** CI run 43596907169 failed the scan (FFmpeg 8.0.1-r1 on Alpine 3.23: 49 distinct CVEs, 1 Critical, 26 High, no fix), so FFmpeg now lives only in a separate media-worker image on Alpine 3.24. The paragraph below is kept as the history of the rejected design.
+
+Image decision (rejected after CI): FFmpeg is installed in the **single shared release image**, not a second image. A separate media image would break the CI invariants "one build, one push, one publication record" and the tool's one-digest release evidence. Cost: the encoder's 113 Alpine packages sit in every service container (no SQLite among them, re-checked in the Dockerfile and CI). Only the media worker executes it, with a fixed minimal `PATH`. If the image scan finds a High CVE in them, the image gate fails and nothing publishes; it is never excepted. A separate hardened media image remains the preferred future step.
 
 ### Capability policy
 
@@ -79,7 +81,7 @@ Verdict: the plan fits on paper with 718 MiB spare even at the worst case, so th
 | Field | Content |
 | --- | --- |
 | Target | AWS staging Swarm: manager `ip-172-31-30-236`, worker `ip-172-31-16-154`, `kolovibe-*` services, public hosts as today |
-| Image | **To be named after merge:** the digest published by `main` CI for the merged release commit, with its `published-image-<sha>` artifact as `--release-dir`. Not `…893a4d01…` (it lacks this branch). No other digest is in scope. Verify manifest and pull (section 3) before the first update |
+| Images | **To be named after merge:** the two digests `main` CI publishes for the merged release commit (`services` for the eight APIs and six worker processes, `media-worker` for the media worker), both recorded in one `published-image-<sha>` artifact used as `--release-dir`. Not `…893a4d01…` (it lacks this branch). No other digest is in scope. Verify manifest and pull (section 3) before the first update |
 | Services changed (APIs) | audit, identity, creators, content, engagement, points, moderation, gateway, in that order, one at a time, with `update --profile aws-staging --enable-r1-capabilities` (plus `--secret-override` for the Gateway/Identity/receiver secret versions in section 6). Each moves to the new image **and** the reviewed R1 flags, mounts and (content, engagement, points) the messaging network. Nothing else changes |
 | Services added | seven processes from `staging-aws.yml` (media worker, engagement consumer and dispatcher, points consumer and audit deliverer, moderation and identity audit deliverers), created at zero replicas and scaled to 1 one at a time |
 | Memory limits | APIs unchanged (256 MiB limit, 128 reservation). New processes 512 / 192 / 160 / 192 / 160 / 160 / 160 MiB (1536 total) |
