@@ -313,10 +313,11 @@ missing `--profile` stops the tool, and worker evidence is bound to the profile 
 The two staging flags are compared exactly against the profile (no "either value"); the stop
 message names only the variable that differs, never its value or any other environment entry. The AWS
 `ACCOUNTS=1` follows from the account wave being live through the Gateway (the staging middleware
-allows `/api/v1/auth/*` only with it); `PRIVILEGED=0` is the documented default. **Neither AWS value has
-been read back from the live Gateway yet.** Before this profile is relied on, the operator reads exactly
-those two variables (see the evidence request in the pull request); a different live value stops the tool
-until a reviewed change updates the profile.
+allows `/api/v1/auth/*` only with it); `PRIVILEGED=0` is the documented default. **Read back from the
+live AWS Gateway on 14 November 2026:** `KOLOVIBE_STAGING_ACCOUNTS=1` and
+`KOLOVIBE_STAGING_PRIVILEGED=0`, equal to the profile (read-only read-back; only those two variables were extracted). A different live value still stops the tool until a reviewed change
+updates the profile. The same read-back showed the Identity service at `ACCOUNTS=1`/`PRIVILEGED=0` and
+the other six services at `0`/`0`; this table covers the Gateway only.
 
 Secret names are matched exactly and only for the service listed; a listed name on another
 service, a rotated version of it, or any other foreign secret still stops the plan.
