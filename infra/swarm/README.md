@@ -18,6 +18,14 @@ source, Flutter files or Git checkout is needed on the worker. GHCR access
 for workers needs a reviewed credential/provisioning lifecycle: do not store
 registry credentials in Git or commit an `.env` file.
 
+**Placement profiles:** the label constraints described next, and in `staging.yml`, are the
+`oracle-staging` profile. The AWS staging nodes carry **no Swarm labels** (operator read-back of
+14 November 2026), so on AWS placement is the exact `node.hostname==<worker>` pin of the
+`aws-staging` profile of `scripts/ops/kolovibe_cluster.py`, and `staging.yml` must not be deployed
+there. `scripts/validate_staging_stack.py --profile aws-staging` refuses explicitly. Giving the
+worker, Celery and media services (matrix packages D, E) a stack file for AWS needs an owner decision
+between a hostname-pinned AWS stack file and applying the labels, which changes Swarm node metadata.
+
 **Worker-only scheduling:** All eight API services require
 `node.labels.kolovibe.workloads == true`. RabbitMQ requires both that label
 and `node.labels.kolovibe.rabbitmq == true` on the same worker, following

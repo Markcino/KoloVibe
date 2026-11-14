@@ -1,4 +1,4 @@
-# RabbitMQ DHI deployment candidate — NOT ACTIVE
+# RabbitMQ DHI deployment candidate — NOT ACTIVE (oracle-staging placement)
 
 The broker is defined in the single [Swarm deployment YAML](../swarm/staging.yml);
 there is no separate RabbitMQ stack. Its configuration stays in this directory.

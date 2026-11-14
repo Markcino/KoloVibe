@@ -31,7 +31,22 @@ def load_stack(path, environment):
     return yaml.safe_load(INPUT.sub(replace, Path(path).read_text()))
 
 
-def validate(stack):
+ORACLE_PROFILE = "oracle-staging"
+AWS_PROFILE = "aws-staging"
+PROFILES = (ORACLE_PROFILE, AWS_PROFILE)
+
+
+def validate(stack, profile=ORACLE_PROFILE):
+    """Validate the stack file against one named placement profile.
+
+    The stack file's placement is label-based and belongs to oracle-staging. The AWS nodes have no
+    Swarm labels, so aws-staging is refused explicitly instead of passing a file that cannot schedule.
+    """
+    if profile == AWS_PROFILE:
+        raise ValueError("staging.yml is the oracle-staging candidate (label placement); the AWS nodes "
+                         "carry no labels, so use the aws-staging profile of scripts/ops/kolovibe_cluster.py")
+    if profile != ORACLE_PROFILE:
+        raise ValueError("Unknown placement profile; choose one of: " + ", ".join(PROFILES))
     if set(stack["services"]) != SERVICES | {"rabbitmq"}:
         raise ValueError("Single deployment must define eight API services and RabbitMQ")
     if len({stack["services"][name]["image"] for name in SERVICES}) != 1:
@@ -112,5 +127,12 @@ def validate(stack):
 
 
 if __name__ == "__main__":
-    validate(load_stack(ROOT / "infra/swarm/staging.yml", os.environ))
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--profile", choices=PROFILES, default=ORACLE_PROFILE)
+    args = parser.parse_args()
+    if args.profile != ORACLE_PROFILE:
+        validate({}, args.profile)  # raises the explicit refusal before any input is read
+    validate(load_stack(ROOT / "infra/swarm/staging.yml", os.environ), args.profile)
     print("Staging candidate inputs and static boundaries passed; live acceptance still required")

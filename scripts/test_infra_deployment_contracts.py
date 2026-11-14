@@ -1,9 +1,16 @@
 """Preflight invariants for the *unactivated* Oracle/RabbitMQ candidate."""
 
 from pathlib import Path
+import re
+import sys
 import unittest
 
 import yaml
+
+sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent / "ops"))
+import kolovibe_cluster as cluster  # noqa: E402
+import validate_staging_stack as validator  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 BROKER = ROOT / "infra/swarm/staging.yml"
@@ -68,6 +75,43 @@ class InfrastructurePreflightTests(unittest.TestCase):
         self.assertIn("7946/TCP+UDP", ports)
         self.assertIn("ESP protocol 50", ports)
         self.assertIn("pending", ports.lower())
+
+
+class PlacementProfileConsistencyTests(unittest.TestCase):
+    """The label-based stack file, the AWS tool profile and the README must tell one story."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.source = BROKER.read_text()
+        cls.readme = (ROOT / "infra/swarm/README.md").read_text()
+        cls.aws = cluster.AWS_STAGING
+
+    def test_stack_file_declares_itself_oracle_placement_and_warns_off_aws(self):
+        header = self.source.split("x-environment:")[0]
+        self.assertIn("PLACEMENT PROFILE: oracle-staging only", header)
+        self.assertIn("Do not `docker stack deploy` this file on AWS", header)
+
+    def test_validator_accepts_oracle_and_refuses_aws_and_unknown_profiles_explicitly(self):
+        stack = yaml.safe_load(self.source)
+        with self.assertRaisesRegex(ValueError, "aws-staging profile of scripts/ops/kolovibe_cluster.py"):
+            validator.validate(stack, "aws-staging")
+        with self.assertRaisesRegex(ValueError, "Unknown placement profile"):
+            validator.validate(stack, "guess")
+        self.assertEqual(set(validator.PROFILES), set(cluster.PROFILES))
+
+    def test_aws_profile_pins_by_hostname_and_never_needs_labels(self):
+        self.assertEqual(self.aws.worker_constraint, "node.hostname==" + self.aws.worker_host)
+        self.assertFalse(self.aws.broker_needs_label)
+        self.assertNotIn("node.labels", self.aws.worker_constraint)
+        for constraint in yaml.safe_load(self.source)["x-deploy"]["placement"]["constraints"]:
+            self.assertNotEqual(constraint, self.aws.worker_constraint)
+
+    def test_readme_table_states_the_same_aws_pin_and_hosts_as_the_tool(self):
+        row = next(line for line in self.readme.splitlines() if line.startswith("| Worker pin every service must carry"))
+        self.assertIn("`" + self.aws.worker_constraint + "`", row)
+        hosts = next(line for line in self.readme.splitlines() if line.startswith("| Manager / worker hostname"))
+        self.assertIn("`%s` / `%s`" % (self.aws.manager_host, self.aws.worker_host), hosts)
+        self.assertTrue(re.search(r"AWS .*no (Swarm )?(node )?labels", self.readme, re.I | re.S))
 
 
 if __name__ == "__main__":
