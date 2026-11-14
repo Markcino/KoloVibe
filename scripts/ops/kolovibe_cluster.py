@@ -744,7 +744,7 @@ def update_plan(evidence, image, revision, services, restore_ref=None, secret_ov
                 'repin': 'python3 kolovibe_cluster.py update --services ' + service + ' --release-dir <prior approved release>',
                 'schema': 'Forward-only: image rollback never reverses migrations. Restore from the '
                           'owner-approved restore point and export evidence tables first.',
-                'secrets': 'Rollback restores the previous spec including these secret names (' +
+                'secrets': 'Rollback restores the previous spec including these secret names (' +  # pragma: allowlist secret
                            ', '.join(c['from'] for c in public_changes(changes)) + '); keep them in Swarm until soak ends.'
                            if changes else 'No secret change planned.'}})
     return {'api': api, 'image': image, 'revision': revision, 'restore_point_ref': restore_ref,
