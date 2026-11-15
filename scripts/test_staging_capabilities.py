@@ -258,6 +258,22 @@ class ConfigureTests(unittest.TestCase):
         with patch.dict(os.environ, env, clear=True), self.assertRaises(RuntimeError):
             configure(self.settings("points"))
 
+    def test_broker_uri_accepts_the_live_slash_named_vhost_and_nothing_stranger(self):
+        from staging_runtime import broker_url
+
+        good = ("amqps://u:p@kolovibe-rabbitmq:5671/%2Fkolovibe", "amqps://u:p@kolovibe-rabbitmq:5671/%2fkolovibe",
+                "amqps://u:p@kolovibe-rabbitmq:5671/kolovibe", "amqps://u:p@kolovibe-rabbitmq:5671")
+        bad = ("amqps://u:p@h:5671//kolovibe", "amqps://u:p@h:5671/%00", "amqps://u:p@h:5671/%2e%2e", "amqps://u:p@h:5671/a/b",
+               "amqps://u:p@h:5671/k?x=1", "amqps://u:p@h:5671/" + "a" * 65, "amqp://u:p@h:5671/v", "amqps://h:5671/v")
+        for value, accepted in [(g, True) for g in good] + [(b, False) for b in bad]:
+            path = self.private("uri", value)
+            with self.subTest(value=value.rsplit("@", 1)[-1]), patch.dict(os.environ, {"KOLOVIBE_RABBITMQ_URL_FILE": path}, clear=True):
+                if accepted:
+                    self.assertEqual(broker_url(), value)
+                else:
+                    with self.assertRaises(RuntimeError):
+                        broker_url()
+
     def test_a_content_service_with_media_demands_r2_and_the_broker_as_secret_files(self):
         env, _ = self.environment("content", {"media"})
         with patch.dict(os.environ, env, clear=True), self.assertRaises(RuntimeError):
