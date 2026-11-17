@@ -153,14 +153,22 @@ class RouteCoverageTests(unittest.TestCase):
                 self.assertFalse(route_allowed("gateway", method, path, accounts=True, privileged=True,
                                                capability_set=ALL), f"{method} {path}")
 
-    def test_media_opens_only_the_exact_creator_eligibility_route(self):
+    def test_media_opens_only_the_exact_creator_eligibility_and_ownership_routes(self):
         base = "/internal/creators/onboarding/"
         media = frozenset({"media"})
-        self.assertTrue(route_allowed("creators", "POST", base + "eligibility", capability_set=media))
-        for method in ("GET", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"):
-            self.assertFalse(route_allowed("creators", method, base + "eligibility", capability_set=media), method)
-        for path in ("invite", "review", "pending", "submit", "status", "ownership", "standing", "eligibility/",
-                     "eligibility2", "eligibility/x", "Eligibility", "", "../eligibility"):
+        for op in ("eligibility", "ownership"):
+            self.assertTrue(route_allowed("creators", "POST", base + op, capability_set=media), op)
+            for method in ("GET", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"):
+                self.assertFalse(route_allowed("creators", method, base + op, capability_set=media), method)
+            for suffix in ("/", "2", "/x", "/../x"):
+                self.assertFalse(route_allowed("creators", "POST", base + op + suffix, capability_set=media), suffix)
+            for caps in (frozenset(), ALL - {"media"}):
+                self.assertFalse(route_allowed("creators", "POST", base + op, privileged=True, capability_set=caps))
+            for service in ("gateway", "content", "identity", "audit"):
+                self.assertFalse(route_allowed(service, "POST", base + op, capability_set=ALL))
+        for path in ("invite", "review", "pending", "submit", "status", "standing", "application", "Ownership",
+                     "OWNERSHIP", "", "../ownership", "ownership%2f", "ownership?x=1", "eligibility/",
+                     "eligibility2", "eligibility/x", "Eligibility"):
             for privileged in (False, True):
                 self.assertFalse(route_allowed("creators", "POST", base + path, privileged=privileged,
                                                capability_set=media), path)
