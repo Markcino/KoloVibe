@@ -181,3 +181,11 @@ def onboarding(request, operation):
 def eligibility(request):
     """The upload-eligibility check alone, pinned to its operation; same caller, envelope and role checks."""
     return onboarding(request, "eligibility")
+
+
+def ownership(request):
+    """The account-to-creator ownership lookup alone, pinned to its operation; same caller, envelope and role checks.
+
+    The account is always the envelope's authenticated actor; the request carries no other account identifier.
+    """
+    return onboarding(request, "ownership")
