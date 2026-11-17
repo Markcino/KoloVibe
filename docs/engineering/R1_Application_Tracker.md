@@ -1,8 +1,16 @@
 # R1 application delivery tracker
 
-**Updated 10 November 2026.** The project owner confirmed that Stage 3 (Technical Foundation) was completed successfully. Stage 4 (MVP implementation) is in progress, with Stage 5 (testing and security verification) running in parallel on AWS staging. See the [Stage 3 tracker](Stage3_Implementation_Tracker.csv) for the detailed foundation record.
+**Updated 17 November 2026.** The project owner confirmed that Stage 3 (Technical Foundation) was completed successfully. Stage 4 (MVP implementation) is in progress, with Stage 5 (testing and security verification) running in parallel on AWS staging. See the [Stage 3 tracker](Stage3_Implementation_Tracker.csv) for the detailed foundation record.
 
-| Area | Current status | Evidence | Remaining gate |
+## Current release checkpoint
+
+The [17 November reconciliation](../operations/R1_AWS_Staging_Reconciliation_2026-11-17.md) is the current release checkpoint: **v0.187.2 published; all eight APIs and the media worker deployed by operator report; 26 passed / 0 failed / 19 pending**. POST authentication routing is verified for the submitted invalid-input probes. Successful authenticated login/profile and refresh on this release remain pending evidence.
+
+This checkpoint supersedes the deployment/worker-provisioning status in the earlier area table and local-candidate notes below. Preserve their implementation and older UAT evidence under their original dates; do not transfer a prior release's pass to v0.187.2. Current remaining work is listed in the linked reconciliation.
+
+## Earlier implementation and acceptance record
+
+| Area | Status recorded before this reconciliation | Evidence | Remaining gate at that time |
 | --- | --- | --- | --- |
 | Mobile UI | Partial | 108 recipes retained. On the iPhone staging release, account journey UAT passed 9/9 by tester report. Startup session restore merged in [PR #30](https://github.com/Markcino/KoloVibe/pull/30). The Flutter job passed on the reviewed PR and on `main`. | Retest SEC-05 on a physical iPhone using a release build from `main` that includes PR #30. Expiry-driven refresh, offline recovery, secure-storage evidence, and physical Android UAT remain open. |
 | Django web | Partial | Paginated feed, video/creator details, CSRF account forms and HttpOnly cookies; 14 tests plus real local account journeys pass; rotation survives dependency outages and logout reports unconfirmed revocation. | Full creator/reviewer journeys, production cookie/transport profile and full accessibility review. |

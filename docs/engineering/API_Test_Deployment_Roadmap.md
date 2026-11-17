@@ -1,5 +1,13 @@
 # API test deployment roadmap
 
+## Current continuation — 17 November 2026
+
+Use the [current reconciliation](../operations/R1_AWS_Staging_Reconciliation_2026-11-17.md) before following an older deployment checklist. Publication, eight-service deployment and media-worker startup are complete for the reported v0.187.2 release. The original assessment remains **26 passed / 0 failed / 19 pending**.
+
+After documentation reconciliation, continue authenticated/session/security acceptance, then creator eligibility, the real video journey, engagement/points, moderation/audit and physical-device verification. Preserve completed routing and deployment checks. Existing decisions and restricted-staging waivers remain unchanged. Do not repeat provisioning or rollout solely because an earlier section lists it as pending.
+
+## Historical environment plans and evidence
+
 **AWS staging was deployed and exercised on 10 November 2026.** The [AWS rollout record](../operations/AWS_Staging_Deployment_Verification_2026-11-10.md) covers service convergence, deployed image provenance and distinct public mobile, protected backend and web outcomes. The [R1 tracker](R1_Application_Tracker.md#aws-staging-acceptance-on-10-november-2026) owns application UAT.
 
 **Oracle Cloud baseline · 3 November 2026.** Public acceptance was blocked in that environment.
@@ -149,7 +157,7 @@ The first command creates a fresh TLS PostgreSQL cluster and service-owned login
 
 For manual local service use, the existing launcher accepts service-prefixed PostgreSQL settings: `KOLOVIBE_<SERVICE>_DB_NAME`, `DB_USER`, `DB_HOST`, `DB_PORT`, `DB_PASSWORD_FILE` and `DB_SSLROOTCERT` (each suffix uses the same prefix). Supplying any requires the complete set except optional port. The selected service alone receives the corresponding generic settings; inherited service credentials are removed. Engagement/points workers use their own `KOLOVIBE_<SERVICE>_RABBITMQ_URL`. Passwords remain in private local files; persistent CI/deployment values come from Actions/Swarm secrets. SQLite remains a unit-test/local fallback only when no PostgreSQL configuration is supplied.
 
-### Current continuation evidence
+### Historical local continuation evidence
 
 | Check | Result |
 | --- | --- |
@@ -175,4 +183,3 @@ An isolated iOS simulator could not finish system-app boot within the bounded wa
 - [Docker Swarm secrets](https://docs.docker.com/engine/swarm/secrets/)
 - [Cloudflare Tunnel HTTPS origin verification](https://developers.cloudflare.com/tunnel/troubleshooting/https-origins/)
 - [OCI network security controls](https://docs.oracle.com/en-us/iaas/Content/Security/Reference/networking_security.htm)
-

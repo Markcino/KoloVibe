@@ -12,6 +12,7 @@ Use the controlled source documents below. Link to them instead of copying requi
 ## Delivery and engineering
 
 - [Current Stage 3 status](engineering/Stage3_Current_Status.md) and [implementation tracker](engineering/Stage3_Implementation_Tracker.csv) — update together from verified evidence.
+- [17 November staging reconciliation](operations/R1_AWS_Staging_Reconciliation_2026-11-17.md) — current release status, evidence limits and remaining acceptance; supersedes older deployment-not-started summaries.
 - [R1 application tracker](engineering/R1_Application_Tracker.md) and [API test deployment roadmap](engineering/API_Test_Deployment_Roadmap.md) — Stage 4 implementation, Stage 5 verification and environment-specific evidence.
 - [AWS staging deployment verification](operations/AWS_Staging_Deployment_Verification_2026-11-10.md) and [Oracle Cloud deployment record](operations/Deployment_Verification_2026-11-03.md) — separate environment evidence.
 - [Open Stage 3 decisions](engineering/Stage3_Open_Decisions.csv) — blockers requiring owner approval or environment evidence.

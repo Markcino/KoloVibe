@@ -66,11 +66,13 @@ Run a service locally with an explicit local environment and unique secret:
 python scripts/run_local_service.py gateway runserver 127.0.0.1:8000
 ```
 
-The local launcher reads only the selected service's generated secret from `.env`. It requires owner-only file permissions and never prints secret values. Containers and CI continue to inject secrets through their own controls. Identity has internal account/session operations, and the gateway contains forwarding routes for registration, verification, login, refresh, logout and `/me`. AWS staging has recorded account and public API UAT. Production use requires implementation and verification against the approved ADR-013 design, including transport and end-to-end acceptance. Content exposes read-only approved-public video metadata; the creators service exposes reviewed-active profiles through the signed gateway path. No fixture content is seeded. Other business APIs and managed deployment remain open.
+The local launcher reads only the selected service's generated secret from `.env`. It requires owner-only file permissions and never prints secret values. Containers and CI continue to inject secrets through their own controls. Identity has internal account/session operations, and the gateway contains forwarding routes for registration, verification, login, refresh, logout and `/me`. AWS staging has recorded account and public API UAT. Production use requires implementation and verification against the approved ADR-013 design, including transport and end-to-end acceptance. Content exposes read-only approved-public video metadata; the creators service exposes reviewed-active profiles through the signed gateway path. No fixture content is seeded. All eight APIs and the media worker are reported deployed to restricted staging on v0.187.2; full business-journey and production acceptance remain open.
 
 The local Django web client can be checked with `python scripts/run_local_web.py test tests`. Its sign-in and discovery routes use the gateway; staging/production web settings are not enabled.
 
 ## Delivery status
+
+The [17 November reconciliation](docs/operations/R1_AWS_Staging_Reconciliation_2026-11-17.md) records v0.187.2 publication and operator-reported deployment. The assessment remains **26 passed / 0 failed / 19 pending**. Full functional and security acceptance is incomplete.
 
 Stage 3 was completed by owner declaration on 10 November 2026. Stage 4 MVP implementation and Stage 5 testing and security verification are in progress. See the [R1 application tracker](docs/engineering/R1_Application_Tracker.md) for AWS staging evidence and the [Stage 3 execution record](docs/engineering/Stage3_Current_Status.md) for outstanding Oracle and foundation evidence.
 
