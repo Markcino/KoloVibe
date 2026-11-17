@@ -40,15 +40,27 @@ def require_capability(settings, capability):
         raise RuntimeError("The worker role is not approved for this service")
 
 
+# One process, one task at a time, recycled before it can grow without bound: the media worker runs
+# FFmpeg on untrusted uploads in a memory-constrained node. Gossip and mingle stay off; heartbeats stay on.
+CELERY_WORKER_OPTIONS = ("--concurrency=1", "--prefetch-multiplier=1", "--loglevel=WARNING",
+                         "--max-tasks-per-child=20", "--max-memory-per-child=262144",
+                         "--without-gossip", "--without-mingle")
+
+
+def celery_argv(queue):
+    return ["worker", "-Q", queue, *CELERY_WORKER_OPTIONS]
+
+
 def run_celery(target, queue, argv_hook=None):
     import importlib
 
     module, _, attribute = target.partition(":")
     app = getattr(importlib.import_module(module), attribute)
-    # One process, one task at a time, recycled before it can grow without bound: the media worker runs
-    # FFmpeg on untrusted uploads in a memory-constrained node.
-    app.worker_main(["worker", "-Q", queue, "--concurrency=1", "--prefetch-multiplier=1", "--loglevel=WARNING",
-                     "--max-tasks-per-child=20", "--max-memory-per-child=262144", "--without-gossip", "--without-mingle"])
+    # Remote control (the `celery.pidbox` exchange and the per-node reply queue) is not used and the broker
+    # accounts are not granted configure access to it. It must be off before the worker is built, because the
+    # Pidbox/Control bootsteps are chosen from this setting at construction time.
+    app.conf.worker_enable_remote_control = False
+    app.worker_main(celery_argv(queue))
 
 
 def run_job(command, interval, limit, *, sleep=time.sleep, clock=time.monotonic, call=None, stop=None):
