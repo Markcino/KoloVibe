@@ -283,7 +283,7 @@ class DeploymentConstraintTests(unittest.TestCase):
         service = self.service
         self.assertEqual(service["user"], "10001:10001")
         self.assertIs(service["read_only"], True)
-        self.assertEqual(service["tmpfs"], ["/tmp"])
+        self.assertEqual(service["tmpfs"], [str(Path(os.sep, "tmp"))])
         self.assertEqual(service["cap_drop"], ["ALL"])
         self.assertNotIn("ports", service)
         self.assertLessEqual(service["deploy"]["replicas"], 1)
