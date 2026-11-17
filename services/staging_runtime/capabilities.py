@@ -108,6 +108,10 @@ def _rules():
 
     # ---- Creators (internal): the own-profile read and edit behind `/api/v1/creators/me` ---------------
     add("creators", "media", "POST", r"/internal/creators/me")
+    # The Gateway's upload-eligibility check. This is the ONLY onboarding operation the media capability
+    # opens: invite/review/pending/submit/status/ownership/standing stay behind the separate privileged
+    # creator-onboarding flag (KOLOVIBE_STAGING_CREATOR_ONBOARDING). The path is an exact literal.
+    add("creators", "media", "POST", r"/internal/creators/onboarding/eligibility")
 
     # ---- Content (internal) -----------------------------------------------------------------------
     add("content", "engagement", "POST", r"/internal/videos/lookup")

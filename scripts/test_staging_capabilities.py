@@ -153,6 +153,29 @@ class RouteCoverageTests(unittest.TestCase):
                 self.assertFalse(route_allowed("gateway", method, path, accounts=True, privileged=True,
                                                capability_set=ALL), f"{method} {path}")
 
+    def test_media_opens_only_the_exact_creator_eligibility_route(self):
+        base = "/internal/creators/onboarding/"
+        media = frozenset({"media"})
+        self.assertTrue(route_allowed("creators", "POST", base + "eligibility", capability_set=media))
+        for method in ("GET", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"):
+            self.assertFalse(route_allowed("creators", method, base + "eligibility", capability_set=media), method)
+        for path in ("invite", "review", "pending", "submit", "status", "ownership", "standing", "eligibility/",
+                     "eligibility2", "eligibility/x", "Eligibility", "", "../eligibility"):
+            for privileged in (False, True):
+                self.assertFalse(route_allowed("creators", "POST", base + path, privileged=privileged,
+                                               capability_set=media), path)
+        # Without media (and without the onboarding flag) it stays closed; other services never open it.
+        for caps in (frozenset(), ALL - {"media"}):
+            self.assertFalse(route_allowed("creators", "POST", base + "eligibility", privileged=True,
+                                           capability_set=caps))
+        for service in ("gateway", "content", "identity", "audit"):
+            self.assertFalse(route_allowed(service, "POST", base + "eligibility", capability_set=ALL))
+        # The privileged flag alone does not open it; the onboarding flag keeps its separate, wider route.
+        self.assertFalse(route_allowed("creators", "POST", base + "eligibility", privileged=True,
+                                       capability_set=frozenset()))
+        self.assertTrue(route_allowed("creators", "POST", base + "invite", onboarding=True,
+                                      capability_set=frozenset()))
+
     def test_internal_capability_routes_accept_only_post(self):
         for service in ("content", "engagement", "points", "moderation", "identity"):
             for path in self.routes[service]:
