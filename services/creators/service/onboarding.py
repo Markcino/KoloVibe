@@ -176,3 +176,8 @@ def onboarding(request, operation):
         return _error("Creator application conflicts with an existing record", 409)
     except DatabaseError:
         return _error("Creator service unavailable", 503)
+
+
+def eligibility(request):
+    """The upload-eligibility check alone, pinned to its operation; same caller, envelope and role checks."""
+    return onboarding(request, "eligibility")

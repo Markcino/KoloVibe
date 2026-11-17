@@ -3,7 +3,7 @@ from django.urls import path
 from django.http import JsonResponse
 from .health import liveness
 from .profiles import internal_profile, internal_search, own_profile
-from .onboarding import onboarding
+from .onboarding import eligibility, onboarding
 
 urlpatterns = [
     path("health/live", liveness, name="liveness"),
@@ -15,3 +15,7 @@ urlpatterns = [
 
 if settings.ENVIRONMENT == "local" or getattr(settings, "STAGING_CREATOR_ONBOARDING", False):
     urlpatterns.append(path("internal/creators/onboarding/<slug:operation>", onboarding, name="internal-onboarding"))
+elif "media" in getattr(settings, "STAGING_CAPABILITIES", frozenset()):
+    # Approved `media` capability: only the exact eligibility check, with the operation fixed by the route
+    # (never taken from the URL), so no other onboarding operation is reachable without the onboarding flag.
+    urlpatterns.append(path("internal/creators/onboarding/eligibility", eligibility, name="internal-eligibility"))
