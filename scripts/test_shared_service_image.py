@@ -294,5 +294,77 @@ class SharedImageTests(unittest.TestCase):
                             process.wait(timeout=5)
 
 
+class GunicornControlSocketTests(unittest.TestCase):
+    """The Gunicorn control interface is unused and must stay off (read-only root, non-root, no $HOME)."""
+
+    CONF = ROOT / "services/staging_runtime/gunicorn.conf.py"
+
+    def test_pinned_gunicorn_supports_the_setting_we_rely_on(self):
+        import gunicorn
+        from gunicorn.config import Config
+        self.assertEqual(gunicorn.__version__, "26.2.0")
+        self.assertIn("--no-control-socket", {flag for s in Config().settings.values() for flag in (s.cli or ())})
+        self.assertIn("control_socket_disable", Config().settings)
+
+    def test_control_interface_is_not_used_anywhere_in_the_repository(self):
+        needle = ("gunicornc", "--control-socket", "gunicorn.ctl", "control_socket")
+        hits = [str(p.relative_to(ROOT)) for p in list(ROOT.glob("services/**/*.py")) + list(ROOT.glob("infra/**/*"))
+                + list(ROOT.glob("scripts/*.py")) if p.is_file() and p not in (Path(__file__), self.CONF)
+                and any(n in p.read_text(errors="ignore") for n in needle)]
+        self.assertEqual(hits, [])
+
+    def test_effective_configuration_disables_the_control_socket(self):
+        environment = {
+            **{k: v for k, v in os.environ.items() if not k.startswith(("KOLOVIBE_", "DJANGO_", "GUNICORN_"))},
+            "PYTHONPATH": str(ROOT / "services"), "KOLOVIBE_ENV": "local", "KOLOVIBE_SERVICE_NAME": "audit",
+            "DJANGO_SECRET_KEY": secrets.token_urlsafe(48),
+        }
+        result = subprocess.run(
+            [sys.executable, "-c",
+             "import sys, runpy; from pathlib import Path; "
+             "from staging_runtime.launch import service_directory; "
+             f"d = service_directory(Path({str(ROOT / 'services')!r}), 'audit'); sys.path.insert(0, str(d)); "
+             "from gunicorn.config import Config; cfg = Config(); "
+             f"[cfg.set(k, v) for k, v in runpy.run_path({str(self.CONF)!r}).items() if k in cfg.settings]; "
+             "print(cfg.control_socket_disable)"],
+            cwd=ROOT / "services/audit", env=environment, capture_output=True, text=True, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip().splitlines()[-1], "True")
+
+    def test_server_starts_cleanly_with_an_unwritable_home_and_creates_no_socket(self):
+        with tempfile.TemporaryDirectory(prefix="kolovibe-ctl-") as temporary:
+            # /proc rejects mkdir for every user including root, like the read-only root filesystem in staging.
+            home = Path("/proc/kolovibe-home")
+            with socket.socket() as reservation:
+                reservation.bind(("127.0.0.1", 0))
+                port = reservation.getsockname()[1]
+            environment = {
+                **{k: v for k, v in os.environ.items() if not k.startswith(("KOLOVIBE_", "DJANGO_", "GUNICORN_"))},
+                "PYTHONPATH": str(ROOT / "services"), "KOLOVIBE_ENV": "local", "KOLOVIBE_SERVICE_NAME": "audit",
+                "DJANGO_SECRET_KEY": secrets.token_urlsafe(48), "HOME": str(home),
+                "GUNICORN_CMD_ARGS": f"--bind 127.0.0.1:{port} --workers 1",
+            }
+            log_path = Path(temporary) / "log"
+            with log_path.open("w") as log:
+                process = subprocess.Popen([sys.executable, "-m", "staging_runtime.launch"],
+                                           cwd=ROOT, env=environment, stdout=log, stderr=log)
+                try:
+                    deadline = time.monotonic() + 20
+                    while time.monotonic() < deadline:
+                        try:
+                            with socket.create_connection(("127.0.0.1", port), timeout=1):
+                                break
+                        except OSError:
+                            time.sleep(0.1)
+                    time.sleep(0.5)
+                finally:
+                    process.terminate()
+                    process.wait(timeout=10)
+            text = log_path.read_text()
+            self.assertNotIn("Read-only file system", text)
+            self.assertNotIn("control", text.lower())
+            self.assertFalse(home.exists())
+
+
 if __name__ == "__main__":
     unittest.main()
