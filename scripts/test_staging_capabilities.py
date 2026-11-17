@@ -263,10 +263,15 @@ class ConfigureTests(unittest.TestCase):
         with patch.dict(os.environ, env, clear=True), self.assertRaises(RuntimeError):
             configure(self.settings("content"))
         env.update(KOLOVIBE_R2_ACCOUNT_ID="a" * 32, KOLOVIBE_R2_MEDIA_BUCKET="kolovibe-media",
+                   KOLOVIBE_R2_HTTPS_PROXY="http://kolovibe-r2-proxy:3128",
                    KOLOVIBE_R2_ACCESS_KEY_FILE=self.private("r2a", "A" * 24),
                    KOLOVIBE_R2_SECRET_KEY_FILE=self.private("r2s", "S" * 40),
                    KOLOVIBE_RABBITMQ_URL_FILE=self.private("amqp", "amqps://app:secret@rabbitmq:5671/kolovibe"),
                    KOLOVIBE_RABBITMQ_CA_FILE=str(self.cert))
+        for bad in ("", "https://kolovibe-r2-proxy:3128", "http://u:p@kolovibe-r2-proxy:3128", "http://kolovibe-r2-proxy",
+                    "http://kolovibe-r2-proxy:3128/x"):
+            with patch.dict(os.environ, dict(env, KOLOVIBE_R2_HTTPS_PROXY=bad), clear=True), self.assertRaises(RuntimeError):
+                configure(self.settings("content"))
         settings = self.settings("content")
         with patch.dict(os.environ, env, clear=True):
             configure(settings)

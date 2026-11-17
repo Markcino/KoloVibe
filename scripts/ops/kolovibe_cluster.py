@@ -155,6 +155,8 @@ R1_APPLICABLE = {
 R1_REQUIRES = {'analytics': frozenset({'engagement', 'media'}), 'points': frozenset({'engagement'}),
                'watch': frozenset({'media', 'points'})}
 MESSAGING_NETWORK = 'kolovibe_messaging'
+R2_PROXY_NETWORK = 'kolovibe_r2_proxy_clients'
+R2_PROXY_URL = 'http://kolovibe-r2-proxy:3128'
 R1_SECRET_SUFFIX = '_r1_v1'  # pragma: allowlist secret
 
 
@@ -177,8 +179,9 @@ def r1_rollout_table():
         'env': {'KOLOVIBE_R2_ACCESS_KEY_FILE': '/run/secrets/r2_access_key',
                 'KOLOVIBE_R2_SECRET_KEY_FILE': '/run/secrets/r2_secret_key',
                 'KOLOVIBE_RABBITMQ_URL_FILE': '/run/secrets/rabbitmq_url',
-                'KOLOVIBE_RABBITMQ_CA_FILE': '/run/secrets/rabbitmq_ca'},
-        'operator_env': ('KOLOVIBE_R2_ACCOUNT_ID', 'KOLOVIBE_R2_MEDIA_BUCKET'), 'networks': (MESSAGING_NETWORK,)}
+                'KOLOVIBE_RABBITMQ_CA_FILE': '/run/secrets/rabbitmq_ca', 'KOLOVIBE_R2_HTTPS_PROXY': R2_PROXY_URL},
+        'operator_env': ('KOLOVIBE_R2_ACCOUNT_ID', 'KOLOVIBE_R2_MEDIA_BUCKET'),
+        'networks': (MESSAGING_NETWORK, R2_PROXY_NETWORK)}
     for service in ('engagement', 'points'):
         table[service] = {
             'mounts': {'rabbitmq_url': own(service, 'rabbitmq_url'), 'rabbitmq_ca': 'kolovibe_rmq_ca'},
