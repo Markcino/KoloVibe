@@ -53,6 +53,7 @@ FEATURE_SWITCHES = {
 def broker_url():
     """The authenticated AMQPS broker URI, read from an owner-only secret file, never from the environment.
 
+    The vhost may be percent-encoded: the live broker's vhost is named `/kolovibe`, written `/%2Fkolovibe` in the URI.
     A URI carries the broker credential, so a plain `KOLOVIBE_RABBITMQ_URL` variable (visible in
     `docker service inspect`) is refused in staging.
     """
@@ -64,7 +65,7 @@ def broker_url():
     try:
         uri = urlsplit(value)
         valid = (uri.scheme == "amqps" and uri.hostname and uri.username and uri.password
-                 and uri.port in AMQPS_PORTS and re.fullmatch(r"(?:/[A-Za-z0-9_.-]{1,64})?", uri.path)
+                 and uri.port in AMQPS_PORTS and re.fullmatch(r"(?:/(?:[A-Za-z0-9_.-]|%2[Ff]){1,64})?", uri.path)
                  and not uri.query and not uri.fragment)
     except ValueError:
         valid = False
