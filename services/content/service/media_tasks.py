@@ -41,6 +41,8 @@ def _build_app():
         task_default_queue=QUEUE, task_serializer="json", accept_content=["json"],
         task_ignore_result=True, task_acks_late=True, task_reject_on_worker_lost=True,
         task_time_limit=240, worker_prefetch_multiplier=1,
+        # No remote control: the broker account may not declare `celery.pidbox`.
+        worker_enable_remote_control=False,
     )
     return app
 
