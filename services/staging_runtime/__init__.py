@@ -93,6 +93,17 @@ def r2_configuration():
         value = file_value(name, private=True)
         if len(value) < 16 or any(character.isspace() for character in value):
             raise RuntimeError("Invalid R2 credential")
+    proxy = os.environ.get("KOLOVIBE_R2_HTTPS_PROXY", "")
+    try:
+        from urllib.parse import urlsplit
+        url = urlsplit(proxy)
+        valid = (url.scheme == "http" and url.hostname and url.port and "@" not in url.netloc
+                 and re.fullmatch(r"[a-z0-9]+(?:[.-][a-z0-9]+)*", url.hostname)
+                 and url.path in ("", "/") and not url.query and not url.fragment and not set("?#") & set(proxy))
+    except ValueError:
+        valid = False
+    if not valid:
+        raise RuntimeError("R2 access requires KOLOVIBE_R2_HTTPS_PROXY as a plain http://host:port proxy origin")
     return account, bucket
 
 

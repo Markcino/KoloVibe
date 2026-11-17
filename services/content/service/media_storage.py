@@ -8,6 +8,7 @@ from http.client import HTTPException, HTTPSConnection
 import os
 from pathlib import Path
 import re
+import ssl
 from urllib.parse import quote, urlsplit
 
 
@@ -93,11 +94,52 @@ def sign_playback(key, seconds):
     return _signed_url("GET", key, seconds, {})
 
 
+def _proxy_endpoint():
+    """The validated (host, port) of the restricted R2 egress proxy, or None for direct access (local development only).
+
+    Outside `KOLOVIBE_ENV=local` the proxy is mandatory: an unset or malformed value raises StorageUnavailable
+    and the request is never attempted directly. Only a plain `http://host:port` origin is accepted (the proxy
+    listens on a private overlay and tunnels with CONNECT); credentials, paths, queries and fragments are refused.
+    """
+    value = os.environ.get("KOLOVIBE_R2_HTTPS_PROXY", "")
+    if not value:
+        if os.environ.get("KOLOVIBE_ENV") == "local":
+            return None
+        raise StorageUnavailable
+    try:
+        url = urlsplit(value)
+        host, port = url.hostname, url.port
+        valid = (url.scheme == "http" and host and port and re.fullmatch(r"[a-z0-9]+(?:[.-][a-z0-9]+)*", host)
+                 and not url.username and url.password is None and "@" not in url.netloc
+                 and url.path in ("", "/") and not url.query and not url.fragment and "#" not in value
+                 and "?" not in value)
+    except ValueError:
+        valid = False
+    if not valid:
+        raise StorageUnavailable
+    return host, port
+
+
+def _connection(host):
+    """An HTTPS connection to the R2 endpoint, tunnelled through the proxy with CONNECT when one is configured.
+
+    TLS is negotiated end to end with the R2 host over the tunnel, so the certificate and hostname checks apply
+    to the original endpoint and the Host header stays the signed one. There is no direct fallback.
+    """
+    proxy = _proxy_endpoint()
+    context = ssl.create_default_context()
+    if proxy is None:
+        return HTTPSConnection(host, timeout=10, context=context)
+    connection = HTTPSConnection(proxy[0], proxy[1], timeout=10, context=context)
+    connection.set_tunnel(host, 443)
+    return connection
+
+
 @contextmanager
 def _request(method, key, headers=None, body=None):
     headers = headers or {}
     target = urlsplit(_signed_url(method, key, 60, headers))
-    conn = HTTPSConnection(target.hostname, timeout=10)
+    conn = _connection(target.hostname)
     try:
         conn.request(method, f"{target.path}?{target.query}", body=body, headers=headers)
         with conn.getresponse() as response:
@@ -108,7 +150,7 @@ def _request(method, key, headers=None, body=None):
             if not 200 <= response.status < 300:
                 raise StorageUnavailable
             yield response
-    except (HTTPException, OSError, ValueError):
+    except (HTTPException, OSError, ValueError, ssl.SSLError):
         raise StorageUnavailable from None
     finally:
         conn.close()

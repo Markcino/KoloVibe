@@ -17,6 +17,7 @@ from staging_runtime import capabilities as policy  # noqa: E402
 
 R2_ID, R2_BUCKET = '1234abcd' * 4, 'kolovibe-media'
 NET_ID = 'msg-net'
+PROXY_NET_ID = 'r2-proxy-net'
 SET_ENV = ['content:KOLOVIBE_R2_ACCOUNT_ID=' + R2_ID, 'content:KOLOVIBE_R2_MEDIA_BUCKET=' + R2_BUCKET]
 ALL_SERVICES = list(cluster.UPDATE_ORDER)
 
@@ -34,8 +35,10 @@ class R1Swarm(AwsSwarm):
         net = {'ID': NET_ID, 'Name': cluster.MESSAGING_NETWORK, 'Driver': 'overlay', 'Internal': True,
                'Options': {'encrypted': ''}}
         net.update(network or {})
+        proxy_net = {'ID': PROXY_NET_ID, 'Name': cluster.R2_PROXY_NETWORK, 'Driver': 'overlay', 'Internal': True,
+                     'Options': {'encrypted': ''}}
         self.static['/v1.52/networks'] = [
-            {'ID': 'services-net', 'Name': 'kolovibe_services'}, {'ID': 'data-net', 'Name': 'kolovibe_data'}, net]
+            {'ID': 'services-net', 'Name': 'kolovibe_services'}, {'ID': 'data-net', 'Name': 'kolovibe_data'}, net, proxy_net]
 
 
 def plan(swarm, services=ALL_SERVICES, **kw):
@@ -165,7 +168,8 @@ class R1PlanTests(unittest.TestCase):
         self.assertEqual(content['action'], 'update')
         self.assertEqual(content['r1_changes']['secret_mounts'],
                          ['r2_access_key', 'r2_secret_key', 'rabbitmq_ca', 'rabbitmq_url'])
-        self.assertEqual(content['r1_changes']['networks'], [cluster.MESSAGING_NETWORK])
+        self.assertEqual(content['r1_changes']['networks'], [cluster.MESSAGING_NETWORK, cluster.R2_PROXY_NETWORK])
+        self.assertIn('KOLOVIBE_R2_HTTPS_PROXY', content['r1_changes']['env'])
         self.assertIn('KOLOVIBE_STAGING_CAPABILITIES', content['r1_changes']['env'])
         self.assertEqual(entry(report, 'audit')['r1_changes'], {'env': sorted(
             k for k, v in cluster.AWS_STAGING.r1_flags['audit'].items() if v != ''), 'secret_mounts': [], 'networks': []})
@@ -295,7 +299,9 @@ class R1PlanTests(unittest.TestCase):
         with aws(swarm):
             delta = cluster.r1_delta('content', live, {n: 'id-' + n for n in AWS.service_allowed_secrets['content']},
                                      {cluster.MESSAGING_NETWORK: {'ID': NET_ID, 'Name': cluster.MESSAGING_NETWORK, 'Driver': 'overlay',
-                                              'Internal': True, 'Options': {'encrypted': ''}}},
+                                              'Internal': True, 'Options': {'encrypted': ''}},
+                                      cluster.R2_PROXY_NETWORK: {'ID': PROXY_NET_ID, 'Name': cluster.R2_PROXY_NETWORK,
+                                              'Driver': 'overlay', 'Internal': True, 'Options': {'encrypted': ''}}},
                                      {'KOLOVIBE_R2_ACCOUNT_ID': R2_ID, 'KOLOVIBE_R2_MEDIA_BUCKET': R2_BUCKET})
             tampered = copy.deepcopy(live)
             tampered['TaskTemplate']['Placement']['Constraints'] = ['node.role == worker']

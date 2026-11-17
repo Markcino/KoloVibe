@@ -127,6 +127,15 @@ class AwsStackRejectionTests(unittest.TestCase):
         self.rejected("no broker network", lambda d: s(d).update(networks=["private", "data_private"]))
         self.rejected("broker network for an audit job", lambda d: s(d, "moderation-audit").update(
             networks=["private", "data_private", "broker_private"]))
+        self.rejected("no proxy network on the media worker", lambda d: s(d).update(
+            networks=["private", "data_private", "broker_private"]))
+        self.rejected("proxy network on another worker", lambda d: s(d, "points-consumer").update(
+            networks=["private", "data_private", "broker_private", "r2_proxy_clients"]))
+        self.rejected("no proxy address", lambda d: s(d)["environment"].pop("KOLOVIBE_R2_HTTPS_PROXY"))
+        self.rejected("proxy address changed", lambda d: s(d)["environment"].update(
+            KOLOVIBE_R2_HTTPS_PROXY="http://other-proxy:3128"))
+        self.rejected("proxy network renamed", lambda d: d["networks"].update(
+            r2_proxy_clients={"external": True, "name": "bridge"}))
         self.rejected("internal network renamed", lambda d: d["networks"].update(
             private={"external": True, "name": "ingress"}))
         self.rejected("network created by the stack", lambda d: d["networks"].update(private={"driver": "overlay"}))

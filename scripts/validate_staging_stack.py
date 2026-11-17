@@ -133,7 +133,8 @@ AWS_ROLES = {
     "points-audit": ("points", "deliver-audit"), "moderation-audit": ("moderation", "deliver-audit"),
     "identity-audit": ("identity", "deliver-security-audit"),
 }
-AWS_NETWORKS = {"private": "kolovibe_services", "data_private": "kolovibe_data", "broker_private": "kolovibe_messaging"}
+AWS_NETWORKS = {"private": "kolovibe_services", "data_private": "kolovibe_data", "broker_private": "kolovibe_messaging",
+                "r2_proxy_clients": "kolovibe_r2_proxy_clients"}
 MAX_PROCESS_MEMORY = 1024 ** 3
 MEDIA_IMAGE = r"ghcr\.io/markcino/kolovibe/media-worker@sha256:[0-9a-f]{64}"
 
@@ -223,9 +224,14 @@ def validate_aws(stack):
         if "KOLOVIBE_RABBITMQ_URL" in environment:
             raise ValueError("The broker URI must be a secret file")
         broker = service in ("content", "engagement", "points")
+        r2 = name == "media-worker"
         if ("broker_private" in definition["networks"]) != broker or "private" not in definition["networks"] \
-                or "data_private" not in definition["networks"] or len(definition["networks"]) != 2 + broker:
-            raise ValueError("A worker joins the service and data networks, and the messaging network only if it uses the broker")
+                or "data_private" not in definition["networks"] or len(definition["networks"]) != 2 + broker + r2 \
+                or ("r2_proxy_clients" in definition["networks"]) != r2:
+            raise ValueError("A worker joins the service and data networks, the messaging network only if it uses the broker, "
+                             "and the R2 proxy client network only if it is the media worker")
+        if environment.get("KOLOVIBE_R2_HTTPS_PROXY") != ("http://kolovibe-r2-proxy:3128" if r2 else None):
+            raise ValueError("Only the media worker carries the R2 proxy address, and it is the approved private proxy")
         placement = definition["deploy"].get("placement", {}).get("constraints")
         if placement != [profile.worker_constraint]:
             raise ValueError("AWS processes must carry the exact hostname pin and no label constraint")

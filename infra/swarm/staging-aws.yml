@@ -74,7 +74,8 @@ services:
     # The only process on the media-worker image (FFmpeg lives nowhere else).
     image: ${KOLOVIBE_MEDIA_IMAGE:?verified media-worker GHCR digest required}
     command: ["--role", "media-worker"]
-    networks: [private, data_private, broker_private]
+    # r2_proxy_clients is the only route to R2: the restricted Squid CONNECT proxy (kolovibe-r2-proxy).
+    networks: [private, data_private, broker_private, r2_proxy_clients]
     environment:
       <<: [*environment, *broker]
       KOLOVIBE_SERVICE_NAME: content
@@ -87,6 +88,7 @@ services:
       KOLOVIBE_R2_MEDIA_BUCKET: ${R2_MEDIA_BUCKET:?private R2 media bucket required}
       KOLOVIBE_R2_ACCESS_KEY_FILE: /run/secrets/r2_access_key
       KOLOVIBE_R2_SECRET_KEY_FILE: /run/secrets/r2_secret_key
+      KOLOVIBE_R2_HTTPS_PROXY: http://kolovibe-r2-proxy:3128
     secrets:
       - {source: content_django, target: django_key, uid: "10001", gid: "10001", mode: 0400}
       - {source: content_db, target: db_password, uid: "10001", gid: "10001", mode: 0400}
@@ -283,6 +285,7 @@ networks:
   private: {external: true, name: kolovibe_services}
   data_private: {external: true, name: kolovibe_data}
   broker_private: {external: true, name: kolovibe_messaging}
+  r2_proxy_clients: {external: true, name: kolovibe_r2_proxy_clients}
 
 secrets:
   internal_ca: {external: true}
