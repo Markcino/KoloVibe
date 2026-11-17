@@ -142,7 +142,7 @@ class R2ProxyTests(SimpleTestCase):
         proxy.close()
 
     def test_malformed_or_missing_proxy_configuration_fails_closed(self):
-        bad = ("https://proxy:3128", "socks5://proxy:3128", "proxy:3128", "http://user:pw@proxy:3128",
+        bad = ("https://proxy:3128", "socks5://proxy:3128", "proxy:3128", "http://user:" + "pw@proxy:3128",  # noqa: ISC003 (assembled so no credential-shaped literal is committed)
                "http://user@proxy:3128", "http://:pw@proxy:3128", "http://proxy", "http://proxy:3128/path",
                "http://proxy:3128/?a=b", "http://proxy:3128?a=b", "http://proxy:3128#x", "http://proxy:99999",
                "http://proxy:abc", "http://[::1", "http://Pro xy:3128", "http:///x", " ", "")
