@@ -271,6 +271,16 @@ jobs:
           python -m pip install --require-hashes -r requirements-ci.txt
           cyclonedx-py requirements requirements-dev.txt --output-format JSON --output-file python-sbom.json
           python -m json.tool python-sbom.json >/dev/null
+      - name: Verify the R2 proxy implementation is inside the image
+        run: |
+          set -euo pipefail
+          docker run --rm --entrypoint python "kolovibe/services:ci" -c "
+          from pathlib import Path
+          src = Path('/app/services/content/service/media_storage.py').read_text()
+          missing = [n for n in ('_proxy_endpoint', '_connection', 'set_tunnel', 'KOLOVIBE_R2_HTTPS_PROXY') if n not in src]
+          if missing or 'HTTPSConnection(target.hostname' in src:
+              raise SystemExit('R2 proxy implementation missing from image: %s' % missing)
+          "
       - name: Preserve the verified image
         run: |
           set -euo pipefail
@@ -335,6 +345,16 @@ jobs:
               echo "::error::Media image accepted invalid service selection"; exit 1
             fi
           done
+      - name: Verify the R2 proxy implementation is inside the image
+        run: |
+          set -euo pipefail
+          docker run --rm --entrypoint python "kolovibe/media-worker:ci" -c "
+          from pathlib import Path
+          src = Path('/app/services/content/service/media_storage.py').read_text()
+          missing = [n for n in ('_proxy_endpoint', '_connection', 'set_tunnel', 'KOLOVIBE_R2_HTTPS_PROXY') if n not in src]
+          if missing or 'HTTPSConnection(target.hostname' in src:
+              raise SystemExit('R2 proxy implementation missing from image: %s' % missing)
+          "
       - name: Verify FFmpeg for the media worker on the sandbox PATH
         run: |
           set -euo pipefail
