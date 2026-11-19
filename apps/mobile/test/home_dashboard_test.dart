@@ -511,6 +511,7 @@ String videoId() => '00000000-0000-4000-8000-000000000003';
 
 void noException(WidgetTester tester) {
   final error = tester.takeException();
-  if (error != null)
+  if (error != null) {
     fail(error is FlutterError ? error.toStringDeep() : '$error');
+  }
 }

@@ -184,6 +184,8 @@ void main() {
             id: videoId, repository: _VideoFixture(), engagement: engagement)));
     await tester.pumpAndSettle();
     expect(find.text('Like'), findsOneWidget);
+    await tester.ensureVisible(find.text('Like'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Like'));
     await tester.pumpAndSettle();
     expect(engagement.liked, isTrue);

@@ -11,7 +11,31 @@ import 'package:kolovibe/features/settings/live_information_screen.dart';
 import 'package:kolovibe/features/settings/live_settings_repository.dart';
 import 'package:kolovibe/features/settings/live_settings_screen.dart';
 import 'package:kolovibe/features/system/system_ui.dart';
-import 'fl_a_support.dart';
+import 'package:kolovibe/features/content/live_content_repository.dart';
+import 'package:kolovibe/features/content/live_content_screen.dart';
+import 'package:kolovibe/features/content/live_create_original_screen.dart';
+import 'package:kolovibe/features/content/live_manage_video_screen.dart';
+import 'package:kolovibe/features/creators/live_become_creator_screen.dart';
+import 'package:kolovibe/features/creators/live_creator_repository.dart';
+import 'package:kolovibe/features/creators/live_creator_screen.dart';
+import 'package:kolovibe/features/creators/live_creator_studio_screen.dart';
+import 'package:kolovibe/features/creators/live_edit_creator_profile_screen.dart';
+import 'package:kolovibe/features/creators/live_own_profile_screen.dart';
+import 'package:kolovibe/features/discovery/discovery_catalog_screen.dart';
+import 'package:kolovibe/features/discovery/live_video_repository.dart';
+import 'package:kolovibe/features/discovery/live_video_screen.dart';
+import 'package:kolovibe/features/moderation/live_notice_screen.dart';
+import 'package:kolovibe/features/moderation/live_report_screen.dart';
+import 'package:kolovibe/features/moderation/live_standing_screen.dart';
+import 'package:kolovibe/features/points/live_points_screen.dart';
+import 'package:kolovibe/features/points/live_points_repository.dart';
+import 'fl_a_support.dart' hide accountId;
+import 'fl_b_repositories_test.dart' show videoJson, creatorJson;
+import 'support/creator_fakes.dart';
+import 'support/points_fakes.dart';
+import 'support/report_fakes.dart';
+import 'support/standing_fakes.dart';
+import 'support/upload_fakes.dart';
 import 'support/audit_harness.dart';
 
 /// Renders every live screen at the two audited iPhone sizes and large text,
@@ -27,13 +51,18 @@ void main() {
   });
 
   final shot = GlobalKey();
+  final navigator = GlobalKey<NavigatorState>();
+
+  /// Hosts [child] as a pushed route, as in the application, so back arrows
+  /// and navigation behave like the real screens.
   Widget host(Widget child) => RepaintBoundary(
       key: shot,
       child: MaterialApp(
           key: UniqueKey(),
+          navigatorKey: navigator,
           debugShowCheckedModeBanner: false,
           theme: KoloVibeTheme.light(),
-          home: child,
+          home: const SizedBox.shrink(),
           onGenerateRoute: (settings) => MaterialPageRoute<void>(
               settings: settings,
               builder: (_) =>
@@ -48,7 +77,11 @@ void main() {
         testWidgets('$name · ${viewport.name} · text ${scale}x',
             (tester) async {
           useViewport(tester, viewport, textScale: scale);
-          await tester.pumpWidget(host(build()));
+          final screen = build();
+          await tester.pumpWidget(host(screen));
+          navigator.currentState!.push(MaterialPageRoute<void>(
+              settings: RouteSettings(name: '/mobile/$name'),
+              builder: (_) => screen));
           await settleAsync(tester);
           if (after != null) await after(tester);
           final error = tester.takeException();
@@ -65,6 +98,9 @@ void main() {
   }
 
   AccountFixture signedIn() => AccountFixture();
+
+  final videos = _AuditVideos();
+  final creators = _AuditCreators();
 
   for (final id in [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 80, 82]) {
     audit(
@@ -132,4 +168,225 @@ void main() {
           body:
               SafeArea(child: SystemEmpty(query: 'Waterside', onEdit: () {}))));
   audit('M-104', 104, () => MediaPermissionScreen(device: TestDevice()));
+
+  // Discovery.
+  for (final id in [18, 19, 20, 21, 22, 23, 27]) {
+    audit(
+        'M-${id.toString().padLeft(3, '0')}',
+        id,
+        () => DiscoveryCatalogScreen(
+            screen: id,
+            repository: videos,
+            catalog: catalog,
+            account: signedIn().account,
+            creators: creators,
+            creatorId: id == 27 ? creatorId : null,
+            initialQuery: id == 22 ? 'Waterside' : null));
+  }
+  audit(
+      'M-025',
+      25,
+      () =>
+          LiveVideoDetailScreen(id: videos.items.first.id, repository: videos));
+  audit(
+      'M-026',
+      26,
+      () => LiveCreatorScreen(
+          id: creatorId, repository: creators, account: signedIn().account));
+  audit(
+      'M-031',
+      31,
+      () => LiveVideoDetailScreen(
+          id: videos.items.first.id,
+          repository: _AuditVideos(failure: const ApiFailure(404, 'x'))));
+  audit(
+      'M-035',
+      35,
+      () => LiveVideoDetailScreen(
+          id: videos.items.first.id,
+          repository: _AuditVideos(failure: const ApiFailure(403, 'x'))));
+
+  // Creator studio.
+  ScriptedOnboarding onboarding({bool eligible = true, String? status}) =>
+      ScriptedOnboarding()
+        ..eligible = eligible
+        ..status = status;
+  audit(
+      'M-036',
+      36,
+      () => LiveBecomeCreatorScreen(
+          catalog: catalog, onboarding: onboarding(eligible: false)));
+  audit(
+      'M-037',
+      37,
+      () => LiveCreatorStudioScreen(
+          catalog: catalog,
+          onboarding: onboarding(),
+          profiles: ScriptedOwnCreator()));
+  audit(
+      'M-038',
+      38,
+      () => LiveOwnProfileScreen(
+          catalog: catalog,
+          profiles: ScriptedOwnCreator(),
+          publicCreators: CountingPublicCreators(12)));
+  audit(
+      'M-039',
+      39,
+      () => LiveEditCreatorProfileScreen(
+          catalog: catalog, profiles: ScriptedOwnCreator()));
+  audit(
+      'M-040',
+      40,
+      () => LiveContentScreen(
+          route: const ScreenRoute(40),
+          catalog: catalog,
+          repository: _AuditLibrary()));
+  audit(
+      'M-041',
+      41,
+      () => LiveCreateOriginalScreen(
+          content: FakeContent(), onboarding: FakeOnboarding()));
+  audit(
+      'M-053',
+      53,
+      () =>
+          LiveManageVideoScreen(videoId: videoId, repository: _AuditManage()));
+
+  // Lone Stars.
+  ScriptedPoints points({List<PointsEntry>? ledger}) => ScriptedPoints()
+    ..ledger = ledger ??
+        [
+          for (var i = 1; i <= 6; i++) ledgerEntry(i, video: videoId),
+          ledgerEntry(7, status: 'pending'),
+          ledgerEntry(8, status: 'adjustments'),
+        ];
+  for (final id in [61, 62, 63, 64, 66, 67, 68, 69]) {
+    audit(
+        'M-${id.toString().padLeft(3, '0')}',
+        id,
+        () => LivePointsScreen(
+            route: ScreenRoute(id),
+            catalog: catalog,
+            repository: points(ledger: id == 69 ? [] : null),
+            videoTitle: (_) async => 'Waterside at dawn'));
+  }
+  audit(
+      'M-065',
+      65,
+      () => LivePointsScreen(
+          route: ScreenRoute(65, entityId: entryId(1)),
+          catalog: catalog,
+          repository: points(),
+          videoTitle: (_) async => 'Waterside at dawn'));
+
+  // Reports, notices and standing.
+  for (final id in [71, 72, 73, 74, 75]) {
+    audit(
+        'M-${id.toString().padLeft(3, '0')}',
+        id,
+        () => LiveReportScreen(
+            route: ScreenRoute(id, entityId: videoId),
+            catalog: catalog,
+            videos: ScriptedVideos(),
+            moderation: ScriptedModeration()));
+  }
+  audit(
+      'M-076',
+      76,
+      () => LiveNoticeScreen(
+          route: ScreenRoute(76, entityId: videoId),
+          catalog: catalog,
+          repository: ScriptedStanding()
+            ..noticeValue = videoNotice(appealable: true)));
+  audit(
+      'M-077',
+      77,
+      () => LiveStandingScreen(
+          catalog: catalog,
+          repository: ScriptedStanding()
+            ..standingValue = standingWith([videoId])));
+}
+
+class _AuditVideos extends LiveVideoRepository {
+  _AuditVideos({this.failure})
+      : super(ApiClient('https://api.example.test/api/v1'));
+  final Object? failure;
+  final items = [
+    LiveVideo.fromJson({
+      ...videoJson(),
+      'creator_id': creatorId,
+      'title': 'Waterside at dawn',
+      'description': 'A city waking up on the river.',
+      'category': 'short_films',
+      'like_count': 1240,
+    }),
+    LiveVideo.fromJson({
+      ...videoJson('00000000-0000-4000-8000-000000000004'),
+      'creator_id': creatorId,
+      'title': 'City lights, fresh bars',
+      'category': 'hipco',
+      'like_count': 86,
+    }),
+  ];
+  @override
+  Future<LiveVideoPage> filteredPage(
+          {String? cursor,
+          String? creatorId,
+          String? query,
+          String? category,
+          String sort = 'recent'}) async =>
+      LiveVideoPage(items, null);
+  @override
+  Future<LiveVideoPage> followingPage(account, {String? cursor}) async =>
+      LiveVideoPage(items, null);
+  @override
+  Future<LiveVideo> detail(String id) async {
+    if (failure != null) throw failure!;
+    return items.first;
+  }
+}
+
+class _AuditCreators extends LiveCreatorRepository {
+  _AuditCreators() : super(ApiClient('https://api.example.test/api/v1'));
+  LiveCreator get one => LiveCreator.fromJson({
+        ...creatorJson(),
+        'id': creatorId,
+        'handle': 'amakollie',
+        'display_name': 'Ama Kollie',
+        'bio': 'Finding the cinema in the everyday.',
+      });
+  @override
+  Future<LiveCreator> detail(String id) async => one;
+  @override
+  Future<({List<LiveCreator> items, String? nextCursor})> search(String query,
+          {String? cursor}) async =>
+      (items: [one], nextCursor: null);
+}
+
+class _AuditLibrary extends LiveContentRepository {
+  _AuditLibrary() : super(unusedAccount());
+  @override
+  Future<OwnedVideoPage> library({String? cursor}) async => OwnedVideoPage([
+        OwnedVideo(videoId, creatorId, 'Waterside at dawn', 'A city waking up.',
+            'published', DateTime.utc(2026, 11, 11),
+            visibility: 'public', category: 'short_films'),
+        OwnedVideo('00000000-0000-4000-8000-000000000009', creatorId,
+            'Untitled draft', '', 'draft', DateTime.utc(2026, 11, 12)),
+      ], null);
+}
+
+class _AuditManage extends LiveContentRepository {
+  _AuditManage() : super(unusedAccount());
+  @override
+  Future<OwnedVideo> ownedVideo(String videoId) async => OwnedVideo(
+      videoId,
+      creatorId,
+      'Waterside at dawn',
+      'A city waking up.',
+      'published',
+      DateTime.utc(2026, 11, 11),
+      visibility: 'private',
+      category: 'short_films',
+      revision: 4);
 }

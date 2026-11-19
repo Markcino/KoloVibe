@@ -68,7 +68,7 @@ abstract final class KoloVibeTheme {
       brightness: brightness,
       primary: dark ? const Color(0xFFB4CBFF) : KoloVibeColors.navy,
       secondary: KoloVibeColors.red,
-      surface: dark ? const Color(0xFF0D1C34) : Colors.white,
+      surface: dark ? const Color(0xFF10264B) : Colors.white,
     );
     final base = ThemeData(
       useMaterial3: true,
@@ -77,7 +77,7 @@ abstract final class KoloVibeTheme {
     );
     final ink = dark ? const Color(0xFFE6EDFF) : KoloVibeColors.navy;
     final muted = dark ? const Color(0xFFA8B7D0) : KoloVibeColors.muted;
-    final canvas = dark ? const Color(0xFF08182B) : KoloVibeColors.lavender;
+    final canvas = dark ? KoloVibeColors.deepNavy : KoloVibeColors.lavender;
     final line = dark ? const Color(0xFF223756) : KoloVibeColors.line;
     final fieldBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
@@ -118,7 +118,8 @@ abstract final class KoloVibeTheme {
         scrolledUnderElevation: 0,
         centerTitle: false,
         toolbarHeight: 56,
-        titleSpacing: 0,
+        titleSpacing: 16,
+        leadingWidth: 44,
         titleTextStyle: KoloVibeText.heading(18, color: ink),
         iconTheme: IconThemeData(color: ink, size: 24),
         actionsIconTheme: IconThemeData(color: ink, size: 24),

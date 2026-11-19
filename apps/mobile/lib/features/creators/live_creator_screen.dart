@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../core/network/api_client.dart';
 import '../../app/screen_route.dart';
+import '../../core/theme/kolovibe_theme.dart';
+import '../../shared/widgets/kolo_components.dart';
+import '../../shared/widgets/live_state_view.dart';
 import '../system/system_ui.dart';
 import '../account/live_account_repository.dart';
 import 'live_creator_repository.dart';
@@ -117,7 +120,10 @@ class _LiveCreatorScreenState extends State<LiveCreatorScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Creator')),
+        appBar: AppBar(
+            title: Text(profile == null || profile!.displayName.isEmpty
+                ? 'Creator'
+                : profile!.displayName)),
         body: SafeArea(child: Builder(
           builder: (context) {
             if (loading) {
@@ -126,57 +132,86 @@ class _LiveCreatorScreenState extends State<LiveCreatorScreen> {
             if (error != null) {
               final failure = error;
               final missing = failure is ApiFailure && failure.status == 404;
-              return Center(
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Semantics(
-                    liveRegion: true,
-                    child: Text(missing
-                        ? 'This creator is not available for public viewing.'
-                        : 'Creators are temporarily unavailable.')),
-                if (!missing)
-                  OutlinedButton(
-                    onPressed: load,
-                    child: const Text('Try again'),
-                  ),
-              ]));
+              return missing
+                  ? const LiveStateView.empty(
+                      title: 'Creator not available',
+                      message:
+                          'This creator is not available for public viewing.',
+                      icon: Icons.person_off_outlined)
+                  : LiveStateView.empty(
+                      title: 'Creator unavailable',
+                      message: 'Creators are temporarily unavailable.',
+                      icon: Icons.cloud_off_outlined,
+                      actionLabel: 'Try again',
+                      onAction: load);
             }
             final creator = profile!;
-            return ListView(padding: const EdgeInsets.all(24), children: [
-              Text(
-                  creator.displayName.isEmpty
-                      ? '@${creator.handle}'
-                      : creator.displayName,
-                  style: Theme.of(context).textTheme.headlineMedium),
-              const SizedBox(height: 16),
-              Text('@${creator.handle} · ${creator.location}'),
-              Text(creator.bio),
-              Text(followerCount == null
-                  ? 'Followers unavailable'
-                  : '$followerCount followers'),
-              Text(creator.publishedVideoCount == null
-                  ? 'Published count unavailable'
-                  : '${creator.publishedVideoCount} published videos'),
-              OutlinedButton(
-                  onPressed: () => go(27),
-                  child: const Text('Published videos')),
-              if (followFailure != null &&
-                  !(followFailure is ApiFailure &&
-                      (followFailure as ApiFailure).status == 401))
-                SystemFailureView(
-                    error: followFailure!,
-                    onRetry: load,
-                    onSignIn: () => go(4)),
-              FilledButton(
-                  onPressed: updatingFollow
-                      ? null
-                      : following == null &&
-                              widget.account != null &&
-                              !(followFailure is ApiFailure &&
-                                  (followFailure as ApiFailure).status == 401)
-                          ? load
-                          : toggleFollow,
-                  child: Text(following == true ? 'Unfollow' : 'Follow')),
-            ]);
+            final name = creator.displayName.isEmpty
+                ? '@${creator.handle}'
+                : creator.displayName;
+            final signInRejected = followFailure is ApiFailure &&
+                (followFailure as ApiFailure).status == 401;
+            return ListView(
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                children: [
+                  Row(children: [
+                    KoloAvatar(name: name, size: 64),
+                    const SizedBox(width: 12),
+                    Expanded(
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                          Text(name,
+                              style: KoloVibeText.body(16,
+                                  weight: FontWeight.w600,
+                                  color: KoloVibeColors.navy)),
+                          Text(
+                              '@${creator.handle}${creator.location.isEmpty ? '' : ' · ${creator.location}'}',
+                              style: KoloVibeText.body(12)),
+                        ])),
+                  ]),
+                  if (creator.bio.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Text(creator.bio,
+                        style: KoloVibeText.body(14, height: 1.5)),
+                  ],
+                  const SizedBox(height: 16),
+                  Row(children: [
+                    Expanded(
+                        child: KoloNote(
+                            title: followerCount == null
+                                ? 'Followers unavailable'
+                                : '$followerCount followers',
+                            message: 'Community',
+                            icon: Icons.people_outline)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                        child: KoloNote(
+                            title: creator.publishedVideoCount == null
+                                ? 'Published count unavailable'
+                                : '${creator.publishedVideoCount} published videos',
+                            message: 'Originals',
+                            icon: Icons.video_library_outlined)),
+                  ]),
+                  if (followFailure != null && !signInRejected)
+                    SystemFailureView(
+                        error: followFailure!,
+                        onRetry: load,
+                        onSignIn: () => go(4)),
+                  FilledButton(
+                      onPressed: updatingFollow
+                          ? null
+                          : following == null &&
+                                  widget.account != null &&
+                                  !signInRejected
+                              ? load
+                              : toggleFollow,
+                      child: Text(following == true ? 'Unfollow' : 'Follow')),
+                  const SizedBox(height: 12),
+                  OutlinedButton(
+                      onPressed: () => go(27),
+                      child: const Text('Published videos')),
+                ]);
           },
         )),
       );

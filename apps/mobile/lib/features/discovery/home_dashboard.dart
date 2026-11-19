@@ -3,6 +3,7 @@ import '../../core/network/api_client.dart';
 import '../../core/presentation/design_node.dart';
 import '../../core/theme/kolovibe_theme.dart';
 import '../../shared/widgets/kolo_components.dart';
+import '../../shared/widgets/kolo_media.dart';
 import '../account/live_account_repository.dart';
 import '../creators/live_creator_repository.dart';
 import '../shell/main_shell.dart';
@@ -450,7 +451,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
     }
     final video = trending.first;
     final meta = _meta(video);
-    return _HeroCard(
+    return KoloHeroCard(
       video: video,
       meta: meta.isEmpty ? 'Original' : meta,
       onTap: () => widget.navigate(25, video.id),
@@ -506,7 +507,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
     }
     return [
       for (final creator in shown) ...[
-        _CreatorRow(
+        KoloCreatorRow(
           creator: creator,
           following: follows[creator.id]?.following,
           busy: follows[creator.id]?.busy ?? false,
@@ -522,7 +523,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
     if (trendingLoad != _Load.ready || trending.length < 2) return const [];
     final video = trending[1];
     return [
-      _VideoRow(
+      KoloVideoRow(
         kicker: 'TRENDING ORIGINAL',
         video: video,
         meta: _meta(video, likes: true),
@@ -565,7 +566,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
     }
     return [
       for (final video in followingItems.take(2)) ...[
-        _VideoRow(
+        KoloVideoRow(
           kicker: 'FROM CREATORS YOU FOLLOW',
           video: video,
           meta: _meta(video, likes: true),
@@ -585,235 +586,4 @@ class _HomeDashboardState extends State<HomeDashboard> {
     }
     return 'This could not be loaded right now. Try again.';
   }
-}
-
-class _Poster extends StatelessWidget {
-  const _Poster({required this.url, this.iconSize = 28});
-  final Uri? url;
-  final double iconSize;
-
-  @override
-  Widget build(BuildContext context) {
-    final fallback = DecoratedBox(
-      decoration: const BoxDecoration(
-          gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [KoloVibeColors.navy, KoloVibeColors.deepNavy])),
-      child: Center(
-          child: Icon(Icons.play_circle_outline,
-              color: Colors.white54, size: iconSize)),
-    );
-    if (url == null) return fallback;
-    return Image.network(url.toString(),
-        fit: BoxFit.cover,
-        excludeFromSemantics: true,
-        errorBuilder: (_, __, ___) => fallback,
-        loadingBuilder: (_, child, progress) =>
-            progress == null ? child : fallback);
-  }
-}
-
-class _HeroCard extends StatelessWidget {
-  const _HeroCard(
-      {required this.video, required this.meta, required this.onTap});
-  final LiveVideo video;
-  final String meta;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-        button: true,
-        label: 'Play ${video.title}. $meta',
-        excludeSemantics: true,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(KoloVibeRadii.card),
-          child: Material(
-            color: KoloVibeColors.navy,
-            child: InkWell(
-              onTap: onTap,
-              child: Stack(children: [
-                Positioned.fill(child: _Poster(url: video.posterUrl)),
-                const Positioned.fill(
-                    child: DecoratedBox(
-                        decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                      Color(0x21001539),
-                      Color(0xF5001539)
-                    ])))),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: 212),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 72, 18, 18),
-                    child: Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('KOLOVIBE ORIGINAL',
-                              style: KoloVibeText.body(10,
-                                  weight: FontWeight.w700,
-                                  color: KoloVibeColors.gold,
-                                  letterSpacing: 0.6)),
-                          const SizedBox(height: 8),
-                          Text(video.title,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: KoloVibeText.heading(27,
-                                  color: Colors.white, height: 1.15)),
-                          const SizedBox(height: 8),
-                          Text(meta,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: KoloVibeText.body(11,
-                                  color: Colors.white, height: 1.48)),
-                        ]),
-                  ),
-                ),
-                Positioned(
-                  top: 16,
-                  right: 18,
-                  child: Container(
-                    width: 42,
-                    height: 42,
-                    decoration: const BoxDecoration(
-                        color: Colors.white, shape: BoxShape.circle),
-                    child: const Icon(Icons.play_arrow_rounded,
-                        color: KoloVibeColors.navy, size: 26),
-                  ),
-                ),
-              ]),
-            ),
-          ),
-        ),
-      );
-}
-
-class _CreatorRow extends StatelessWidget {
-  const _CreatorRow(
-      {required this.creator,
-      required this.following,
-      required this.busy,
-      required this.onOpen,
-      required this.onFollow});
-  final LiveCreator creator;
-  final bool? following;
-  final bool busy;
-  final VoidCallback onOpen, onFollow;
-
-  @override
-  Widget build(BuildContext context) {
-    final name = creator.displayName.isEmpty
-        ? '@${creator.handle}'
-        : creator.displayName;
-    final detail = [
-      if (creator.displayName.isNotEmpty) '@${creator.handle}',
-      if (creator.location.isNotEmpty) creator.location,
-    ].join(' · ');
-    return Row(children: [
-      Expanded(
-        child: Semantics(
-          button: true,
-          label: 'Open $name',
-          excludeSemantics: true,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(KoloVibeRadii.tile),
-            onTap: onOpen,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 48),
-              child: Row(children: [
-                KoloAvatar(name: name, size: 44),
-                const SizedBox(width: 12),
-                Expanded(
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                      Text(name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: KoloVibeText.body(16,
-                              weight: FontWeight.w600,
-                              color: KoloVibeColors.navy,
-                              height: 1.3)),
-                      if (detail.isNotEmpty)
-                        Text(detail,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: KoloVibeText.body(12, height: 1.3)),
-                    ])),
-              ]),
-            ),
-          ),
-        ),
-      ),
-      const SizedBox(width: 8),
-      KoloPillButton(
-        label: following == true ? 'Following' : 'Follow',
-        selected: following == true,
-        semanticLabel: '${following == true ? 'Unfollow' : 'Follow'} $name',
-        onPressed: busy ? null : onFollow,
-      ),
-    ]);
-  }
-}
-
-class _VideoRow extends StatelessWidget {
-  const _VideoRow(
-      {required this.kicker,
-      required this.video,
-      required this.meta,
-      required this.onTap});
-  final String kicker, meta;
-  final LiveVideo video;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-        button: true,
-        label: '${video.title}. $meta',
-        excludeSemantics: true,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(KoloVibeRadii.tile),
-          onTap: onTap,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 60),
-            child: Row(children: [
-              ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: SizedBox(
-                      width: 80,
-                      height: 60,
-                      child: _Poster(url: video.posterUrl, iconSize: 22))),
-              const SizedBox(width: 12),
-              Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                    Text(kicker,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: KoloVibeText.body(10,
-                            weight: FontWeight.w600,
-                            color: KoloVibeColors.red,
-                            height: 1.48,
-                            letterSpacing: 0.4)),
-                    Text(video.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: KoloVibeText.body(13,
-                            weight: FontWeight.w600,
-                            color: KoloVibeColors.navy,
-                            height: 1.35)),
-                    if (meta.isNotEmpty)
-                      Text(meta,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: KoloVibeText.body(11, height: 1.48)),
-                  ])),
-            ]),
-          ),
-        ),
-      );
 }

@@ -145,9 +145,9 @@ void main() {
           creatorId: screen == 27 ? accountId : null)));
       await settle(tester);
       if (screen == 17) {
-        expect(calls.length, 3);
-        expect(find.text('No trending originals are available yet.'),
-            findsOneWidget);
+        // Trending and following; the greeting never carries a fixed name.
+        expect(calls.length, 2);
+        expect(find.text('No trending originals yet'), findsOneWidget);
       } else if (screen == 20) {
         expect(calls.single['sort'], 'trending');
       } else if (screen == 18) {
@@ -180,7 +180,7 @@ void main() {
     await tester.pumpWidget(app(DiscoveryCatalogScreen(
         screen: 19, repository: fixture, catalog: catalog)));
     await settle(tester);
-    await tester.tap(find.widgetWithText(ChoiceChip, 'hipco'));
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Hipco'));
     await settle(tester);
     expect(calls.last['category'], 'hipco');
     await tester.tap(find.widgetWithText(ChoiceChip, 'All'));
@@ -204,8 +204,9 @@ void main() {
       await settle(tester);
       expect(calls.last['q'], 'Waterside');
       expect(find.byKey(const ValueKey('M-098')), findsOneWidget);
-      await tap(tester, 'Filters');
-      await tester.tap(find.widgetWithText(ChoiceChip, 'culture'));
+      await tester.tap(find.byTooltip('Filters'));
+      await settle(tester);
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Culture'));
       await tap(tester, 'Apply category');
       expect(calls.last['category'], 'culture');
       expect(calls.last['q'], 'Waterside');
