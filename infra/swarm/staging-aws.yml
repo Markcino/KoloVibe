@@ -94,7 +94,7 @@ services:
       - {source: content_db, target: db_password, uid: "10001", gid: "10001", mode: 0400}
       - {source: content_tls_cert, target: tls_cert, uid: "10001", gid: "10001", mode: 0400}
       - {source: content_tls_key, target: tls_key, uid: "10001", gid: "10001", mode: 0400}
-      - {source: content_callers, target: caller_keys, uid: "10001", gid: "10001", mode: 0400}
+      - {source: content_callers_2, target: caller_keys, uid: "10001", gid: "10001", mode: 0400}
       - {source: content_probe, target: probe_token, uid: "10001", gid: "10001", mode: 0400}
       - {source: internal_ca, target: internal_ca, uid: "10001", gid: "10001", mode: 0400}
       - {source: kolovibe_pg_ca_v1, target: db_ca, uid: "10001", gid: "10001", mode: 0400}
@@ -126,7 +126,7 @@ services:
       - {source: engagement_db, target: db_password, uid: "10001", gid: "10001", mode: 0400}
       - {source: engagement_tls_cert, target: tls_cert, uid: "10001", gid: "10001", mode: 0400}
       - {source: engagement_tls_key, target: tls_key, uid: "10001", gid: "10001", mode: 0400}
-      - {source: engagement_callers, target: caller_keys, uid: "10001", gid: "10001", mode: 0400}
+      - {source: engagement_callers_2, target: caller_keys, uid: "10001", gid: "10001", mode: 0400}
       - {source: engagement_probe, target: probe_token, uid: "10001", gid: "10001", mode: 0400}
       - {source: internal_ca, target: internal_ca, uid: "10001", gid: "10001", mode: 0400}
       - {source: kolovibe_pg_ca_v1, target: db_ca, uid: "10001", gid: "10001", mode: 0400}
@@ -175,7 +175,7 @@ services:
       - {source: points_db, target: db_password, uid: "10001", gid: "10001", mode: 0400}
       - {source: points_tls_cert, target: tls_cert, uid: "10001", gid: "10001", mode: 0400}
       - {source: points_tls_key, target: tls_key, uid: "10001", gid: "10001", mode: 0400}
-      - {source: points_callers, target: caller_keys, uid: "10001", gid: "10001", mode: 0400}
+      - {source: points_callers_2, target: caller_keys, uid: "10001", gid: "10001", mode: 0400}
       - {source: points_probe, target: probe_token, uid: "10001", gid: "10001", mode: 0400}
       - {source: internal_ca, target: internal_ca, uid: "10001", gid: "10001", mode: 0400}
       - {source: kolovibe_pg_ca_v1, target: db_ca, uid: "10001", gid: "10001", mode: 0400}
@@ -226,7 +226,7 @@ services:
       - {source: moderation_db, target: db_password, uid: "10001", gid: "10001", mode: 0400}
       - {source: moderation_tls_cert, target: tls_cert, uid: "10001", gid: "10001", mode: 0400}
       - {source: moderation_tls_key, target: tls_key, uid: "10001", gid: "10001", mode: 0400}
-      - {source: moderation_callers, target: caller_keys, uid: "10001", gid: "10001", mode: 0400}
+      - {source: moderation_callers_2, target: caller_keys, uid: "10001", gid: "10001", mode: 0400}
       - {source: moderation_probe, target: probe_token, uid: "10001", gid: "10001", mode: 0400}
       - {source: internal_ca, target: internal_ca, uid: "10001", gid: "10001", mode: 0400}
       - {source: kolovibe_pg_ca_v1, target: db_ca, uid: "10001", gid: "10001", mode: 0400}
@@ -265,7 +265,7 @@ services:
       - {source: identity_db, target: db_password, uid: "10001", gid: "10001", mode: 0400}
       - {source: identity_tls_cert, target: tls_cert, uid: "10001", gid: "10001", mode: 0400}
       - {source: identity_tls_key, target: tls_key, uid: "10001", gid: "10001", mode: 0400}
-      - {source: identity_callers, target: caller_keys, uid: "10001", gid: "10001", mode: 0400}
+      - {source: identity_callers_2, target: caller_keys, uid: "10001", gid: "10001", mode: 0400}
       - {source: identity_probe, target: probe_token, uid: "10001", gid: "10001", mode: 0400}
       - {source: internal_ca, target: internal_ca, uid: "10001", gid: "10001", mode: 0400}
       - {source: kolovibe_pg_ca_v1, target: db_ca, uid: "10001", gid: "10001", mode: 0400}
@@ -295,7 +295,7 @@ secrets:
   content_db: {external: true}
   content_tls_cert: {external: true}
   content_tls_key: {external: true}
-  content_callers: {external: true}
+  content_callers_2: {external: true}
   content_probe: {external: true}
   kolovibe_content_r2_access_key_r1_v1: {external: true}
   kolovibe_content_r2_secret_key_r1_v1: {external: true}
@@ -304,14 +304,14 @@ secrets:
   engagement_db: {external: true}
   engagement_tls_cert: {external: true}
   engagement_tls_key: {external: true}
-  engagement_callers: {external: true}
+  engagement_callers_2: {external: true}
   engagement_probe: {external: true}
   kolovibe_engagement_rabbitmq_url_r1_v1: {external: true}
   points_django: {external: true}
   points_db: {external: true}
   points_tls_cert: {external: true}
   points_tls_key: {external: true}
-  points_callers: {external: true}
+  points_callers_2: {external: true}
   points_probe: {external: true}
   kolovibe_points_rabbitmq_url_r1_v1: {external: true}
   kolovibe_points_outbound_key_r1_v1: {external: true}
@@ -320,7 +320,7 @@ secrets:
   moderation_db: {external: true}
   moderation_tls_cert: {external: true}
   moderation_tls_key: {external: true}
-  moderation_callers: {external: true}
+  moderation_callers_2: {external: true}
   moderation_probe: {external: true}
   kolovibe_moderation_outbound_key_r1_v1: {external: true}
   kolovibe_moderation_peers_r1_v1: {external: true}
@@ -328,7 +328,7 @@ secrets:
   identity_db: {external: true}
   identity_tls_cert: {external: true}
   identity_tls_key: {external: true}
-  identity_callers: {external: true}
+  identity_callers_2: {external: true}
   identity_probe: {external: true}
   kolovibe_identity_smtp_user_20261110_v1: {external: true}
   kolovibe_identity_smtp_password_20261110_v1: {external: true}  # pragma: allowlist secret
