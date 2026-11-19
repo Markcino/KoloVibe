@@ -75,8 +75,8 @@ def _clear_credentials(response, request=None):
     if settings.ENVIRONMENT == "staging":
         staging_session.clear(request)
         return
-    response.delete_cookie(ACCESS_COOKIE, samesite="Strict", secure=settings.CSRF_COOKIE_SECURE)
-    response.delete_cookie(REFRESH_COOKIE, samesite="Strict", secure=settings.CSRF_COOKIE_SECURE)
+    response.delete_cookie(ACCESS_COOKIE, samesite="Strict")
+    response.delete_cookie(REFRESH_COOKIE, samesite="Strict")
 
 
 def _own_account(request):
