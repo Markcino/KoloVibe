@@ -114,6 +114,10 @@ class LiveContentR2SecretTests(unittest.TestCase):
         return {'TaskTemplate': {'ContainerSpec': {'Secrets': [
             {'SecretName': name, 'SecretID': 'x', 'File': {'Name': target}} for target, name in mounts.items()]}}}
 
+    def test_r1_rollout_keeps_the_live_content_r2_mounts(self):
+        mounts = AWS.r1_rollout['content']['mounts']
+        self.assertEqual({target: mounts[target] for target in self.V2}, self.V2)
+
     def test_content_may_mount_exactly_the_two_v2_names(self):
         self.assertEqual(AWS.service_allowed_secrets['content'] & cluster.LIVE_CONTENT_R2_SECRETS,
                          cluster.LIVE_CONTENT_R2_SECRETS)
