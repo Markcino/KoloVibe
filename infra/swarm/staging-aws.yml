@@ -14,9 +14,10 @@ version: "3.8"
 # exactly the secrets of the API service it belongs to (the staging
 # runtime validates the same configuration for a worker as for the API), and carries the same exact flag row.
 #
-# Deploy under the separate stack name kolovibe-r1-jobs: the existing kolovibe-media-worker
-# is live at 1/1, while this file's media-worker placeholder is zero replicas. Using the
-# existing kolovibe stack name would replace its live worker configuration.
+# Use the separate stack name kolovibe-r1-jobs to distinguish candidate jobs from live services.
+# Swarm prefixes stack services with an underscore; even stack name kolovibe would create
+# kolovibe_media-worker, distinct from the live hyphenated kolovibe-media-worker at 1/1.
+# The placeholder remains at zero replicas; do not scale a second media worker.
 # All services in this file start at ZERO replicas. Scale only the six non-media processes
 # after the read-only capacity check and
 # only when the secrets exist:   docker service scale <stack>_<name>=1
