@@ -1,0 +1,30 @@
+# Restricted AWS staging web client. Publish only to VM1 loopback, behind Nginx.
+FROM python:3.12.16-alpine3.24@sha256:c5ba3deef00c7758561a0f03c26f44f10589263d40e732b8748e0d1f38f6dd89
+WORKDIR /app/web
+RUN apk upgrade --no-cache
+COPY requirements-web.txt /tmp/requirements-web.txt
+RUN python -m pip install --no-cache-dir --require-hashes -r /tmp/requirements-web.txt \
+    && python -m pip check \
+    && addgroup -S -g 10001 kolovibe \
+    && adduser -S -D -H -u 10001 -G kolovibe kolovibe
+
+# Staging uses a dedicated PostgreSQL role/schema. Remove SQLite from this image.
+RUN set -eux; \
+    apk info -R .python-rundeps | awk 'NF && $0 !~ /depends on:$/ && $0 !~ /sqlite/' > /tmp/python-rundeps; \
+    test -s /tmp/python-rundeps; \
+    apk add --no-cache --virtual .kolovibe-python-rundeps $(cat /tmp/python-rundeps); \
+    apk del .python-rundeps sqlite-libs; \
+    rm -f /tmp/python-rundeps; \
+    pydir="$(python -c 'import os; print(os.path.dirname(os.__file__))')"; \
+    rm -rf "$pydir"/sqlite3 "$pydir"/lib-dynload/_sqlite3*; \
+    if apk list -I | grep -qi sqlite; then exit 1; fi; \
+    if python -c 'import sqlite3' 2>/dev/null; then exit 1; fi; \
+    python -c 'import django, gunicorn, psycopg, cryptography.fernet, ssl'; python -m pip check
+
+COPY --chown=10001:10001 apps/web_django/ /app/web/
+USER 10001:10001
+ENV DJANGO_SETTINGS_MODULE=web.settings
+EXPOSE 8001
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+    CMD python -c 'import urllib.request; r=urllib.request.Request("http://127.0.0.1:8001/health/live", headers={"Host":"kolovibe.cabetechs.shop","X-Forwarded-Proto":"https"}); assert urllib.request.urlopen(r, timeout=3).status == 200'
+ENTRYPOINT ["gunicorn", "--bind=0.0.0.0:8001", "--workers=1", "--threads=2", "--timeout=30", "--access-logfile=-", "--error-logfile=-", "web.wsgi:application"]

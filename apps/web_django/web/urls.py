@@ -1,8 +1,11 @@
 from django.urls import path
+from django.http import JsonResponse
+from django.views.decorators.http import require_GET
 
 from . import views
 
 urlpatterns = [
+    path("health/live", require_GET(lambda request: JsonResponse({"status": "ok"})), name="web-liveness"),
     path("", views.feed, name="feed"),
     path("videos/<uuid:video_id>/", views.video, name="video"),
     path("creators/<uuid:creator_id>/", views.creator_detail, name="creator-detail"),
