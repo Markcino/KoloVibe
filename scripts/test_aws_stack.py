@@ -33,6 +33,11 @@ class AwsStackTests(unittest.TestCase):
         self.assertEqual(set(budget), set(AWS_ROLES))
         self.assertEqual(sum(budget.values()), memory_bytes("1536M"))
 
+    def test_media_placeholder_uses_the_live_content_r2_v2_secrets(self):
+        secrets = {ref['target']: ref['source'] for ref in stack()['services']['media-worker']['secrets']}
+        self.assertEqual(secrets['r2_access_key'], 'kolovibe_content_r2_access_key_r1_v2')
+        self.assertEqual(secrets['r2_secret_key'], 'kolovibe_content_r2_secret_key_r1_v2')
+
     def test_the_oracle_stack_validator_still_refuses_aws(self):
         with self.assertRaisesRegex(ValueError, "oracle-staging candidate"):
             validate({}, "aws-staging")
@@ -153,6 +158,8 @@ class AwsStackRejectionTests(unittest.TestCase):
         self.rejected("another service's r1 secret", lambda d: swap(d, "points-consumer", "rabbitmq_url",
                                                                  "kolovibe_content_rabbitmq_url_r1_v1"))
         self.rejected("renamed r2 secret", lambda d: swap(d, "media-worker", "r2_access_key", "r2_key"))
+        self.rejected("downgraded r2 secret", lambda d: swap(d, "media-worker", "r2_access_key",
+                                                              "kolovibe_content_r2_access_key_r1_v1"))
         self.rejected("secret dropped", lambda d: s(d)["secrets"].pop())
         self.rejected("extra secret", lambda d: s(d)["secrets"].append(
             {"source": "gateway_django", "target": "extra", "uid": "10001", "gid": "10001", "mode": 0o400}))
