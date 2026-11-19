@@ -11,7 +11,8 @@ import unittest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-QUALITY = {"python", "security", "flutter", "osv", "image-build", "media-image-build", "build-and-verify"}
+QUALITY = {"python", "security", "flutter", "osv", "image-build", "media-image-build",
+           "web-image-build", "build-and-verify"}
 SERVICES = {"gateway", "identity", "creators", "content", "engagement", "points",
             "moderation", "audit"}
 MAIN_PUSH = "github.event_name == 'push' && github.ref == 'refs/heads/main'"
@@ -178,13 +179,21 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(matrix_download["with"], download["with"])
         all_commands = "\n".join(step.get("run", "") for job in self.jobs.values()
                                  for step in job.get("steps", []))
-        # Two images, each built once and pushed once: the shared service image and the media-worker image.
-        self.assertEqual(all_commands.count("docker build "), 2)
-        self.assertEqual(all_commands.count("docker push "), 2)
+        # Three independently scanned images, each built and pushed once.
+        self.assertEqual(all_commands.count("docker build "), 3)
+        self.assertEqual(all_commands.count("docker push "), 3)
         self.assertEqual(self.jobs["media-image-build"].get("needs"), None)
         self.assertEqual(set(self.jobs["publish"]["needs"]) & {"image-build", "media-image-build"},
                          {"image-build", "media-image-build"})
         self.assertIn('TARGET="ghcr.io/$REPOSITORY/services:', commands)
+        self.assertIn('TARGET="ghcr.io/$REPOSITORY/web:', commands)
+        web = self.jobs["web-image-build"]["steps"]
+        web_upload = next(step for step in web if step.get("with", {}).get("name", "").startswith(
+            "verified-web-image-"))
+        web_download = next(step for step in publish if step.get("with", {}).get("name", "").startswith(
+            "verified-web-image-"))
+        self.assertEqual(web_upload["with"]["name"], web_download["with"]["name"])
+        self.assertNotEqual(web_download["with"]["name"], download["with"]["name"])
         smoke = next(step for step in matrix_steps if step.get("name") == "Run service PostgreSQL smoke check")
         self.assertEqual(smoke["env"], {"SERVICE": "${{ matrix.service }}"})
         self.assertIn('scripts/smoke_release_image.py --image "kolovibe/services:ci" --service "$SERVICE"',
