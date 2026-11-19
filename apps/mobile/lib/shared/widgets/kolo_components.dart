@@ -571,3 +571,45 @@ class KoloListRow extends StatelessWidget {
         ),
       );
 }
+
+/// Large statistic card: an icon, a display number and a caption. [dark] gives
+/// the navy card with a gold number; otherwise a white card.
+class KoloHeroStat extends StatelessWidget {
+  const KoloHeroStat(
+      {super.key,
+      required this.value,
+      required this.caption,
+      this.icon = Icons.star_outline,
+      this.dark = false});
+  final String value, caption;
+  final IconData icon;
+  final bool dark;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        container: true,
+        child: Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+              color: dark ? KoloVibeColors.navy : Colors.white,
+              borderRadius: BorderRadius.circular(KoloVibeRadii.card)),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Icon(icon,
+                size: 28,
+                color: dark ? KoloVibeColors.gold : KoloVibeColors.navy),
+            const SizedBox(height: 12),
+            Text(value,
+                style: KoloVibeText.heading(40,
+                    color: dark ? KoloVibeColors.gold : KoloVibeColors.navy,
+                    height: 1.1)),
+            const SizedBox(height: 8),
+            Text(caption,
+                style: KoloVibeText.body(13,
+                    color: dark ? Colors.white : KoloVibeColors.muted)),
+          ]),
+        ),
+      );
+}

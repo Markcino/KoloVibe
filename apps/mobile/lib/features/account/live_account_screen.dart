@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/kolovibe_theme.dart';
+import '../../shared/widgets/kolo_components.dart';
 
 import '../../app/screen_route.dart';
 import '../../core/presentation/design_node.dart';
@@ -62,70 +64,115 @@ class _LiveAccountScreenState extends State<LiveAccountScreen> {
                   onSignIn: () => navigate(4),
                 );
               }
-              return ListView(
-                padding: const EdgeInsets.all(24),
-                children: [
-                  Text(
-                    user.displayName,
-                    style: Theme.of(context).textTheme.headlineMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(user.email),
-                  Text('Roles: ${user.roles.join(', ')}'),
-                  ListTile(
-                    title: const Text('Edit personal profile'),
-                    onTap: () => navigate(80),
-                  ),
-                  ListTile(
-                    title: const Text('Account settings'),
-                    onTap: () => navigate(81),
-                  ),
-                  ListTile(
-                    title: const Text('Account status'),
-                    onTap: () => navigate(77),
-                  ),
-                  ListTile(
-                    title: const Text('Help & Support'),
-                    onTap: () => navigate(89),
-                  ),
-                  if (user.roles.contains('creator')) ...[
-                    ListTile(
-                        title: const Text('Create a video'),
-                        onTap: () => navigate(37)),
-                    ListTile(
-                      title: const Text('Creator studio'),
-                      onTap: () => navigate(38),
-                    ),
-                  ] else
-                    ListTile(
-                      title: const Text('Become a creator'),
-                      onTap: () => navigate(14),
-                    ),
-                  const SizedBox(height: 24),
-                  ListTile(
-                    title: const Text('Active sessions'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () {
-                      const route = ScreenRoute(83);
-                      Navigator.of(context)
-                          .pushNamed(route.name, arguments: route);
-                    },
-                  ),
-                  if (user.roles.contains('creator'))
-                    ListTile(
-                      title: const Text('Lone Stars'),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () {
-                        const route = ScreenRoute(61);
-                        Navigator.of(context)
-                            .pushNamed(route.name, arguments: route);
-                      },
-                    ),
-                  FilledButton(
-                    onPressed: () => navigate(90),
-                    child: const Text('Sign out'),
-                  ),
-                ],
+              final creator = user.roles.contains('creator');
+              return SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(children: [
+                        KoloAvatar(name: user.displayName, size: 64),
+                        const SizedBox(width: 12),
+                        Expanded(
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                              Text(user.displayName,
+                                  style: KoloVibeText.heading(20)),
+                              const SizedBox(height: 2),
+                              Text(user.email, style: KoloVibeText.body(12)),
+                              Text('Roles: ${user.roles.join(', ')}',
+                                  style: KoloVibeText.body(12)),
+                            ])),
+                      ]),
+                      if (creator) ...[
+                        const SizedBox(height: 12),
+                        const Wrap(spacing: 8, runSpacing: 8, children: [
+                          KoloBadge('Creator enabled', filled: true),
+                        ]),
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                              color: KoloVibeColors.navy,
+                              borderRadius:
+                                  BorderRadius.circular(KoloVibeRadii.card)),
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Text('YOUR CREATIVE HOME',
+                                    style: KoloVibeText.body(10,
+                                        weight: FontWeight.w700,
+                                        color: KoloVibeColors.gold,
+                                        letterSpacing: 0.6)),
+                                const SizedBox(height: 8),
+                                Text('Create. Publish. Be heard.',
+                                    style: KoloVibeText.heading(22,
+                                        color: Colors.white, height: 1.2)),
+                                const SizedBox(height: 16),
+                                FilledButton(
+                                    onPressed: () => navigate(37),
+                                    child: const Text('Open Creator Studio')),
+                              ]),
+                        ),
+                      ],
+                      const SizedBox(height: 8),
+                      KoloListRow(
+                          title: 'Edit personal profile',
+                          subtitle: 'Your name and account photo',
+                          icon: Icons.person_outline,
+                          onTap: () => navigate(80)),
+                      KoloListRow(
+                          title: 'Account settings',
+                          icon: Icons.settings_outlined,
+                          onTap: () => navigate(81)),
+                      KoloListRow(
+                          title: 'Account status',
+                          icon: Icons.verified_user_outlined,
+                          onTap: () => navigate(77)),
+                      KoloListRow(
+                          title: 'Help & Support',
+                          icon: Icons.help_outline,
+                          onTap: () => navigate(89)),
+                      if (creator) ...[
+                        KoloListRow(
+                            title: 'Create a video',
+                            icon: Icons.videocam_outlined,
+                            onTap: () => navigate(37)),
+                        KoloListRow(
+                            title: 'Creator studio',
+                            subtitle: 'Public bio and identity',
+                            icon: Icons.movie_creation_outlined,
+                            onTap: () => navigate(38)),
+                      ] else
+                        KoloListRow(
+                            title: 'Become a creator',
+                            icon: Icons.movie_creation_outlined,
+                            onTap: () => navigate(14)),
+                      KoloListRow(
+                          title: 'Active sessions',
+                          icon: Icons.devices_outlined,
+                          onTap: () {
+                            const route = ScreenRoute(83);
+                            Navigator.of(context)
+                                .pushNamed(route.name, arguments: route);
+                          }),
+                      if (creator)
+                        KoloListRow(
+                            title: 'Lone Stars',
+                            subtitle: 'Non-cash community recognition',
+                            icon: Icons.star_outline,
+                            onTap: () {
+                              const route = ScreenRoute(61);
+                              Navigator.of(context)
+                                  .pushNamed(route.name, arguments: route);
+                            }),
+                      const SizedBox(height: 24),
+                      FilledButton(
+                        onPressed: () => navigate(90),
+                        child: const Text('Sign out'),
+                      ),
+                    ]),
               );
             },
           ),

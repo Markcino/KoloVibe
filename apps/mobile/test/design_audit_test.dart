@@ -97,7 +97,31 @@ void main() {
     }
   }
 
-  AccountFixture signedIn() => AccountFixture();
+  AccountFixture signedIn() => AccountFixture(handler: (request) async {
+        if (request.url.path.endsWith('/me/preferences')) {
+          return jsonResponse(
+              {'email_notifications': true, 'push_notifications': false});
+        }
+        if (request.url.path.endsWith('/me/sessions')) {
+          return jsonResponse({
+            'items': [
+              {
+                'id': receiptId,
+                'created_at': '2026-11-11T12:00:00Z',
+                'expires_at': '2026-12-11T12:00:00Z',
+                'current': true
+              },
+              {
+                'id': '00000000-0000-4000-8000-000000000008',
+                'created_at': '2026-11-09T12:00:00Z',
+                'expires_at': '2026-12-09T12:00:00Z',
+                'current': false
+              }
+            ]
+          });
+        }
+        return jsonResponse({});
+      });
 
   final videos = _AuditVideos();
   final creators = _AuditCreators();

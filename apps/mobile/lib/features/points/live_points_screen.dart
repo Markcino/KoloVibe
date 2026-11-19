@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../shared/widgets/kolo_components.dart';
 
 import '../../app/screen_route.dart';
 import '../../core/presentation/design_node.dart';
@@ -221,10 +222,10 @@ class _LivePointsLedgerScreenState extends State<LivePointsLedgerScreen> {
         ];
       case PointsView.withheld:
         return [
-          Text('${formatPoints(balance.withheld)} withheld',
-              style: text.headlineMedium),
-          const Text('Excluded from confirmed recognition'),
-          const SizedBox(height: 8),
+          KoloHeroStat(
+              icon: Icons.shield_outlined,
+              value: '${formatPoints(balance.withheld)} withheld',
+              caption: 'Excluded from confirmed recognition'),
           const PointsNote(
               'Some interaction patterns were not eligible under the current recognition rules. Details are limited to protect anti-abuse checks.'),
           ..._rows(context, empty: 'No withheld activity found.'),
@@ -237,10 +238,10 @@ class _LivePointsLedgerScreenState extends State<LivePointsLedgerScreen> {
         ];
       case PointsView.adjustments:
         return [
-          Text('${formatPoints(balance.reversed)} reversed',
-              style: text.headlineMedium),
-          const Text('Recognition adjustments'),
-          const SizedBox(height: 8),
+          KoloHeroStat(
+              icon: Icons.history,
+              value: '${formatPoints(balance.reversed)} reversed',
+              caption: 'Recognition adjustments'),
           const PointsNote(
               'A later activity review found that previously counted recognition did not qualify. The confirmed total reflects these adjustments.'),
           ..._rows(context, empty: 'No adjustments to your Lone Stars.'),
@@ -262,10 +263,10 @@ class _LivePointsLedgerScreenState extends State<LivePointsLedgerScreen> {
     if (!controller.hasAnyEntries) {
       // M-069: the ledger is empty. Show the server's totals, no samples.
       return [
-        Text('Your story starts here.', style: text.headlineMedium),
-        const SizedBox(height: 8),
-        const Text('No Lone Stars activity yet'),
-        const SizedBox(height: 8),
+        const KoloHeroStat(
+            dark: true,
+            value: 'Your story starts here.',
+            caption: 'No Lone Stars activity yet'),
         const Text(
             'Keep creating original work and building genuine community connections. Eligible recognition will appear here when available.'),
         const SizedBox(height: 8),
@@ -435,7 +436,6 @@ class _LivePointsEntryScreenState extends State<LivePointsEntryScreen> {
 
   Widget _detail(BuildContext context, PointsEntryController controller) {
     final entry = controller.entry!;
-    final text = Theme.of(context).textTheme;
     final local = MaterialLocalizations.of(context);
     return RefreshIndicator(
       onRefresh: controller.load,
@@ -443,10 +443,10 @@ class _LivePointsEntryScreenState extends State<LivePointsEntryScreen> {
           padding: const EdgeInsets.all(16),
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
-            Text('${entryAmount(entry)} Lone Stars',
-                style: text.headlineMedium),
-            Text('${entryStatusLabel(entry)} · ${entryTitle(entry)}'),
-            const SizedBox(height: 16),
+            KoloHeroStat(
+                dark: true,
+                value: '${entryAmount(entry)} Lone Stars',
+                caption: '${entryStatusLabel(entry)} · ${entryTitle(entry)}'),
             if (entry.videoId != null)
               ListTile(
                   title: const Text('Source'),

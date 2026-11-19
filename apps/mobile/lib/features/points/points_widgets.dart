@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/kolovibe_theme.dart';
 import '../../core/network/api_client.dart';
 import '../../shared/widgets/live_state_view.dart';
 import 'live_points_repository.dart';
@@ -59,13 +60,18 @@ class PointsEntryTile extends StatelessWidget {
           '$title, $status, ${entryDate(context, entry.createdAt)}, $amount Lone Stars',
       child: ExcludeSemantics(
         child: ListTile(
+          leading: const CircleAvatar(
+              radius: 20,
+              backgroundColor: Color(0xFFFFF3CC),
+              child: Icon(Icons.star_outline,
+                  size: 20, color: KoloVibeColors.navy)),
           title: Text(title),
           subtitle: Text('${entryDate(context, entry.createdAt)} · $status'),
           trailing: Text(amount,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w700)),
+              style: KoloVibeText.heading(16,
+                  color: entry.amount < 0
+                      ? KoloVibeColors.red
+                      : KoloVibeColors.navy)),
           onTap: onTap,
         ),
       ),
@@ -101,8 +107,14 @@ class PointsNote extends StatelessWidget {
   final String text;
 
   @override
-  Widget build(BuildContext context) => Card(
-      child: Padding(padding: const EdgeInsets.all(16), child: Text(text)));
+  Widget build(BuildContext context) => Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+          color: const Color(0xFFFFF3CC),
+          borderRadius: BorderRadius.circular(KoloVibeRadii.tile)),
+      child: Text(text, style: KoloVibeText.body(12, height: 1.45)));
 }
 
 /// The non-cash reminder shown wherever points appear.
