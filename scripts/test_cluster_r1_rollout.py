@@ -32,13 +32,13 @@ class R1Swarm(AwsSwarm):
             names.update(rollout['mounts'].values())
         known = [{'ID': 'id-' + n, 'Spec': {'Name': n}} for n in sorted(names)] if secrets else []
         self.static['/v1.52/secrets'] = self.static['/v1.52/secrets'] + known
-        net = {'ID': NET_ID, 'Name': cluster.MESSAGING_NETWORK, 'Driver': 'overlay', 'Internal': True,
+        net = {'Id': NET_ID, 'Name': cluster.MESSAGING_NETWORK, 'Driver': 'overlay', 'Internal': True,
                'Options': {'encrypted': ''}}
         net.update(network or {})
-        proxy_net = {'ID': PROXY_NET_ID, 'Name': cluster.R2_PROXY_NETWORK, 'Driver': 'overlay', 'Internal': True,
+        proxy_net = {'Id': PROXY_NET_ID, 'Name': cluster.R2_PROXY_NETWORK, 'Driver': 'overlay', 'Internal': True,
                      'Options': {'encrypted': ''}}
         self.static['/v1.52/networks'] = [
-            {'ID': 'services-net', 'Name': 'kolovibe_services'}, {'ID': 'data-net', 'Name': 'kolovibe_data'}, net, proxy_net]
+            {'Id': 'services-net', 'Name': 'kolovibe_services'}, {'Id': 'data-net', 'Name': 'kolovibe_data'}, net, proxy_net]
 
 
 def plan(swarm, services=ALL_SERVICES, **kw):
@@ -280,6 +280,8 @@ class R1PlanTests(unittest.TestCase):
         swarm.static['/v1.52/networks'] = swarm.static['/v1.52/networks'][:2]
         with self.assertRaisesRegex(RuntimeError, 'R1 network is missing'):
             plan(swarm, ['content'])
+        with self.assertRaisesRegex(RuntimeError, 'no Docker Id'):
+            plan(R1Swarm(network={'Id': ''}), ['content'])
 
     def test_a_different_secret_already_at_a_new_mount_target_is_refused(self):
         swarm = R1Swarm()
@@ -335,9 +337,9 @@ class R1PlanTests(unittest.TestCase):
         live = swarm.services['kolovibe-content']['Spec']
         with aws(swarm):
             delta = cluster.r1_delta('content', live, {n: 'id-' + n for n in AWS.service_allowed_secrets['content']},
-                                     {cluster.MESSAGING_NETWORK: {'ID': NET_ID, 'Name': cluster.MESSAGING_NETWORK, 'Driver': 'overlay',
+                                     {cluster.MESSAGING_NETWORK: {'Id': NET_ID, 'Name': cluster.MESSAGING_NETWORK, 'Driver': 'overlay',
                                               'Internal': True, 'Options': {'encrypted': ''}},
-                                      cluster.R2_PROXY_NETWORK: {'ID': PROXY_NET_ID, 'Name': cluster.R2_PROXY_NETWORK,
+                                      cluster.R2_PROXY_NETWORK: {'Id': PROXY_NET_ID, 'Name': cluster.R2_PROXY_NETWORK,
                                               'Driver': 'overlay', 'Internal': True, 'Options': {'encrypted': ''}}},
                                      {'KOLOVIBE_R2_ACCOUNT_ID': R2_ID, 'KOLOVIBE_R2_MEDIA_BUCKET': R2_BUCKET})
             tampered = copy.deepcopy(live)
