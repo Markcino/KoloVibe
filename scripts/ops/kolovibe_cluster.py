@@ -1169,8 +1169,12 @@ def r1_delta(service, spec, known, networks, operator_env):
         if not net or net.get('Driver') != 'overlay' or not net.get('Internal') \
                 or 'encrypted' not in (net.get('Options') or {}):
             fail('R1 network is missing, not an internal encrypted overlay: ' + name)
-        if net['ID'] not in attached:
-            nets.append((name, net['ID']))
+        # Docker's network-list API spells this field `Id`; service and secret objects use `ID`.
+        net_id = net.get('Id')
+        if not isinstance(net_id, str) or not net_id:
+            fail('R1 network has no Docker Id: ' + name)
+        if net_id not in attached:
+            nets.append((name, net_id))
     wanted_env = {k: v for k, v in env.items() if live_env.get(k) != v}
     if not wanted_env and not mounts and not nets:
         return None
