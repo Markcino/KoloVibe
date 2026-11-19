@@ -347,5 +347,182 @@ class R1ApplyTests(unittest.TestCase):
         self.assertEqual(swarm.posts, [])
 
 
+def media_stage(swarm, services=cluster.MEDIA_STAGE_SERVICES, value='media'):
+    """The live AWS read-back of 19 November 2026: the capability variable alone, set on three services."""
+    for service in services:
+        swarm.services['kolovibe-' + service]['Spec']['TaskTemplate']['ContainerSpec']['Env'].append(
+            'KOLOVIBE_STAGING_CAPABILITIES=' + value)
+    return swarm
+
+
+def state(service, spec):
+    with patch.object(cluster, 'PROFILE', AWS):
+        return cluster.flag_state(service, cluster.env_dict(spec['TaskTemplate']['ContainerSpec']))
+
+
+class MediaStageTableTests(unittest.TestCase):
+    def test_the_stage_is_a_strict_step_toward_the_r1_row_on_exactly_three_services(self):
+        rows, r1 = AWS.media_flags, AWS.r1_flags
+        for service, row in rows.items():
+            caps = set(filter(None, row[cluster.FLAG_CAPABILITIES].split(',')))
+            self.assertLessEqual(caps, set(filter(None, r1[service][cluster.FLAG_CAPABILITIES].split(','))), service)
+            self.assertEqual(row[cluster.FLAG_ONBOARDING], '')  # creator onboarding is never part of the stage
+            for name in cluster.FLAG_NAMES:
+                self.assertEqual(row[name], AWS.service_flags[service][name], service)  # accounts/privileged unchanged
+        self.assertEqual({s for s, r in rows.items() if r[cluster.FLAG_CAPABILITIES]}, set(cluster.MEDIA_STAGE_SERVICES))
+        self.assertEqual({r[cluster.FLAG_CAPABILITIES] for s, r in rows.items() if r[cluster.FLAG_CAPABILITIES]}, {'media'})
+        self.assertEqual(rows['gateway'][cluster.FLAG_PRIVILEGED], '0')  # reviewer routes stay closed in this stage
+        cluster.check_flag_table(AWS)
+
+    def test_every_media_row_is_what_the_runtime_accepts(self):
+        gateway = policy.parse(AWS.media_flags['gateway'][cluster.FLAG_CAPABILITIES])
+        for service, row in AWS.media_flags.items():
+            caps = policy.parse(row[cluster.FLAG_CAPABILITIES])
+            policy.check(service, caps, accounts=row[cluster.FLAG_ACCOUNTS] == '1',
+                         privileged=row[cluster.FLAG_PRIVILEGED] == '1')
+            self.assertEqual(caps, policy.slice_for(service, gateway), service)
+
+    def test_oracle_has_no_media_stage(self):
+        self.assertIsNone(cluster.ORACLE_STAGING.media_flags)
+
+    def test_broken_media_tables_are_refused_at_review_time(self):
+        good = cluster.media_flag_table(AWS.service_flags)
+        cap, onb = cluster.FLAG_CAPABILITIES, cluster.FLAG_ONBOARDING
+        bad = {
+            'media on a service that is not in the stage': dict(good, points=dict(good['points'], **{cap: 'media'})),
+            'a wider capability set': dict(good, content=dict(good['content'], **{cap: 'analytics,media'})),
+            'a capability outside the stage': dict(good, gateway=dict(good['gateway'], **{cap: 'media,points'})),
+            'creator onboarding on': dict(good, creators=dict(good['creators'], **{onb: '1'})),
+            'onboarding written as zero': dict(good, creators=dict(good['creators'], **{onb: '0'})),
+            'privileged changed from the baseline': dict(good, gateway=dict(good['gateway'], **{cluster.FLAG_PRIVILEGED: '1'})),
+            'accounts changed from the baseline': dict(good, content=dict(good['content'], **{cluster.FLAG_ACCOUNTS: '1'})),
+            'a media gateway row without the media capability': dict(good, gateway=dict(good['gateway'], **{cap: ''})),
+            'a missing service': {k: v for k, v in good.items() if k != 'audit'},
+            'an extra flag name': dict(good, audit=dict(good['audit'], EXTRA='1')),
+        }
+        cluster.check_flag_table(AWS._replace(media_flags=good))
+        for label, table in bad.items():
+            with self.subTest(label), self.assertRaises(ValueError):
+                cluster.check_flag_table(AWS._replace(media_flags=table))
+        with self.assertRaises(ValueError):  # a stage must lead somewhere: it needs the R1 table
+            cluster.check_flag_table(AWS._replace(media_flags=good, r1_flags=None))
+        r1_without_media = dict(cluster.r1_flag_table(), content=dict(cluster.r1_flag_table()['content'], **{cap: 'analytics,engagement,moderation'}))
+        with self.assertRaises(ValueError):  # a stage capability that the R1 row itself lacks
+            cluster.check_media_table(AWS._replace(r1_flags=r1_without_media, media_flags=good))
+
+
+class MediaStageStateTests(unittest.TestCase):
+    def test_the_observed_row_is_a_third_exact_state(self):
+        swarm = media_stage(R1Swarm())
+        for service in cluster.SERVICES:
+            expected = 'media' if service in cluster.MEDIA_STAGE_SERVICES else 'baseline'
+            self.assertEqual(state(service, swarm.services['kolovibe-' + service]['Spec']), expected, service)
+        self.assertEqual(state('gateway', R1Swarm().services['kolovibe-gateway']['Spec']), 'baseline')
+
+    def test_near_misses_are_not_the_media_stage(self):
+        cases = {
+            'a different capability on the gateway': ('gateway', 'KOLOVIBE_STAGING_CAPABILITIES=points'),
+            'a wider set on the gateway': ('gateway', 'KOLOVIBE_STAGING_CAPABILITIES=media,points'),
+            'a wider set on content': ('content', 'KOLOVIBE_STAGING_CAPABILITIES=analytics,media'),
+            'media with a trailing space': ('creators', 'KOLOVIBE_STAGING_CAPABILITIES=media '),
+            'media on engagement': ('engagement', 'KOLOVIBE_STAGING_CAPABILITIES=media'),
+            'media on audit': ('audit', 'KOLOVIBE_STAGING_CAPABILITIES=media'),
+            'media on identity': ('identity', 'KOLOVIBE_STAGING_CAPABILITIES=media'),
+        }
+        for label, (service, variable) in cases.items():
+            swarm = R1Swarm()
+            swarm.services['kolovibe-' + service]['Spec']['TaskTemplate']['ContainerSpec']['Env'].append(variable)
+            with self.subTest(label):
+                self.assertIsNone(state(service, swarm.services['kolovibe-' + service]['Spec']))
+        # (creators with media and onboarding is exactly the R1 row, so it is deliberately not a near miss)
+        for service, extra in (('content', 'KOLOVIBE_STAGING_CREATOR_ONBOARDING=1'),
+                               ('gateway', 'KOLOVIBE_STAGING_CREATOR_ONBOARDING=1'),
+                               ('gateway', 'KOLOVIBE_STAGING_PRIVILEGED=1')):
+            swarm = media_stage(R1Swarm(), (service,))
+            env = swarm.services['kolovibe-' + service]['Spec']['TaskTemplate']['ContainerSpec']['Env']
+            env[:] = [e for e in env if not e.startswith(extra.split('=')[0] + '=')] + [extra]
+            with self.subTest(extra=extra, service=service):
+                self.assertIsNone(state(service, swarm.services['kolovibe-' + service]['Spec']))
+
+    def test_oracle_never_accepts_the_media_stage(self):
+        env = {'KOLOVIBE_STAGING_ACCOUNTS': '0', 'KOLOVIBE_STAGING_PRIVILEGED': '0', 'KOLOVIBE_STAGING_CAPABILITIES': 'media'}
+        with patch.object(cluster, 'PROFILE', cluster.ORACLE_STAGING):
+            self.assertIsNone(cluster.flag_state('content', env))
+            self.assertEqual(cluster.flag_mismatch('content', env), ['KOLOVIBE_STAGING_CAPABILITIES'])
+
+
+class MediaStagePlanTests(unittest.TestCase):
+    def test_a_gateway_in_the_media_stage_no_longer_blocks_a_plain_image_update_of_another_service(self):
+        report = plan(media_stage(R1Swarm()), ['audit'], r1=False, set_env=None)
+        self.assertEqual([e['service'] for e in report['entries']], ['audit'])
+        self.assertIsNone(report['entries'][0]['r1_changes'])
+
+    def test_unrecognised_gateway_flags_still_block_every_plan_and_name_only_variables(self):
+        for label, value in (('wider', 'media,points'), ('other', 'moderation')):
+            swarm = media_stage(R1Swarm(), ('creators', 'content'))
+            swarm.services['kolovibe-gateway']['Spec']['TaskTemplate']['ContainerSpec']['Env'].append(
+                'KOLOVIBE_STAGING_CAPABILITIES=' + value)
+            with self.subTest(label), self.assertRaises(RuntimeError) as raised:
+                plan(swarm, ['audit'], r1=False, set_env=None)
+            self.assertIn('KOLOVIBE_STAGING_CAPABILITIES', str(raised.exception))
+            self.assertNotIn(value, str(raised.exception))
+
+    def test_an_unrecognised_service_row_still_stops_that_services_plan(self):
+        swarm = media_stage(R1Swarm())
+        swarm.services['kolovibe-content']['Spec']['TaskTemplate']['ContainerSpec']['Env'].append(
+            'KOLOVIBE_STAGING_CREATOR_ONBOARDING=1')
+        with self.assertRaises(RuntimeError) as raised:
+            plan(swarm, ['content'])
+        self.assertIn('KOLOVIBE_STAGING_CREATOR_ONBOARDING', str(raised.exception))
+
+    def test_the_r1_plan_moves_the_media_stage_to_exactly_the_r1_row_and_everything_else_from_baseline(self):
+        swarm = media_stage(R1Swarm())
+        report = plan(swarm)
+        for service in cluster.SERVICES:
+            e = entry(report, service)
+            self.assertEqual(state(service, {'TaskTemplate': e['update_spec']['TaskTemplate']}), 'r1', service)
+        changed = set(entry(report, 'gateway')['r1_changes']['env'])
+        self.assertIn('KOLOVIBE_STAGING_CAPABILITIES', changed)
+        self.assertEqual(plan(swarm, ['gateway'], set_env=None)['entries'][0]['service'], 'gateway')
+
+    def test_apply_from_the_media_stage_then_roll_back_restores_it_exactly(self):
+        swarm = media_stage(R1Swarm())
+        before = copy.deepcopy(swarm.services['kolovibe-content']['Spec'])
+        self.assertEqual(state('content', before), 'media')
+        with aws(swarm), tempfile.TemporaryDirectory() as directory, patch('sys.stderr'):
+            cluster.update('e.json', 'operator', NEW_IMAGE, TARGET_REVISION, ['content'], 'WAIVED-R1-STAGING-20261114',
+                           NEW_IMAGE, str(Path(directory) / 'r.json'), True, None, True, SET_ENV)
+        self.assertEqual(state('content', swarm.services['kolovibe-content']['Spec']), 'r1')
+        self.assertEqual([p[0] for p in swarm.posts], ['kolovibe-content'])
+        with aws(swarm), patch('sys.stderr'):
+            cluster.rollback(['content'], 'content')
+        self.assertEqual(swarm.services['kolovibe-content']['Spec'], before)
+        self.assertEqual(state('content', swarm.services['kolovibe-content']['Spec']), 'media')
+
+
+class LoginRouteExpectationTests(unittest.TestCase):
+    def test_expectations_per_service_and_account_state(self):
+        expect = cluster.login_route_expectation
+        self.assertEqual(expect('gateway', '1'), ('login route open but POST-only', (405,)))
+        self.assertEqual(expect('identity', '1'), ('public login path not served by identity', (403,)))
+        for service in cluster.SERVICES:  # accounts off (or unset): every service stays gated
+            for accounts in ('0', None, ''):
+                with self.subTest(service=service, accounts=accounts):
+                    self.assertEqual(expect(service, accounts), ('gated /api/v1/auth/login', (403,)))
+        for service in cluster.SERVICES:  # a 200 or 5xx is never an accepted answer
+            for accounts in ('0', '1'):
+                self.assertTrue(all(400 <= code < 500 for code in expect(service, accounts)[1]))
+
+    def test_the_identity_expectation_matches_the_staging_route_gate(self):
+        try:
+            from staging_runtime.middleware import route_allowed
+        except ImportError:  # Django is part of the CI environment; this assertion needs it
+            self.skipTest('Django is not installed')
+        self.assertFalse(route_allowed('identity', 'GET', '/api/v1/auth/login', accounts=True))
+        self.assertTrue(route_allowed('identity', 'POST', '/internal/auth/login', accounts=True))
+        self.assertTrue(route_allowed('gateway', 'GET', '/api/v1/auth/login', accounts=True))
+        self.assertFalse(route_allowed('gateway', 'GET', '/api/v1/auth/login', accounts=False))
+
+
 if __name__ == '__main__':
     unittest.main()

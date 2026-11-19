@@ -102,6 +102,7 @@ class Profile(NamedTuple):
     service_flags: dict        # service -> the two staging capability flags it must carry, exact values ('0' or '1')
     opa_waiver: str = ''       # owner waiver reference when this profile runs without the OPA Docker plugin
     r1_flags: dict = None      # service -> the exact R1 flag row (see FLAG_R1_NAMES), enabled by --enable-r1-capabilities
+    media_flags: dict = None   # service -> the exact intermediate "media stage" row some live services may still carry
     r1_rollout: dict = None    # service -> reviewed env, secret mounts and networks the R1 rollout adds
     ca_secret_names: dict = None  # shared-CA mount target -> the Swarm secret name this environment uses for it
     db_user_format: str = 'kv_{service}_run'  # runtime database login of each service, from the live specs
@@ -143,6 +144,23 @@ def r1_flag_table():
         'moderation': row('0', '0', '0', 'moderation'),
         'audit': row('0', '0', '0', ''),
     }
+
+
+# Services that carry the single `media` capability in the intermediate "media stage" (read back from the live AWS
+# services on 19 November 2026): the Gateway that routes it, Creators for eligibility and Content for upload and
+# playback. Nothing else is on: no creator onboarding, no privileged MFA, no engagement, points or moderation.
+MEDIA_STAGE_SERVICES = ('gateway', 'creators', 'content')
+
+
+def media_flag_table(baseline):
+    """The exact media-stage row per service, derived from the profile's own baseline accounts/privileged values.
+
+    A service outside MEDIA_STAGE_SERVICES has the same row as the baseline, so it still reports 'baseline'. The
+    stage is a strict step toward the R1 row (`check_media_table` enforces that), never a way around it.
+    """
+    return {service: dict(baseline[service], **{FLAG_ONBOARDING: '', FLAG_CAPABILITIES:
+                                                'media' if service in MEDIA_STAGE_SERVICES else ''})
+            for service in SERVICES}
 
 
 # Mirrors `staging_runtime.capabilities` (APPLICABLE, REQUIRES); scripts/test_cluster_r1_rollout.py keeps them equal.
@@ -249,6 +267,10 @@ AWS_STAGING = Profile(
     # routes stay at the documented default. Read back from the live services on 14 November 2026.
     # Exact values, never "either": a different live value stops the tool until a reviewed change.
     service_flags=flag_table(gateway=('1', '0'), identity=('1', '0')),
+    # Read-only read-back of the live AWS services on 19 November 2026 (flag variables only): the Gateway, Creators and
+    # Content carry the single `media` capability and nothing else; every other service is at the baseline. The tool
+    # accepts exactly that row as a third state and moves it to the R1 row; nothing else about it is relaxed.
+    media_flags=media_flag_table(flag_table(gateway=('1', '0'), identity=('1', '0'))),
     opa_waiver=OPA_WAIVER, r1_flags=r1_flag_table(), r1_rollout=r1_rollout_table(),
     # Read-only service inspection of 14 November 2026: every AWS service mounts the database CA from the
     # Swarm secret `kolovibe_pg_ca_v1` at target `db_ca`; no secret is named `db_ca` there.  # pragma: allowlist secret
@@ -278,6 +300,29 @@ def check_flag_table(profile):
         raise ValueError(profile.name + ': gateway and identity must agree on the accounts capability')
     if profile.r1_flags is not None:
         check_r1_table(profile)
+    if profile.media_flags is not None:
+        check_media_table(profile)
+
+
+def check_media_table(profile):
+    """The media stage must be a strict step toward the R1 row: same accounts/privileged values as the baseline,
+    creator onboarding still off, only `media`, only on the services that apply, and only where R1 also has it."""
+    table = profile.media_flags
+    if profile.r1_flags is None:
+        raise ValueError(profile.name + ': a media stage needs the R1 table it leads to')
+    if set(table) != set(SERVICES):
+        raise ValueError(profile.name + ': media stage table must name exactly the eight services')
+    for service, row in table.items():
+        if set(row) != set(FLAG_R1_NAMES):
+            raise ValueError(profile.name + ': ' + service + ' media row must carry exactly the four flag names')
+        if any(row[name] != profile.service_flags[service][name] for name in FLAG_NAMES):
+            raise ValueError(profile.name + ': ' + service + ' media stage must keep the baseline accounts and privileged flags')
+        if row[FLAG_ONBOARDING] != '':
+            raise ValueError(profile.name + ': ' + service + ' media stage must not enable creator onboarding')
+        if row[FLAG_CAPABILITIES] != ('media' if service in MEDIA_STAGE_SERVICES else ''):
+            raise ValueError(profile.name + ': ' + service + ' media stage may carry only the media capability, on its three services')
+        if set(filter(None, row[FLAG_CAPABILITIES].split(','))) - set(filter(None, profile.r1_flags[service][FLAG_CAPABILITIES].split(','))):
+            raise ValueError(profile.name + ': ' + service + ' media stage carries a capability the R1 row does not')
 
 
 def check_r1_table(profile):
@@ -333,12 +378,15 @@ def _differs(row, env):
 
 
 def flag_state(service, env):
-    """'baseline' (the 14 November read-back), 'r1' (the reviewed R1 row) or None; exact matches only."""
+    """'baseline' (the 14 November read-back), 'media' (the reviewed intermediate row), 'r1' (the reviewed R1
+    row) or None; exact matches only. Any other combination, including a partial or wider capability set, is None."""
     baseline = dict(PROFILE.service_flags[service])
     # The baseline predates the capability variables: they must be absent, never merely ignored.
     baseline.update({FLAG_ONBOARDING: '', FLAG_CAPABILITIES: ''})
     if not _differs(baseline, env):
         return 'baseline'
+    if PROFILE.media_flags is not None and not _differs(PROFILE.media_flags[service], env):
+        return 'media'
     if PROFILE.r1_flags is not None and not _differs(PROFILE.r1_flags[service], env):
         return 'r1'
     return None
@@ -1097,7 +1145,7 @@ def r1_delta(service, spec, known, networks, operator_env):
     wanted_env = {k: v for k, v in env.items() if live_env.get(k) != v}
     if not wanted_env and not mounts and not nets:
         return None
-    require_flags_complete = state in ('baseline', 'r1')
+    require_flags_complete = state in ('baseline', 'media', 'r1')
     assert require_flags_complete
     candidate = copy.deepcopy(spec)
     for target, (name, _) in mounts.items():
@@ -1386,6 +1434,21 @@ def record(rows, name, call, expected, contract=None):
         rows.append({'test': name, 'status': 'FAIL', 'error_type': type(error).__name__})
 
 
+def login_route_expectation(service, accounts):
+    """(test name, accepted statuses) for an unauthenticated GET of the public `/api/v1/auth/login` on one service.
+
+    Only the Gateway serves the public account paths, so with accounts on a GET reaches its view and is refused as
+    POST-only (405). Identity serves only the signed `/internal/auth/*` routes (the staging allow-list in
+    `staging_runtime.middleware.ACCOUNTS`), so it must keep refusing the public path (403) even with accounts on: a 405
+    there would mean a public account route had been exposed on the private service. Every service stays gated (403)
+    while accounts are off."""
+    if accounts == '1' and service == 'gateway':
+        return 'login route open but POST-only', (405,)
+    if accounts == '1' and service == 'identity':
+        return 'public login path not served by identity', (403,)
+    return 'gated /api/v1/auth/login', (403,)
+
+
 def container_tests(service):
     """Executed inside the selected service; secrets never leave this process."""
     sys.path.insert(0, '/app/services/' + service)
@@ -1411,11 +1474,8 @@ def container_tests(service):
     record(rows, 'liveness POST rejected', lambda: call('/health/live', method='POST', data=b'{}'), (405,))
     for path in ('/admin', '/api/v1/points'):
         record(rows, 'gated ' + path, lambda p=path: call(p), (403,))
-    if os.environ.get('KOLOVIBE_STAGING_ACCOUNTS') == '1':
-        # The account wave is approved on this service: the login route is open, so a GET reaches the view (405).
-        record(rows, 'login route open but POST-only', lambda: call('/api/v1/auth/login'), (405,))
-    else:
-        record(rows, 'gated /api/v1/auth/login', lambda: call('/api/v1/auth/login'), (403,))
+    name, expected = login_route_expectation(service, os.environ.get('KOLOVIBE_STAGING_ACCOUNTS'))
+    record(rows, name, lambda: call('/api/v1/auth/login'), expected)
     try:
         with connection.cursor() as cursor:
             cursor.execute('SELECT current_user,current_schema(),current_database(), '

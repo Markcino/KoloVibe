@@ -368,6 +368,16 @@ those two variables extracted): Gateway and Identity `ACCOUNTS=1`/`PRIVILEGED=0`
 services `0`/`0`, equal to the table. A different live value stops the tool until a reviewed change
 updates the profile.
 
+**Media stage (read back 19 November 2026).** The live Gateway, Creators and Content additionally carry
+`KOLOVIBE_STAGING_CAPABILITIES=media` and no other capability variable; every other service is at the baseline. The
+`aws-staging` profile accepts exactly that row as a third state next to `baseline` and `r1` (`media_flags`), and
+`--enable-r1-capabilities` moves it to the R1 row like any other service. It is a strict step toward R1: accounts and
+privileged keep their baseline values, creator onboarding stays off, only `media` is carried and only on those three
+services, and the table is refused at review time if it ever names a capability the R1 row lacks. Any other
+combination (a wider or different capability set, onboarding without the rest of R1, `media` on another service) still
+stops every plan, naming only the variable. The Oracle profile has no media stage. See the
+[19 November record](../../docs/operations/R1_Media_Stage_Flag_State_2026-11-19.md).
+
 Secret names are matched exactly and only for the service listed; a listed name on another
 service, a rotated version of it, or any other foreign secret still stops the plan.
 
