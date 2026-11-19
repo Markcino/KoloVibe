@@ -7,7 +7,7 @@ from urllib.parse import urlencode
 from urllib.request import HTTPRedirectHandler, HTTPSHandler, ProxyHandler, Request, build_opener
 
 from django.conf import settings
-from django.http import HttpResponseNotAllowed
+from django.http import FileResponse, Http404, HttpResponseNotAllowed
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
@@ -16,6 +16,24 @@ from . import staging_session
 
 ACCESS_COOKIE = "kv_access"
 REFRESH_COOKIE = "kv_refresh"
+
+STATIC_ASSETS = {
+    "css/site.css": "text/css; charset=utf-8",
+    "images/logo.svg": "image/svg+xml",
+    "images/landscape_logo_with_name.svg": "image/svg+xml",
+    "images/portrait_logo_with_name.svg": "image/svg+xml",
+}
+
+
+@require_GET
+def static_asset(request, asset):
+    content_type = STATIC_ASSETS.get(asset)
+    if content_type is None:
+        raise Http404
+    response = FileResponse((settings.BASE_DIR / "static" / asset).open("rb"),
+                            content_type=content_type)
+    response["Cache-Control"] = "public, max-age=3600"
+    return response
 
 
 class _NoRedirect(HTTPRedirectHandler):

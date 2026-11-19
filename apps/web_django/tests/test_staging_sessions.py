@@ -50,6 +50,13 @@ class StagingSessions(TestCase):
         self.assertNotIn(self.refresh.encode(), bytes(row.ciphertext))
         self.assertNotIn(self.access.encode(), bytes(row.ciphertext))
 
+    def test_static_assets_are_served_from_the_web_image(self):
+        response = self.client.get("/static/css/site.css")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/css; charset=utf-8")
+        self.assertTrue(b"body" in b"".join(response.streaming_content))
+        self.assertEqual(self.client.get("/static/unknown.txt").status_code, 404)
+
     def test_authenticated_request_checks_identity_and_revocation(self):
         self.login()
         account = {"id": str(uuid.uuid4()), "email": "viewer@example.test", "display_name": "Viewer", "roles": ["viewer"]}
