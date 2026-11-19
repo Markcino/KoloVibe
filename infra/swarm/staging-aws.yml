@@ -8,7 +8,7 @@ version: "3.8"
 #
 # The eight API services already run on AWS and are moved to the R1 configuration with
 # `kolovibe_cluster.py update --profile aws-staging --enable-r1-capabilities` (see README), not by this file.
-# This file adds the seven processes that do not exist yet. Six are the same shared image digest as the
+# This file declares seven roles. The six absent non-media processes use the shared image digest as the
 # APIs, selected by `--role` (the media worker alone uses the separate media-worker image: only it carries FFmpeg,
 # on the Alpine 3.24 base; both digests come from the same `published-image-<sha>` CI artifact); each mounts
 # exactly the secrets of the API service it belongs to (the staging
