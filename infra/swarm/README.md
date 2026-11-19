@@ -378,6 +378,11 @@ combination (a wider or different capability set, onboarding without the rest of
 stops every plan, naming only the variable. The Oracle profile has no media stage. See the
 [19 November record](../../docs/operations/R1_Media_Stage_Flag_State_2026-11-19.md).
 
+**Earlier releases on the Gateway.** The Gateway guard accepts the 1 November baseline, the exact target, or an earlier
+release listed by digest in the profile's `reviewed_releases` (the AWS profile lists v0.187.2, which was deployed outside
+this tool). Any other image, including an unlisted digest of this repository, stops every plan. See the
+[Gateway prior-release record](../../docs/operations/R1_Gateway_Prior_Release_Guard_2026-11-19.md).
+
 Secret names are matched exactly and only for the service listed; a listed name on another
 service, a rotated version of it, or any other foreign secret still stops the plan.
 
