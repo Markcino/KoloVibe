@@ -397,6 +397,18 @@ jobs:
           if grep -E '^(cjson|alsa-lib|glib|libssh|libzmq|libpulse|libsrt|dbus-libs)-' <<<"$installed"; then
             echo "::error::The media image carries a library FFmpeg does not need"; exit 1
           fi
+      - name: Verify the FFmpeg scanner exceptions still hold for the built binary
+        run: |
+          set -euo pipefail
+          # .grype.yaml ignores findings whose vulnerable component is not built into FFmpeg. Ask the binary itself, so an
+          # exception can never outlive the premise it was approved on (scripts/test_ffmpeg_scan_exceptions.py).
+          run() { docker run --rm --entrypoint "$1" "kolovibe/media-worker:ci" "${@:2}" 2>&1; }
+          run ffmpeg -hide_banner -version > ffmpeg-version.txt
+          for listing in decoders encoders hwaccels bsfs; do
+            run ffmpeg -hide_banner "-$listing" > "ffmpeg-$listing.txt"
+          done
+          python3 scripts/check_ffmpeg_scan_exceptions.py infra/docker/ffmpeg/scan-exceptions.json \
+            ffmpeg-version.txt ffmpeg-decoders.txt ffmpeg-encoders.txt ffmpeg-hwaccels.txt ffmpeg-bsfs.txt
       - name: End-to-end media pipeline test inside the image
         run: |
           set -euo pipefail
