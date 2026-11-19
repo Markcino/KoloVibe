@@ -9,7 +9,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from validate_staging_stack import (AWS_ROLES, AWS_STACK, check_release_evidence, load_stack,  # noqa: E402
+from validate_staging_stack import (AWS_ROLES, AWS_STACK, AWS_WORKER_CALLERS, check_release_evidence, load_stack,  # noqa: E402
                                      memory_bytes, validate, validate_aws)
 
 INPUTS = {
@@ -32,6 +32,9 @@ class AwsStackTests(unittest.TestCase):
         budget = validate_aws(stack())
         self.assertEqual(set(budget), set(AWS_ROLES))
         self.assertEqual(sum(budget.values()), memory_bytes("1536M"))
+        for name, (service, _) in AWS_ROLES.items():
+            mounted = {ref['target']: ref['source'] for ref in stack()['services'][name]['secrets']}
+            self.assertEqual(mounted['caller_keys'], AWS_WORKER_CALLERS[service])
 
     def test_the_oracle_stack_validator_still_refuses_aws(self):
         with self.assertRaisesRegex(ValueError, "oracle-staging candidate"):
@@ -150,6 +153,7 @@ class AwsStackRejectionTests(unittest.TestCase):
             definition["secrets"].setdefault(source, {"external": True})
 
         self.rejected("another service's key", lambda d: swap(d, "points-audit", "django_key", "content_django"))
+        self.rejected("old caller key", lambda d: swap(d, "engagement-consumer", "caller_keys", "engagement_callers"))
         self.rejected("another service's r1 secret", lambda d: swap(d, "points-consumer", "rabbitmq_url",
                                                                  "kolovibe_content_rabbitmq_url_r1_v1"))
         self.rejected("renamed r2 secret", lambda d: swap(d, "media-worker", "r2_access_key", "r2_key"))
