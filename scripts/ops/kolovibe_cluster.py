@@ -195,7 +195,8 @@ def r1_rollout_table():
     broker = {'rabbitmq_url': 'KOLOVIBE_RABBITMQ_URL_FILE', 'rabbitmq_ca': 'KOLOVIBE_RABBITMQ_CA_FILE'}
     table = {service: {'mounts': {}, 'env': {}, 'operator_env': (), 'networks': ()} for service in SERVICES}
     table['content'] = {
-        'mounts': {'r2_access_key': own('content', 'r2_access_key'), 'r2_secret_key': own('content', 'r2_secret_key'),
+        'mounts': {'r2_access_key': 'kolovibe_content_r2_access_key_r1_v2',  # pragma: allowlist secret
+                   'r2_secret_key': 'kolovibe_content_r2_secret_key_r1_v2',  # pragma: allowlist secret
                    'rabbitmq_url': own('content', 'rabbitmq_url'), 'rabbitmq_ca': 'kolovibe_rmq_ca'},
         'env': {'KOLOVIBE_R2_ACCESS_KEY_FILE': '/run/secrets/r2_access_key',
                 'KOLOVIBE_R2_SECRET_KEY_FILE': '/run/secrets/r2_secret_key',
