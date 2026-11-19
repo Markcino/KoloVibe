@@ -283,7 +283,10 @@ AWS_STAGING = Profile(
     # 17 November 2026 outside this tool (the Gateway carries no `kolovibe.source-revision` label) and read back on
     # 19 November. Without it no second release could ever be planned, because the Gateway check accepts only the
     # 1 November baseline or the exact new target. Each future release is added here by a reviewed change.
-    reviewed_releases=(REPOSITORY + '@sha256:0b3bba46d1de2c988fe06099944a9a1a9be37df128c407ec51430f95fe576f69',),
+    reviewed_releases=(
+        REPOSITORY + '@sha256:0b3bba46d1de2c988fe06099944a9a1a9be37df128c407ec51430f95fe576f69',
+        REPOSITORY + '@sha256:c681a909334f6196c1144dfe6569876b4df0920c1d7acab46a3ad0ad348f9a4b',
+    ),
     opa_waiver=OPA_WAIVER, r1_flags=r1_flag_table(), r1_rollout=r1_rollout_table(),
     # Read-only service inspection of 14 November 2026: every AWS service mounts the database CA from the
     # Swarm secret `kolovibe_pg_ca_v1` at target `db_ca`; no secret is named `db_ca` there.  # pragma: allowlist secret
