@@ -27,5 +27,5 @@ ENV DJANGO_SETTINGS_MODULE=web.settings
 ENV HOME=/tmp
 EXPOSE 8001
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-    CMD python -c 'import urllib.request; r=urllib.request.Request("http://127.0.0.1:8001/health/live", headers={"Host":"kolovibe.cabetechs.shop","X-Forwarded-Proto":"https"}); assert urllib.request.urlopen(r, timeout=3).status == 200'
-ENTRYPOINT ["gunicorn", "--bind=0.0.0.0:8001", "--workers=1", "--threads=2", "--timeout=30", "--access-logfile=-", "--error-logfile=-", "web.wsgi:application"]
+    CMD python -c 'import ssl,urllib.request; c=ssl.create_default_context(cafile="/run/secrets/web_tls_cert"); r=urllib.request.Request("https://127.0.0.1:8001/health/live", headers={"Host":"kolovibe.cabetechs.shop","X-Forwarded-Proto":"https"}); assert urllib.request.urlopen(r, context=c, timeout=3).status == 200'
+ENTRYPOINT ["gunicorn", "--bind=0.0.0.0:8001", "--workers=1", "--threads=2", "--timeout=30", "--certfile=/run/secrets/web_tls_cert", "--keyfile=/run/secrets/web_tls_key", "--access-logfile=-", "--error-logfile=-", "web.wsgi:application"]

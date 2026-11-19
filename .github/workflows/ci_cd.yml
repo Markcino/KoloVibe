@@ -521,7 +521,7 @@ jobs:
             echo '::error::Web image carries sqlite3'; exit 1
           fi
           secrets_dir="$(mktemp -d "$RUNNER_TEMP/kolovibe-web.XXXXXXXX")"
-          trap 'sudo rm -rf "$secrets_dir"' EXIT
+          trap 'docker rm -f kolovibe-web-tls-ci >/dev/null 2>&1 || true; sudo rm -rf "$secrets_dir"' EXIT
           python3 - "$secrets_dir" <<'PY'
           import base64, os, pathlib, secrets, sys
           root = pathlib.Path(sys.argv[1])
@@ -529,6 +529,13 @@ jobs:
           (root / 'web_token_key').write_bytes(base64.urlsafe_b64encode(os.urandom(32)))
           (root / 'web_db_password').write_text(secrets.token_urlsafe(48))
           PY
+          openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes \
+            -days 1 -subj '/CN=web' \
+            -addext 'subjectAltName=DNS:web,IP:127.0.0.1' \
+            -addext 'basicConstraints=critical,CA:FALSE' \
+            -addext 'keyUsage=critical,digitalSignature' \
+            -addext 'extendedKeyUsage=serverAuth' \
+            -keyout "$secrets_dir/web_tls_key" -out "$secrets_dir/web_tls_cert" >/dev/null 2>&1
           chmod 0400 "$secrets_dir"/*
           sudo chown 10001:10001 "$secrets_dir"/*
           docker run --rm \
@@ -543,6 +550,36 @@ jobs:
             -e KOLOVIBE_WEB_GATEWAY_CA_FILE=/run/secrets/web_gateway_ca \
             -e KOLOVIBE_GATEWAY_URL=https://gateway:8000 \
             --entrypoint python kolovibe/web:ci manage.py check --deploy
+          docker run --rm -d --name kolovibe-web-tls-ci \
+            --read-only --tmpfs /tmp --cap-drop ALL \
+            -p 127.0.0.1:18001:8001 \
+            --mount "type=bind,source=$secrets_dir/web_django_key,target=/run/secrets/web_django_key,readonly" \
+            --mount "type=bind,source=$secrets_dir/web_token_key,target=/run/secrets/web_token_key,readonly" \
+            --mount "type=bind,source=$secrets_dir/web_db_password,target=/run/secrets/web_db_password,readonly" \
+            --mount "type=bind,source=$secrets_dir/web_tls_cert,target=/run/secrets/web_tls_cert,readonly" \
+            --mount "type=bind,source=$secrets_dir/web_tls_key,target=/run/secrets/web_tls_key,readonly" \
+            -e KOLOVIBE_ENV=staging \
+            -e KOLOVIBE_WEB_SECRET_KEY_FILE=/run/secrets/web_django_key \
+            -e KOLOVIBE_WEB_TOKEN_KEY_FILE=/run/secrets/web_token_key \
+            -e KOLOVIBE_WEB_DB_PASSWORD_FILE=/run/secrets/web_db_password \
+            -e KOLOVIBE_WEB_DB_CA_FILE=/run/secrets/web_db_ca \
+            -e KOLOVIBE_WEB_GATEWAY_CA_FILE=/run/secrets/web_gateway_ca \
+            -e KOLOVIBE_GATEWAY_URL=https://gateway:8000 \
+            kolovibe/web:ci
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -q -fsS --max-time 3 --cacert "$secrets_dir/web_tls_cert" \
+              -H 'Host: kolovibe.cabetechs.shop' -H 'X-Forwarded-Proto: https' \
+              https://127.0.0.1:18001/health/live | grep -q '"status": "ok"'; then
+              break
+            fi
+            sleep 1
+          done
+          curl -q -fsS --max-time 3 --cacert "$secrets_dir/web_tls_cert" \
+            -H 'Host: kolovibe.cabetechs.shop' -H 'X-Forwarded-Proto: https' \
+            https://127.0.0.1:18001/static/css/site.css | grep -q 'body'
+          docker rm -f kolovibe-web-tls-ci
+          KOLOVIBE_WEB_IMAGE=ghcr.io/example/kolovibe-web@sha256:$(printf '0%.0s' {1..64}) \
+            docker stack config -c infra/swarm/web-aws.yml >/dev/null
       - name: Scan web image vulnerabilities
         uses: anchore/scan-action@1638637db639e0ade3258b51db49a9a137574c3e # v6
         with:
