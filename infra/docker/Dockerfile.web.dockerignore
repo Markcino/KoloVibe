@@ -1,0 +1,15 @@
+.git
+.github
+docs
+infra
+services
+scripts
+apps/*
+!apps/web_django
+!apps/web_django/**
+**/__pycache__
+**/*.pyc
+**/*.sqlite3
+**/.env
+**/.env.*
+.venv

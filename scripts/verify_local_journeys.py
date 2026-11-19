@@ -304,6 +304,10 @@ def verify():
         result = unittest.TextTestRunner(verbosity=2).run(
             unittest.defaultTestLoader.loadTestsFromTestCase(Journeys))
         if not result.wasSuccessful():
+            # Disposable fixture credentials are synthetic; print only the web
+            # traceback tail to locate an unexpected 500, not full request logs.
+            tail = (base / "web.log").read_text().splitlines()[-35:]
+            print("\n".join(tail), file=sys.stderr)
             raise SystemExit(1)
 
 
