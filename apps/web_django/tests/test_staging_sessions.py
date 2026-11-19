@@ -27,6 +27,7 @@ class StagingSessions(TestCase):
     def login(self):
         with patch("web.views._api", return_value=(200, {
             "access_token": self.access, "refresh_token": self.refresh,
+            "user": {"roles": ["viewer"]},
         })):
             return self.client.post(reverse("login"), {
                 "email": "viewer@example.test", "password": secrets.token_urlsafe(30),
@@ -51,7 +52,7 @@ class StagingSessions(TestCase):
 
     def test_authenticated_request_checks_identity_and_revocation(self):
         self.login()
-        account = {"id": str(uuid.uuid4()), "email": "viewer@example.test", "display_name": "Viewer"}
+        account = {"id": str(uuid.uuid4()), "email": "viewer@example.test", "display_name": "Viewer", "roles": ["viewer"]}
         with patch("web.views._api", return_value=(200, account)) as api:
             self.assertContains(self.client.get(reverse("account")), "Viewer")
         self.assertEqual(api.call_args.args, ("/me",))
@@ -65,7 +66,7 @@ class StagingSessions(TestCase):
         self.login()
         rotated = {"access_token": secrets.token_urlsafe(36),
                    "refresh_token": str(self.sid) + "." + secrets.token_urlsafe(48)}
-        account = {"id": str(uuid.uuid4()), "email": "viewer@example.test", "display_name": "Viewer"}
+        account = {"id": str(uuid.uuid4()), "email": "viewer@example.test", "display_name": "Viewer", "roles": ["viewer"]}
         with patch("web.views._api", side_effect=[(401, {}), (200, rotated), (200, account)]) as api:
             self.assertEqual(self.client.get(reverse("account")).status_code, 200)
         self.assertEqual(api.call_count, 3)
@@ -97,5 +98,26 @@ class StagingSessions(TestCase):
         self.assertEqual(response.status_code, 503)
         self.assertContains(response, "could not be confirmed", status_code=503)
         self.assertEqual(api.call_args.kwargs["data"], {"refresh_token": self.refresh})
+        self.assertFalse(WebCredential.objects.exists())
+        self.assertEqual(response.cookies["__Host-kolovibe_session"]["max-age"], 0)
+
+    def test_privileged_login_and_role_elevation_do_not_keep_web_session(self):
+        for role in ("moderator", "administrator"):
+            with self.subTest(role=role), patch("web.views._api", return_value=(200, {
+                "access_token": self.access, "refresh_token": self.refresh,
+                "user": {"roles": [role]},
+            })):
+                response = self.client.post(reverse("login"), {
+                    "email": "privileged@example.test", "password": secrets.token_urlsafe(30),
+                })
+            self.assertEqual(response.status_code, 403)
+            self.assertFalse(WebCredential.objects.exists())
+            self.assertNotIn("__Host-kolovibe_session", response.cookies)
+
+        self.login()
+        account = {"id": str(uuid.uuid4()), "roles": ["moderator"]}
+        with patch("web.views._api", return_value=(200, account)):
+            response = self.client.get(reverse("account"))
+        self.assertEqual(response.status_code, 302)
         self.assertFalse(WebCredential.objects.exists())
         self.assertEqual(response.cookies["__Host-kolovibe_session"]["max-age"], 0)

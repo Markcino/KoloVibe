@@ -218,6 +218,10 @@ def login(request):
     status, payload = _api("/auth/login", method="POST", data={
         "email": request.POST.get("email", ""), "password": request.POST.get("password", "")})
     if status == 200:
+        if settings.ENVIRONMENT == "staging" and not staging_session.ordinary_account(payload.get("user")):
+            return render(request, "status.html", {
+                "title": "Web sign in for this role is unavailable.",
+            }, status=403)
         response = redirect("account")
         if _set_credentials(response, payload, request):
             return response

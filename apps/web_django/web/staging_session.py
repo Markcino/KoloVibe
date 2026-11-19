@@ -15,6 +15,11 @@ IDLE = timedelta(minutes=30)
 ABSOLUTE = timedelta(hours=8)
 
 
+def ordinary_account(account):
+    return (isinstance(account, dict)
+            and account.get("roles") in (["viewer"], ["creator"]))
+
+
 def _cipher():
     return Fernet(settings.WEB_TOKEN_KEY)
 
@@ -36,6 +41,8 @@ def _unpack(row):
 
 
 def start(request, payload):
+    if not ordinary_account(payload.get("user")):
+        return False
     access, refresh = payload.get("access_token"), payload.get("refresh_token")
     if not isinstance(access, str) or not access or not isinstance(refresh, str) or not refresh:
         return False
@@ -102,6 +109,9 @@ def authenticated(request, api):
             if status == 401:
                 row.delete()
             return status, {}, None
+        if not ordinary_account(account):
+            row.delete()
+            return 401, {}, None
         if now - row.last_activity_at >= timedelta(seconds=60):
             row.last_activity_at = now
             row.save(update_fields=["last_activity_at"])
