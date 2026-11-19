@@ -48,6 +48,9 @@ def serve(service, port):
     os.environ["DJANGO_SETTINGS_MODULE"] = "web.settings" if service == "web" else "service.settings"
     import django
     django.setup()
+    if service == "web":
+        from django.conf import settings
+        settings.DEBUG_PROPAGATE_EXCEPTIONS = True
     if service == "identity":
         from django.conf import settings
         settings.EMAIL_BACKEND = "verify_local_journeys.CapturedMail"
