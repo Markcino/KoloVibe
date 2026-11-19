@@ -15,6 +15,7 @@ from test_cluster_image_update import EVIDENCE, NEW_IMAGE  # noqa: E402
 from test_cluster_operations import TARGET_REVISION, cluster  # noqa: E402
 
 V0_187_2 = cluster.REPOSITORY + '@sha256:0b3bba46d1de2c988fe06099944a9a1a9be37df128c407ec51430f95fe576f69'
+V0_200_1 = cluster.REPOSITORY + '@sha256:c681a909334f6196c1144dfe6569876b4df0920c1d7acab46a3ad0ad348f9a4b'
 UNLISTED = cluster.REPOSITORY + '@sha256:' + 'b' * 64
 OTHER_REPOSITORY = 'ghcr.io/someone-else/services@sha256:' + 'c' * 64
 ORDER = ['audit', 'identity', 'creators', 'content', 'engagement', 'points', 'moderation', 'gateway']
@@ -32,8 +33,8 @@ def plan(swarm, services=ORDER):
 
 
 class ReviewedReleaseTableTests(unittest.TestCase):
-    def test_the_aws_profile_lists_exactly_the_deployed_v0_187_2_digest(self):
-        self.assertEqual(AWS.reviewed_releases, (V0_187_2,))
+    def test_the_aws_profile_lists_the_deployed_earlier_digests(self):
+        self.assertEqual(AWS.reviewed_releases, (V0_187_2, V0_200_1))
         self.assertNotEqual(V0_187_2, cluster.BASELINE_IMAGE)
         cluster.check_flag_table(AWS)
 
@@ -65,15 +66,17 @@ class GatewayGuardTests(unittest.TestCase):
         self.assertEqual(next(e for e in plan(swarm)['entries'] if e['service'] == 'gateway')['action'], 'unchanged')
 
     def test_the_whole_fleet_on_the_listed_earlier_release_can_be_planned_forward(self):
-        report = plan(on_image(AwsSwarm(), V0_187_2))
-        self.assertEqual([e['service'] for e in report['entries']], ORDER)
-        for entry in report['entries']:
-            with self.subTest(entry['service']):
-                self.assertEqual(entry['current_image'], V0_187_2)
-                self.assertEqual(entry['target_image'], NEW_IMAGE)
-                self.assertEqual(entry['action'], 'update')
-                self.assertIsNone(entry['r1_changes'])      # an image move changes nothing else
-                self.assertFalse(entry['secret_changes'])
+        for earlier in (V0_187_2, V0_200_1):
+            with self.subTest(earlier=earlier):
+                report = plan(on_image(AwsSwarm(), earlier))
+                self.assertEqual([e['service'] for e in report['entries']], ORDER)
+                for entry in report['entries']:
+                    with self.subTest(entry['service']):
+                        self.assertEqual(entry['current_image'], earlier)
+                        self.assertEqual(entry['target_image'], NEW_IMAGE)
+                        self.assertEqual(entry['action'], 'update')
+                        self.assertIsNone(entry['r1_changes'])      # an image move changes nothing else
+                        self.assertFalse(entry['secret_changes'])
 
     def test_an_unlisted_digest_of_this_repository_still_stops_every_plan(self):
         for services in (['audit'], ORDER):
