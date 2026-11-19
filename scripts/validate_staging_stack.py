@@ -133,6 +133,12 @@ AWS_ROLES = {
     "points-audit": ("points", "deliver-audit"), "moderation-audit": ("moderation", "deliver-audit"),
     "identity-audit": ("identity", "deliver-security-audit"),
 }
+# Read back from the live AWS APIs after the R1 secret rotations (19 November 2026).
+# Workers share their API service's caller-key receiver configuration, not its older baseline secret.
+AWS_WORKER_CALLERS = {
+    service: service + '_callers_2'
+    for service in ('content', 'engagement', 'points', 'moderation', 'identity')
+}
 AWS_NETWORKS = {"private": "kolovibe_services", "data_private": "kolovibe_data", "broker_private": "kolovibe_messaging",
                 "r2_proxy_clients": "kolovibe_r2_proxy_clients"}
 MAX_PROCESS_MEMORY = 1024 ** 3
@@ -249,6 +255,7 @@ def validate_aws(stack):
             expected = dict(cluster.convention_secrets(service))
         finally:
             cluster.PROFILE = previous
+        expected['caller_keys'] = AWS_WORKER_CALLERS[service]
         if service == "identity":
             expected.update(smtp_user="kolovibe_identity_smtp_user_20261110_v1",
                             smtp_password="kolovibe_identity_smtp_password_20261110_v1",  # pragma: allowlist secret
