@@ -331,6 +331,13 @@ declared in [`staging-aws.yml`](staging-aws.yml): the AWS-specific, hostname-pin
 by `python scripts/validate_staging_stack.py --aws-stack` and by `scripts/test_aws_stack.py`. It is not the Oracle stack and
 shares none of its label placement.
 
+The live `kolovibe-media-worker` already runs at 1/1 (v0.200.1 media digest, 19 November read-back). The AWS
+worker/job candidate must use a **separate stack name**, `kolovibe-r1-jobs`, so its zero-replica
+`media-worker` placeholder cannot replace the running worker or lower its 768 MiB limit to the
+candidate's 512 MiB limit. Scale only the six non-media processes after the R1 API rollout and
+capacity checks. The Content R1 mount table and the worker placeholder use the two live v2 R2
+secret names; neither step remounts the earlier v1 pair.
+
 Worker labels, read-only observation of 14 November 2026 (second read): the AWS worker **does** carry the Swarm labels
 `kolovibe.workloads=true` and `kolovibe.rabbitmq=true` and the manager none. The AWS profile never uses them; services stay
 placed by the exact hostname pin.
