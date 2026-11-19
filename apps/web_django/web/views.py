@@ -1,9 +1,10 @@
 """Server-rendered R1 web client. All records come from the public gateway."""
 
 import json
+import ssl
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
-from urllib.request import HTTPRedirectHandler, Request, build_opener
+from urllib.request import HTTPRedirectHandler, HTTPSHandler, ProxyHandler, Request, build_opener
 
 from django.conf import settings
 from django.http import HttpResponseNotAllowed
@@ -11,6 +12,7 @@ from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
 from .api_contracts import valid_creator, valid_id, valid_page, valid_video, valid_points_balance, valid_points_page
+from . import staging_session
 
 ACCESS_COOKIE = "kv_access"
 REFRESH_COOKIE = "kv_refresh"
@@ -23,6 +25,8 @@ class _NoRedirect(HTTPRedirectHandler):
 
 def _api(path, *, method="GET", data=None, token=None):
     headers = {"Accept": "application/json"}
+    if settings.GATEWAY_HOST:
+        headers["Host"] = settings.GATEWAY_HOST
     body = None
     if data is not None:
         body = json.dumps(data, separators=(",", ":")).encode()
@@ -32,7 +36,12 @@ def _api(path, *, method="GET", data=None, token=None):
     request = Request(settings.GATEWAY_URL.rstrip("/") + "/api/v1" + path,
                       data=body, headers=headers, method=method)
     try:
-        with build_opener(_NoRedirect()).open(request, timeout=5) as response:
+        context = (ssl.create_default_context(cafile=settings.GATEWAY_CA)
+                   if settings.ENVIRONMENT == "staging" else None)
+        handlers = [ProxyHandler({}), _NoRedirect()]
+        if context is not None:
+            handlers.append(HTTPSHandler(context=context))
+        with build_opener(*handlers).open(request, timeout=5) as response:
             status, raw = response.status, response.read(65537)
     except HTTPError as error:
         status, raw = error.code, error.read(65537)
@@ -49,23 +58,31 @@ def _api(path, *, method="GET", data=None, token=None):
     return status, payload
 
 
-def _set_credentials(response, payload):
+def _set_credentials(response, payload, request=None):
+    if settings.ENVIRONMENT == "staging":
+        return staging_session.start(request, payload)
     access = payload.get("access_token")
     refresh = payload.get("refresh_token")
     if not isinstance(access, str) or not access or not isinstance(refresh, str) or not refresh:
         return False
-    common = {"httponly": True, "samesite": "Strict", "secure": False}
+    common = {"httponly": True, "samesite": "Strict", "secure": settings.CSRF_COOKIE_SECURE}
     response.set_cookie(ACCESS_COOKIE, access, max_age=300, **common)
     response.set_cookie(REFRESH_COOKIE, refresh, max_age=30 * 24 * 3600, **common)
     return True
 
 
-def _clear_credentials(response):
+def _clear_credentials(response, request=None):
+    if settings.ENVIRONMENT == "staging":
+        staging_session.clear(request)
+        return
     response.delete_cookie(ACCESS_COOKIE, samesite="Strict")
     response.delete_cookie(REFRESH_COOKIE, samesite="Strict")
 
 
 def _own_account(request):
+    if settings.ENVIRONMENT == "staging":
+        status, account, _ = staging_session.authenticated(request, _api)
+        return status, account, None
     access = request.COOKIES.get(ACCESS_COOKIE)
     if access:
         status, payload = _api("/me", token=access)
@@ -186,7 +203,7 @@ def password_reset(request):
     })
     if status == 204:
         response = redirect("login")
-        _clear_credentials(response)
+        _clear_credentials(response, request)
         return response
     return render(request, "form.html", {"title": "Enter your reset code", "kind": "reset",
                                           "error": payload.get("detail", "Password reset unavailable")},
@@ -201,8 +218,12 @@ def login(request):
     status, payload = _api("/auth/login", method="POST", data={
         "email": request.POST.get("email", ""), "password": request.POST.get("password", "")})
     if status == 200:
+        if settings.ENVIRONMENT == "staging" and not staging_session.ordinary_account(payload.get("user")):
+            return render(request, "status.html", {
+                "title": "Web sign in for this role is unavailable.",
+            }, status=403)
         response = redirect("account")
-        if _set_credentials(response, payload):
+        if _set_credentials(response, payload, request):
             return response
         status, payload = 503, {"detail": "Sign in unavailable"}
     return render(request, "form.html", {"title": "Sign in", "kind": "login",
@@ -217,17 +238,26 @@ def account(request):
         response = redirect("login") if status == 401 else render(request, "status.html",
                         {"title": "Account unavailable"}, status=503)
         if status == 401:
-            _clear_credentials(response)
+            _clear_credentials(response, request)
         elif rotated:
-            _set_credentials(response, rotated)
+            _set_credentials(response, rotated, request)
         return response
     response = render(request, "account.html", {"account": payload})
     if rotated:
-        _set_credentials(response, rotated)
+        _set_credentials(response, rotated, request)
     return response
 
 
 def _account_access(request):
+    if settings.ENVIRONMENT == "staging":
+        status, account_data, token = staging_session.authenticated(request, _api)
+        if status == 200:
+            return account_data, token, None, None
+        response = (redirect("login") if status == 401 else render(
+            request, "status.html", {"title": "Account unavailable"}, status=503))
+        if status == 401:
+            _clear_credentials(response, request)
+        return None, None, None, response
     status, account_data, rotated = _own_account(request)
     if status == 200:
         token = rotated["access_token"] if rotated else request.COOKIES.get(ACCESS_COOKIE)
@@ -235,9 +265,9 @@ def _account_access(request):
     response = redirect("login") if status == 401 else render(
         request, "status.html", {"title": "Account unavailable"}, status=503)
     if status == 401:
-        _clear_credentials(response)
+        _clear_credentials(response, request)
     elif rotated:
-        _set_credentials(response, rotated)
+        _set_credentials(response, rotated, request)
     return None, None, None, response
 
 
@@ -262,7 +292,7 @@ def profile_edit(request):
                 "error": payload.get("detail", "Profile update unavailable"),
             }, status=400 if status == 400 else 503)
     if rotated:
-        _set_credentials(response, rotated)
+        _set_credentials(response, rotated, request)
     return response
 
 
@@ -281,14 +311,14 @@ def password_change(request):
         })
         if status == 204:
             response = redirect("login")
-            _clear_credentials(response)
+            _clear_credentials(response, request)
             return response
         response = render(request, "form.html", {
             "title": "Change password", "kind": "change_password",
             "error": payload.get("detail", "Password change unavailable"),
         }, status=400 if status == 400 else 401 if status == 401 else 503)
     if rotated:
-        _set_credentials(response, rotated)
+        _set_credentials(response, rotated, request)
     return response
 
 
@@ -310,7 +340,7 @@ def sessions(request):
     else:
         response = render(request, "status.html", {"title": "Sessions unavailable"}, status=503)
     if rotated:
-        _set_credentials(response, rotated)
+        _set_credentials(response, rotated, request)
     return response
 
 
@@ -327,7 +357,7 @@ def revoke_session(request, session_id):
             "title": payload.get("detail", "Session could not be ended"),
         }, status=409 if status == 409 else 404 if status == 404 else 503)
     if rotated:
-        _set_credentials(response, rotated)
+        _set_credentials(response, rotated, request)
     return response
 
 
@@ -352,7 +382,7 @@ def preferences(request):
     else:
         response = render(request, "status.html", {"title": "Preferences unavailable"}, status=503)
     if rotated:
-        _set_credentials(response, rotated)
+        _set_credentials(response, rotated, request)
     return response
 
 
@@ -399,13 +429,14 @@ def privacy_requests(request):
         response = (render(request, "privacy_requests.html", {"items": items}) if status == 200
                     else render(request, "status.html", {"title": "Privacy requests unavailable"}, status=503))
     if rotated:
-        _set_credentials(response, rotated)
+        _set_credentials(response, rotated, request)
     return response
 
 
 @require_POST
 def logout(request):
-    refresh = request.COOKIES.get(REFRESH_COOKIE)
+    refresh = (staging_session.refresh_for_logout(request) if settings.ENVIRONMENT == "staging"
+               else request.COOKIES.get(REFRESH_COOKIE))
     confirmed = True
     if refresh:
         status, _ = _api("/auth/logout", method="POST", data={"refresh_token": refresh})
@@ -413,7 +444,7 @@ def logout(request):
     response = redirect("feed") if confirmed else render(request, "status.html", {
         "title": "Signed out on this browser. Server session revocation could not be confirmed.",
     }, status=503)
-    _clear_credentials(response)
+    _clear_credentials(response, request)
     return response
 
 
@@ -433,11 +464,13 @@ def points(request):
         response = redirect("login") if status == 401 else render(
             request, "status.html", {"title": "Account unavailable"}, status=503)
         if status == 401:
-            _clear_credentials(response)
+            _clear_credentials(response, request)
         elif rotated:
-            _set_credentials(response, rotated)
+            _set_credentials(response, rotated, request)
         return response
-    token = rotated["access_token"] if rotated else request.COOKIES.get(ACCESS_COOKIE)
+    token = (staging_session.authenticated(request, _api)[2]
+             if settings.ENVIRONMENT == "staging" else
+             rotated["access_token"] if rotated else request.COOKIES.get(ACCESS_COOKIE))
     balance_status, balance = _api("/creators/me/points", token=token)
     query = "?" + urlencode({"cursor": cursor}) if cursor else ""
     page_status, page = _api("/creators/me/points/entries" + query, token=token)
@@ -457,5 +490,5 @@ def points(request):
             "title": "Approved creator access is required." if forbidden else "Lone Stars unavailable."
         }, status=403 if forbidden else 503)
     if rotated:
-        _set_credentials(response, rotated)
+        _set_credentials(response, rotated, request)
     return response

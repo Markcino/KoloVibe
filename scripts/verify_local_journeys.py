@@ -48,6 +48,9 @@ def serve(service, port):
     os.environ["DJANGO_SETTINGS_MODULE"] = "web.settings" if service == "web" else "service.settings"
     import django
     django.setup()
+    if service == "web":
+        from django.conf import settings
+        settings.DEBUG_PROPAGATE_EXCEPTIONS = True
     if service == "identity":
         from django.conf import settings
         settings.EMAIL_BACKEND = "verify_local_journeys.CapturedMail"
@@ -304,6 +307,10 @@ def verify():
         result = unittest.TextTestRunner(verbosity=2).run(
             unittest.defaultTestLoader.loadTestsFromTestCase(Journeys))
         if not result.wasSuccessful():
+            # Disposable fixture credentials are synthetic; print only the web
+            # traceback tail to locate an unexpected 500, not full request logs.
+            tail = (base / "web.log").read_text().splitlines()[-35:]
+            print("\n".join(tail), file=sys.stderr)
             raise SystemExit(1)
 
 

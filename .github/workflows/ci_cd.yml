@@ -91,7 +91,7 @@ jobs:
             (cd "services/$service" && python manage.py makemigrations --check --dry-run && python manage.py test tests --verbosity 1)
           done
           export KOLOVIBE_GATEWAY_URL=http://127.0.0.1:8000
-          (cd apps/web_django && python manage.py check && python manage.py test tests --verbosity 1)
+          (cd apps/web_django && python manage.py check && python manage.py makemigrations --check --dry-run && python manage.py test tests --verbosity 1)
       - name: Validate OpenAPI
         run: |
           python - <<'PY'
@@ -491,6 +491,89 @@ jobs:
           compression-level: 0
           retention-days: 1
           if-no-files-found: error
+  web-image-build:
+    name: Build and scan staging web image
+    if: >-
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && inputs.operation == 'ci')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Build restricted web image
+        run: |
+          docker build --pull --file infra/docker/Dockerfile.web \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+            --tag kolovibe/web:ci .
+      - name: Verify image and staging guard
+        run: |
+          set -euo pipefail
+          test "$(docker image inspect kolovibe/web:ci --format '{{.Config.User}}')" = '10001:10001'
+          test "$(docker image inspect kolovibe/web:ci --format '{{.Config.WorkingDir}}')" = /app/web
+          test -z "$(docker image inspect kolovibe/web:ci --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -Ei '(SECRET|TOKEN|PASSWORD|PRIVATE_KEY)=' || true)"
+          if docker run --rm -e KOLOVIBE_ENV=production kolovibe/web:ci; then
+            echo '::error::Web image accepted production without an approved profile'; exit 1
+          fi
+          if docker run --rm --entrypoint python kolovibe/web:ci -c 'import sqlite3'; then
+            echo '::error::Web image carries sqlite3'; exit 1
+          fi
+          secrets_dir="$(mktemp -d "$RUNNER_TEMP/kolovibe-web.XXXXXXXX")"
+          trap 'sudo rm -rf "$secrets_dir"' EXIT
+          python3 - "$secrets_dir" <<'PY'
+          import base64, os, pathlib, secrets, sys
+          root = pathlib.Path(sys.argv[1])
+          (root / 'web_django_key').write_text(secrets.token_urlsafe(48))
+          (root / 'web_token_key').write_bytes(base64.urlsafe_b64encode(os.urandom(32)))
+          (root / 'web_db_password').write_text(secrets.token_urlsafe(48))
+          PY
+          chmod 0400 "$secrets_dir"/*
+          sudo chown 10001:10001 "$secrets_dir"/*
+          docker run --rm \
+            --mount "type=bind,source=$secrets_dir/web_django_key,target=/run/secrets/web_django_key,readonly" \
+            --mount "type=bind,source=$secrets_dir/web_token_key,target=/run/secrets/web_token_key,readonly" \
+            --mount "type=bind,source=$secrets_dir/web_db_password,target=/run/secrets/web_db_password,readonly" \
+            -e KOLOVIBE_ENV=staging \
+            -e KOLOVIBE_WEB_SECRET_KEY_FILE=/run/secrets/web_django_key \
+            -e KOLOVIBE_WEB_TOKEN_KEY_FILE=/run/secrets/web_token_key \
+            -e KOLOVIBE_WEB_DB_PASSWORD_FILE=/run/secrets/web_db_password \
+            -e KOLOVIBE_WEB_DB_CA_FILE=/run/secrets/web_db_ca \
+            -e KOLOVIBE_WEB_GATEWAY_CA_FILE=/run/secrets/web_gateway_ca \
+            -e KOLOVIBE_GATEWAY_URL=https://gateway:8000 \
+            --entrypoint python kolovibe/web:ci manage.py check --deploy
+      - name: Scan web image vulnerabilities
+        uses: anchore/scan-action@1638637db639e0ade3258b51db49a9a137574c3e # v6
+        with:
+          image: kolovibe/web:ci
+          fail-build: true
+          severity-cutoff: high
+          output-format: table
+      - name: Generate verified web image SBOM
+        uses: anchore/sbom-action@f8bdd1d8ac5e901a77a92f111440fdb1b593736b # v0.20.6
+        with:
+          image: kolovibe/web:ci
+          format: cyclonedx-json
+          output-file: web-image-sbom.json
+          upload-artifact: false
+          upload-release-assets: false
+      - name: Preserve verified web image
+        run: |
+          set -euo pipefail
+          mkdir -p verified-web-image
+          docker save kolovibe/web:ci --output verified-web-image/image.tar
+          docker image inspect kolovibe/web:ci --format '{{.Id}}' > verified-web-image/image-id.txt
+          printf '%s\n' "$GITHUB_SHA" > verified-web-image/revision.txt
+          cp web-image-sbom.json verified-web-image/web-image-sbom.json
+          (cd verified-web-image && sha256sum image.tar > image.tar.sha256)
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: verified-web-image-${{ github.sha }}
+          path: verified-web-image/
+          compression-level: 0
+          retention-days: 1
+          if-no-files-found: error
   build-and-verify:
     name: Image build and security / ${{ matrix.service }}
     needs: [image-build]
@@ -546,7 +629,7 @@ jobs:
           done
   publish:
     name: Publish verified shared and media worker images
-    needs: [python, security, flutter, osv, image-build, media-image-build, build-and-verify]
+    needs: [python, security, flutter, osv, image-build, media-image-build, web-image-build, build-and-verify]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
@@ -570,6 +653,11 @@ jobs:
         with:
           name: verified-media-image-${{ github.sha }}
           path: verified-media-image
+      - name: Download the verified web image from this run
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: verified-web-image-${{ github.sha }}
+          path: verified-web-image
       - name: Verify and load the exact tested image
         env:
           REVISION: ${{ github.sha }}
@@ -650,6 +738,42 @@ jobs:
             verified-image/published-media-tag.txt
             verified-image/media-image-id.txt
             verified-image/media-image-sbom.json
+          if-no-files-found: error
+      - name: Publish verified web image
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REVISION: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          (cd verified-web-image && sha256sum -c image.tar.sha256)
+          test "$(cat verified-web-image/revision.txt)" = "$REVISION"
+          docker load --input verified-web-image/image.tar
+          test "$(docker image inspect kolovibe/web:ci --format '{{.Id}}')" = "$(cat verified-web-image/image-id.txt)"
+          test "$(docker image inspect kolovibe/web:ci --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "$REVISION"
+          trap 'docker logout ghcr.io >/dev/null' EXIT
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          REPOSITORY="$(printf '%s' "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')"
+          TARGET="ghcr.io/$REPOSITORY/web:v0.$GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT"
+          docker tag kolovibe/web:ci "$TARGET"
+          docker push "$TARGET"
+          DIGEST="$(docker buildx imagetools inspect "$TARGET" --format '{{json .Manifest}}' |
+            python3 -c 'import json,sys; print(json.load(sys.stdin)["digest"])')"
+          printf '%s\n' "$DIGEST" | grep -Eq '^sha256:[0-9a-f]{64}$'
+          DIGEST="ghcr.io/$REPOSITORY/web@$DIGEST"
+          docker pull "$DIGEST"
+          test "$(docker image inspect "$DIGEST" --format '{{.Id}}')" = "$(cat verified-web-image/image-id.txt)"
+          printf '%s\n' "$DIGEST" > verified-web-image/published-digest.txt
+          printf '%s\n' "$TARGET" > verified-web-image/published-tag.txt
+          printf '### Web image\n\nCommit: `%s`\n\nTag: `%s`\n\nImage: `%s`\n' "$REVISION" "$TARGET" "$DIGEST" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: published-web-image-${{ github.sha }}
+          path: |
+            verified-web-image/published-digest.txt
+            verified-web-image/published-tag.txt
+            verified-web-image/revision.txt
+            verified-web-image/image-id.txt
+            verified-web-image/web-image-sbom.json
           if-no-files-found: error
   generate:
     name: Generate dependency locks

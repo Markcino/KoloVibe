@@ -51,14 +51,15 @@ class ImageSecurityContractTests(unittest.TestCase):
         self.assertNotIn("alpine3.23", self.workflow)
 
     def test_image_scan_gate_is_not_weakened(self):
-        for name in ("Scan local image vulnerabilities", "Scan media image vulnerabilities"):
+        for name in ("Scan local image vulnerabilities", "Scan media image vulnerabilities",
+                     "Scan web image vulnerabilities"):
             start = self.workflow.index(name)
             step = self.workflow[start:self.workflow.index("- name:", start + 1)]
             self.assertIn("fail-build: true", step, name)
             self.assertIn("severity-cutoff: high", step, name)
             for weakening in ("only-fixed", "ignore", "grype.yaml", "continue-on-error", "severity-cutoff: critical"):
                 self.assertNotIn(weakening, step, name)
-        self.assertEqual(self.workflow.count("fail-build: true"), 2)
+        self.assertEqual(self.workflow.count("fail-build: true"), 3)
 
     def stages(self):
         parts = re.split(r"(?m)^FROM [^\n]+ AS ([\w-]+)\n", self.dockerfile)
