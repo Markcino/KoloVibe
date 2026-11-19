@@ -1,0 +1,55 @@
+version: "3.8"
+# Restricted web candidate. Only the Swarm worker runs the Django application.
+# Create at zero replicas, then scale after the database, secrets and TLS checks.
+services:
+  web:
+    image: ${KOLOVIBE_WEB_IMAGE:?published web digest required}
+    user: "10001:10001"
+    read_only: true
+    tmpfs: ["/tmp"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    stop_grace_period: 40s
+    networks:
+      private:
+        aliases: [web]
+      data_private: {}
+    environment:
+      KOLOVIBE_ENV: staging
+      KOLOVIBE_GATEWAY_URL: https://gateway:8000
+      KOLOVIBE_WEB_SECRET_KEY_FILE: /run/secrets/web_django_key
+      KOLOVIBE_WEB_TOKEN_KEY_FILE: /run/secrets/web_token_key
+      KOLOVIBE_WEB_DB_PASSWORD_FILE: /run/secrets/web_db_password
+      KOLOVIBE_WEB_DB_CA_FILE: /run/secrets/web_db_ca
+      KOLOVIBE_WEB_GATEWAY_CA_FILE: /run/secrets/web_gateway_ca
+    secrets:
+      - {source: kolovibe_web_django_v1, target: web_django_key, uid: "10001", gid: "10001", mode: 0400}
+      - {source: kolovibe_web_token_v1, target: web_token_key, uid: "10001", gid: "10001", mode: 0400}
+      - {source: kolovibe_web_db_v1, target: web_db_password, uid: "10001", gid: "10001", mode: 0400}
+      - {source: kolovibe_pg_ca_v1, target: web_db_ca, uid: "10001", gid: "10001", mode: 0444}
+      - {source: internal_ca, target: web_gateway_ca, uid: "10001", gid: "10001", mode: 0444}
+      - {source: kolovibe_web_tls_cert_v1, target: web_tls_cert, uid: "10001", gid: "10001", mode: 0444}
+      - {source: kolovibe_web_tls_key_v1, target: web_tls_key, uid: "10001", gid: "10001", mode: 0400}
+    deploy:
+      replicas: 0
+      placement:
+        constraints: ["node.hostname==ip-172-31-16-154"]
+      resources:
+        limits: {cpus: "0.5", memory: 384M}
+        reservations: {memory: 128M}
+      update_config: {parallelism: 1, order: stop-first, failure_action: rollback, monitor: 30s}
+      rollback_config: {parallelism: 1, order: stop-first, monitor: 30s}
+      restart_policy: {condition: on-failure, delay: 30s}
+
+networks:
+  private: {external: true, name: kolovibe_services}
+  data_private: {external: true, name: kolovibe_data}
+
+secrets:
+  kolovibe_web_django_v1: {external: true}
+  kolovibe_web_token_v1: {external: true}
+  kolovibe_web_db_v1: {external: true}
+  kolovibe_pg_ca_v1: {external: true}
+  internal_ca: {external: true}
+  kolovibe_web_tls_cert_v1: {external: true}
+  kolovibe_web_tls_key_v1: {external: true}
