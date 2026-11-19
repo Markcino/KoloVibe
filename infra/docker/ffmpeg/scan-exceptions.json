@@ -1,0 +1,341 @@
+{
+  "purpose": "Why each scanner exception for the FFmpeg 9.0.2 apk is safe: the vulnerable component is not part of the minimal build.",
+  "decision": "Owner chose scoped, expiring exceptions on 19 November 2026 (option 2). Each row names the vulnerable component; CI proves it is absent from the built binary.",
+  "evidence_quality": "Component names come from the VulnCheck CVE records as mirrored by cve.threatint.com and cross-checked in places against Red Hat and Debian trackers. They are third-party mirrors, not NVD, and were not verified against FFmpeg source in this environment.",
+  "expires": "2026-12-31",
+  "package": {
+    "name": "ffmpeg",
+    "version": "9.0.2-r0",
+    "type": "apk"
+  },
+  "build_must_have": [
+    "--disable-everything",
+    "--disable-autodetect"
+  ],
+  "rows": [
+    {
+      "cve": "CVE-2026-125181",
+      "component": "FLIC video decoder (libavcodec/flicvideo.c)",
+      "absent": {
+        "decoders": [
+          "flic"
+        ]
+      },
+      "configure_lacks": [],
+      "also_limited_to": "big-endian builds"
+    },
+    {
+      "cve": "CVE-2026-125196",
+      "component": "APV encoder via liboapv (libavcodec/liboapvenc.c)",
+      "absent": {
+        "encoders": [
+          "liboapv"
+        ]
+      },
+      "configure_lacks": [
+        "--enable-liboapv"
+      ]
+    },
+    {
+      "cve": "CVE-2026-125202",
+      "component": "HEVC VAAPI hardware acceleration (libavcodec/vaapi_hevc.c)",
+      "absent": {
+        "hwaccels": [
+          "vaapi"
+        ]
+      },
+      "configure_lacks": [
+        "--enable-vaapi"
+      ]
+    },
+    {
+      "cve": "CVE-2026-125204",
+      "component": "libwebp encoder (libavcodec/libwebpenc*.c)",
+      "absent": {
+        "encoders": [
+          "libwebp",
+          "libwebp_anim"
+        ]
+      },
+      "configure_lacks": [
+        "--enable-libwebp"
+      ]
+    },
+    {
+      "cve": "CVE-2026-125208",
+      "component": "V4L2 memory-to-memory buffers (libavcodec/v4l2_buffers.c)",
+      "absent": {},
+      "configure_lacks": [
+        "--enable-v4l2-m2m"
+      ]
+    },
+    {
+      "cve": "CVE-2026-125210",
+      "component": "ARIB caption decoder via libaribcaption (libavcodec/libaribcaption.c)",
+      "absent": {
+        "decoders": [
+          "libaribcaption"
+        ]
+      },
+      "configure_lacks": [
+        "--enable-libaribcaption"
+      ]
+    },
+    {
+      "cve": "CVE-2026-125211",
+      "component": "ARIB caption decoder via libaribcaption (libavcodec/libaribcaption.c)",
+      "absent": {
+        "decoders": [
+          "libaribcaption"
+        ]
+      },
+      "configure_lacks": [
+        "--enable-libaribcaption"
+      ]
+    },
+    {
+      "cve": "CVE-2026-125212",
+      "component": "Apple VideoToolbox encoder (libavcodec/videotoolboxenc.c)",
+      "absent": {
+        "hwaccels": [
+          "videotoolbox"
+        ]
+      },
+      "configure_lacks": [
+        "--enable-videotoolbox"
+      ],
+      "also_limited_to": "Apple platforms"
+    },
+    {
+      "cve": "CVE-2026-125213",
+      "component": "PSD image decoder (libavcodec/psd.c)",
+      "absent": {
+        "decoders": [
+          "psd"
+        ]
+      },
+      "configure_lacks": [],
+      "also_limited_to": "32-bit builds"
+    },
+    {
+      "cve": "CVE-2026-125214",
+      "component": "Blu-ray PCM decoder (libavcodec/pcm-bluray.c)",
+      "absent": {
+        "decoders": [
+          "pcm_bluray"
+        ]
+      },
+      "configure_lacks": [],
+      "also_limited_to": "big-endian builds"
+    },
+    {
+      "cve": "CVE-2026-125218",
+      "component": "APNG encoder (libavcodec/pngenc.c)",
+      "absent": {
+        "encoders": [
+          "apng"
+        ]
+      },
+      "configure_lacks": []
+    },
+    {
+      "cve": "CVE-2026-125219",
+      "component": "HEVC VDPAU hardware acceleration (libavcodec/vdpau_hevc.c)",
+      "absent": {
+        "hwaccels": [
+          "vdpau"
+        ]
+      },
+      "configure_lacks": [
+        "--enable-vdpau"
+      ]
+    },
+    {
+      "cve": "CVE-2026-125222",
+      "component": "Hap video decoder (libavcodec/hapdec.c)",
+      "absent": {
+        "decoders": [
+          "hap"
+        ]
+      },
+      "configure_lacks": []
+    },
+    {
+      "cve": "CVE-2026-125227",
+      "component": "JPEG coded-bitstream writer used by CBS filters (libavcodec/cbs_jpeg.c)",
+      "absent": {
+        "bsfs": [
+          "filter_units",
+          "trace_headers"
+        ]
+      },
+      "configure_lacks": [],
+      "also_limited_to": "32-bit builds"
+    },
+    {
+      "cve": "CVE-2026-125229",
+      "component": "Huffyuv / FFVHuff decoder (libavcodec/huffyuv*.c)",
+      "absent": {
+        "decoders": [
+          "huffyuv",
+          "ffvhuff"
+        ]
+      },
+      "configure_lacks": []
+    },
+    {
+      "cve": "CVE-2026-125233",
+      "component": "DVB subtitle encoder (libavcodec/dvbsubenc.c)",
+      "absent": {
+        "encoders": [
+          "dvbsub"
+        ]
+      },
+      "configure_lacks": []
+    },
+    {
+      "cve": "CVE-2026-125235",
+      "component": "Intel Quick Sync encoder (libavcodec/qsvenc.c)",
+      "absent": {
+        "hwaccels": [
+          "qsv"
+        ]
+      },
+      "configure_lacks": [
+        "--enable-libvpl",
+        "--enable-libmfx"
+      ]
+    },
+    {
+      "cve": "CVE-2026-125239",
+      "component": "HEVC DXVA2/D3D11VA/D3D12VA hardware acceleration (libavcodec/dxva2_hevc.c)",
+      "absent": {
+        "hwaccels": [
+          "dxva2",
+          "d3d11va",
+          "d3d12va"
+        ]
+      },
+      "configure_lacks": [
+        "--enable-dxva2",
+        "--enable-d3d11va",
+        "--enable-d3d12va"
+      ],
+      "also_limited_to": "Windows"
+    },
+    {
+      "cve": "CVE-2026-125241",
+      "component": "FLIC video decoder (libavcodec/flicvideo.c)",
+      "absent": {
+        "decoders": [
+          "flic"
+        ]
+      },
+      "configure_lacks": []
+    },
+    {
+      "cve": "CVE-2026-125248",
+      "component": "FFV1 Vulkan encoder (libavcodec/ffv1enc_vulkan.c)",
+      "absent": {
+        "encoders": [
+          "ffv1_vulkan"
+        ]
+      },
+      "configure_lacks": [
+        "--enable-vulkan"
+      ]
+    },
+    {
+      "cve": "CVE-2026-125249",
+      "component": "Vulkan hardware decoding slice buffers (libavcodec/vulkan_decode.c)",
+      "absent": {
+        "hwaccels": [
+          "vulkan"
+        ]
+      },
+      "configure_lacks": [
+        "--enable-vulkan"
+      ]
+    },
+    {
+      "cve": "CVE-2026-125250",
+      "component": "GIF encoder (libavcodec/gif.c)",
+      "absent": {
+        "encoders": [
+          "gif"
+        ]
+      },
+      "configure_lacks": []
+    },
+    {
+      "cve": "CVE-2026-125251",
+      "component": "VVC (H.266) decoder (libavcodec/vvc/*)",
+      "absent": {
+        "decoders": [
+          "vvc"
+        ]
+      },
+      "configure_lacks": []
+    },
+    {
+      "cve": "CVE-2026-125256",
+      "component": "Huffyuv / FFVHuff encoder, RISC-V vector code (libavcodec/riscv/)",
+      "absent": {
+        "encoders": [
+          "huffyuv",
+          "ffvhuff"
+        ]
+      },
+      "configure_lacks": [],
+      "also_limited_to": "RISC-V builds"
+    },
+    {
+      "cve": "CVE-2026-125257",
+      "component": "Nellymoser encoder (libavcodec/nellymoserenc.c)",
+      "absent": {
+        "encoders": [
+          "nellymoser"
+        ]
+      },
+      "configure_lacks": []
+    },
+    {
+      "cve": "CVE-2026-125259",
+      "component": "ProRes encoder prores_ks (libavcodec/proresenc_kostya.c)",
+      "absent": {
+        "encoders": [
+          "prores_ks"
+        ]
+      },
+      "configure_lacks": []
+    },
+    {
+      "cve": "CVE-2026-125260",
+      "component": "OpenEXR encoder (libavcodec/exrenc.c)",
+      "absent": {
+        "encoders": [
+          "exr"
+        ]
+      },
+      "configure_lacks": []
+    },
+    {
+      "cve": "CVE-2026-125262",
+      "component": "LCEVC decoder via liblcevc-dec (libavcodec/lcevcdec.c)",
+      "absent": {},
+      "configure_lacks": [
+        "--enable-liblcevc-dec"
+      ]
+    },
+    {
+      "cve": "CVE-2026-125269",
+      "component": "h264_metadata bitstream filter using CBS SEI (libavcodec/cbs_sei.c)",
+      "absent": {
+        "bsfs": [
+          "h264_metadata"
+        ]
+      },
+      "configure_lacks": []
+    }
+  ]
+}

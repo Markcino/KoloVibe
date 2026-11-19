@@ -1,5 +1,6 @@
 # The scan gate (anchore/scan-action: fail-build true, severity-cutoff high) is unchanged. This file holds the ONE
-# exception the owner approved on 14 November 2026 (decision "Minimal 9.0.2 build + exception"), and nothing else.
+# exception the owner approved on 14 November 2026 (decision "Minimal 9.0.2 build + exception"), plus the
+# separately approved and separately evidenced second set described below.
 #
 # CVE-2026-107696: FFmpeg through 9.0.2 loops forever in ff_rtsp_connect() on endless RTSP 3xx redirects. 9.0.2 is the
 # newest upstream release and no fixed release exists. The media-worker image builds FFmpeg 9.0.2 with every network
@@ -11,8 +12,161 @@
 # any other CVE, and every other package stay fully gated, and the shared image has no ffmpeg package at all.
 # It expires: scripts/test_shared_service_image.py fails after the date below so the exception is reviewed or removed.
 # Expires: 2027-02-12
+# Second set (19 November 2026): 29 High findings published that day against FFmpeg 9.0.2, which has no fixed release. The
+# owner approved scoped, expiring exceptions only where the vulnerable component is NOT built into the minimal FFmpeg
+# (--disable-everything, no hardware acceleration, no optional libraries, only the decoders, encoders and filters the
+# pipeline needs). Every rule below is listed with its component in infra/docker/ffmpeg/scan-exceptions.json; CI checks
+# each premise against the built binary on every build, and scripts/test_ffmpeg_scan_exceptions.py keeps this file and
+# that evidence identical. The rules match only apk `ffmpeg` at exactly 9.0.2-r0: a different version, any other CVE
+# and every other package stay fully gated, so new findings in the same batch fail the scan until they are triaged.
+# Expires (second set): 2026-12-31
 ignore:
   - vulnerability: CVE-2026-107696
+    package:
+      name: ffmpeg
+      version: 9.0.2-r0
+      type: apk
+  - vulnerability: CVE-2026-125181
+    package:
+      name: ffmpeg
+      version: 9.0.2-r0
+      type: apk
+  - vulnerability: CVE-2026-125196
+    package:
+      name: ffmpeg
+      version: 9.0.2-r0
+      type: apk
+  - vulnerability: CVE-2026-125202
+    package:
+      name: ffmpeg
+      version: 9.0.2-r0
+      type: apk
+  - vulnerability: CVE-2026-125204
+    package:
+      name: ffmpeg
+      version: 9.0.2-r0
+      type: apk
+  - vulnerability: CVE-2026-125208
+    package:
+      name: ffmpeg
+      version: 9.0.2-r0
+      type: apk
+  - vulnerability: CVE-2026-125210
+    package:
+      name: ffmpeg
+      version: 9.0.2-r0
+      type: apk
+  - vulnerability: CVE-2026-125211
+    package:
+      name: ffmpeg
+      version: 9.0.2-r0
+      type: apk
+  - vulnerability: CVE-2026-125212
+    package:
+      name: ffmpeg
+      version: 9.0.2-r0
+      type: apk
+  - vulnerability: CVE-2026-125213
+    package:
+      name: ffmpeg
+      version: 9.0.2-r0
+      type: apk
+  - vulnerability: CVE-2026-125214
+    package:
+      name: ffmpeg
+      version: 9.0.2-r0
+      type: apk
+  - vulnerability: CVE-2026-125218
+    package:
+      name: ffmpeg
+      version: 9.0.2-r0
+      type: apk
+  - vulnerability: CVE-2026-125219
+    package:
+      name: ffmpeg
+      version: 9.0.2-r0
+      type: apk
+  - vulnerability: CVE-2026-125222
+    package:
+      name: ffmpeg
+      version: 9.0.2-r0
+      type: apk
+  - vulnerability: CVE-2026-125227
+    package:
+      name: ffmpeg
+      version: 9.0.2-r0
+      type: apk
+  - vulnerability: CVE-2026-125229
+    package:
+      name: ffmpeg
+      version: 9.0.2-r0
+      type: apk
+  - vulnerability: CVE-2026-125233
+    package:
+      name: ffmpeg
+      version: 9.0.2-r0
+      type: apk
+  - vulnerability: CVE-2026-125235
+    package:
+      name: ffmpeg
+      version: 9.0.2-r0
+      type: apk
+  - vulnerability: CVE-2026-125239
+    package:
+      name: ffmpeg
+      version: 9.0.2-r0
+      type: apk
+  - vulnerability: CVE-2026-125241
+    package:
+      name: ffmpeg
+      version: 9.0.2-r0
+      type: apk
+  - vulnerability: CVE-2026-125248
+    package:
+      name: ffmpeg
+      version: 9.0.2-r0
+      type: apk
+  - vulnerability: CVE-2026-125249
+    package:
+      name: ffmpeg
+      version: 9.0.2-r0
+      type: apk
+  - vulnerability: CVE-2026-125250
+    package:
+      name: ffmpeg
+      version: 9.0.2-r0
+      type: apk
+  - vulnerability: CVE-2026-125251
+    package:
+      name: ffmpeg
+      version: 9.0.2-r0
+      type: apk
+  - vulnerability: CVE-2026-125256
+    package:
+      name: ffmpeg
+      version: 9.0.2-r0
+      type: apk
+  - vulnerability: CVE-2026-125257
+    package:
+      name: ffmpeg
+      version: 9.0.2-r0
+      type: apk
+  - vulnerability: CVE-2026-125259
+    package:
+      name: ffmpeg
+      version: 9.0.2-r0
+      type: apk
+  - vulnerability: CVE-2026-125260
+    package:
+      name: ffmpeg
+      version: 9.0.2-r0
+      type: apk
+  - vulnerability: CVE-2026-125262
+    package:
+      name: ffmpeg
+      version: 9.0.2-r0
+      type: apk
+  - vulnerability: CVE-2026-125269
     package:
       name: ffmpeg
       version: 9.0.2-r0

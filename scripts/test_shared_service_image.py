@@ -35,12 +35,20 @@ class ImageSecurityContractTests(unittest.TestCase):
                         self.dockerfile.index("pip install"))
 
     def test_base_image_stays_digest_pinned(self):
-        # One parameterized base, pinned by digest, used by exactly one FROM; the default is the Alpine 3.23 image.
-        self.assertRegex(self.dockerfile, r"(?m)^ARG PYTHON_BASE=python:3\.12\.16-alpine3\.23@sha256:[0-9a-f]{64}$")
+        # One parameterized base, pinned by digest, used by exactly one FROM; the default is the Alpine 3.24 image.
+        default = re.search(r"(?m)^ARG PYTHON_BASE=(python:3\.12\.16-alpine3\.24@sha256:[0-9a-f]{64})$", self.dockerfile)
+        self.assertIsNotNone(default, "the shared image must default to the digest-pinned Alpine 3.24 Python base")
         self.assertEqual(re.findall(r"(?m)^FROM [^\n]+$", self.dockerfile)[0], "FROM ${PYTHON_BASE} AS local")
         self.assertEqual(len(re.findall(r"(?m)^FROM python:", self.dockerfile)), 0)
-        # The media image's Alpine 3.24 base is named only in CI, by digest.
-        self.assertRegex(self.workflow, r"(?m)^\s+MEDIA_PYTHON_BASE: python:3\.12\.16-alpine3\.24@sha256:[0-9a-f]{64}$")
+        # The media image's base is named in CI, by digest, and must be exactly the shared image's base.
+        media = re.search(r"(?m)^\s+MEDIA_PYTHON_BASE: (python:3\.12\.16-alpine3\.24@sha256:[0-9a-f]{64})$", self.workflow)
+        self.assertIsNotNone(media)
+        self.assertEqual(media.group(1), default.group(1), "shared and media images must use the same pinned base")
+
+    def test_the_alpine_3_23_base_is_not_used_anywhere_in_the_build(self):
+        # 3.23's OpenSSL 3.5.9-r0 carries High findings with no fixed package (19 November 2026).
+        self.assertNotIn("alpine3.23", self.dockerfile.replace("Alpine 3.23", ""))
+        self.assertNotIn("alpine3.23", self.workflow)
 
     def test_image_scan_gate_is_not_weakened(self):
         for name in ("Scan local image vulnerabilities", "Scan media image vulnerabilities"):
@@ -122,14 +130,22 @@ class ImageSecurityContractTests(unittest.TestCase):
         self.assertIn("ARG FFMPEG_SOURCE=ffmpeg-empty", self.dockerfile)
         self.assertNotIn("ffmpeg", self.stages()["ffmpeg-empty"].lower().replace("ffmpeg-empty", "").replace("/ffmpeg", ""))
 
-    def test_the_only_scan_exception_is_the_approved_one_and_has_not_expired(self):
+    def test_the_scan_exceptions_are_only_the_approved_ones_and_have_not_expired(self):
         import datetime
+        import json
 
         config = (ROOT / ".grype.yaml").read_text()
         rules = yaml.safe_load(config)
         self.assertEqual(set(rules), {"ignore"})
-        self.assertEqual(rules["ignore"], [{"vulnerability": "CVE-2026-107696",
-                                            "package": {"name": "ffmpeg", "version": "9.0.2-r0", "type": "apk"}}])
+        package = {"name": "ffmpeg", "version": "9.0.2-r0", "type": "apk"}
+        # The first rule is the 14 November approval. Every other rule must be one of the evidenced CVEs of the 19 November
+        # owner decision in infra/docker/ffmpeg/scan-exceptions.json (scripts/test_ffmpeg_scan_exceptions.py proves the two
+        # files are identical and that CI checks each premise against the built binary). Nothing else may be ignored.
+        evidence = json.loads((ROOT / "infra/docker/ffmpeg/scan-exceptions.json").read_text())
+        self.assertEqual(rules["ignore"][0], {"vulnerability": "CVE-2026-107696", "package": package})
+        self.assertEqual([r["vulnerability"] for r in rules["ignore"][1:]], [r["cve"] for r in evidence["rows"]])
+        self.assertTrue(all(r == {"vulnerability": r["vulnerability"], "package": package} for r in rules["ignore"]))
+        self.assertIn("scripts/check_ffmpeg_scan_exceptions.py", self.workflow)  # the CI step that checks the premises
         # The exception is justified by the build having no network protocols, which CI verifies on every build.
         media_job = self.workflow[self.workflow.index("  media-image-build:"):self.workflow.index("  build-and-verify:")]
         for needle in ("rtsp", "http", "tcp", '= "file pipe "'):

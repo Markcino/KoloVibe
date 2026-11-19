@@ -7,11 +7,14 @@
 # A bare `docker build` produces the release target, so the unsafe image is opt-in.
 #
 # The same `release` target also builds the separate media-worker image (the only one with FFmpeg):
-#   docker build --target release --build-arg PYTHON_BASE=<alpine3.24 python digest> --build-arg WITH_FFMPEG=1 \
-#     --build-arg FFMPEG_SOURCE=ffmpeg-minimal .
-# The default build has no FFmpeg and the unchanged Alpine 3.23 base. The two images are scanned, verified and
-# published separately by CI; the eight API services and the queue consumers use only the shared one.
-ARG PYTHON_BASE=python:3.12.16-alpine3.23@sha256:20d13dc88e7bc1adf6e18cdddeb4cd53a7e0fdc3825bfe05f00c7563d4cdf102
+#   docker build --target release --build-arg WITH_FFMPEG=1 --build-arg FFMPEG_SOURCE=ffmpeg-minimal .
+# The default build has no FFmpeg. Both images use the same Alpine 3.24 Python base, pinned by digest here and
+# repeated as MEDIA_PYTHON_BASE in CI (a test keeps the two equal). The two images are scanned, verified and
+# published together by CI; the eight API services and the queue consumers use only the shared one.
+# The shared image moved from Alpine 3.23 to 3.24 on 19 November 2026: the 3.23 OpenSSL package (3.5.9-r0) was matched by
+# four High findings with no fixed package, while the 3.24 image carries none. See
+# docs/operations/R1_Image_Base_Alpine_3_24_2026-11-19.md.
+ARG PYTHON_BASE=python:3.12.16-alpine3.24@sha256:c5ba3deef00c7758561a0f03c26f44f10589263d40e732b8748e0d1f38f6dd89
 # The media image's FFmpeg is a minimal upstream build (ffmpeg-minimal), not Alpine's full package: a full FFmpeg
 # drags in ~115 packages (cjson, alsa-lib, glib, libssh, ...) with unfixed High and Critical findings, and no packaged
 # release passes the image scan. The default build gets an empty directory instead and contains no FFmpeg.
