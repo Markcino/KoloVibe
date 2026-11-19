@@ -4,6 +4,8 @@ import '../../app/screen_route.dart';
 import '../../core/network/api_client.dart';
 import '../../core/presentation/design_node.dart';
 import '../../core/presentation/feature_repository.dart';
+import '../../core/theme/kolovibe_theme.dart';
+import '../../shared/widgets/kolo_components.dart';
 import '../system/system_ui.dart';
 import 'live_account_repository.dart';
 
@@ -272,195 +274,329 @@ class _LiveAccountFlowScreenState extends State<LiveAccountFlowScreen> {
     bool match = false,
     bool verification = false,
     int maximum = 128,
+    String? hint,
+    String? helper,
   }) =>
-      Padding(
-        padding: const EdgeInsets.only(bottom: 16),
-        child: TextFormField(
-          key: ValueKey(label),
-          controller: value,
-          readOnly: readOnly,
-          obscureText: secret,
-          maxLength: maximum,
-          autocorrect: !secret,
-          enableSuggestions: !secret,
-          keyboardType:
-              emailField ? TextInputType.emailAddress : TextInputType.text,
-          autofillHints: readOnly
-              ? null
-              : emailField
-                  ? const [AutofillHints.email]
-                  : verification
-                      ? const [AutofillHints.oneTimeCode]
-                      : null,
-          decoration: InputDecoration(labelText: label, counterText: ''),
-          onChanged: readOnly ? null : (_) => setState(() => dirty = true),
-          validator: (text) {
-            if (readOnly) return null;
-            final v = text ?? '';
-            if (v.isEmpty) return 'Enter $label.';
-            if (emailField &&
-                !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(v.trim())) {
-              return 'Enter a valid email address.';
-            }
-            if (match && v != password.text) {
-              return 'The passwords don’t match.';
-            }
-            if (verification && v.length < 32) {
-              return 'Enter the full code from your email.';
-            }
-            if (label == 'Display name' && v.trim().length < 2 ||
-                label == 'Full name' && v.trim().length < 2) {
-              return 'Enter at least two characters.';
-            }
-            return null;
-          },
-        ),
+      KoloTextField(
+        key: ValueKey(label),
+        label: label,
+        controller: value,
+        hint: hint,
+        helper: helper,
+        secret: secret,
+        readOnly: readOnly,
+        maxLength: maximum,
+        keyboardType:
+            emailField ? TextInputType.emailAddress : TextInputType.text,
+        autofillHints: readOnly
+            ? null
+            : emailField
+                ? const [AutofillHints.email]
+                : verification
+                    ? const [AutofillHints.oneTimeCode]
+                    : null,
+        onChanged: readOnly ? null : (_) => setState(() => dirty = true),
+        validator: (text) {
+          if (readOnly) return null;
+          final v = text ?? '';
+          if (v.isEmpty) return 'Enter $label.';
+          if (emailField &&
+              !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(v.trim())) {
+            return 'Enter a valid email address.';
+          }
+          if (match && v != password.text) {
+            return 'The passwords don’t match.';
+          }
+          if (verification && v.length < 32) {
+            return 'Enter the full code from your email.';
+          }
+          if (label == 'Display name' && v.trim().length < 2 ||
+              label == 'Full name' && v.trim().length < 2) {
+            return 'Enter at least two characters.';
+          }
+          return null;
+        },
       );
 
+  /// Primary (red) action. A rejected submission is explained directly above
+  /// it, where the person is looking, rather than at the top of the page.
   Widget button(String label, UiOperation operation) => Padding(
         padding: const EdgeInsets.only(bottom: 12),
-        child: FilledButton(
-          onPressed: busy ? null : () => submit(operation),
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          if (fieldError != null)
+            Semantics(
+              liveRegion: true,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(fieldError!,
+                    style: KoloVibeText.body(12, color: KoloVibeColors.red)),
+              ),
+            ),
+          FilledButton(
+            onPressed: busy ? null : () => submit(operation),
+            child: Text(label),
+          ),
+        ]),
+      );
+
+  /// Secondary (soft blue) navigation action.
+  Widget link(String label, int target) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: OutlinedButton(
+          onPressed: busy ? null : () => leave(target),
           child: Text(label),
         ),
       );
-  Widget link(String label, int target) => TextButton(
-        onPressed: busy ? null : () => leave(target),
-        child: Text(label),
+
+  Widget headline(String text) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: KoloHeadline(text),
+      );
+  Widget lead(String text) => Padding(
+        padding: const EdgeInsets.only(bottom: 20),
+        child: Text(text, style: KoloVibeText.body(14, height: 1.5)),
+      );
+  Widget footnote(String text) => Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: Text(text,
+            textAlign: TextAlign.center,
+            style: KoloVibeText.body(11, height: 1.5)),
+      );
+  Widget textLink(String label, int target) => Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton(
+          onPressed: busy ? null : () => leave(target),
+          style: TextButton.styleFrom(
+              foregroundColor: KoloVibeColors.red,
+              padding: EdgeInsets.zero,
+              minimumSize: const Size(44, 44)),
+          child: Text(label),
+        ),
+      );
+  Widget get wordmark => const Padding(
+        padding: EdgeInsets.only(bottom: 20),
+        child: Align(alignment: Alignment.centerLeft, child: KoloWordmark()),
       );
 
   List<Widget> content() => switch (id) {
         4 || 15 => [
-            Text(
-              id == 15 ? 'We couldn’t sign you in.' : 'Welcome back.',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            field('Email address', email, emailField: true, maximum: 254),
-            field('Password', password, secret: true),
+            if (id == 4) wordmark,
+            headline(id == 15
+                ? 'We couldn’t\nsign you in.'
+                : 'Welcome back.\nYour vibe awaits.'),
+            if (id == 4)
+              lead(
+                  'Sign in to follow your favourites and discover more original stories.')
+            else
+              const KoloNote(
+                  title: 'Authentication couldn’t be completed',
+                  message:
+                      'Your connection or sign-in service may have interrupted the request. Your password is not shown.',
+                  icon: Icons.error_outline,
+                  tone: KoloNoteTone.alert),
+            field('Email address', email,
+                emailField: true, maximum: 254, hint: 'you@example.com'),
+            field('Password', password,
+                secret: true,
+                hint: id == 15 ? 'Enter your password again' : 'Password'),
+            if (id == 4) textLink('Forgot password?', 9),
             button(id == 15 ? 'Try signing in again' : 'Sign in',
                 UiOperation.signIn),
-            link('Forgot password?', 9),
-            link('Create an account', 5),
+            if (id == 4)
+              link('New here? Create an account', 5)
+            else
+              link('Recover my account', 9),
+            footnote(id == 4
+                ? 'Your account. Your community. Keep it secure.'
+                : 'Still having trouble? Visit Help & Support.'),
           ],
         5 => [
-            const Text('Join the vibe.'),
-            field('Full name', name, maximum: 80),
-            field('Email address', email, emailField: true, maximum: 254),
-            field('Password', password, secret: true),
-            field('Confirm password', confirm, secret: true, match: true),
-            const Text(
-              'Use a unique password. Requirements are checked by the account service.',
-            ),
+            headline('Your next favourite\nstory starts here.'),
+            const SizedBox(height: 8),
+            field('Full name', name, maximum: 80, hint: 'Your name'),
+            field('Email address', email,
+                emailField: true, maximum: 254, hint: 'you@example.com'),
+            field('Password', password,
+                secret: true,
+                hint: 'Password',
+                helper:
+                    'Use a unique password. Requirements are checked by the account service.'),
+            field('Confirm password', confirm,
+                secret: true, match: true, hint: 'Repeat password'),
             CheckboxListTile(
               value: agreed,
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
               onChanged: (v) => setState(() {
                 agreed = v ?? false;
                 dirty = true;
               }),
-              title: const Text(
-                  'I acknowledge the Terms and Privacy information.'),
+              title: Text('I acknowledge the Terms and Privacy information.',
+                  style: KoloVibeText.body(12, height: 1.4)),
             ),
+            const SizedBox(height: 8),
             button('Create account', UiOperation.register),
-            link('Already have an account? Sign in', 4),
+            link('Already registered? Sign in', 4),
+            footnote('We’ll send a verification code to your email.'),
           ],
         6 => [
-            const Text('One small step. Then you’re in.'),
-            Text(
-              email.text.isEmpty
-                  ? 'Enter the full code sent to your email.'
-                  : 'Enter the code sent to ${email.text}. Keep this code private.',
-            ),
-            field('Verification code', code, secret: true, verification: true),
+            headline('One small step.\nThen you’re in.'),
+            lead(email.text.isEmpty
+                ? 'Enter the full code sent to your email.'
+                : 'Enter the code sent to ${email.text}. Keep this code private.'),
+            field('Verification code', code,
+                secret: true, verification: true, hint: 'Verification code'),
             button('Verify email', UiOperation.verifyEmail),
             link('Didn’t receive a code?', 7),
             link('Use a different email', 5),
           ],
         7 || 8 => [
-            Text(id == 8 ? 'Let’s get a fresh code.' : 'Check your inbox.'),
-            field('Email address', email, emailField: true, maximum: 254),
-            Text(
-              resendAcknowledged
-                  ? 'If eligible, you will receive a new code. Use only the latest code and check spam folders.'
-                  : 'Request a new verification code for an email you own.',
-            ),
+            headline(id == 8 ? 'Let’s get a fresh code.' : 'Check your inbox.'),
+            lead(id == 8
+                ? 'Enter your email address to request a new verification code.'
+                : 'Request a new verification code for an email you own.'),
+            field('Email address', email,
+                emailField: true, maximum: 254, hint: 'you@example.com'),
+            if (resendAcknowledged)
+              const KoloNote(
+                  title: 'Use the most recent code',
+                  message:
+                      'If eligible, you will receive a new code. Use only the latest code and check spam folders.',
+                  icon: Icons.mark_email_read_outlined,
+                  tone: KoloNoteTone.success)
+            else
+              KoloNote(
+                  title: id == 8
+                      ? 'Your account is not verified yet'
+                      : 'Use the most recent code',
+                  message: 'Use only the latest code sent to your email.'),
             button('Request a new code', UiOperation.requestCode),
             link('Return to code entry', 6),
             link('Use a different email', 5),
           ],
         9 => [
-            const Text('Let’s get you back.'),
-            field('Email address', email, emailField: true, maximum: 254),
+            headline('Back to your vibe.'),
+            lead(
+                'Enter your account email and we’ll help you reset your password.'),
+            field('Email address', email,
+                emailField: true, maximum: 254, hint: 'you@example.com'),
             button('Send reset instructions', UiOperation.requestReset),
             link('Back to sign in', 4),
+            footnote(
+                'For your privacy, this message does not confirm whether an account exists.'),
           ],
         10 => [
-            const Text('A fresh start. A stronger password.'),
-            field('Reset code', code, secret: true, verification: true),
-            field('New password', password, secret: true),
-            field('Confirm password', confirm, secret: true, match: true),
-            const Text('Use the requirements supplied by the account service.'),
+            headline('A fresh start.\nA stronger password.'),
+            lead('Choose a password you don’t use elsewhere.'),
+            field('Reset code', code,
+                secret: true, verification: true, hint: 'Code from your email'),
+            field('New password', password, secret: true, hint: 'New password'),
+            field('Confirm password', confirm,
+                secret: true, match: true, hint: 'Repeat password'),
+            const KoloNote(
+                title: 'Current password requirements',
+                message:
+                    'Use the requirements supplied by the account service.'),
             button('Reset password', UiOperation.resetPassword),
             link('Back to sign in', 4),
           ],
         11 => [
-            Text(
-              widget.completed
-                  ? 'Your new password has been saved. Use it the next time you sign in.'
-                  : 'No password reset has been confirmed in this flow.',
-            ),
-            link('Return to sign in', 4),
+            wordmark,
+            headline(widget.completed
+                ? 'You’re secure.\nLet’s get you back.'
+                : 'Password not changed.'),
+            lead(widget.completed
+                ? 'Your new password has been saved. Use it the next time you sign in.'
+                : 'No password reset has been confirmed in this flow.'),
+            if (widget.completed)
+              const KoloNote(
+                  title: 'Password updated',
+                  message:
+                      'Keep your sign-in details private and use a unique password.',
+                  icon: Icons.check_circle_outline,
+                  tone: KoloNoteTone.success),
+            FilledButton(
+                onPressed: busy ? null : () => leave(4),
+                child: const Text('Return to sign in')),
           ],
         12 => [
-            const Text(
-              'This email can’t be used for a new registration. Try signing in or recovering your account.',
-            ),
-            if (email.text.isNotEmpty) Text(email.text),
+            headline('You may already\nbe part of the vibe.'),
+            lead(
+                'This email can’t be used for a new registration. Try signing in or recovering your account.'),
+            if (email.text.isNotEmpty)
+              field('Email address', email, readOnly: true, maximum: 254),
             link('Sign in instead', 4),
             link('Reset my password', 9),
             link('Use another email', 5),
+            const KoloNote(
+                title: 'Keep your account safe',
+                message: 'Only continue with an email you own.'),
           ],
         13 || 80 => [
-            Text(id == 13
-                ? 'What should we call you?'
-                : 'Edit personal profile'),
-            TextButton(
-              onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Profile photos are not available yet. Photo moderation policy is pending.',
+            if (id == 13)
+              headline('What should\nwe call you?')
+            else
+              headline('Edit personal profile'),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Profile photos are not available yet. Photo moderation policy is pending.',
+                    ),
                   ),
                 ),
+                child: Text('Add or change photo · Optional',
+                    style: KoloVibeText.body(13,
+                        weight: FontWeight.w600, color: KoloVibeColors.red)),
               ),
-              child: const Text('Add or change photo · Optional'),
             ),
-            field('Display name', name, maximum: 80),
+            field('Display name', name,
+                maximum: 80,
+                hint: 'Your name',
+                helper: 'This is how your name appears in the community.'),
             field('Account email', email, readOnly: true, maximum: 254),
+            if (id == 13)
+              lead(
+                  'Start as a viewer. You can explore creator onboarding whenever you’re ready.'),
             button(
               id == 13 ? 'Continue to KoloVibe' : 'Save changes',
               UiOperation.saveProfile,
             ),
             if (id == 13)
-              button('Skip photo for now', UiOperation.saveProfile)
+              OutlinedButton(
+                  onPressed:
+                      busy ? null : () => submit(UiOperation.saveProfile),
+                  child: const Text('Skip photo for now'))
             else
               link('Cancel', 79),
           ],
         16 => [
-            const Text('A little extra protection.'),
-            const Text(
-              'Verify your identity before continuing. Nothing is deleted at this step.',
-            ),
+            headline('A little extra\nprotection.'),
+            lead(
+                'Verify your identity before continuing. Nothing is deleted at this step.'),
             field('Account email', email, readOnly: true, maximum: 254),
-            field('Current password', current, secret: true),
+            field('Current password', current,
+                secret: true, hint: 'Enter current password'),
+            const KoloNote(
+                title: 'Secure return',
+                message:
+                    'After verification, you’ll return to the deletion confirmation. Nothing is deleted at this step.',
+                icon: Icons.lock_outline),
             button('Verify identity', UiOperation.reauthenticate),
-            TextButton(
+            OutlinedButton(
               onPressed: busy ? null : () => Navigator.maybePop(context),
               child: const Text('Cancel and return to account'),
             ),
           ],
         82 => [
-            field('Current password', current, secret: true),
-            field('New password', password, secret: true),
-            field('Confirm password', confirm, secret: true, match: true),
+            field('Current password', current,
+                secret: true, hint: 'Current password'),
+            field('New password', password, secret: true, hint: 'New password'),
+            field('Confirm password', confirm,
+                secret: true, match: true, hint: 'Repeat password'),
             button('Change password', UiOperation.resetPassword),
             link('Back to security', 85),
           ],
@@ -508,13 +644,17 @@ class _LiveAccountFlowScreenState extends State<LiveAccountFlowScreen> {
                     : Form(
                         key: form,
                         child: ListView(
-                          padding: const EdgeInsets.all(24),
+                          padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+                          keyboardDismissBehavior:
+                              ScrollViewKeyboardDismissBehavior.onDrag,
                           children: [
-                            if (widget.message != null) Text(widget.message!),
-                            if (fieldError != null)
-                              Semantics(
-                                  liveRegion: true, child: Text(fieldError!)),
-                            if (busy) const SystemLoading(),
+                            if (widget.message != null)
+                              KoloNote(
+                                  title: 'Notice', message: widget.message!),
+                            if (busy)
+                              const Padding(
+                                  padding: EdgeInsets.only(bottom: 12),
+                                  child: LinearProgressIndicator()),
                             ...content(),
                           ],
                         ),

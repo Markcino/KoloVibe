@@ -115,7 +115,6 @@ class CountingPublicCreators extends LiveCreatorRepository {
   @override
   Future<LiveCreator> detail(String id) async {
     if (failure != null) throw failure!;
-    return LiveCreator(id, 'amakollie', '',
-        publishedVideoCount: count);
+    return LiveCreator(id, 'amakollie', '', publishedVideoCount: count);
   }
 }

@@ -5,7 +5,8 @@ import 'app/app_dependencies.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   const gateway = String.fromEnvironment('KOLOVIBE_API_URL');
-  runApp(KoloVibeApp(dependencies: gateway.isEmpty
-      ? const AppDependencies.unavailable()
-      : AppDependencies.live(gateway)));
+  runApp(KoloVibeApp(
+      dependencies: gateway.isEmpty
+          ? const AppDependencies.unavailable()
+          : AppDependencies.live(gateway)));
 }

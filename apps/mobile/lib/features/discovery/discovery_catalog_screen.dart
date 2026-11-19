@@ -5,6 +5,7 @@ import '../../core/presentation/design_node.dart';
 import '../account/live_account_repository.dart';
 import '../creators/live_creator_repository.dart';
 import '../system/system_ui.dart';
+import 'home_dashboard.dart';
 import 'live_video_repository.dart';
 
 void discoveryNavigate(BuildContext context, int screen, [String? id]) {
@@ -55,8 +56,6 @@ class _DiscoveryCatalogState extends State<DiscoveryCatalogScreen> {
   String? cursor, creatorCursor, category, query;
   bool busy = false, searched = false, retryCreators = false;
   Object? error;
-  final sections = <String, LiveVideoPage>{};
-  final sectionErrors = <String, Object>{};
   int generation = 0;
   @override
   void initState() {
@@ -65,7 +64,7 @@ class _DiscoveryCatalogState extends State<DiscoveryCatalogScreen> {
     category = widget.initialCategory;
     search.text = query ?? '';
     searched = query != null;
-    if (widget.screen != 21 && widget.screen != 23) load(reset: true);
+    if (!{17, 21, 23}.contains(widget.screen)) load(reset: true);
   }
 
   @override
@@ -75,22 +74,6 @@ class _DiscoveryCatalogState extends State<DiscoveryCatalogScreen> {
     search.clear();
     search.dispose();
     super.dispose();
-  }
-
-  Future<void> home() async {
-    await Future.wait(['Following', 'Trending', 'Latest'].map((name) async {
-      try {
-        final page = name == 'Following'
-            ? widget.account == null
-                ? throw const ApiFailure(401, 'Sign in')
-                : await widget.repository.followingPage(widget.account!)
-            : await widget.repository
-                .filteredPage(sort: name == 'Trending' ? 'trending' : 'recent');
-        if (mounted) setState(() => sections[name] = page);
-      } catch (failure) {
-        if (mounted) setState(() => sectionErrors[name] = failure);
-      }
-    }));
   }
 
   Future<void> load({bool reset = false, bool creatorsOnly = false}) async {
@@ -104,15 +87,9 @@ class _DiscoveryCatalogState extends State<DiscoveryCatalogScreen> {
         creatorItems.clear();
         cursor = null;
         creatorCursor = null;
-        sections.clear();
-        sectionErrors.clear();
       }
     });
     try {
-      if (widget.screen == 17) {
-        await home();
-        return;
-      }
       if (!creatorsOnly) {
         final page = widget.screen == 18
             ? widget.account == null
@@ -197,18 +174,34 @@ class _DiscoveryCatalogState extends State<DiscoveryCatalogScreen> {
       error: value,
       onRetry: retry,
       onSignIn: () => discoveryNavigate(context, 4));
+  void openCategory(String slug) =>
+      Navigator.of(context).push(MaterialPageRoute<void>(
+          settings: RouteSettings(name: const ScreenRoute(19).name),
+          builder: (_) => DiscoveryCatalogScreen(
+              screen: 19,
+              repository: widget.repository,
+              catalog: widget.catalog,
+              account: widget.account,
+              creators: widget.creators,
+              initialCategory: slug)));
+
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) => widget.screen == 17
+      ? HomeDashboard(
+          videos: widget.repository,
+          creators: widget.creators,
+          account: widget.account,
+          catalog: widget.catalog,
+          navigate: (screen, [id]) => discoveryNavigate(context, screen, id),
+          openCategory: openCategory)
+      : _catalogScaffold(context);
+
+  Widget _catalogScaffold(BuildContext context) => Scaffold(
       appBar: AppBar(
           title: Text(widget.screen == 27
               ? 'Published videos'
               : widget.catalog[widget.screen].name),
           actions: [
-            if (widget.screen == 17)
-              IconButton(
-                  tooltip: 'Search',
-                  onPressed: () => discoveryNavigate(context, 21),
-                  icon: const Icon(Icons.search)),
             if ({19, 21, 22, 23}.contains(widget.screen))
               TextButton(
                   onPressed: busy ? null : filters,
@@ -265,77 +258,42 @@ class _DiscoveryCatalogState extends State<DiscoveryCatalogScreen> {
                                 }))
               ])),
         Expanded(
-            child: widget.screen == 17
-                ? ListView(padding: const EdgeInsets.all(16), children: [
-                    for (final name in ['Following', 'Trending', 'Latest']) ...[
-                      ListTile(
-                          title: Text(name),
-                          trailing: TextButton(
-                              onPressed: () => discoveryNavigate(
-                                  context,
-                                  name == 'Following'
-                                      ? 18
-                                      : name == 'Trending'
-                                          ? 20
-                                          : 19),
-                              child: const Text('View all'))),
-                      if (sectionErrors[name] != null)
-                        failure(sectionErrors[name]!, () => load(reset: true))
-                      else if (sections[name] == null)
-                        const SystemLoading()
-                      else if (sections[name]!.items.isEmpty)
-                        Text(
-                            'No ${name.toLowerCase()} originals are available yet.')
-                      else
-                        ...sections[name]!
-                            .items
-                            .take(4)
-                            .map((v) => videoTile(context, v)),
-                    ]
-                  ])
-                : ListView(padding: const EdgeInsets.all(16), children: [
-                    if (items.isNotEmpty) const Text('Videos'),
-                    ...items.map((v) => videoTile(context, v)),
-                    if (creatorItems.isNotEmpty) const Text('Creators'),
-                    for (final creator in creatorItems)
-                      ListTile(
-                          title: Text(creator.displayName.isEmpty
-                              ? '@${creator.handle}'
-                              : creator.displayName),
-                          subtitle:
-                              Text('@${creator.handle} · ${creator.location}'),
-                          onTap: () =>
-                              discoveryNavigate(context, 26, creator.id)),
-                    if (busy) const SystemLoading(),
-                    if (error != null)
-                      failure(
-                          error!,
-                          () => load(
-                              reset: items.isEmpty && !retryCreators,
-                              creatorsOnly: retryCreators)),
-                    if (!busy &&
-                        error == null &&
-                        items.isEmpty &&
-                        creatorItems.isEmpty)
-                      searched
-                          ? SystemEmpty(
-                              query: query ?? '',
-                              onEdit: () => searchFocus.requestFocus())
-                          : Text(widget.screen == 18
-                              ? 'Follow creators to see their originals here.'
-                              : 'No originals are available yet.'),
-                    if (!busy && cursor != null)
-                      OutlinedButton(
-                          onPressed: load,
-                          child: const Text('Load more videos')),
-                    if (!busy && creatorCursor != null)
-                      OutlinedButton(
-                          onPressed: () => load(creatorsOnly: true),
-                          child: const Text('Load more creators')),
-                    if (!busy && widget.screen == 23)
-                      FilledButton(
-                          onPressed: filters,
-                          child: const Text('Choose category')),
-                  ])),
+            child: ListView(padding: const EdgeInsets.all(16), children: [
+          if (items.isNotEmpty) const Text('Videos'),
+          ...items.map((v) => videoTile(context, v)),
+          if (creatorItems.isNotEmpty) const Text('Creators'),
+          for (final creator in creatorItems)
+            ListTile(
+                title: Text(creator.displayName.isEmpty
+                    ? '@${creator.handle}'
+                    : creator.displayName),
+                subtitle: Text('@${creator.handle} · ${creator.location}'),
+                onTap: () => discoveryNavigate(context, 26, creator.id)),
+          if (busy) const SystemLoading(),
+          if (error != null)
+            failure(
+                error!,
+                () => load(
+                    reset: items.isEmpty && !retryCreators,
+                    creatorsOnly: retryCreators)),
+          if (!busy && error == null && items.isEmpty && creatorItems.isEmpty)
+            searched
+                ? SystemEmpty(
+                    query: query ?? '',
+                    onEdit: () => searchFocus.requestFocus())
+                : Text(widget.screen == 18
+                    ? 'Follow creators to see their originals here.'
+                    : 'No originals are available yet.'),
+          if (!busy && cursor != null)
+            OutlinedButton(
+                onPressed: load, child: const Text('Load more videos')),
+          if (!busy && creatorCursor != null)
+            OutlinedButton(
+                onPressed: () => load(creatorsOnly: true),
+                child: const Text('Load more creators')),
+          if (!busy && widget.screen == 23)
+            FilledButton(
+                onPressed: filters, child: const Text('Choose category')),
+        ])),
       ])));
 }
