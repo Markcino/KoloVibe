@@ -101,3 +101,6 @@ if ENVIRONMENT == "staging":
                     "options": "-c search_path=web"},
         "CONN_MAX_AGE": 0,
     }}
+else:
+    # Local test fixture only. Staging images remove SQLite and cannot select this profile.
+    DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}}
