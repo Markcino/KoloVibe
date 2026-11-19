@@ -103,6 +103,7 @@ class Profile(NamedTuple):
     opa_waiver: str = ''       # owner waiver reference when this profile runs without the OPA Docker plugin
     r1_flags: dict = None      # service -> the exact R1 flag row (see FLAG_R1_NAMES), enabled by --enable-r1-capabilities
     media_flags: dict = None   # service -> the exact intermediate "media stage" row some live services may still carry
+    reviewed_releases: tuple = ()  # immutable digests of earlier releases the Gateway may still be running (see base_gateway)
     r1_rollout: dict = None    # service -> reviewed env, secret mounts and networks the R1 rollout adds
     ca_secret_names: dict = None  # shared-CA mount target -> the Swarm secret name this environment uses for it
     db_user_format: str = 'kv_{service}_run'  # runtime database login of each service, from the live specs
@@ -271,6 +272,12 @@ AWS_STAGING = Profile(
     # Content carry the single `media` capability and nothing else; every other service is at the baseline. The tool
     # accepts exactly that row as a third state and moves it to the R1 row; nothing else about it is relaxed.
     media_flags=media_flag_table(flag_table(gateway=('1', '0'), identity=('1', '0'))),
+    # Earlier releases the live Gateway may still be on, each published by CI and read back from the live service.
+    # v0.187.2: CI run 44150174814 (source commit 5603230f0c27a4fe426dcab43afed731c6ec6bb1), deployed to AWS staging on
+    # 17 November 2026 outside this tool (the Gateway carries no `kolovibe.source-revision` label) and read back on
+    # 19 November. Without it no second release could ever be planned, because the Gateway check accepts only the
+    # 1 November baseline or the exact new target. Each future release is added here by a reviewed change.
+    reviewed_releases=(REPOSITORY + '@sha256:0b3bba46d1de2c988fe06099944a9a1a9be37df128c407ec51430f95fe576f69',),
     opa_waiver=OPA_WAIVER, r1_flags=r1_flag_table(), r1_rollout=r1_rollout_table(),
     # Read-only service inspection of 14 November 2026: every AWS service mounts the database CA from the
     # Swarm secret `kolovibe_pg_ca_v1` at target `db_ca`; no secret is named `db_ca` there.  # pragma: allowlist secret
@@ -302,6 +309,21 @@ def check_flag_table(profile):
         check_r1_table(profile)
     if profile.media_flags is not None:
         check_media_table(profile)
+    check_reviewed_releases(profile)
+
+
+def check_reviewed_releases(profile):
+    """Earlier releases must be exact immutable digests of this project's own repository, each listed once, and never
+    the baseline (which is already accepted). No wildcard, tag or other repository is possible."""
+    seen = set()
+    for digest in profile.reviewed_releases:
+        if not isinstance(digest, str) or not IMAGE_RE.fullmatch(digest):
+            raise ValueError(profile.name + ': a reviewed release must be ' + REPOSITORY + '@sha256:<64 hex>')
+        if digest == BASELINE_IMAGE:
+            raise ValueError(profile.name + ': the baseline is accepted already and is not a reviewed release')
+        if digest in seen:
+            raise ValueError(profile.name + ': reviewed releases must be unique')
+        seen.add(digest)
 
 
 def check_media_table(profile):
@@ -664,9 +686,10 @@ def base_gateway(api, image=BASELINE_IMAGE):
     off = flag_mismatch('gateway', env)
     if off:
         fail('Gateway staging capability flags differ from the ' + PROFILE.name + ' profile: ' + ', '.join(off))
-    # The Gateway is either still on the working baseline or already on a reviewed target.
+    # The Gateway is on the working baseline, on the exact target (a re-run), or on an earlier release that the profile
+    # lists by digest. Any other image, including an unlisted digest of this repository, stops every plan.
     if (any(env.get(k) != v for k, v in required.items()) or not db_host_ok(env.get('KOLOVIBE_DB_HOST', ''))
-            or c.get('Image') not in (BASELINE_IMAGE, image)):
+            or c.get('Image') not in (BASELINE_IMAGE, image, *PROFILE.reviewed_releases)):
         fail('Gateway differs from the working pinned baseline')
     if not c.get('ReadOnly') or c.get('User') != '10001:10001':
         fail('Gateway runtime hardening differs')
