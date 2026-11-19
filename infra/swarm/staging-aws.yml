@@ -14,7 +14,11 @@ version: "3.8"
 # exactly the secrets of the API service it belongs to (the staging
 # runtime validates the same configuration for a worker as for the API), and carries the same exact flag row.
 #
-# All services start at ZERO replicas. Scale each up one at a time, after the read-only capacity check and
+# Deploy under the separate stack name kolovibe-r1-jobs: the existing kolovibe-media-worker
+# is live at 1/1, while this file's media-worker placeholder is zero replicas. Using the
+# existing kolovibe stack name would replace its live worker configuration.
+# All services in this file start at ZERO replicas. Scale only the six non-media processes
+# after the read-only capacity check and
 # only when the secrets exist:   docker service scale <stack>_<name>=1
 # Rollback never deletes anything:   docker service scale <stack>_<name>=0
 #
@@ -98,8 +102,8 @@ services:
       - {source: content_probe, target: probe_token, uid: "10001", gid: "10001", mode: 0400}
       - {source: internal_ca, target: internal_ca, uid: "10001", gid: "10001", mode: 0400}
       - {source: kolovibe_pg_ca_v1, target: db_ca, uid: "10001", gid: "10001", mode: 0400}
-      - {source: kolovibe_content_r2_access_key_r1_v1, target: r2_access_key, uid: "10001", gid: "10001", mode: 0400}
-      - {source: kolovibe_content_r2_secret_key_r1_v1, target: r2_secret_key, uid: "10001", gid: "10001", mode: 0400}
+      - {source: kolovibe_content_r2_access_key_r1_v2, target: r2_access_key, uid: "10001", gid: "10001", mode: 0400}
+      - {source: kolovibe_content_r2_secret_key_r1_v2, target: r2_secret_key, uid: "10001", gid: "10001", mode: 0400}
       - {source: kolovibe_content_rabbitmq_url_r1_v1, target: rabbitmq_url, uid: "10001", gid: "10001", mode: 0400}
       - {source: kolovibe_rmq_ca, target: rabbitmq_ca, uid: "10001", gid: "10001", mode: 0400}
     deploy:
@@ -297,8 +301,8 @@ secrets:
   content_tls_key: {external: true}
   content_callers: {external: true}
   content_probe: {external: true}
-  kolovibe_content_r2_access_key_r1_v1: {external: true}
-  kolovibe_content_r2_secret_key_r1_v1: {external: true}
+  kolovibe_content_r2_access_key_r1_v2: {external: true}
+  kolovibe_content_r2_secret_key_r1_v2: {external: true}
   kolovibe_content_rabbitmq_url_r1_v1: {external: true}
   engagement_django: {external: true}
   engagement_db: {external: true}
