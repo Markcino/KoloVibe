@@ -104,6 +104,43 @@ class R1TableTests(unittest.TestCase):
         self.assertNotIn('kolovibe_content_r2_access_key_r1_v1', AWS.service_allowed_secrets['gateway'])
 
 
+class LiveContentR2SecretTests(unittest.TestCase):
+    """The live Content service mounts the v2 R2 secrets (read-only inspection, 19 November 2026)."""
+
+    V2 = {'r2_access_key': 'kolovibe_content_r2_access_key_r1_v2',  # pragma: allowlist secret
+          'r2_secret_key': 'kolovibe_content_r2_secret_key_r1_v2'}  # pragma: allowlist secret
+
+    def spec(self, mounts):
+        return {'TaskTemplate': {'ContainerSpec': {'Secrets': [
+            {'SecretName': name, 'SecretID': 'x', 'File': {'Name': target}} for target, name in mounts.items()]}}}
+
+    def test_content_may_mount_exactly_the_two_v2_names(self):
+        self.assertEqual(AWS.service_allowed_secrets['content'] & cluster.LIVE_CONTENT_R2_SECRETS,
+                         cluster.LIVE_CONTENT_R2_SECRETS)
+        self.assertEqual(cluster.LIVE_CONTENT_R2_SECRETS, frozenset(self.V2.values()))
+        with patch.object(cluster, 'PROFILE', AWS):
+            cluster.require_secrets_belong('content', self.spec(self.V2))
+
+    def test_no_other_service_may_mount_them(self):
+        for service in cluster.SERVICES:
+            if service == 'content':
+                continue
+            with self.subTest(service):
+                self.assertFalse(AWS.service_allowed_secrets.get(service, frozenset()) & cluster.LIVE_CONTENT_R2_SECRETS)
+                with patch.object(cluster, 'PROFILE', AWS), self.assertRaisesRegex(RuntimeError, 'does not belong to it'):
+                    cluster.require_secrets_belong(service, self.spec(self.V2))
+
+    def test_nothing_close_to_the_v2_names_is_accepted_for_content(self):
+        for name in ('kolovibe_content_r2_access_key_r1_v3', 'kolovibe_content_r2_access_key_r1_v2x',
+                     'kolovibe_content_r2_secret_key_r1_v0', 'kolovibe_points_r2_secret_key_r1_v2'):
+            with self.subTest(name), patch.object(cluster, 'PROFILE', AWS), \
+                    self.assertRaisesRegex(RuntimeError, 'does not belong to it'):
+                cluster.require_secrets_belong('content', self.spec({'r2_secret_key': name}))
+
+    def test_oracle_gains_nothing(self):
+        self.assertFalse(cluster.ORACLE_STAGING.service_allowed_secrets)
+
+
 class DatabaseCaNameTests(unittest.TestCase):
     """Live AWS mounts the database CA from `kolovibe_pg_ca_v1` at target `db_ca` (read-only inspection)."""
 

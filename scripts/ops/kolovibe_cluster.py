@@ -177,6 +177,8 @@ MESSAGING_NETWORK = 'kolovibe_messaging'
 R2_PROXY_NETWORK = 'kolovibe_r2_proxy_clients'
 R2_PROXY_URL = 'http://kolovibe-r2-proxy:3128'
 R1_SECRET_SUFFIX = '_r1_v1'  # pragma: allowlist secret
+LIVE_CONTENT_R2_SECRETS = frozenset({'kolovibe_content_r2_access_key_r1_v2',  # pragma: allowlist secret
+                                     'kolovibe_content_r2_secret_key_r1_v2'})  # pragma: allowlist secret
 
 
 def r1_rollout_table():
@@ -248,6 +250,10 @@ def _aws_allowed_secrets():
     allowed['identity'] |= {'kolovibe_account_approval' + R1_SECRET_SUFFIX}
     for service, rollout in r1_rollout_table().items():
         allowed.setdefault(service, set()).update(rollout['mounts'].values())
+    # Read-only inspection of the eight live services on 19 November 2026: the Content service already mounts the
+    # second version of its two R2 secrets, created by the owner when the media stage went live. Names only; the
+    # tool never reads values. Content alone may mount them. The R1 rollout table above still names the v1 secrets.
+    allowed['content'] |= LIVE_CONTENT_R2_SECRETS
     return {service: frozenset(names) for service, names in allowed.items()}
 
 
