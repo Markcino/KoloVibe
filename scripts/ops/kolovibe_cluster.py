@@ -291,6 +291,9 @@ AWS_STAGING = Profile(
         REPOSITORY + '@sha256:0b3bba46d1de2c988fe06099944a9a1a9be37df128c407ec51430f95fe576f69',
         REPOSITORY + '@sha256:c681a909334f6196c1144dfe6569876b4df0920c1d7acab46a3ad0ad348f9a4b',
         REPOSITORY + '@sha256:a43d0cfb17a24962e91aeb422cb4c1b5c77087fe08eedd45c5ba8d664ee509c5',
+        # v0.271.1: previously verified on all eight AWS APIs on 20 November 2026.
+        # Required for a guarded update to the published v0.273.1 audit row-lock repair.
+        REPOSITORY + '@sha256:7c4942e329a62bef6b4c56a9744421722839cb5349eedae6773c052183036e72',
     ),
     opa_waiver=OPA_WAIVER, r1_flags=r1_flag_table(), r1_rollout=r1_rollout_table(),
     # Read-only service inspection of 14 November 2026: every AWS service mounts the database CA from the
