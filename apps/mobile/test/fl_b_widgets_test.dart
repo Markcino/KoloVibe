@@ -513,6 +513,8 @@ void main() {
     expect(players.length, 2);
     expect(players.first.disposed, isTrue);
     expect(players.last.value.isPlaying, isTrue);
+    await tester.tap(find.byTooltip('More'));
+    await settle(tester);
     await tap(tester, 'Report video');
     expect(players.last.value.isPlaying, isFalse);
     expect(find.text('Destination /mobile/M-004'), findsOneWidget);
