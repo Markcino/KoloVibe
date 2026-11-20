@@ -10,6 +10,7 @@ import 'package:kolovibe/features/account/live_account_screen.dart';
 import 'package:kolovibe/features/settings/live_information_screen.dart';
 import 'package:kolovibe/features/settings/live_settings_repository.dart';
 import 'package:kolovibe/features/settings/live_settings_screen.dart';
+import 'package:kolovibe/features/system/compatibility.dart';
 import 'package:kolovibe/features/system/system_ui.dart';
 import 'package:kolovibe/features/content/live_content_repository.dart';
 import 'package:kolovibe/features/content/live_content_screen.dart';
@@ -98,6 +99,14 @@ void main() {
   }
 
   AccountFixture signedIn() => AccountFixture(handler: (request) async {
+        if (request.url.path.endsWith('/follow')) {
+          return jsonResponse({
+            'creator_id':
+                request.url.pathSegments[request.url.pathSegments.length - 2],
+            'following': false,
+            'follower_count': 2800
+          });
+        }
         if (request.url.path.endsWith('/me/preferences')) {
           return jsonResponse(
               {'email_notifications': true, 'push_notifications': false});
@@ -191,6 +200,17 @@ void main() {
       () => Scaffold(
           body:
               SafeArea(child: SystemEmpty(query: 'Waterside', onEdit: () {}))));
+  audit(
+      'M-108',
+      108,
+      () => CompatibilityScreen(
+          policy: CompatibilityPolicy.fromJson({
+            'status': 'update_required',
+            'minimum_version': '1.0.0',
+            'latest_version': '2.0.0',
+            'store_url': 'https://store.example.test/kolovibe'
+          }),
+          device: TestDevice()));
   audit('M-104', 104, () => MediaPermissionScreen(device: TestDevice()));
 
   // Discovery.
@@ -305,21 +325,43 @@ void main() {
           videoTitle: (_) async => 'Waterside at dawn'));
 
   // Reports, notices and standing.
+  // The report journey: each later screen is reached the way a person would.
+  Future<void> tapLabel(WidgetTester tester, String label) async {
+    if (find.text(label).evaluate().isEmpty) {
+      await tester.scrollUntilVisible(find.text(label), 200,
+          scrollable: find.byType(Scrollable).first);
+    }
+    final target = find.text(label).last;
+    await tester.ensureVisible(target);
+    await tester.pumpAndSettle();
+    await tester.tap(target, warnIfMissed: false);
+    await settleAsync(tester);
+  }
+
   for (final id in [71, 72, 73, 74, 75]) {
-    audit(
-        'M-${id.toString().padLeft(3, '0')}',
-        id,
-        () => LiveReportScreen(
-            route: ScreenRoute(id, entityId: videoId),
-            catalog: catalog,
-            videos: ScriptedVideos(),
-            moderation: ScriptedModeration()));
+    audit('M-${id.toString().padLeft(3, '0')}', id, () {
+      final moderation = ScriptedModeration();
+      if (id == 74) moderation.failures.add(offlineReport);
+      if (id == 75) moderation.failures.add(alreadyReported);
+      return LiveReportScreen(
+          route: const ScreenRoute(71, entityId: videoId),
+          catalog: catalog,
+          videos: ScriptedVideos(),
+          moderation: moderation);
+    },
+        after: id == 71
+            ? null
+            : (tester) async {
+                await tapLabel(tester, 'Rights or ownership concern');
+                await tapLabel(tester, 'Continue');
+                if (id >= 73) await tapLabel(tester, 'Submit report');
+              });
   }
   audit(
       'M-076',
       76,
       () => LiveNoticeScreen(
-          route: ScreenRoute(76, entityId: videoId),
+          route: const ScreenRoute(76, entityId: videoId),
           catalog: catalog,
           repository: ScriptedStanding()
             ..noticeValue = videoNotice(appealable: true)));

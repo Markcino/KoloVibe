@@ -56,6 +56,9 @@ void main() {
       await tester.scrollUntilVisible(finder, 120,
           scrollable: find.byType(Scrollable).first);
     }
+    // Bring the whole control clear of the bottom navigation before tapping.
+    await tester.ensureVisible(finder);
+    await tester.pumpAndSettle();
     await tester.tap(finder);
     await tester.pumpAndSettle();
   }

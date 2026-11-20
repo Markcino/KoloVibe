@@ -169,10 +169,12 @@ class _LivePointsLedgerScreenState extends State<LivePointsLedgerScreen> {
         return _overview(context, balance);
       case PointsView.confirmed:
         return [
-          Text('Confirmed Lone Stars', style: text.titleMedium),
-          Text(formatPoints(balance.balance), style: text.displayMedium),
-          const Text('Confirmed recognition points'),
-          const SizedBox(height: 8),
+          KoloHeroStat(
+              dark: true,
+              icon: Icons.verified_outlined,
+              eyebrow: 'Confirmed Lone Stars',
+              value: formatPoints(balance.balance),
+              caption: 'Confirmed recognition points'),
           const PointsNote(
               'These points have completed the current qualification checks. They are non-cash recognition, not a spendable balance.'),
           ..._rows(context,
@@ -185,10 +187,11 @@ class _LivePointsLedgerScreenState extends State<LivePointsLedgerScreen> {
         ];
       case PointsView.pending:
         return [
-          Text('Pending Lone Stars', style: text.titleMedium),
-          Text(formatPoints(balance.pending), style: text.displayMedium),
-          const Text('Recognition points awaiting qualification'),
-          const SizedBox(height: 8),
+          KoloHeroStat(
+              icon: Icons.schedule,
+              eyebrow: 'Pending Lone Stars',
+              value: formatPoints(balance.pending),
+              caption: 'Recognition points awaiting qualification'),
           const PointsNote(
               'Pending activity is still being checked and may be confirmed, withheld or adjusted. It is not guaranteed recognition.'),
           ..._rows(context, empty: 'Nothing is being checked right now.'),
@@ -282,12 +285,16 @@ class _LivePointsLedgerScreenState extends State<LivePointsLedgerScreen> {
     }
     final recent = controller.entries.take(5).toList();
     return [
-      Text('COMMUNITY RECOGNITION', style: text.labelMedium),
-      Text(formatPoints(balance.balance), style: text.displayMedium),
       InkWell(
+          borderRadius: BorderRadius.circular(20),
           onTap: () => _open(62),
-          child: Text('Confirmed Lone Stars', style: text.titleMedium)),
-      const Text('Non-cash recognition. Not money or redeemable value.'),
+          child: KoloHeroStat(
+              dark: true,
+              eyebrow: 'COMMUNITY RECOGNITION',
+              value: formatPoints(balance.balance),
+              caption: 'Confirmed Lone Stars')),
+      Text('Non-cash recognition. Not money or redeemable value.',
+          style: text.bodySmall),
       const SizedBox(height: 8),
       PointsStatTile(
           label: 'Pending', value: balance.pending, onTap: () => _open(63)),

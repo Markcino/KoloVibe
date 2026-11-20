@@ -231,3 +231,154 @@ Journey 1 of the remaining Creator Studio work. Full matrix, tests and decisions
 | M-038 · Creator profile | Live | GET /creators/me; GET /creators/{id} (count only) | Real public fields; preview (M-026) and originals (M-027) links; no profile photo. |
 | M-039 · Edit creator profile | Live | PATCH /creators/me | Display name, bio, location and handle; `handle_taken` shown on the field; no photo. |
 
+
+
+## Mobile design audit and Home rebuild — 19 November 2026
+
+Scope: every `live_*` screen and the shared state views, compared with the approved exports in `docs/designed/`. Home (M-017) was rebuilt first. This is a visual and layout audit from widget-test renders. **It is not device acceptance**; the physical iPhone run is `docs/engineering/iphone_e2e_checklist.md` (separate branch) and has not been executed.
+
+**Method.** `apps/mobile/test/design_audit_test.dart` renders each screen with scripted repositories (no network) at 390 × 844 (status bar 47, home indicator 34) and at 375 × 667 (iPhone SE class, status bar 20, no indicator), each at 1× and 2× text, and fails on any layout exception. With `AUDIT_DIR` set it also writes a picture of the export beside the render. Home is additionally rendered at 320 × 568, at 1.5×, 2× and 3× text, and with a 336 pt keyboard inset (`test/home_dashboard_test.dart`).
+
+```sh
+cd apps/mobile
+AUDIT_DIR=$PWD/build/design-audit flutter test test/design_audit_test.dart
+```
+
+**Evidence.** Pictures are written to `apps/mobile/build/design-audit/M-NNN_390x844.png` (export left, render right) and `…_375x667.png`. `build/` is ignored, so the pictures are regenerated locally with the command above, as with the 29 Oct captures. Captures omit the iOS status bar and the home-indicator bar that the exports draw. Dated 19 Nov 2026; Flutter 3.47.8.
+
+**Status meanings.** *Match*: unchanged and equal to the export. *Fixed*: changed in this pass and now matches the export apart from the listed deviations. *Deviation*: a known difference remains, or the screen could not be captured here. **No screen is claimed as a pixel-exact Match.**
+
+**What changed.** Theme tokens (`KoloVibeColors.line`, `KoloVibeRadii`, `KoloVibeText`; app bar, buttons, fields, chips, cards, dialogs, snack bars, dark surface); shared widgets in `lib/shared/widgets/kolo_components.dart` and `kolo_media.dart`; the Home dashboard (`lib/features/discovery/home_dashboard.dart`); the account flow, account hub, settings rows, catalog family, creator profile, Creator Studio surface, video detail metadata, Lone Stars heroes and ledger rows, and the system state panel. The bottom navigation uses the design’s weights and a clamped label scale. Layout fixes: long labels wrap instead of overflowing (wordmark, tiles, creator row), form errors show next to the primary button, form lists dismiss the keyboard on drag.
+
+**Home (M-017).** Greeting uses the account’s real display name and the local time of day; signed-out shows “Welcome to KoloVibe” with Sign in. The hero is the first trending video; the trending row is the second; creators are the creators of trending videos, looked up through `GET /creators/{id}`; Follow uses the real follow state and rolls back on failure. Trending, creators and Following each own their loading, empty, error and signed-out state, so one failure never hides the rest. Nothing is invented: no durations, plays, avatars or sample creators.
+
+### Per-screen status
+
+| Screen | Status | Notes |
+| --- | --- | --- |
+| M-001 · Splash Screen | Deviation (not audited) | Static recipe views (`MobileScreen`), not `live_*` screens. Last evidence is the 29 Oct 2026 render. |
+| M-002 · Welcome Screen | Deviation (not audited) | Static recipe views (`MobileScreen`), not `live_*` screens. Last evidence is the 29 Oct 2026 render. |
+| M-003 · A world of original voices | Deviation (not audited) | Static recipe views (`MobileScreen`), not `live_*` screens. Last evidence is the 29 Oct 2026 render. |
+| M-004 · Sign in | Fixed | Brand header, two-line headline, labelled fields with show/hide, red primary and soft secondary action match. Failure text appears after a failed attempt (M-015 route), not inline. |
+| M-005 · Create an account | Fixed | Headline, labelled fields, helper text, acknowledgement and actions match. Terms line says “Privacy information”. |
+| M-006 · Verify your email | Fixed | Layout and copy match. Deviation: one masked field, because the emailed code is a long token, instead of six boxes; envelope medallion and the verifying note are not drawn. |
+| M-007 · Resend verification | Fixed | Request form with the service’s honest acknowledgement. Deviation: the designed resend-unavailable state and mail medallion are not reproduced. |
+| M-008 · Verification expired | Fixed | Headline, lead, labelled fields, notes and actions match. Deviation: icon medallion omitted; M-010 adds the reset-code field the API requires. |
+| M-009 · Forgot password | Fixed | Headline, lead, labelled fields, notes and actions match. Deviation: icon medallion omitted; M-010 adds the reset-code field the API requires. |
+| M-010 · Reset password | Fixed | Headline, lead, labelled fields, notes and actions match. Deviation: icon medallion omitted; M-010 adds the reset-code field the API requires. |
+| M-011 · Password reset | Fixed | Headline, lead, labelled fields, notes and actions match. Deviation: icon medallion omitted; M-010 adds the reset-code field the API requires. |
+| M-012 · Account already exists | Fixed | Headline, lead, labelled fields, notes and actions match. Deviation: icon medallion omitted; M-010 adds the reset-code field the API requires. |
+| M-013 · Make it yours | Fixed | Headline, name field and actions match. Deviation: no photo (not supported; the text action says so); status pills omitted. |
+| M-014 · Your voice belongs here | Deviation | Plain text sections and two rows; no hero image or creator-access card. Theme tokens only. |
+| M-015 · Sign-in problem | Fixed | Alert note, labelled fields and actions match. Medallion omitted. |
+| M-016 · Confirm it’s you | Fixed | Headline, read-only email, password field, note and actions match. |
+| M-017 · Multi-Service Home Dashboard | Fixed | Rebuilt from the design (see below). Deviations: Following block added (M-018 has no other entry); creators come from trending videos; no duration or play counts; avatar is an initial; See all opens Search; all seven categories shown. |
+| M-018 · Following Video Feed | Deviation | Design is a dark full-screen vertical feed; live is a list of followed originals with the shared empty and error states. The vertical feed is M-024. |
+| M-019 · Explore & Discover | Fixed | Search field, category chips and video rows with posters. Deviation: no curated hero, “Fresh perspectives” grid or creator spotlight (no endpoints; nothing invented). |
+| M-020 · Trending originals | Fixed | Eyebrow, headline and rows match. Deviation: no Trending / Fresh picks tabs, ranking or play counts. |
+| M-021 · Search | Fixed | Search field and filters control match. Deviation: no recent searches or suggestions (none are stored or invented). |
+| M-022 · Search results | Fixed | Videos and Creators sections with posters and creator rows. Deviation: no result-type chips or bio line. |
+| M-023 · Search filters | Fixed | Bottom sheet title, chips, red Apply and soft Reset match. |
+| M-024 · Full-Screen Vertical Video Feed / Player | Deviation (not audited) | Vertical feed uses `video_player`, which does not render in widget tests. Covered by checklist D2 on a device. |
+| M-025 · Video Details | Fixed | Poster card, badges, actions and likes restyled. Deviation: design is a dark player with a sheet; no plays count or duration. |
+| M-026 · Ama Kollie | Fixed | Avatar, name, handle, bio, follower and video cards, Follow. Deviation: avatar is an initial; no tagline, tabs or featured card. |
+| M-027 · Ama’s published videos | Fixed | Same rows as M-020. Deviation: no creator header. |
+| M-028 · Follow / Unfollow State | Deviation (not audited) | States reached by tapping Follow, Like or Share on M-025 / M-026; behaviour covered by `fl_b_widgets_test.dart`, visuals not captured. |
+| M-029 · Like / Unlike State | Deviation (not audited) | States reached by tapping Follow, Like or Share on M-025 / M-026; behaviour covered by `fl_b_widgets_test.dart`, visuals not captured. |
+| M-030 · Native Share State | Deviation (not audited) | States reached by tapping Follow, Like or Share on M-025 / M-026; behaviour covered by `fl_b_widgets_test.dart`, visuals not captured. |
+| M-031 · Video unavailable | Deviation | Captured through the shared state views; not compared in detail. |
+| M-032 · Video Buffering | Deviation (not audited) | Player states need `video_player`; covered by `fl_b_widgets_test.dart`, not captured. |
+| M-033 · Video Playback Error | Deviation (not audited) | Player states need `video_player`; covered by `fl_b_widgets_test.dart`, not captured. |
+| M-034 · Low-Bandwidth Playback | Deviation (not audited) | Player states need `video_player`; covered by `fl_b_widgets_test.dart`, not captured. |
+| M-035 · Restricted video | Deviation | Captured through the shared state views; not compared in detail. |
+| M-036 · Become a creator | Deviation | No hero image; different copy; theme tokens only. |
+| M-037 · Creator Studio | Fixed | Deep navy surface, headline, red action and rows. Deviation: no analytics chart or Lone Stars card (not wired). |
+| M-038 · Creator profile | Deviation | No profile photo (not supported); rows and note styled by theme only. |
+| M-039 · Edit creator profile | Deviation | Fields keep Material floating labels and counters; no photo. |
+| M-040 · My video library | Deviation | Rows only: no thumbnails, status colours, filter chips or search. |
+| M-041 · Create an original | Deviation | Plain step with a select button; no stepper or illustration. |
+| M-042 · Select a video | Deviation (not audited) | Steps and states inside the M-041 flow (M-045 is not wired); covered by upload controller and screen tests, not captured. |
+| M-043 · Check your file | Deviation (not audited) | Steps and states inside the M-041 flow (M-045 is not wired); covered by upload controller and screen tests, not captured. |
+| M-044 · Tell the story | Deviation (not audited) | Steps and states inside the M-041 flow (M-045 is not wired); covered by upload controller and screen tests, not captured. |
+| M-045 · Choose a cover | Deviation (not audited) | Steps and states inside the M-041 flow (M-045 is not wired); covered by upload controller and screen tests, not captured. |
+| M-046 · Uploading your original | Deviation (not audited) | Steps and states inside the M-041 flow (M-045 is not wired); covered by upload controller and screen tests, not captured. |
+| M-047 · Upload interrupted | Deviation (not audited) | Steps and states inside the M-041 flow (M-045 is not wired); covered by upload controller and screen tests, not captured. |
+| M-048 · Upload failed | Deviation (not audited) | Steps and states inside the M-041 flow (M-045 is not wired); covered by upload controller and screen tests, not captured. |
+| M-049 · Preparing your video | Deviation (not audited) | Steps and states inside the M-041 flow (M-045 is not wired); covered by upload controller and screen tests, not captured. |
+| M-050 · Pending moderation | Deviation (not audited) | Steps and states inside the M-041 flow (M-045 is not wired); covered by upload controller and screen tests, not captured. |
+| M-051 · Your original is published | Deviation (not audited) | Steps and states inside the M-041 flow (M-045 is not wired); covered by upload controller and screen tests, not captured. |
+| M-052 · Video rejected | Deviation (not audited) | Steps and states inside the M-041 flow (M-045 is not wired); covered by upload controller and screen tests, not captured. |
+| M-053 · Manage video | Deviation | Actions only: no hero card, stats or analytics row. |
+| M-054 · Edit video details | Deviation (not audited) | Dialogs and notice inside M-053; behaviour covered by `live_manage_video_test.dart`, not captured. |
+| M-055 · Unpublish confirmation | Deviation (not audited) | Dialogs and notice inside M-053; behaviour covered by `live_manage_video_test.dart`, not captured. |
+| M-056 · Delete video confirmation | Deviation (not audited) | Dialogs and notice inside M-053; behaviour covered by `live_manage_video_test.dart`, not captured. |
+| M-057 · Content status notice | Deviation (not audited) | Dialogs and notice inside M-053; behaviour covered by `live_manage_video_test.dart`, not captured. |
+| M-058 · Creator analytics | Deviation | Analytics are not wired (see the FL-C gap matrix). |
+| M-059 · Video analytics | Deviation | Analytics are not wired (see the FL-C gap matrix). |
+| M-060 · Creator Analytics — Empty / Unavailable | Deviation | Analytics are not wired (see the FL-C gap matrix). |
+| M-061 · Lone Stars | Fixed | Hero card, stat rows and ledger rows (star, signed amount) match. Deviation: no month grouping; stats are rows. |
+| M-062 · Confirmed Lone Stars | Fixed | Hero card, stat rows and ledger rows (star, signed amount) match. Deviation: no month grouping; stats are rows. |
+| M-063 · Pending Lone Stars | Fixed | Hero card, stat rows and ledger rows (star, signed amount) match. Deviation: no month grouping; stats are rows. |
+| M-064 · Transaction history | Fixed | Filter chips and ledger rows match. Deviation: no month grouping. |
+| M-065 · Transaction details | Fixed | Dark hero, source, date and status rows, recognition note. Deviation: no per-row icons. |
+| M-066 · Withheld points | Fixed | Hero card, notes and actions match. |
+| M-067 · Reversed points | Fixed | Hero card, notes and actions match. |
+| M-068 · Engagement eligibility | Deviation | Headline and rows; no icon rows. |
+| M-069 · No points activity | Fixed | Hero card, notes and actions match. |
+| M-070 · Report Video Entry | Deviation (not audited) | Report entry is a menu item on M-025. |
+| M-071 · Report a video | Fixed | Reason list, privacy line and primary action match. Deviation: title card instead of the thumbnail card. |
+| M-072 · Report details | Deviation | Reached by driving the flow; theme tokens only. No thumbnail card or medallion. |
+| M-073 · Report submitted | Deviation | Reached by driving the flow; theme tokens only. No thumbnail card or medallion. |
+| M-074 · Report submission error | Deviation | Reached by driving the flow; theme tokens only. No thumbnail card or medallion. |
+| M-075 · Already reported | Deviation | Reached by driving the flow; theme tokens only. No thumbnail card or medallion. |
+| M-076 · Content restriction notice | Deviation | Notice and standing lists use theme tokens only; no thumbnail or medallion. |
+| M-077 · Account status | Deviation | Notice and standing lists use theme tokens only; no thumbnail or medallion. |
+| M-078 · Appeal / Review Request | Deviation (not audited) | Appeal opens from M-076; behaviour covered by notice tests, not captured. |
+| M-079 · My account | Fixed | Avatar, name, badge, studio card and icon rows. Deviation: no photo or originals count. |
+| M-080 · Edit personal profile | Fixed | Labelled fields, notes and actions match. |
+| M-081 · Account settings | Fixed | Section headings and rows. Deviation: no row icons or dividers between headings. |
+| M-082 · Change password | Fixed | Labelled fields, notes and actions match. |
+| M-083 · Active sessions | Deviation | Lists real sessions as plain rows; the designed provider note is for the unsupported state. |
+| M-084 · Privacy settings | Fixed | Headline, lead and rows. Deviation: rows are the real actions, with no icons or subtitles. |
+| M-085 · Security settings | Deviation | No dark hero card; rows only. |
+| M-086 · Notification preferences | Deviation | Captured; switches keep Material styling. |
+| M-087 · Community guidelines | Deviation | Headline and rows by theme; no icon rows, tabs styling or search. |
+| M-088 · Terms & Privacy | Deviation | Headline and rows by theme; no icon rows, tabs styling or search. |
+| M-089 · Help & Support | Deviation | Headline and rows by theme; no icon rows, tabs styling or search. |
+| M-090 · Logout confirmation | Deviation | Full page instead of a confirmation dialog over the account page. |
+| M-091 · Delete account request | Deviation | Intake pages by theme; fields and notes differ from the design. |
+| M-092 · Confirm account deletion | Deviation | Intake pages by theme; fields and notes differ from the design. |
+| M-093 · Deletion request received | Deviation | Populated receipt not captured (fixture lacks the privacy-request response); error state shown. |
+| M-094 · Privacy request received | Deviation | Populated receipt not captured (fixture lacks the privacy-request response); error state shown. |
+| M-095 · No Internet Connection | Fixed | Shared state panel: icon medallion, display headline, message and actions. Deviation: embedded without app bar, notes or secondary actions. |
+| M-096 · Slow Connection | Deviation (not audited) | Slow-connection state appears after a 3 s timer; not captured. |
+| M-097 · Loading Skeleton | Deviation | Skeleton bars only, without the surrounding page. |
+| M-098 · No search results | Fixed | Panel with headline and Edit search. Deviation: no search bar, chips or suggested creator. |
+| M-099 · Application error | Fixed | Shared state panel: icon medallion, display headline, message and actions. Deviation: embedded without app bar, notes or secondary actions. |
+| M-100 · Access denied | Fixed | Shared state panel: icon medallion, display headline, message and actions. Deviation: embedded without app bar, notes or secondary actions. |
+| M-101 · Session expired | Fixed | Shared state panel: icon medallion, display headline, message and actions. Deviation: embedded without app bar, notes or secondary actions. |
+| M-102 · Service unavailable | Fixed | Shared state panel: icon medallion, display headline, message and actions. Deviation: embedded without app bar, notes or secondary actions. |
+| M-103 · Rate limit exceeded | Fixed | Shared state panel: icon medallion, display headline, message and actions. Deviation: embedded without app bar, notes or secondary actions. |
+| M-104 · Media permission | Fixed | Panel and settings action. Deviation: full screen instead of a sheet over the upload step. |
+| M-105 · Unsaved Changes Warning | Deviation (not audited) | Dialogs and snackbar; `dialogTheme` and `snackBarTheme` carry the tokens. Not captured. |
+| M-106 · Destructive-Action Confirmation | Deviation (not audited) | Dialogs and snackbar; `dialogTheme` and `snackBarTheme` carry the tokens. Not captured. |
+| M-107 · Success Notification | Deviation (not audited) | Dialogs and snackbar; `dialogTheme` and `snackBarTheme` carry the tokens. Not captured. |
+| M-108 · Application Update / Compatibility Notice | Deviation | Captured; not compared in detail. |
+
+Totals: Fixed 44, Deviation 33, Deviation (not audited) 31, Match 0.
+
+### Verification run — 19 November 2026
+
+| Check | Result |
+| --- | --- |
+| `python3 scripts/check_mobile_design.py` | Passed: 108 entries, 150 local assets |
+| `flutter analyze` | No issues |
+| `flutter test` | 1254 passed (919 before this work) |
+| `flutter build ios --simulator --debug` | Built `build/ios/iphonesimulator/Runner.app` |
+| Physical iPhone run | **Not done** |
+
+### Remaining work
+
+- The rows marked Deviation and the not-audited states need per-screen reconstruction or captures; the largest are the upload flow steps, Manage video, Creator profile editing, the information screens (M-087 to M-094) and the player screens.
+- Designed content that needs new endpoints is not drawn: analytics, curated collections, recent searches, play counts and profile photos.
+- Visual conformity on a device (fonts, safe areas, keyboard) is checked by section H of the iPhone checklist.

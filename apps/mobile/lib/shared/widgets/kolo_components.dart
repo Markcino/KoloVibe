@@ -580,8 +580,10 @@ class KoloHeroStat extends StatelessWidget {
       required this.value,
       required this.caption,
       this.icon = Icons.star_outline,
+      this.eyebrow,
       this.dark = false});
   final String value, caption;
+  final String? eyebrow;
   final IconData icon;
   final bool dark;
 
@@ -610,6 +612,63 @@ class KoloHeroStat extends StatelessWidget {
                 style: KoloVibeText.body(13,
                     color: dark ? Colors.white : KoloVibeColors.muted)),
           ]),
+        ),
+      );
+}
+
+/// Centred state layout used by the system states: an icon medallion, a small
+/// label, a display headline, an explanation and its actions.
+class KoloStatePanel extends StatelessWidget {
+  const KoloStatePanel({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.headline,
+    required this.message,
+    this.note,
+    this.actions = const [],
+  });
+  final IconData icon;
+  final String label, headline, message;
+  final Widget? note;
+  final List<Widget> actions;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        liveRegion: true,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                    color: KoloVibeColors.softBlue,
+                    borderRadius: BorderRadius.circular(20)),
+                child: Icon(icon, size: 30, color: KoloVibeColors.navy),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(label,
+                textAlign: TextAlign.center,
+                style: KoloVibeText.body(12,
+                    weight: FontWeight.w600, color: KoloVibeColors.muted)),
+            const SizedBox(height: 6),
+            Text(headline,
+                textAlign: TextAlign.center,
+                style: KoloVibeText.heading(26, height: 1.15)),
+            const SizedBox(height: 12),
+            Text(message,
+                textAlign: TextAlign.center,
+                style: KoloVibeText.body(14, height: 1.5)),
+            if (note != null) ...[const SizedBox(height: 16), note!],
+            for (final action in actions) ...[
+              const SizedBox(height: 12),
+              action,
+            ],
+          ],
         ),
       );
 }

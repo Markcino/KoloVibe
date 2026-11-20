@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/network/api_client.dart';
 import '../../core/platform/device_bridge.dart';
+import '../../shared/widgets/kolo_components.dart';
 
 int failureScreen(Object error) {
   if (error is! ApiFailure) return 99;
@@ -58,26 +59,39 @@ class SystemFailureView extends StatelessWidget {
       103 => 'Wait before trying again. Repeated requests will not help.',
       _ => 'The request could not be completed. Please try again.',
     };
-    return SingleChildScrollView(
-      key: ValueKey('M-${id.toString().padLeft(3, '0')}'),
-      padding: const EdgeInsets.all(24),
-      child: Semantics(
-        liveRegion: true,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.info_outline, size: 40),
-            const SizedBox(height: 16),
-            Text(title, style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center),
-            if (note != null) Text(note!, textAlign: TextAlign.center),
+    final headline = switch (id) {
+      95 => 'You’re offline',
+      100 => 'You don’t have access to this.',
+      101 => 'Let’s reconnect you securely.',
+      102 => 'The stage is quiet for a moment.',
+      103 => 'A little pause between requests.',
+      _ => 'We hit a little offbeat.',
+    };
+    final icon = switch (id) {
+      95 => Icons.wifi_off_outlined,
+      100 => Icons.lock_outline,
+      101 => Icons.vpn_key_outlined,
+      102 => Icons.cloud_off_outlined,
+      103 => Icons.timer_outlined,
+      _ => Icons.report_problem_outlined,
+    };
+    return Center(
+      child: SingleChildScrollView(
+        key: ValueKey('M-${id.toString().padLeft(3, '0')}'),
+        padding: const EdgeInsets.all(24),
+        child: KoloStatePanel(
+          icon: icon,
+          label: title,
+          headline: headline,
+          message: message,
+          note: note == null ? null : KoloNote(title: 'Note', message: note!),
+          actions: [
             if (id == 101 && onSignIn != null)
               FilledButton(onPressed: onSignIn, child: const Text('Sign in')),
             if (id != 101 && onRetry != null)
               FilledButton(onPressed: onRetry, child: const Text('Try again')),
             if (onContinue != null)
-              TextButton(
+              OutlinedButton(
                 onPressed: onContinue,
                 child: const Text('Continue to welcome'),
               ),
@@ -156,19 +170,18 @@ class SystemEmpty extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
         key: const ValueKey('M-098'),
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.search_off, size: 40),
-            const Text('No search results'),
-            Text(
-              query.isEmpty
-                  ? 'Try a different search.'
-                  : 'No results for “$query”.',
-            ),
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: KoloStatePanel(
+          icon: Icons.search_off,
+          label: 'No search results',
+          headline: 'No stories found. Yet.',
+          message: query.isEmpty
+              ? 'Try a different search.'
+              : 'No results for “$query”.',
+          actions: [
             if (onEdit != null)
-              TextButton(onPressed: onEdit, child: const Text('Edit search')),
+              OutlinedButton(
+                  onPressed: onEdit, child: const Text('Edit search')),
           ],
         ),
       );
@@ -284,27 +297,33 @@ class MediaPermissionScreen extends StatelessWidget {
   Widget build(BuildContext context) => Scaffold(
         key: const ValueKey('M-104'),
         appBar: AppBar(title: const Text('Media permission')),
-        body: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Media access is managed in your device settings.'),
-              FilledButton(
-                onPressed: () async {
-                  final opened = await device.openAppSettings();
-                  if (!context.mounted || opened) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'App settings are not available on this device.',
-                      ),
-                    ),
-                  );
-                },
-                child: const Text('Open device settings'),
+        body: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: KoloStatePanel(
+                icon: Icons.photo_library_outlined,
+                label: 'Media permission',
+                headline: 'Allow access to your video',
+                message: 'Media access is managed in your device settings.',
+                actions: [
+                  FilledButton(
+                    onPressed: () async {
+                      final opened = await device.openAppSettings();
+                      if (!context.mounted || opened) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'App settings are not available on this device.',
+                          ),
+                        ),
+                      );
+                    },
+                    child: const Text('Open device settings'),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       );
