@@ -410,7 +410,7 @@ class _KoloTextFieldState extends State<KoloTextField> {
             decoration: InputDecoration(
               hintText: widget.hint,
               counterText: '',
-              fillColor: widget.readOnly ? KoloVibeColors.softBlue : null,
+              fillColor: widget.readOnly ? Colors.white : null,
               suffixIcon: widget.secret
                   ? IconButton(
                       tooltip: hidden ? 'Show' : 'Hide',
@@ -446,16 +446,20 @@ class KoloHeadline extends StatelessWidget {
       );
 }
 
-/// Soft informational card: a bold title over explanatory text.
+/// Soft informational card: a bold title over explanatory text. [tone] picks
+/// the approved tint (soft blue, mint, blush); [asset] draws a Figma icon
+/// instead of the Material [icon].
 class KoloNote extends StatelessWidget {
   const KoloNote(
       {super.key,
       required this.title,
       required this.message,
       this.icon = Icons.info_outline,
+      this.asset,
       this.tone = KoloNoteTone.info});
   final String title, message;
   final IconData icon;
+  final String? asset;
   final KoloNoteTone tone;
 
   @override
@@ -465,28 +469,39 @@ class KoloNote extends StatelessWidget {
       KoloNoteTone.success => KoloVibeColors.green,
       KoloNoteTone.alert => KoloVibeColors.red,
     };
+    final background = switch (tone) {
+      KoloNoteTone.info => KoloVibeColors.softBlue,
+      KoloNoteTone.success => const Color(0xFFE5F4EE),
+      KoloNoteTone.alert => const Color(0xFFFCECEF),
+    };
     return Semantics(
       container: true,
       liveRegion: tone != KoloNoteTone.info,
       child: Container(
         width: double.infinity,
         margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-            color: KoloVibeColors.softBlue,
+            color: background,
             borderRadius: BorderRadius.circular(KoloVibeRadii.tile)),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Icon(icon, size: 20, color: color),
-          const SizedBox(width: 10),
+          asset == null
+              ? Icon(icon, size: 20, color: color)
+              : ExcludeSemantics(
+                  child: SvgPicture.asset(asset!, width: 20, height: 20)),
+          const SizedBox(width: 12),
           Expanded(
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                 Text(title,
                     style: KoloVibeText.body(13,
-                        weight: FontWeight.w600, color: KoloVibeColors.navy)),
+                        weight: FontWeight.w600,
+                        color: tone == KoloNoteTone.info
+                            ? KoloVibeColors.navy
+                            : color)),
                 const SizedBox(height: 4),
-                Text(message, style: KoloVibeText.body(12, height: 1.45)),
+                Text(message, style: KoloVibeText.body(12, height: 1.5)),
               ])),
         ]),
       ),
@@ -671,4 +686,157 @@ class KoloStatePanel extends StatelessWidget {
           ],
         ),
       );
+}
+
+/// Local copies of the Figma icon exports used by the account and state
+/// screens (all `assets/images/*.svg`, 1.8 px navy strokes).
+abstract final class KoloIcons {
+  static const mailCheck = 'assets/images/b7f9364a64a0a7ceef2f.svg';
+  static const mail = 'assets/images/9b29adadf19eaf18f946.svg';
+  static const clockAlert = 'assets/images/a800d93bea91812d30e0.svg';
+  static const keyRound = 'assets/images/52977f2de2817e3b55cb.svg';
+  static const circleCheck = 'assets/images/5ee20178be752bf9479c.svg';
+  static const shieldCheck = 'assets/images/255bbccb1cbb9e330a19.svg';
+  static const shieldCheckPlain = 'assets/images/001c06421adf29482403.svg';
+  static const userRoundCheck = 'assets/images/8e1f590415341fba43d7.svg';
+  static const circleAlert = 'assets/images/11bdd18b376a0534d656.svg';
+  static const info = 'assets/images/d8eedea853f449ea1543.svg';
+  static const loader = 'assets/images/ca4c1bcc5542a3416b63.svg';
+  static const emblem = 'assets/images/88dfdf7ffa8d70c62080.svg';
+}
+
+/// Rounded soft-blue "State emblem" (80 pt, 24 pt radius) holding a Figma icon,
+/// centred above the headline of the resend, expired and reset-complete
+/// screens. With [plain] the icon is drawn alone, 48 pt, left-aligned (the
+/// verify, key, user-check and shield variants).
+class KoloMedallion extends StatelessWidget {
+  const KoloMedallion(this.asset,
+      {super.key, this.plain = false, Alignment? alignment})
+      : alignment =
+            alignment ?? (plain ? Alignment.centerLeft : Alignment.center);
+  final String asset;
+  final bool plain;
+  final Alignment alignment;
+
+  @override
+  Widget build(BuildContext context) => Align(
+        alignment: alignment,
+        child: ExcludeSemantics(
+          child: plain
+              ? SvgPicture.asset(asset, width: 48, height: 48)
+              : Container(
+                  width: 80,
+                  height: 80,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                      color: KoloVibeColors.softBlue,
+                      borderRadius: BorderRadius.circular(24)),
+                  child: SvgPicture.asset(asset, width: 36, height: 36)),
+        ),
+      );
+}
+
+/// Inline information, success or alert card with a Figma icon. Used where
+/// the approved design shows a note that is not a plain [KoloNote] (for
+/// example the white "Use the most recent code" card).
+class KoloCard extends StatelessWidget {
+  const KoloCard({super.key, required this.title, required this.message});
+  final String title, message;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        container: true,
+        child: Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(KoloVibeRadii.card)),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title,
+                style: KoloVibeText.body(14,
+                    weight: FontWeight.w600, color: KoloVibeColors.navy)),
+            const SizedBox(height: 16),
+            Text(message, style: KoloVibeText.body(13, height: 1.5)),
+          ]),
+        ),
+      );
+}
+
+/// Large boxed entry for the emailed verification or reset code, drawn like the
+/// approved six-digit boxes (white, 12 pt radius, navy 1.5 pt border, 24 pt
+/// bold). The code issued by the identity service is a long URL-safe token, so
+/// it is one masked field rather than six boxes; see the design decisions in
+/// `docs/mobile-design-coverage.md`.
+class KoloCodeField extends StatefulWidget {
+  const KoloCodeField({
+    super.key,
+    required this.controller,
+    this.semanticLabel = 'Verification code',
+    this.hint = 'Paste the code from your email',
+    this.onChanged,
+    this.validator,
+  });
+  final TextEditingController controller;
+  final String semanticLabel, hint;
+  final ValueChanged<String>? onChanged;
+  final FormFieldValidator<String>? validator;
+
+  @override
+  State<KoloCodeField> createState() => _KoloCodeFieldState();
+}
+
+class _KoloCodeFieldState extends State<KoloCodeField> {
+  bool hidden = true;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Semantics(
+          label: widget.semanticLabel,
+          textField: true,
+          child: TextFormField(
+            controller: widget.controller,
+            obscureText: hidden,
+            maxLength: 128,
+            autocorrect: false,
+            enableSuggestions: false,
+            autofillHints: const [AutofillHints.oneTimeCode],
+            onChanged: widget.onChanged,
+            validator: widget.validator,
+            textAlign: TextAlign.center,
+            style: KoloVibeText.body(22,
+                weight: FontWeight.w700, color: KoloVibeColors.navy),
+            decoration: InputDecoration(
+              hintText: widget.hint,
+              hintStyle: KoloVibeText.body(14, color: KoloVibeColors.muted),
+              counterText: '',
+              fillColor: Colors.white,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
+              border: _border(KoloVibeColors.navy),
+              enabledBorder: _border(KoloVibeColors.navy),
+              focusedBorder: _border(KoloVibeColors.navy, 2),
+              errorBorder: _border(KoloVibeColors.red),
+              focusedErrorBorder: _border(KoloVibeColors.red, 2),
+              suffixIcon: IconButton(
+                  tooltip: hidden ? 'Show code' : 'Hide code',
+                  onPressed: () => setState(() => hidden = !hidden),
+                  icon: Icon(
+                      hidden
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      size: 20,
+                      color: KoloVibeColors.muted)),
+            ),
+          ),
+        ),
+      );
+
+  OutlineInputBorder _border(Color color, [double width = 1.5]) =>
+      OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: color, width: width));
 }

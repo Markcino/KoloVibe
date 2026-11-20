@@ -4,7 +4,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../../core/presentation/design_node.dart';
 import '../../core/theme/kolovibe_theme.dart';
 import '../../features/shell/screen_controller.dart';
-import 'brand_header.dart';
 
 typedef DesignAction = void Function(String action);
 
@@ -49,18 +48,6 @@ class DesignView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (node.name == 'KoloVibe wordmark' || node.name == 'Brand') {
-      final darkBackground = node.descendants.any(
-        (child) => child.kind == 'text' && child.style['color'] == 0xffffffff,
-      );
-      return BrandHeader(darkBackground: darkBackground);
-    }
-    if (node.name == 'Brand emblem') {
-      return Image.asset('assets/images/logo.png',
-          width: node.dimension('width') ?? 35,
-          height: node.dimension('height') ?? 35,
-          semanticLabel: 'KoloVibe logo');
-    }
     if (node.name == 'Primary navigation') return const SizedBox.shrink();
     if (node.name == 'Form field') return _field(context);
     if (node.name == 'Verification code') {
@@ -191,8 +178,14 @@ class DesignView extends StatelessWidget {
       result = _row(context);
     } else if (node.children.isNotEmpty) {
       final gap = node.dimension('gap') ?? 0;
+      // A fixed-height column with `main: center` (for example the round play
+      // button) centres its content vertically, as drawn in the design.
+      final centered =
+          node.style['main'] == 'center' && node.dimension('height') != null;
       result = Column(
         mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment:
+            centered ? MainAxisAlignment.center : MainAxisAlignment.start,
         crossAxisAlignment: _cross(node.style['cross']),
         children: [
           if (node.text.isNotEmpty) Text(node.text),

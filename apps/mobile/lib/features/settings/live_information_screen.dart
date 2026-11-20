@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/kolovibe_theme.dart';
 import '../../shared/widgets/kolo_components.dart';
 
 import '../../app/screen_route.dart';
@@ -113,17 +114,70 @@ class _LiveInformationScreenState extends State<LiveInformationScreen> {
 
   List<Widget> content() => switch (id) {
         14 => [
-            heading('Create something only you can.'),
-            heading('Original starts with you.'),
-            const Text(
+            // Figma M-014: editorial artwork, headline, role note, two
+            // actions. The sample credit line and play button of the export
+            // are not drawn: the artwork is static, not a video or a creator.
+            ClipRRect(
+              borderRadius: BorderRadius.circular(KoloVibeRadii.card),
+              child: AspectRatio(
+                aspectRatio: 342 / 264,
+                child: Stack(fit: StackFit.expand, children: [
+                  Image.asset('assets/images/cf426f68e5d77930975f.png',
+                      fit: BoxFit.cover, excludeFromSemantics: true),
+                  const DecoratedBox(
+                      decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [Color(0x21001539), Color(0xF4001539)]))),
+                  Positioned(
+                    left: 18,
+                    right: 18,
+                    bottom: 18,
+                    child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('CREATOR INTRODUCTION',
+                              style: KoloVibeText.body(10,
+                                  weight: FontWeight.w700,
+                                  color: KoloVibeColors.gold,
+                                  letterSpacing: 0.4)),
+                          const SizedBox(height: 8),
+                          Semantics(
+                            header: true,
+                            child: Text('Create something only you can.',
+                                style: KoloVibeText.heading(27,
+                                    color: Colors.white, height: 1.15)),
+                          ),
+                        ]),
+                  ),
+                ]),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const KoloHeadline('Original starts\nwith you.'),
+            const SizedBox(height: 16),
+            Text(
               'Share work you own, respect your community and build an authentic audience.',
+              style: KoloVibeText.body(14, height: 1.48),
             ),
-            heading('Creator access is role-based'),
-            const Text(
-              'Complete creator setup. Publishing becomes available when your account is enabled.',
-            ),
-            row('Start creator setup', 36),
-            row('Keep exploring', 19),
+            const SizedBox(height: 16),
+            const KoloNote(
+                title: 'Creator access is role-based',
+                message:
+                    'Complete creator setup. Publishing becomes available when your account is enabled.',
+                asset: KoloIcons.info),
+            FilledButton(
+                onPressed: busy ? null : () => go(36),
+                child: const Text('Start creator setup')),
+            const SizedBox(height: 12),
+            TextButton(
+                style: TextButton.styleFrom(
+                    minimumSize: const Size.fromHeight(50),
+                    textStyle: KoloVibeText.body(14, weight: FontWeight.w700)),
+                onPressed: busy ? null : () => go(19),
+                child: const Text('Keep exploring')),
           ],
         81 => [
             heading('Your account'),

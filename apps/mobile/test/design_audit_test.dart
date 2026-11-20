@@ -81,7 +81,9 @@ void main() {
   /// Pumps [build] at every audit configuration. [after] may drive the screen
   /// into a state (open a dialog, scroll) before the picture is taken.
   void audit(String name, int number, Widget Function() build,
-      {Future<void> Function(WidgetTester)? after, bool bounded = false}) {
+      {Future<void> Function(WidgetTester)? after,
+      Future<void> Function(WidgetTester)? finish,
+      bool bounded = false}) {
     for (final viewport in [AuditViewport.standard, AuditViewport.small]) {
       for (final scale in [1.0, 2.0]) {
         testWidgets('$name · ${viewport.name} · text ${scale}x',
@@ -102,9 +104,22 @@ void main() {
             await captureAudit(tester, shot, '${name}_${viewport.name}',
                 design: viewport == AuditViewport.standard ? number : null);
           }
+          if (finish != null) await finish(tester);
         });
       }
     }
+  }
+
+  Future<void> tapLabel(WidgetTester tester, String label) async {
+    if (find.text(label).evaluate().isEmpty) {
+      await tester.scrollUntilVisible(find.text(label), 200,
+          scrollable: find.byType(Scrollable).first);
+    }
+    final target = find.text(label).last;
+    await tester.ensureVisible(target);
+    await tester.pumpAndSettle();
+    await tester.tap(target, warnIfMissed: false);
+    await settleAsync(tester);
   }
 
   AccountFixture signedIn() => AccountFixture(handler: (request) async {
@@ -167,6 +182,79 @@ void main() {
             catalog: catalog,
             initialEmail: 'mark@example.test'));
   }
+  // Account states: each is reached the way a person would reach it.
+  audit(
+      'M-006-verifying',
+      6,
+      () => LiveAccountFlowScreen(
+          screen: 6,
+          account: AccountFixture(handler: (_) async {
+            await Future<void>.delayed(const Duration(milliseconds: 300));
+            return jsonResponse({}, 400);
+          }).account,
+          catalog: catalog,
+          initialEmail: 'ama@example.com'), after: (tester) async {
+    await tester.enterText(
+        find.byType(TextFormField).first, List.filled(64, 'a').join());
+    final verify = find.text('Verify email');
+    if (verify.evaluate().isEmpty) {
+      await tester.scrollUntilVisible(verify, 200,
+          scrollable: find.byType(Scrollable).first);
+    }
+    await tester.pump();
+    await tester.tap(verify);
+    await tester.pump(const Duration(milliseconds: 100));
+  }, finish: (tester) async {
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpWidget(const SizedBox());
+  });
+  audit(
+      'M-007-sent',
+      7,
+      () => LiveAccountFlowScreen(
+          screen: 7,
+          account: signedIn().account,
+          catalog: catalog,
+          initialEmail: 'ama@example.com',
+          completed: true));
+  audit(
+      'M-007-unavailable',
+      7,
+      () => LiveAccountFlowScreen(
+          screen: 7,
+          account: AccountFixture(
+                  handler: (_) async => jsonResponse({'detail': 'slow'}, 429))
+              .account,
+          catalog: catalog,
+          initialEmail: 'ama@example.com'), after: (tester) async {
+    await tapLabel(tester, 'Request a new code');
+  });
+  audit(
+      'M-009-sent',
+      9,
+      () => LiveAccountFlowScreen(
+          screen: 9,
+          account: signedIn().account,
+          catalog: catalog,
+          initialEmail: 'ama@example.com'), after: (tester) async {
+    await tapLabel(tester, 'Send reset instructions');
+  });
+  audit(
+      'M-011-done',
+      11,
+      () => LiveAccountFlowScreen(
+          screen: 11,
+          account: signedIn().account,
+          catalog: catalog,
+          completed: true));
+  audit(
+      'M-012-existing',
+      12,
+      () => LiveAccountFlowScreen(
+          screen: 12,
+          account: signedIn().account,
+          catalog: catalog,
+          initialEmail: 'ama@example.com'));
   audit(
       'M-079',
       79,
@@ -377,18 +465,6 @@ void main() {
 
   // Reports, notices and standing.
   // The report journey: each later screen is reached the way a person would.
-  Future<void> tapLabel(WidgetTester tester, String label) async {
-    if (find.text(label).evaluate().isEmpty) {
-      await tester.scrollUntilVisible(find.text(label), 200,
-          scrollable: find.byType(Scrollable).first);
-    }
-    final target = find.text(label).last;
-    await tester.ensureVisible(target);
-    await tester.pumpAndSettle();
-    await tester.tap(target, warnIfMissed: false);
-    await settleAsync(tester);
-  }
-
   for (final id in [71, 72, 73, 74, 75]) {
     audit('M-${id.toString().padLeft(3, '0')}', id, () {
       final moderation = ScriptedModeration();

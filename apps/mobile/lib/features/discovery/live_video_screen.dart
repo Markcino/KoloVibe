@@ -522,13 +522,18 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
                       gradient: LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
-                          stops: [0, .24, .58, 1],
+                          stops: [
+                0,
+                .24,
+                .58,
+                1
+              ],
                           colors: [
-                        Color(0xBB001539),
-                        Color(0x11001539),
-                        Color(0x22001539),
-                        Color(0xFA001539)
-                      ])))),
+                Color(0xBB001539),
+                Color(0x11001539),
+                Color(0x22001539),
+                Color(0xFA001539)
+              ])))),
           if (buffering)
             Center(
                 child: Card(
@@ -570,10 +575,12 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
                     ],
                     if (video.category != null || video.tags.isNotEmpty) ...[
                       const SizedBox(height: 8),
-                      Text([
-                        if (video.category != null) categoryLabel(video.category!),
-                        ...video.tags.map((tag) => '#$tag')
-                      ].join(' · '),
+                      Text(
+                          [
+                            if (video.category != null)
+                              categoryLabel(video.category!),
+                            ...video.tags.map((tag) => '#$tag')
+                          ].join(' · '),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: KoloVibeText.body(11,
@@ -591,15 +598,13 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
                       const CircleAvatar(
                           radius: 22,
                           backgroundColor: Color(0xFF142D52),
-                          child: Icon(Icons.person_outline,
-                              color: Colors.white)),
+                          child:
+                              Icon(Icons.person_outline, color: Colors.white)),
                       Positioned(
                           bottom: -8,
                           right: 10,
-                          child: SvgPicture.asset(
-                              'assets/images/feed/plus.svg',
-                              width: 20,
-                              height: 20))
+                          child: SvgPicture.asset('assets/images/feed/plus.svg',
+                              width: 20, height: 20))
                     ])),
                 const SizedBox(height: 16),
                 _feedAction(
@@ -658,8 +663,8 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
                       tooltip: current.value.volume == 0
                           ? 'Unmute video'
                           : 'Mute video',
-                      onPressed: () => current.setVolume(
-                          current.value.volume == 0 ? 1 : 0),
+                      onPressed: () =>
+                          current.setVolume(current.value.volume == 0 ? 1 : 0),
                       icon: SvgPicture.asset('assets/images/feed/volume.svg',
                           width: 18, height: 18)),
                 ] else
@@ -677,7 +682,8 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
     required VoidCallback? onPressed,
     String? caption,
     bool active = false,
-  }) => SizedBox(
+  }) =>
+      SizedBox(
         width: 50,
         child: Column(children: [
           IconButton(

@@ -106,8 +106,7 @@ class _VerticalVideoFeedState extends State<VerticalVideoFeed> {
           onTap: onTap,
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             ConstrainedBox(
-                constraints:
-                    const BoxConstraints(minHeight: 44, minWidth: 44),
+                constraints: const BoxConstraints(minHeight: 44, minWidth: 44),
                 child: Center(
                     child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 10),

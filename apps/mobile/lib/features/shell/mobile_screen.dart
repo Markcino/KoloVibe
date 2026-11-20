@@ -310,27 +310,34 @@ class _MobileScreenState extends State<MobileScreen> {
       return unavailable();
     }
     if (id == 1) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+      // Figma M-001: wordmark with strapline centred, launch status low on the
+      // screen.
+      return Stack(children: [
+        Align(
+          alignment: const Alignment(0, -0.14),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
             if (screen.named('KoloVibe wordmark') != null)
               view(screen.named('KoloVibe wordmark')!),
             const SizedBox(height: 24),
-            const Text(
-              'Our stories. Our rhythm. Our vibe.',
-              style: TextStyle(color: Colors.white),
-            ),
-            const SizedBox(height: 48),
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            const Text(
-              'Finding your vibe…',
-              style: TextStyle(color: Colors.white70),
-            ),
-          ],
+            Text('Our stories. Our rhythm. Our vibe.',
+                style: KoloVibeText.body(14,
+                    color: const Color(0xFFA8B7D0), height: 1.48)),
+          ]),
         ),
-      );
+        Align(
+          alignment: const Alignment(0, 0.82),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2)),
+            const SizedBox(height: 16),
+            Text('Finding your vibe…',
+                style: KoloVibeText.body(12,
+                    color: const Color(0xFFA8B7D0), height: 1.48)),
+          ]),
+        ),
+      ]);
     }
     if (id == 2) return welcome();
     if (screen.named('Film footage') != null) return player();
