@@ -35,6 +35,8 @@ import 'package:kolovibe/features/creators/live_edit_creator_profile_screen.dart
 import 'package:kolovibe/features/creators/live_own_profile_screen.dart';
 import 'package:kolovibe/features/discovery/discovery_catalog_screen.dart';
 import 'package:kolovibe/features/discovery/live_video_repository.dart';
+import 'package:kolovibe/features/discovery/search_history.dart';
+import 'package:kolovibe/core/presentation/feature_repository.dart' show UiOperation, UiRequest;
 import 'package:kolovibe/features/discovery/live_video_screen.dart';
 import 'package:kolovibe/features/discovery/vertical_video_feed.dart';
 import 'package:kolovibe/features/engagement/live_video_engagement_repository.dart';
@@ -415,6 +417,42 @@ void main() {
             creatorId: id == 27 ? creatorId : null,
             initialQuery: id == 22 ? 'Waterside' : null));
   }
+  // D-5: M-021 with a signed-in account's device-local recent searches.
+  audit(
+      'M-021-recent',
+      21,
+      () => DiscoveryCatalogScreen(
+          screen: 21, repository: videos, catalog: catalog),
+      after: (tester) async {
+    final fixture = AccountFixture(handler: (request) async {
+      if (request.url.path.endsWith('/auth/login')) {
+        return jsonResponse({
+          'access_token': 'access',
+          'refresh_token': 'refresh',
+          'user': accountData,
+        });
+      }
+      return jsonResponse({});
+    });
+    final history = SearchHistory(MemorySearchHistoryStore());
+    await tester.runAsync(() async {
+      await fixture.account.executeChecked(UiRequest(UiOperation.signIn,
+          fields: {'Email address': 'ama@example.com', 'Password': 'x' * 14}));
+      for (final term in ['river songs', 'Monrovia street food', 'hipco nights']) {
+        await history.add(fixture.account.signedInAccountId, term);
+      }
+    });
+    navigator.currentState!.push(MaterialPageRoute<void>(
+        settings: const RouteSettings(name: '/mobile/M-021'),
+        builder: (_) => DiscoveryCatalogScreen(
+            screen: 21,
+            repository: videos,
+            catalog: catalog,
+            account: fixture.account,
+            history: history,
+            creators: creators)));
+    await settleAsync(tester);
+  });
   // M-023 is the category sheet opened from the search results, as designed.
   audit(
       'M-023',
@@ -976,6 +1014,7 @@ class _AuditVideos extends LiveVideoRepository {
         'description': 'A city waking up on the river.',
         'category': category,
         'like_count': likes,
+        'play_count': const [18400, 2310, 845, 120, 0][index],
         'duration_seconds': seconds,
         'poster_url': 'https://media.example.test/poster/$index',
       }),
