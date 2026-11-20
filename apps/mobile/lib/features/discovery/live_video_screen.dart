@@ -770,18 +770,6 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
                           style: KoloVibeText.body(13,
                               weight: FontWeight.w600, color: Colors.white))),
                 ])),
-          if (buffering && slow && !slowDismissed) ...[
-            const Positioned.fill(
-                child: ColoredBox(color: Color(0x99001539))),
-            Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: SlowConnectionSheet(
-                    key: const ValueKey('M-034'),
-                    onRetry: _retrySlow,
-                    onKeepWaiting: () => setState(() => slowDismissed = true))),
-          ],
           Positioned(
               left: 20,
               right: 96,
@@ -916,6 +904,21 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
                     child: playbackState(
                         playbackFailure ?? StateError('Playback failed'),
                         media: playerError != null))),
+          // A slow-connection sheet is modal over the feed. Draw its scrim and
+          // actions after the caption, rail and player controls so none of them
+          // can paint over the sheet or intercept its buttons.
+          if (buffering && slow && !slowDismissed) ...[
+            const Positioned.fill(
+                child: ColoredBox(color: Color(0x99001539))),
+            Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: SlowConnectionSheet(
+                    key: const ValueKey('M-034'),
+                    onRetry: _retrySlow,
+                    onKeepWaiting: () => setState(() => slowDismissed = true))),
+          ],
         ]));
   }
 
