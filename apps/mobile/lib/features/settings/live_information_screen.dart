@@ -265,7 +265,7 @@ class _LiveInformationScreenState extends State<LiveInformationScreen> {
             heading('Let’s find your way forward.'),
             heading('Popular help topics'),
             row('I can’t sign in', 9, 'Password reset and verification'),
-            row('Video won’t play', 34, 'Connection and Data Saver guidance'),
+            row('Video won’t play', 34, 'Connection guidance'),
             row('Upload or review status', 40,
                 'Understand your video’s next step'),
             row('Lone Stars explained', 68, 'Non-cash community recognition'),

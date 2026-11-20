@@ -393,7 +393,9 @@ class _DiscoveryCatalogState extends State<DiscoveryCatalogScreen> {
     return [
       KoloHeroCard(
           video: hero,
-          eyebrow: 'LATEST ORIGINAL',
+          eyebrow: hero.category == null
+              ? 'LATEST ORIGINAL'
+              : 'LATEST ORIGINAL · ${categoryLabel(hero.category!).toUpperCase()}',
           minHeight: 144,
           meta: videoMeta(hero),
           onTap: () => discoveryNavigate(context, 25, hero.id)),

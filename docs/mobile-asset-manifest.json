@@ -1324,20 +1324,6 @@
     ]
   },
   {
-    "asset": "assets/images/7034b20f29becf6842a7.svg",
-    "sha256": "7034b20f29becf6842a751661bb212bfb588082010e555e9dbcc45b5b41df265",
-    "slots": [
-      {
-        "screen": 34,
-        "node": "8:81394"
-      },
-      {
-        "screen": 96,
-        "node": "8:84324"
-      }
-    ]
-  },
-  {
     "asset": "assets/images/714d20254615763236f5.svg",
     "sha256": "714d20254615763236f5eef3dd441ada2aa7d7bdd0de6eb826efebe80a4e6188",
     "slots": [
