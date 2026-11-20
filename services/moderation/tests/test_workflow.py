@@ -58,6 +58,45 @@ class PilotModerationTests(TestCase):
         self.assertEqual(ModerationAction.objects.filter(status="applied").count(), 2)
 
     @patch("service.workflow._content")
+    def test_appeal_eligibility_duplicates_and_other_accounts_are_decided_by_the_server(self, content):
+        from uuid import UUID
+        snapshot = {"state": "published", "visibility": "public", "creator_id": self.creator, "revision": 1}
+        content.side_effect = lambda op, data: snapshot
+        ModerationAction.objects.create(id=uuid4(), video_id=UUID(self.video), reviewer_id=self.reviewer,
+                                        action="remove", reason="Removed after review", revision=1, status="applied")
+        data = {"video_id": self.video, "creator_id": self.creator, "reason": "Rights evidence provided."}
+        # A video that is not removed cannot be appealed, whatever the client believes.
+        self.assertEqual(self.call("appeal", self.viewer, "viewer", data).status_code, 409)
+        # A removal that is not the current one cannot be appealed.
+        snapshot.update(state="removed", visibility="private", revision=5)
+        self.assertEqual(self.call("appeal", self.viewer, "viewer", data).status_code, 409)
+        snapshot.update(revision=2)
+        # Another creator's identity for the same video is a 404 and records nothing.
+        self.assertEqual(self.call("appeal", self.viewer, "viewer",
+                                   data | {"creator_id": str(uuid4())}).status_code, 404)
+        self.assertFalse(Appeal.objects.exists())
+        # Bad statements are refused before anything is stored.
+        for reason in ("", "   ", None, 5, "x" * 5000):
+            self.assertIn(self.call("appeal", self.viewer, "viewer", data | {"reason": reason}).status_code,
+                          (400, 422), reason)
+        self.assertFalse(Appeal.objects.exists())
+        first = self.call("appeal", self.viewer, "viewer", data)
+        self.assertEqual(first.status_code, 201)
+        # Retrying the same request is idempotent; a second, different request is a duplicate.
+        again = self.call("appeal", self.viewer, "viewer", data)
+        self.assertEqual((again.status_code, json.loads(again.content)["id"]), (200, json.loads(first.content)["id"]))
+        self.assertEqual(self.call("appeal", self.viewer, "viewer",
+                                   data | {"reason": "A different statement."}).status_code, 409)
+        # Nobody else can add or replace the statement for the same removal.
+        self.assertEqual(self.call("appeal", uuid4(), "viewer", data).status_code, 409)
+        self.assertEqual(self.call("appeal", uuid4(), "viewer",
+                                   data | {"reason": "Somebody else's statement."}).status_code, 409)
+        self.assertEqual(Appeal.objects.count(), 1)
+        self.assertEqual(Appeal.objects.get().reason, "Rights evidence provided.")
+        # Only the gateway may ask.
+        self.assertEqual(self.call("appeal", self.viewer, "viewer", data, caller="content").status_code, 403)
+
+    @patch("service.workflow._content")
     def test_lost_result_preserves_pending_decision_for_same_key_retry(self, content):
         decision = {"target_id": self.video, "action": "publish", "reason": "Content review complete.",
                     "key": "test-publish-key-001"}

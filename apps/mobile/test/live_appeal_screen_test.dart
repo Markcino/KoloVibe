@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -100,7 +101,13 @@ void main() {
     expect(post.url.path, endsWith('/videos/$videoId/appeals'));
     expect(jsonDecode(post.body), {'reason': 'The audio is licensed to me.'});
     expect(find.text('Send review request'), findsNothing);
-    expect(find.textContaining('The audio is licensed to me.'), findsWidgets);
+    expect(find.byKey(const ValueKey('appeal-receipt')), findsOneWidget);
+    expect(find.text('Review request received.'), findsOneWidget);
+    expect(find.text('00000000-0000-4000-8000-000000000a01'), findsOneWidget);
+    expect(find.text('20 Nov 2026, 10:00 UTC'), findsOneWidget);
+    expect(find.text('What happens next'), findsOneWidget);
+    expect(find.byType(TextFormField), findsNothing,
+        reason: 'a second submission is not offered');
     expect(tester.takeException(), isNull);
   });
 
@@ -114,9 +121,104 @@ void main() {
         find.byType(TextFormField), 'The audio is licensed to me.');
     await tester.tap(find.text('Send review request'));
     await settleAsync(tester);
+    expect(find.byKey(const ValueKey('appeal-failure')), findsOneWidget);
+    expect(find.text('We couldn’t send your request'), findsOneWidget);
     expect(find.textContaining('Your statement is kept'), findsOneWidget);
     expect(find.text('The audio is licensed to me.'), findsOneWidget);
-    expect(find.text('Send review request'), findsOneWidget);
+    expect(find.text('Try again'), findsOneWidget);
+    expect(find.byKey(const ValueKey('appeal-receipt')), findsNothing);
+  });
+
+  testWidgets('403 and 409 are explained and never show a receipt',
+      (tester) async {
+    for (final (status, text) in [
+      (403, 'A review request is not available for this decision.'),
+      (409, 'A review request already exists for this decision.'),
+    ]) {
+      final g = gateway(status: status);
+      await pump(
+          tester,
+          ScriptedStanding()..noticeValue = videoNotice(appealable: true),
+          g.repo);
+      await tester.enterText(
+          find.byType(TextFormField), 'The audio is licensed to me.');
+      await tester.tap(find.text('Send review request'));
+      await settleAsync(tester);
+      expect(find.text(text), findsOneWidget, reason: '$status');
+      expect(find.byKey(const ValueKey('appeal-receipt')), findsNothing);
+    }
+  });
+
+  testWidgets('while sending the form is locked and cannot be submitted twice',
+      (tester) async {
+    final gate = Completer<void>();
+    final requests = <http.Request>[];
+    final fixture = AccountFixture(handler: (request) async {
+      requests.add(request);
+      if (request.url.path.endsWith('/appeals')) {
+        await gate.future;
+        return jsonResponse({
+          'id': '00000000-0000-4000-8000-000000000a01',
+          'video_id': videoId,
+          'status': 'open',
+          'created_at': '2026-11-20T10:00:00Z',
+        }, 201);
+      }
+      return jsonResponse({});
+    });
+    await pump(
+        tester,
+        ScriptedStanding()..noticeValue = videoNotice(appealable: true),
+        LiveModerationRepository(fixture.account));
+    await tester.enterText(
+        find.byType(TextFormField), 'The audio is licensed to me.');
+    await tester.tap(find.text('Send review request'));
+    await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 100)));
+    await tester.pump();
+    expect(find.text('Sending…'), findsOneWidget);
+    final button = tester.widget<FilledButton>(find.byType(FilledButton));
+    expect(button.onPressed, isNull);
+    await tester.tap(find.text('Sending…'), warnIfMissed: false);
+    await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 100)));
+    await tester.pump();
+    expect(requests.where((r) => r.url.path.endsWith('/appeals')).length, 1);
+    gate.complete();
+    await settleAsync(tester);
+    expect(find.byKey(const ValueKey('appeal-receipt')), findsOneWidget);
+  });
+
+  testWidgets('validation is shown without sending and the statement is kept',
+      (tester) async {
+    final g = gateway();
+    await pump(
+        tester,
+        ScriptedStanding()..noticeValue = videoNotice(appealable: true),
+        g.repo);
+    expect(find.text('Ask for a review.'), findsOneWidget);
+    expect(find.text('This decision can be reviewed'), findsOneWidget);
+    await tester.enterText(find.byType(TextFormField), 'Not fair');
+    await tester.tap(find.text('Send review request'));
+    await settleAsync(tester);
+    expect(find.text('Write at least 10 characters.'), findsOneWidget);
+    expect(find.text('Not fair'), findsOneWidget);
+    expect(g.requests.where((r) => r.url.path.endsWith('/appeals')), isEmpty);
+  });
+
+  testWidgets('an ineligible or already-appealed notice never reaches the endpoint',
+      (tester) async {
+    for (final notice in [
+      videoNotice(),
+      videoNotice(appealable: true, appeal: ownAppeal()),
+    ]) {
+      final g = gateway();
+      await pump(tester, ScriptedStanding()..noticeValue = notice, g.repo);
+      expect(find.byType(TextFormField), findsNothing);
+      expect(find.text('Send review request'), findsNothing);
+      expect(find.text('Ask for a review.'), findsNothing);
+      expect(g.requests.where((r) => r.url.path.endsWith('/appeals')), isEmpty);
+    }
   });
 
   testWidgets('an existing request is shown and cannot be sent again',
