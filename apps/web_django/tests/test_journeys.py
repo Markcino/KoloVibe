@@ -73,7 +73,8 @@ class WebJourneys(SimpleTestCase):
         self.client.cookies["kv_refresh"] = secrets.token_urlsafe(48)
         with patch("web.views._api", return_value=(204, {})):
             response = self.client.post(reverse("password-reset"), {
-                "code": secrets.token_urlsafe(48), "new_password": secrets.token_urlsafe(28),
+                "email": "viewer@example.test", "code": "012345",
+                "new_password": secrets.token_urlsafe(28),
             })
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.cookies["kv_access"]["max-age"], 0)
@@ -91,6 +92,20 @@ class WebJourneys(SimpleTestCase):
         self.assertEqual(api.call_args.args, ("/me/password",))
         self.assertEqual(response.cookies["kv_access"]["max-age"], 0)
         self.assertEqual(response.cookies["kv_refresh"]["max-age"], 0)
+
+    def test_verification_and_reset_send_the_address_with_a_six_digit_code(self):
+        with patch("web.views._api", return_value=(200, {"verified": True})) as api:
+            self.client.post(reverse("verify"), {"email": "viewer@example.test", "code": "012345"})
+        self.assertEqual(api.call_args.args, ("/auth/verify",))
+        self.assertEqual(api.call_args.kwargs["data"], {"email": "viewer@example.test", "code": "012345"})
+        with patch("web.views._api", return_value=(204, {})) as api:
+            self.client.post(reverse("password-reset"), {
+                "email": "viewer@example.test", "code": "012345", "new_password": "a-long-new-secret"})
+        self.assertEqual(api.call_args.kwargs["data"], {
+            "email": "viewer@example.test", "code": "012345", "new_password": "a-long-new-secret"})
+        page = self.client.get(reverse("verify")).content.decode()
+        self.assertIn('pattern="[0-9]{6}"', page)
+        self.assertIn('autocomplete="one-time-code"', page)
 
     def test_profile_and_sessions_use_own_authenticated_gateway_paths(self):
         account_id = str(uuid.uuid4())

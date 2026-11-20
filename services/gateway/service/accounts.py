@@ -1,7 +1,10 @@
 """Bounded public account routes; identity owns credentials and sessions."""
 
+import ipaddress
 import json
 from urllib.error import HTTPError, URLError
+
+from django.conf import settings
 
 from django.http import HttpResponse, JsonResponse
 from django.utils.dateparse import parse_datetime
@@ -82,6 +85,28 @@ def _bearer(request):
     return token if token and " " not in token else None
 
 
+def _client_origin(request):
+    """The caller's address, but only when the edge is configured to vouch for it.
+
+    The gateway sits behind a proxy, so its own peer address is the proxy for every caller. A header
+    is believed only when KOLOVIBE_TRUSTED_CLIENT_IP_HEADER names one the edge overwrites on every
+    request; with no such header identity applies address-level limits alone.
+    """
+    header = getattr(settings, "KOLOVIBE_TRUSTED_CLIENT_IP_HEADER", "")
+    if not header:
+        return None
+    value = request.META.get("HTTP_" + header.upper().replace("-", "_"), "")
+    try:
+        return str(ipaddress.ip_address(value.strip()))
+    except ValueError:
+        return None
+
+
+def _with_origin(request, data):
+    origin = _client_origin(request)
+    return {**data, "origin": origin} if origin else data
+
+
 @require_POST
 def register(request):
     try:
@@ -95,18 +120,24 @@ def register(request):
 def resend_verification(request):
     try:
         data = _body(request, {"email"})
+        if set(data) != {"email"}:
+            raise ValueError
     except (ValueError, UnicodeError):
         return _json({"detail": "Invalid verification request"}, 400)
-    return _invoke("/internal/auth/verification/resend", data, {204})
+    return _invoke("/internal/auth/verification/resend", _with_origin(request, data), {204})
 
 
 @require_POST
 def verify_email(request):
     try:
-        data = _body(request, {"code"})
+        data = _body(request, {"email", "code"})
+        # {"email", "code"} is the six-digit contract. A bare long "code" is the retired link,
+        # accepted only while identity still honours pending ones (ADR-013 amendment A-1).
+        if set(data) not in ({"email", "code"}, {"code"}):
+            raise ValueError
     except (ValueError, UnicodeError):
         return _json({"detail": "Invalid verification"}, 400)
-    return _invoke("/internal/auth/verify", data, {200})
+    return _invoke("/internal/auth/verify", _with_origin(request, data), {200})
 
 
 @require_POST
@@ -117,18 +148,18 @@ def request_password_reset(request):
             raise ValueError
     except (ValueError, UnicodeError):
         return _json({"detail": "Invalid reset request"}, 400)
-    return _invoke("/internal/auth/password/reset-request", data, {204})
+    return _invoke("/internal/auth/password/reset-request", _with_origin(request, data), {204})
 
 
 @require_POST
 def reset_password(request):
     try:
-        data = _body(request, {"code", "new_password"})
-        if set(data) != {"code", "new_password"}:
+        data = _body(request, {"email", "code", "new_password"})
+        if set(data) not in ({"email", "code", "new_password"}, {"code", "new_password"}):
             raise ValueError
     except (ValueError, UnicodeError):
         return _json({"detail": "Invalid reset request"}, 400)
-    return _invoke("/internal/auth/password/reset", data, {204})
+    return _invoke("/internal/auth/password/reset", _with_origin(request, data), {204})
 
 
 @never_cache

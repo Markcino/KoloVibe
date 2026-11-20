@@ -49,6 +49,9 @@ else:
         "NAME": BASE_DIR / "local.sqlite3",
     }}
 KOLOVIBE_SERVICE_NAME = "identity"
+# ADR-013 amendment A-1: long emailed tokens issued before migration 0010 stay valid only until they
+# expire (24 h at most). Set to "0" once that window has passed; the branch is then deleted.
+KOLOVIBE_ACCEPT_LEGACY_LONG_CODES = os.environ.get("KOLOVIBE_ACCEPT_LEGACY_LONG_CODES", "1") == "1"
 USE_TZ = True
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "service.Account"

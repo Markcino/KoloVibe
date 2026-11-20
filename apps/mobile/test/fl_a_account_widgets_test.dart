@@ -89,9 +89,9 @@ void main() {
       await enter(tester, 'Password', 'typed value'.padRight(32, 'x'));
     }
     if (id == 6) {
-      await enter(tester, 'Verification code', 'c'.padRight(40, 'x'));
+      await enter(tester, 'Verification code', '482619');
     }
-    if (id == 10) await enter(tester, 'Reset code', 'c'.padRight(40, 'x'));
+    if (id == 10) await enter(tester, 'Reset code', '482619');
     if ({10, 82}.contains(id)) {
       await enter(tester, 'New password', 'typed value'.padRight(32, 'x'));
       await enter(tester, 'Confirm password', 'typed value'.padRight(32, 'x'));
@@ -188,7 +188,9 @@ void main() {
         } else if ({4, 15}.contains(entry.key) && {400, 401}.contains(status)) {
           expect(find.text('We couldn’t\nsign you in.'), findsOneWidget);
         } else if (entry.key == 6 && status == 400) {
-          expect(find.text('Let’s get a fresh code'), findsOneWidget);
+          // One wrong code is a typo, not an expired link: stay and say so.
+          expect(find.textContaining('That code didn’t work'), findsOneWidget);
+          expect(find.text('Let’s get a fresh code'), findsNothing);
         } else {
           expect(find.text('Action was not accepted.'), findsOneWidget);
         }

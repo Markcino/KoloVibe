@@ -27,6 +27,8 @@ Future<Reauthentication?> confirmIdentity(
       ),
     );
 
+final _sixDigits = RegExp(r'^[0-9]{6}$');
+
 class LiveAccountFlowScreen extends StatefulWidget {
   const LiveAccountFlowScreen({
     super.key,
@@ -57,6 +59,7 @@ class _LiveAccountFlowScreenState extends State<LiveAccountFlowScreen> {
   bool busy = false, loading = false, dirty = false, agreed = false;
   bool resendAcknowledged = false, resendUnavailable = false;
   bool resetRequested = false;
+  int rejectedCodes = 0;
   Object? error;
   String? fieldError;
   LiveAccount? user;
@@ -172,8 +175,8 @@ class _LiveAccountFlowScreenState extends State<LiveAccountFlowScreen> {
               'Display name': name.text.trim(),
               'Password': password.text,
               'New password': password.text,
-              'verificationCode': code.text,
-              'Reset code': code.text,
+              'verificationCode': code.text.trim(),
+              'Reset code': code.text.trim(),
               if (id == 82) 'Current password': current.text,
             },
           ),
@@ -206,8 +209,22 @@ class _LiveAccountFlowScreenState extends State<LiveAccountFlowScreen> {
         message =
             'Sign-in could not be completed. Check your details and try again.';
       } else if (id == 6 && failure.status == 400) {
-        next = 8;
-        message = 'The code was not accepted. It may have expired.';
+        // The service answers the same for a wrong, expired or used code, and destroys a code
+        // after five wrong guesses, so after several misses a fresh code is the honest next step.
+        rejectedCodes++;
+        if (rejectedCodes >= 4) {
+          next = 8;
+          message =
+              'That code can no longer be used. Request a new one to continue.';
+        } else {
+          fieldError =
+              'That code didn’t work. Check the digits, or request a new code.';
+        }
+      } else if (id == 10 && failure.status == 400) {
+        rejectedCodes++;
+        fieldError = rejectedCodes >= 4
+            ? 'That code can no longer be used. Go back and request a new one.'
+            : failure.message;
       } else if (operation == UiOperation.requestCode &&
           failure.status == 429) {
         resendUnavailable = true;
@@ -327,8 +344,8 @@ class _LiveAccountFlowScreenState extends State<LiveAccountFlowScreen> {
           if (match && v != password.text) {
             return 'The passwords don’t match.';
           }
-          if (verification && v.length < 32) {
-            return 'Enter the full code from your email.';
+          if (verification && !_sixDigits.hasMatch(v)) {
+            return 'Enter the six-digit code from your email.';
           }
           if (label == 'Display name' && v.trim().length < 2 ||
               label == 'Full name' && v.trim().length < 2) {
@@ -501,13 +518,17 @@ class _LiveAccountFlowScreenState extends State<LiveAccountFlowScreen> {
             lead(email.text.isEmpty
                 ? 'Enter the full code sent to your email.'
                 : 'Enter the code sent to ${email.text}. Keep this code private.'),
+            if (email.text.isEmpty)
+              field('Email address', email,
+                  emailField: true, maximum: 254, hint: 'you@example.com'),
             KoloCodeField(
               key: const ValueKey('Verification code'),
               controller: code,
+              enabled: !busy,
               onChanged: (_) => setState(() => dirty = true),
-              validator: (text) => (text ?? '').length < 32
-                  ? 'Enter the full code from your email.'
-                  : null,
+              validator: (text) => _sixDigits.hasMatch(text ?? '')
+                  ? null
+                  : 'Enter the six-digit code from your email.',
             ),
             if (busy)
               busyButton
@@ -617,15 +638,24 @@ class _LiveAccountFlowScreenState extends State<LiveAccountFlowScreen> {
         10 => [
             headline('A fresh start.\nA stronger password.'),
             lead('Choose a password you don’t use elsewhere.'),
+            if (email.text.isEmpty)
+              field('Email address', email,
+                  emailField: true, maximum: 254, hint: 'you@example.com'),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text('Code from your email',
+                  style: KoloVibeText.body(12,
+                      weight: FontWeight.w600, color: KoloVibeColors.navy)),
+            ),
             KoloCodeField(
               key: const ValueKey('Reset code'),
               controller: code,
               semanticLabel: 'Reset code',
-              hint: 'Paste the code from your email',
+              enabled: !busy,
               onChanged: (_) => setState(() => dirty = true),
-              validator: (text) => (text ?? '').length < 32
-                  ? 'Enter the full code from your email.'
-                  : null,
+              validator: (text) => _sixDigits.hasMatch(text ?? '')
+                  ? null
+                  : 'Enter the six-digit code from your email.',
             ),
             field('New password', password, secret: true, hint: 'New password'),
             field('Confirm password', confirm,

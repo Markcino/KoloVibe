@@ -1,4 +1,5 @@
 import json
+import re
 import secrets
 import smtplib
 import time
@@ -29,15 +30,15 @@ class AccountApiTests(TestCase):
                                    {"email": "missing@example.test"}).status_code, 204)
         self.assertEqual(self.post(accounts.request_password_reset,
                                    {"email": account.email}).status_code, 204)
-        code = mail.outbox[-1].body.split(": ", 1)[1]
+        code = self.code_from(mail.outbox[-1])
         self.assertEqual(self.post(accounts.request_password_reset,
                                    {"email": account.email}).status_code, 204)
         self.assertEqual(PasswordReset.objects.filter(account=account).count(), 1)
         other_password = secrets.token_urlsafe(28)
         self.assertEqual(self.post(accounts.reset_password,
-            {"code": code, "new_password": other_password}).status_code, 204)
+            {"email": account.email, "code": code, "new_password": other_password}).status_code, 204)
         self.assertEqual(self.post(accounts.reset_password,
-            {"code": code, "new_password": secrets.token_urlsafe(28)}).status_code, 400)
+            {"email": account.email, "code": code, "new_password": secrets.token_urlsafe(28)}).status_code, 400)
         self.assertEqual(self.post(accounts.validate_access,
             {"access_token": session["access_token"]}).status_code, 401)
         self.assertEqual(self.post(accounts.refresh,
@@ -59,10 +60,10 @@ class AccountApiTests(TestCase):
         session = json.loads(self.post(accounts.login,
             {"email": account.email, "password": self.password}).content)
         self.post(accounts.request_password_reset, {"email": account.email})
-        code = mail.outbox[-1].body.split(": ", 1)[1]
+        code = self.code_from(mail.outbox[-1])
         PasswordReset.objects.update(expires_at=timezone.now() - timedelta(seconds=1))
         self.assertEqual(self.post(accounts.reset_password,
-            {"code": code, "new_password": secrets.token_urlsafe(28)}).status_code, 400)
+            {"email": account.email, "code": code, "new_password": secrets.token_urlsafe(28)}).status_code, 400)
         self.assertEqual(self.post(accounts.change_password, {
             "access_token": session["access_token"],
             "current_password": secrets.token_urlsafe(28),
@@ -132,7 +133,7 @@ class AccountApiTests(TestCase):
         self.post(accounts.request_password_reset, {"email": account.email})
         previous = PasswordReset.objects.get()
         PasswordReset.objects.filter(pk=previous.pk).update(
-            expires_at=timezone.now() + timedelta(minutes=accounts.RESET_MINUTES - 3))
+            created_at=timezone.now() - accounts.CODE_RESEND_COOLDOWN - timedelta(seconds=1))
         with patch("service.accounts.send_mail", side_effect=smtplib.SMTPException), \
                 self.assertLogs("service.accounts", level="ERROR"):
             response = self.post(accounts.request_password_reset, {"email": account.email})
@@ -147,40 +148,47 @@ class AccountApiTests(TestCase):
     def test_resend_delivery_failure_preserves_previous_code_and_does_not_disclose_account(self):
         self.post(accounts.register, {"email": "viewer@example.test", "password": self.password,
                                        "display_name": "Viewer"})
-        code = mail.outbox[-1].body.split(": ", 1)[1]
-        EmailVerification.objects.update(expires_at=timezone.now() + timedelta(hours=23))
+        code = self.code_from(mail.outbox[-1])
+        EmailVerification.objects.update(
+            created_at=timezone.now() - accounts.CODE_RESEND_COOLDOWN - timedelta(seconds=1))
         with patch("service.accounts.send_mail", side_effect=smtplib.SMTPException), \
                 self.assertLogs("service.accounts", level="ERROR"):
             response = self.post(accounts.resend_verification, {"email": "viewer@example.test"})
         self.assertEqual(response.status_code, 204)
         self.assertEqual(EmailVerification.objects.count(), 1)
         self.assertIsNone(EmailVerification.objects.get().used_at)
-        self.assertEqual(self.post(accounts.verify_email, {"code": code}).status_code, 200)
+        self.assertEqual(self.post(accounts.verify_email, {"email": "viewer@example.test", "code": code}).status_code, 200)
 
     def test_expired_verification_cannot_activate_account(self):
         self.post(accounts.register, {"email": "user@example.test",
             "password": self.password, "display_name": "Viewer"})
         EmailVerification.objects.update(expires_at=timezone.now() - timedelta(seconds=1))
-        code = mail.outbox[0].body.split(": ", 1)[1]
-        self.assertEqual(self.post(accounts.verify_email, {"code": code}).status_code, 400)
+        code = self.code_from(mail.outbox[0])
+        self.assertEqual(self.post(accounts.verify_email, {"email": "user@example.test", "code": code}).status_code, 400)
         self.assertFalse(Account.objects.get().is_active)
 
     def test_resend_is_generic_throttled_and_replaces_the_old_code(self):
         email = "user@example.test"
         self.post(accounts.register, {"email": email,
             "password": self.password, "display_name": "Viewer"})
-        old_code = mail.outbox[0].body.split(": ", 1)[1]
+        old_code = self.code_from(mail.outbox[0])
         for address in (email, "unknown@example.test"):
             self.assertEqual(self.post(accounts.resend_verification, {"email": address}).status_code, 204)
         self.assertEqual(len(mail.outbox), 1)
-        EmailVerification.objects.update(expires_at=timezone.now() + timedelta(hours=23))
+        EmailVerification.objects.update(
+            created_at=timezone.now() - accounts.CODE_RESEND_COOLDOWN - timedelta(seconds=1))
         self.assertEqual(self.post(accounts.resend_verification, {"email": email}).status_code, 204)
         self.assertEqual(len(mail.outbox), 2)
-        new_code = mail.outbox[1].body.split(": ", 1)[1]
-        self.assertEqual(self.post(accounts.verify_email, {"code": old_code}).status_code, 400)
-        self.assertEqual(self.post(accounts.verify_email, {"code": new_code}).status_code, 200)
+        new_code = self.code_from(mail.outbox[1])
+        self.assertEqual(self.post(accounts.verify_email, {"email": email, "code": old_code}).status_code, 400)
+        self.assertEqual(self.post(accounts.verify_email, {"email": email, "code": new_code}).status_code, 200)
         self.assertEqual(self.post(accounts.resend_verification, {"email": email}).status_code, 204)
         self.assertEqual(len(mail.outbox), 2)
+
+    def code_from(self, message):
+        found = re.search(r": ([0-9]{6})\n", message.body)
+        self.assertIsNotNone(found)
+        return found.group(1)
 
     def setUp(self):
         self.factory = RequestFactory()
@@ -199,12 +207,12 @@ class AccountApiTests(TestCase):
         account = Account.objects.get(email="user@example.test")
         self.assertFalse(account.is_active)
         self.assertNotIn(self.password, mail.outbox[0].body)
-        code = mail.outbox[0].body.split(": ", 1)[1]
-        self.assertEqual(self.post(accounts.verify_email, {"code": code}).status_code, 200)
+        code = self.code_from(mail.outbox[0])
+        self.assertEqual(self.post(accounts.verify_email, {"email": "user@example.test", "code": code}).status_code, 200)
         account.refresh_from_db()
         self.assertTrue(account.is_active)
         self.assertIsNotNone(account.email_verified_at)
-        self.assertEqual(self.post(accounts.verify_email, {"code": code}).status_code, 400)
+        self.assertEqual(self.post(accounts.verify_email, {"email": "user@example.test", "code": code}).status_code, 400)
         return account
 
     def test_registration_verification_and_duplicate(self):

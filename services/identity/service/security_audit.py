@@ -3,6 +3,7 @@ from .models import AuditDelivery, SecurityEvent
 
 KINDS = {
     "account.registered", "account.verified", "account.verification_resent",
+    "account.password_reset_code_failed", "account.password_reset_throttled", "account.verification_code_failed", "account.verification_throttled",
     "account.password_reset_requested", "account.password_reset", "account.password_changed",
     "account.profile_updated", "account.preferences_updated", "account.privacy_request_received",
     "account.reauthenticated", "account.reauthentication_failed", "account.reauthentication_throttled",

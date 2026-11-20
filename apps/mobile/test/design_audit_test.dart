@@ -218,7 +218,7 @@ void main() {
           catalog: catalog,
           initialEmail: 'ama@example.com'), after: (tester) async {
     await tester.enterText(
-        find.byType(TextFormField).first, List.filled(64, 'a').join());
+        find.byType(TextField).first, '482619');
     final verify = find.text('Verify email');
     if (verify.evaluate().isEmpty) {
       await tester.scrollUntilVisible(verify, 200,

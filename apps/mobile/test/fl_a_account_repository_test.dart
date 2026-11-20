@@ -17,8 +17,8 @@ final fields = <String, String>{
   'Display name': 'Mark Updated',
   'Password': _synthetic('typed input'),
   'New password': _synthetic('another input'),
-  'Reset code': 'r'.padRight(40, 'x'),
-  'verificationCode': 'v'.padRight(40, 'x')
+  'Reset code': '482619',
+  'verificationCode': '071935'
 };
 void main() {
   final operations = <UiOperation, String>{

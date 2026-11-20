@@ -356,12 +356,16 @@ class _MobileScreenState extends State<MobileScreen> {
                   padding: const EdgeInsets.all(16),
                   child: TextFormField(
                     controller: resetCode,
-                    decoration: const InputDecoration(labelText: 'Reset code'),
+                    decoration: const InputDecoration(
+                        labelText: 'Reset code', counterText: ''),
+                    keyboardType: TextInputType.number,
+                    maxLength: 6,
                     onChanged: (value) =>
                         controller.update('Reset code', value),
-                    validator: (value) => value == null || value.isEmpty
-                        ? 'Enter the code sent to your email.'
-                        : null,
+                    validator: (value) =>
+                        RegExp(r'^[0-9]{6}$').hasMatch(value ?? '')
+                            ? null
+                            : 'Enter the six-digit code from your email.',
                   ),
                 ),
               if (content != null) view(content),

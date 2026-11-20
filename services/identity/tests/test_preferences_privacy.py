@@ -1,4 +1,5 @@
 import json
+import re
 import secrets
 
 from django.core import mail
@@ -25,8 +26,8 @@ class PreferencesPrivacyTests(TestCase):
     def _account(self, email):
         self._post(accounts.register, {"email": email, "password": self.password,
                                        "display_name": "Viewer"})
-        code = mail.outbox[-1].body.split(": ", 1)[1]
-        self._post(accounts.verify_email, {"code": code})
+        code = re.search(r": ([0-9]{6})\n", mail.outbox[-1].body).group(1)
+        self._post(accounts.verify_email, {"email": email, "code": code})
         session = self._post(accounts.login, {"email": email, "password": self.password})
         return json.loads(session.content)["access_token"]
 

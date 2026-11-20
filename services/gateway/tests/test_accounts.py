@@ -5,7 +5,7 @@ from io import BytesIO
 from unittest.mock import patch
 from urllib.error import HTTPError
 
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, override_settings
 from django.urls import reverse
 
 
@@ -118,6 +118,66 @@ class AccountGatewayTests(SimpleTestCase):
                 "access_token": access, "current_password": password, "new_password": password,
             })
             call.assert_called()
+
+    def test_six_digit_routes_forward_email_and_code_and_reject_client_supplied_origin(self):
+        password = secrets.token_urlsafe(28)
+        with patch("service.accounts.signed_internal_request") as call:
+            call.return_value = Response(200, b'{"verified": true}')
+            self.assertEqual(self.post("verify", {"email": "viewer@example.test", "code": "012345"}).status_code, 200)
+            self.assertEqual(call.call_args.args, ("identity", "/internal/auth/verify"))
+            self.assertEqual(json.loads(call.call_args.kwargs["payload"]),
+                             {"email": "viewer@example.test", "code": "012345"})
+            call.return_value = Response(204, b"")
+            self.assertEqual(self.post("reset-password", {
+                "email": "viewer@example.test", "code": "012345", "new_password": password}).status_code, 204)
+            self.assertEqual(json.loads(call.call_args.kwargs["payload"]), {
+                "email": "viewer@example.test", "code": "012345", "new_password": password})
+            calls = call.call_count
+            for name, body in (
+                ("verify", {"email": "viewer@example.test", "code": "012345", "origin": "203.0.113.9"}),
+                ("verify", {"email": "viewer@example.test"}),
+                ("verify", {}),
+                ("verification-resend", {"email": "viewer@example.test", "origin": "203.0.113.9"}),
+                ("reset-request", {"email": "viewer@example.test", "origin": "203.0.113.9"}),
+                ("reset-password", {"code": "012345", "origin": "203.0.113.9", "new_password": password}),
+                ("reset-password", {"email": "viewer@example.test", "new_password": password}),
+            ):
+                self.assertEqual(self.post(name, body).status_code, 400, (name, body))
+            self.assertEqual(call.call_count, calls)
+
+    def test_pending_long_links_still_pass_through_during_the_migration_window(self):
+        with patch("service.accounts.signed_internal_request") as call:
+            call.return_value = Response(200, b'{"verified": true}')
+            self.assertEqual(self.post("verify", {"code": secrets.token_urlsafe(48)}).status_code, 200)
+            call.return_value = Response(204, b"")
+            self.assertEqual(self.post("reset-password", {
+                "code": secrets.token_urlsafe(48), "new_password": secrets.token_urlsafe(28)}).status_code, 204)
+
+    def test_client_origin_is_forwarded_only_from_the_configured_trusted_header(self):
+        body = {"email": "viewer@example.test", "code": "012345"}
+        with patch("service.accounts.signed_internal_request") as call:
+            call.return_value = Response(200, b'{"verified": true}')
+            # Nothing is configured: a spoofed header and the proxy peer are both ignored.
+            self.post("verify", body, HTTP_CF_CONNECTING_IP="203.0.113.9", HTTP_X_FORWARDED_FOR="203.0.113.9")
+            self.assertNotIn("origin", json.loads(call.call_args.kwargs["payload"]))
+            with override_settings(KOLOVIBE_TRUSTED_CLIENT_IP_HEADER="CF-Connecting-IP"):
+                self.post("verify", body, HTTP_CF_CONNECTING_IP="203.0.113.9")
+                self.assertEqual(json.loads(call.call_args.kwargs["payload"])["origin"], "203.0.113.9")
+                self.post("verify", body, HTTP_X_FORWARDED_FOR="203.0.113.9")
+                self.assertNotIn("origin", json.loads(call.call_args.kwargs["payload"]))
+                for bad in ("not-an-ip", "203.0.113.9, 198.51.100.1", "", "' OR 1=1"):
+                    self.post("verify", body, HTTP_CF_CONNECTING_IP=bad)
+                    self.assertNotIn("origin", json.loads(call.call_args.kwargs["payload"]), bad)
+                call.return_value = Response(204, b"")
+                self.post("reset-request", {"email": "viewer@example.test"}, HTTP_CF_CONNECTING_IP="2001:db8::7")
+                self.assertEqual(json.loads(call.call_args.kwargs["payload"])["origin"], "2001:db8::7")
+
+    def test_throttling_is_reported_without_detail_about_the_account(self):
+        with patch("service.accounts.signed_internal_request") as call:
+            call.side_effect = HTTPError("http://identity", 429, "Too Many Requests", {},
+                                         BytesIO(json.dumps({"detail": "Too many attempts"}).encode()))
+            response = self.post("verify", {"email": "viewer@example.test", "code": "012345"})
+        self.assertEqual((response.status_code, response.json()), (429, {"detail": "Too many attempts"}))
 
     def post(self, name, data, **headers):
         return self.client.post(reverse(name), data=json.dumps(data),
