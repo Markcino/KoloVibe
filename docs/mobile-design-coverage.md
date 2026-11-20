@@ -520,6 +520,17 @@ Figma elements the current API or approved capabilities cannot support, and what
 | `flutter build ios --simulator --debug` | Built `build/ios/iphonesimulator/Runner.app` |
 | Physical iPhone run | **Not done** |
 
+### Verification run — 20 November 2026
+
+| Check | Result |
+| --- | --- |
+| `python3 scripts/check_mobile_design.py` | Passed: 108 entries, 150 local assets |
+| `flutter analyze` | No issues |
+| `flutter test` | 1310 passed (new: `r1_wiring_test`, `live_appeal_screen_test`, `vertical_feed_tabs_test`, `manage_cover_test`) |
+| `flutter build ios --simulator --debug` | Built `build/ios/iphonesimulator/Runner.app` |
+| Staging reads from this computer | `GET /app/compatibility`, `/videos?sort=trending`, `/creators/search` returned 200 over valid TLS; trending was empty |
+| Physical iPhone run | **Not done** |
+
 ### Remaining work
 
 - The rows marked Deviation and the not-audited states need per-screen reconstruction or captures; the largest are the upload flow steps, Manage video, Creator profile editing, the information screens (M-087 to M-094) and the player screens.
