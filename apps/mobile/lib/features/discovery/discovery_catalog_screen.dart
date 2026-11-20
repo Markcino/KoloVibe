@@ -22,6 +22,7 @@ String videoMeta(LiveVideo video) => [
       if (video.category != null) categoryLabel(video.category!),
       if (formatDuration(video.durationMs) != null)
         formatDuration(video.durationMs)!,
+      if (formatPlays(video.playCount) != null) formatPlays(video.playCount)!,
       if (video.likeCount != null)
         '${video.likeCount} ${video.likeCount == 1 ? 'like' : 'likes'}',
     ].join(' · ');
@@ -70,7 +71,7 @@ class _DiscoveryCatalogState extends State<DiscoveryCatalogScreen> {
   String? cursor, creatorCursor, category, query;
   bool busy = false, searched = false, retryCreators = false;
   // M-020: false = Trending, true = Fresh picks. M-027: false = Latest, true =
-  // Trending. M-022: 0 all results, 1 videos, 2 creators.
+  // Popular (this creator's videos by qualified plays). M-022: 0 all results, 1 videos, 2 creators.
   bool alternate = false;
   int resultFilter = 0;
   LiveCreator? spotlight, profile;
@@ -151,7 +152,7 @@ class _DiscoveryCatalogState extends State<DiscoveryCatalogScreen> {
                 category: category,
                 sort: switch (widget.screen) {
                   20 => alternate ? 'recent' : 'trending',
-                  27 => alternate ? 'trending' : 'recent',
+                  27 => alternate ? 'popular' : 'recent',
                   _ => 'recent',
                 });
         if (!mounted || token != generation) return;
@@ -455,7 +456,7 @@ class _DiscoveryCatalogState extends State<DiscoveryCatalogScreen> {
               const SizedBox(height: 4),
             _chipRow([
               ('Latest', !alternate, busy ? null : () => _switch(false)),
-              ('Trending', alternate, busy ? null : () => _switch(true)),
+              ('Popular', alternate, busy ? null : () => _switch(true)),
             ]),
             const SizedBox(height: 12),
             if (profile?.publishedVideoCount != null)

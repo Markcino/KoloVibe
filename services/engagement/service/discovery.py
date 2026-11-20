@@ -35,6 +35,16 @@ def discovery(request, operation):
             for row in VideoLike.objects.filter(video_id__in=ids).values("video_id").annotate(count=Count("id")):
                 counts[str(row["video_id"])] = row["count"]
             return JsonResponse({"counts": counts})
+        if operation == "play-counts":
+            # D-9: all-time server-qualified plays per video. Only the aggregate leaves this service;
+            # accounts, sessions, timestamps and watch times stay private. Eligibility is Content's.
+            if set(data) != {"video_ids"} or not isinstance(data["video_ids"], list) or len(data["video_ids"]) > 50:
+                raise ValueError
+            ids = list(dict.fromkeys(UUID(value) for value in data["video_ids"]))
+            counts = {str(value): 0 for value in ids}
+            for row in QualifiedWatch.objects.filter(video_id__in=ids).values("video_id").annotate(count=Count("id")):
+                counts[str(row["video_id"])] = row["count"]
+            return JsonResponse({"counts": counts})
         if operation == "follower-count":
             if set(data) != {"creator_id"}:
                 raise ValueError

@@ -30,6 +30,7 @@ class LiveVideo {
       {this.category,
       this.posterUrl,
       this.likeCount,
+      this.playCount,
       this.publishedAt,
       this.durationMs,
       this.tags = const []});
@@ -37,6 +38,9 @@ class LiveVideo {
   final int? durationMs;
   final Uri? posterUrl;
   final int? likeCount;
+
+  /// All-time server-qualified plays (D-9); null when the service could not say.
+  final int? playCount;
   final DateTime? publishedAt;
   final List<String> tags;
   final String id, creatorId, title, description;
@@ -59,6 +63,7 @@ class LiveVideo {
 
     final category = data['category'],
         count = data['like_count'],
+        plays = data['play_count'],
         tags = data['tags'] ?? [];
     final published = data['published_at'];
     // The public contract carries an optional duration, in milliseconds or in
@@ -70,6 +75,7 @@ class LiveVideo {
     }
     if (category != null && !videoCategories.contains(category) ||
         count != null && (count is! int || count < 0) ||
+        plays != null && (plays is! int || plays < 0) ||
         tags is! List ||
         tags.length > 5 ||
         tags.any((tag) =>
@@ -84,6 +90,7 @@ class LiveVideo {
         category: category as String?,
         posterUrl: mediaPoster(data['poster_url']),
         likeCount: count as int?,
+        playCount: plays as int?,
         durationMs: millis as int? ??
             (seconds == null ? null : (seconds as int) * 1000),
         tags: tags.cast<String>(),
@@ -143,8 +150,14 @@ class LiveVideoRepository {
       String? category,
       String sort = 'recent'}) async {
     if (category != null && !videoCategories.contains(category) ||
-        !{'recent', 'trending'}.contains(sort) ||
+        !{'recent', 'trending', 'popular'}.contains(sort) ||
         sort == 'trending' && cursor != null ||
+        // Popular is one creator's order: nothing else may narrow or page it.
+        sort == 'popular' &&
+            (creatorId == null ||
+                cursor != null ||
+                query != null ||
+                category != null) ||
         query != null &&
             (query.trim().isEmpty ||
                 query.length > 100 ||
@@ -157,7 +170,7 @@ class LiveVideoRepository {
     }
     final response = await api.request('/videos', query: {
       if (category != null) 'category': category,
-      if (sort == 'trending') 'sort': sort,
+      if (sort != 'recent') 'sort': sort,
       if (cursor != null) 'cursor': cursor,
       if (query != null) 'q': query,
       if (creatorId != null) 'creator_id': creatorId,
@@ -214,4 +227,22 @@ String? formatDuration(int? milliseconds) {
   if (milliseconds == null || milliseconds <= 0) return null;
   final total = (milliseconds / 1000).round();
   return '${(total ~/ 60).toString().padLeft(2, '0')}:${(total % 60).toString().padLeft(2, '0')}';
+}
+
+/// Public play label (D-9): `1 play`, `12 plays`, `1.2K plays`, `3.4M plays`. Zero and unknown
+/// counts have no label, so the interface never shows "0 plays" or a placeholder for a missing count.
+String? formatPlays(int? count) {
+  if (count == null || count <= 0) return null;
+  String scaled(double value, String unit) {
+    final rounded = (value * 10).floor() / 10; // truncate: never claim more than was counted
+    final text = rounded == rounded.roundToDouble()
+        ? rounded.toStringAsFixed(0)
+        : rounded.toStringAsFixed(1);
+    return '$text$unit plays';
+  }
+
+  if (count == 1) return '1 play';
+  if (count < 1000) return '$count plays';
+  if (count < 1000000) return scaled(count / 1000, 'K');
+  return scaled(count / 1000000, 'M');
 }

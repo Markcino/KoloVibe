@@ -1072,6 +1072,11 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
                             'Published ${_date(video.publishedAt!)}${formatDuration(video.durationMs) == null ? '' : ' · ${formatDuration(video.durationMs)}'}',
                             style: Theme.of(context).textTheme.bodySmall),
                       ],
+                      if (formatPlays(video.playCount) != null) ...[
+                        const SizedBox(height: 4),
+                        Text(formatPlays(video.playCount)!,
+                            style: Theme.of(context).textTheme.bodySmall),
+                      ],
                       const SizedBox(height: 4),
                       Text(
                           '${engagementController?.likeCount ?? video.likeCount ?? 'Unavailable'} likes',
