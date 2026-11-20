@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kolovibe/app/app_dependencies.dart';
+import 'package:kolovibe/app/app_session.dart';
 import 'package:kolovibe/app/screen_route.dart';
+import 'package:kolovibe/features/shell/mobile_screen.dart';
 import 'package:kolovibe/core/network/api_client.dart';
 import 'package:kolovibe/core/presentation/design_node.dart';
 import 'package:kolovibe/core/theme/kolovibe_theme.dart';
@@ -78,7 +81,7 @@ void main() {
   /// Pumps [build] at every audit configuration. [after] may drive the screen
   /// into a state (open a dialog, scroll) before the picture is taken.
   void audit(String name, int number, Widget Function() build,
-      {Future<void> Function(WidgetTester)? after}) {
+      {Future<void> Function(WidgetTester)? after, bool bounded = false}) {
     for (final viewport in [AuditViewport.standard, AuditViewport.small]) {
       for (final scale in [1.0, 2.0]) {
         testWidgets('$name · ${viewport.name} · text ${scale}x',
@@ -89,7 +92,7 @@ void main() {
           navigator.currentState!.push(MaterialPageRoute<void>(
               settings: RouteSettings(name: '/mobile/$name'),
               builder: (_) => screen));
-          await settleAsync(tester);
+          bounded ? await settleBounded(tester) : await settleAsync(tester);
           if (after != null) await after(tester);
           final error = tester.takeException();
           if (error != null) {
@@ -141,6 +144,19 @@ void main() {
   final videos = _AuditVideos();
   final creators = _AuditCreators();
 
+  // M-001 to M-003 are the declarative introduction recipes. The splash is
+  // captured before its 900 ms hand-off to the welcome screen.
+  for (final id in [1, 2, 3]) {
+    audit(
+        'M-${id.toString().padLeft(3, '0')}',
+        id,
+        () => MobileScreen(
+            route: ScreenRoute(id),
+            catalog: catalog,
+            dependencies: const AppDependencies.unavailable(),
+            session: AppSession()),
+        bounded: id == 1);
+  }
   for (final id in [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 80, 82]) {
     audit(
         'M-${id.toString().padLeft(3, '0')}',
