@@ -22,7 +22,7 @@ if settings.ENVIRONMENT == "local" or "engagement" in getattr(settings, "STAGING
     urlpatterns.append(path("internal/engagement/analytics/video", video_engagement, name="internal-video-analytics"))
     urlpatterns.append(path("internal/engagement/analytics/creator", creator_engagement, name="internal-creator-analytics"))
     urlpatterns.append(path("internal/engagement/shares", record_share, name="internal-share"))
-    for operation in ("like-counts", "follower-count", "trending"):
+    for operation in ("like-counts", "play-counts", "follower-count", "trending"):
         urlpatterns.append(path("internal/engagement/" + operation, discovery, {"operation": operation}))
 
 if settings.LOCAL_POINTS_ENABLED:

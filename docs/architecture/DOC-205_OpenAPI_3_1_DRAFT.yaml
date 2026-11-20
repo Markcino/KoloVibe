@@ -1275,14 +1275,32 @@ paths:
           enum:
           - recent
           - trending
+          - popular
           default: recent
-      description: Public catalogue with existing q/creator_id/category/cursor semantics. Trending ranks real qualified
+      description: |
+        Public catalogue with existing q/creator_id/category/cursor semantics. Trending ranks real qualified
         plays in the preceding rolling seven days, breaks ties by ascending video UUID, then verifies current published/public/non-deleted
         state through Content before selecting up to twenty IDs. Signed cursors hold the ranking cutoff fixed while
         skipping hidden candidates. The client bounds candidate scans and its time budget and returns unavailable
         rather than a partial ranking on exhaustion; unavailable ranking/lookup returns 503. Trending does not accept
         cursor and always returns next_cursor null. Like counts are read in a signed batch and remain null when Engagement
         is unavailable.
+
+        **sort=popular (D-6)** is a per-creator order and requires `creator_id` and nothing else (no q, category or
+        cursor): any other combination is 400. Content supplies the creator's publicly eligible videos
+        (published, public, moderation-approved, not deleted); Engagement supplies `play_count`. Order is `play_count`
+        descending, ties broken by Content's newest-first order (created_at, then id), so repeated requests return the
+        same order. At most 20 items, `next_cursor` null. It is **not** global trending relabelled: it ranks one creator's
+        videos by all-time qualified plays. A creator with more than 200 public videos, or an unavailable aggregate, returns
+        503 instead of a guessed order. Responses are `no-store`.
+
+        **play_count (D-9)** is the number of server-qualified plays of a public video, all time: a viewer's session
+        reached 80 % of the video or 30 s, whichever is less, with validated forward progress, once per viewer per
+        24 h, never the creator's own view. It is the same aggregate that ranks Trending and Popular and that the creator
+        sees as `qualified_plays`. Only this number is public: no viewer identity, session, timestamp, watch time,
+        anti-abuse signal or creator analytics. Label in the app: `1 play`, `2 plays`, `1.2K plays`, `3.4M plays`;
+        zero and null (unavailable) show no label. Counts are computed per request and never cached by the gateway or
+        CDN; the app shows the value it was last given and does not poll.
   /videos/following:
     get:
       tags:
@@ -3227,6 +3245,7 @@ components:
       - published_at
       - poster_url
       - like_count
+      - play_count
       properties:
         id:
           type: string
@@ -3304,6 +3323,12 @@ components:
           - 'null'
           minimum: 0
           description: Null when engagement counts are unavailable.
+        play_count:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          description: All-time server-qualified plays (D-9). Null when Engagement is unavailable; clients show no label for null or zero.
     OwnVideoDetail:
       type: object
       additionalProperties: false

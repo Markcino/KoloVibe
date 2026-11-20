@@ -56,6 +56,23 @@ def like_counts(video_ids) -> dict[str, int] | None:
         return None
 
 
+def play_counts(video_ids) -> dict[str, int] | None:
+    """Public qualified-play aggregate (D-9); None when Engagement cannot answer."""
+    try:
+        if not isinstance(video_ids, list) or len(video_ids) > 50 or not all(_uuid(value) for value in video_ids):
+            return None
+        ids = list(dict.fromkeys(video_ids))
+        if not ids:
+            return {}
+        result = _post("/internal/engagement/play-counts", {"video_ids": ids})
+        if (result is None or set(result) != {"counts"} or not isinstance(result["counts"], dict)
+                or set(result["counts"]) != set(ids) or not all(_count(value) for value in result["counts"].values())):
+            return None
+        return result["counts"]
+    except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError):
+        return None
+
+
 def follower_count(creator_id) -> int | None:
     try:
         if not _uuid(creator_id):

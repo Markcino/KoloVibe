@@ -158,6 +158,39 @@ void main() {
       expect(find.textContaining('Ama'), findsNothing);
     });
   }
+  testWidgets('M-027 Popular asks the service for this creator\'s popular order',
+      (tester) async {
+    final calls = <Map<String, String?>>[];
+    final fixture = CatalogFixture((q) async {
+      calls.add(q);
+      return LiveVideoPage([
+        LiveVideo.fromJson({...videoJson(), 'play_count': 1234}),
+        LiveVideo.fromJson({...videoJson(receiptId), 'play_count': 0}),
+        LiveVideo.fromJson({
+          ...videoJson('00000000-0000-4000-8000-0000000000aa'),
+          'play_count': null
+        }),
+      ], null);
+    });
+    await tester.pumpWidget(app(DiscoveryCatalogScreen(
+        screen: 27,
+        repository: fixture,
+        catalog: catalog,
+        account: AccountFixture().account,
+        creatorId: accountId)));
+    await settle(tester);
+    expect(calls.single['sort'], 'recent');
+    expect(find.text('Trending'), findsNothing,
+        reason: 'creator Popular is not global trending relabelled');
+    expect(find.textContaining('1.2K plays'), findsOneWidget);
+    expect(find.textContaining('0 plays'), findsNothing);
+    expect(find.textContaining('null'), findsNothing);
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Popular'));
+    await settle(tester);
+    expect(calls.last['sort'], 'popular');
+    expect(calls.last['creator_id'], accountId);
+    expect(calls.last['cursor'], isNull);
+  });
   testWidgets(
       'following signed-out prompts sign-in, never public-list fallback',
       (tester) async {

@@ -99,6 +99,80 @@ class CreatorContentGatewayTests(SimpleTestCase):
             call.return_value = Response(200, json.dumps({"items": [item | {"category": "comedy"}], "next_cursor": None}).encode())
             self.assertEqual(videos.list_videos(request).status_code, 503)
 
+    def test_play_count_is_attached_to_public_items_and_null_when_unavailable(self):
+        item = self.video_item()
+        request = self.factory.get("/api/v1/videos")
+        with patch("service.videos.signed_internal_request", return_value=Response(200, json.dumps({"items": [item], "next_cursor": None}).encode())), \
+                patch("service.engagement_client.like_counts", return_value={self.video: 1}), \
+                patch("service.engagement_client.play_counts", return_value={self.video: 0}) as plays:
+            body = json.loads(videos.list_videos(request).content)["items"][0]
+            self.assertEqual((body["like_count"], body["play_count"]), (1, 0))
+            self.assertEqual(set(body) - set(item), {"like_count", "play_count"})
+            plays.assert_called_once_with([self.video])
+            plays.return_value = None
+            self.assertIsNone(json.loads(videos.list_videos(request).content)["items"][0]["play_count"])
+            plays.return_value = {self.video: -1}
+            self.assertEqual(videos.list_videos(request).status_code, 503)
+            plays.return_value = {self.video: 2, "other": 1}
+            self.assertEqual(videos.list_videos(request).status_code, 503)
+
+    def test_creator_popular_ranks_public_videos_by_qualified_plays_with_a_stable_tiebreak(self):
+        newest, middle, oldest, quiet = (self.video_item(id=str(uuid4()), title=name) for name in ("N", "M", "O", "Q"))
+        page = {"items": [newest, middle, oldest, quiet], "next_cursor": None}
+        counts = {newest["id"]: 3, middle["id"]: 9, oldest["id"]: 3, quiet["id"]: 0}
+        request = self.factory.get("/api/v1/videos", {"creator_id": self.creator, "sort": "popular"})
+        with patch("service.videos.signed_internal_request", return_value=Response(200, json.dumps(page).encode())) as call, \
+                patch("service.engagement_client.like_counts", return_value=None), \
+                patch("service.engagement_client.play_counts", side_effect=lambda ids: {i: counts[i] for i in ids}):
+            result = videos.list_videos(request)
+            self.assertEqual(result.status_code, 200)
+            body = json.loads(result.content)
+            self.assertEqual([i["title"] for i in body["items"]], ["M", "N", "O", "Q"])
+            self.assertEqual([i["play_count"] for i in body["items"]], [9, 3, 3, 0])
+            self.assertIsNone(body["next_cursor"])
+            self.assertIn("no-store", result["Cache-Control"])
+            self.assertEqual(json.loads(call.call_args.kwargs["payload"]), {"creator_id": self.creator})
+            # Same input, same order: the tie-break is newest first, not random.
+            again = json.loads(videos.list_videos(request).content)
+            self.assertEqual([i["id"] for i in again["items"]], [i["id"] for i in body["items"]])
+
+    def test_creator_popular_only_ranks_what_content_says_is_public_and_fails_closed(self):
+        item = self.video_item()
+        request = self.factory.get("/api/v1/videos", {"creator_id": self.creator, "sort": "popular"})
+        with patch("service.videos.signed_internal_request") as call, \
+                patch("service.engagement_client.like_counts", return_value=None), \
+                patch("service.engagement_client.play_counts", return_value={self.video: 1}):
+            # A private or removed video from Content is rejected by validation rather than ranked.
+            call.return_value = Response(200, json.dumps({"items": [item | {"visibility": "private"}], "next_cursor": None}).encode())
+            self.assertEqual(videos.list_videos(request).status_code, 503)
+            # Another creator's item is never ranked under this creator.
+            call.return_value = Response(200, json.dumps({"items": [item | {"creator_id": str(uuid4())}], "next_cursor": None}).encode())
+            self.assertEqual(videos.list_videos(request).status_code, 503)
+            # Without a trustworthy aggregate there is no popularity order to show.
+            call.return_value = Response(200, json.dumps({"items": [item], "next_cursor": None}).encode())
+            with patch("service.engagement_client.play_counts", return_value=None):
+                self.assertEqual(videos.list_videos(request).status_code, 503)
+
+    def test_creator_popular_requires_exactly_a_creator_and_never_relabels_trending(self):
+        with patch("service.videos.signed_internal_request") as call, patch("service.engagement_client.trending_video_ids") as trending:
+            for query in ({"sort": "popular"}, {"sort": "popular", "creator_id": "bad"},
+                          {"sort": "popular", "creator_id": self.creator, "q": "x"},
+                          {"sort": "popular", "creator_id": self.creator, "cursor": self.video},
+                          {"sort": "popular", "creator_id": self.creator, "category": "hipco"}):
+                self.assertEqual(videos.list_videos(self.factory.get("/api/v1/videos", query)).status_code, 400, query)
+            call.assert_not_called()
+            trending.assert_not_called()
+
+    def test_creator_popular_fails_closed_above_the_ranking_limit(self):
+        items = [self.video_item(id=str(uuid4())) for _ in range(20)]
+        page = {"items": items, "next_cursor": items[-1]["id"]}
+        request = self.factory.get("/api/v1/videos", {"creator_id": self.creator, "sort": "popular"})
+        with patch("service.videos.signed_internal_request", return_value=Response(200, json.dumps(page).encode())) as call, \
+                patch("service.engagement_client.like_counts", return_value=None), \
+                patch("service.engagement_client.play_counts", return_value={}):
+            self.assertEqual(videos.list_videos(request).status_code, 503)
+            self.assertEqual(call.call_count, videos.POPULAR_PAGES)
+
     def test_trending_lookup_preserves_order_applies_filters_and_has_no_cursor(self):
         first, second = self.video_item(), self.video_item(id=str(uuid4()), category="comedy")
         ids = [second["id"], first["id"]]

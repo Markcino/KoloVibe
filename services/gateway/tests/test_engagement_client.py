@@ -41,6 +41,26 @@ class EngagementClientTests(SimpleTestCase):
                 peer.side_effect = error
                 self.assertIsNone(client.like_counts([ident]))
 
+    def test_play_counts_are_signed_bounded_exact_and_fail_closed(self):
+        ids = [str(uuid4()), str(uuid4())]
+        expected = {ids[0]: 12, ids[1]: 0}
+        with patch("service.engagement_client.signed_internal_request",
+                   return_value=Response(200, json.dumps({"counts": expected}).encode())) as peer:
+            self.assertEqual(client.play_counts(ids + ids), expected)
+            self.assertEqual(peer.call_args.args, ("engagement", "/internal/engagement/play-counts"))
+            self.assertEqual(json.loads(peer.call_args.kwargs["payload"]), {"video_ids": ids})
+            peer.reset_mock()
+            self.assertEqual(client.play_counts([]), {})
+            for invalid in (None, "id", [True], ["bad"], [str(uuid4()) for _ in range(51)]):
+                self.assertIsNone(client.play_counts(invalid))
+            peer.assert_not_called()
+            for result in ({"counts": {}}, {"counts": {ids[0]: True, ids[1]: 1}}, {"counts": {ids[0]: -1, ids[1]: 1}},
+                           {"counts": {ids[0]: 1, ids[1]: 1}, "viewers": []}, []):
+                peer.return_value = Response(200, json.dumps(result).encode())
+                self.assertIsNone(client.play_counts(ids))
+            peer.side_effect = TimeoutError()
+            self.assertIsNone(client.play_counts(ids))
+
     def test_follower_count_validates_identity_and_nonnegative_integer(self):
         ident = str(uuid4())
         with patch("service.engagement_client.signed_internal_request") as peer:

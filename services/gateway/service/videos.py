@@ -20,10 +20,9 @@ def _valid_item(item):
         return False
 
 
-def _with_likes(items):
-    ids = [item["id"] for item in items]
+def _counts(fetch, ids):
     try:
-        counts = engagement_client.like_counts(ids)
+        counts = fetch(ids)
     except (OSError, RuntimeError, ValueError):
         counts = None
     if counts is not None and (
@@ -31,7 +30,79 @@ def _with_likes(items):
         or any(type(value) is not int or value < 0 for value in counts.values())
     ):
         raise ValueError("Invalid engagement counts")
-    return [item | {"like_count": counts[item["id"]] if counts is not None else None} for item in items]
+    return counts
+
+
+def _with_likes(items):
+    """Attach the public engagement aggregates; null means Engagement could not answer.
+
+    like_count: current likes. play_count (D-9): all-time server-qualified plays, the same
+    aggregate that ranks Trending and Popular. Nothing else about viewers is exposed.
+    """
+    ids = [item["id"] for item in items]
+    likes = _counts(engagement_client.like_counts, ids)
+    plays = _counts(engagement_client.play_counts, ids)
+    return [item | {"like_count": likes[item["id"]] if likes is not None else None,
+                    "play_count": plays[item["id"]] if plays is not None else None}
+            for item in items]
+
+
+POPULAR_PAGES = 10  # 200 public videos per creator; beyond that Popular fails closed rather than guess
+
+
+def _content_page(filters):
+    response = signed_internal_request(
+        "content", "/internal/videos", method="POST",
+        payload=json.dumps(filters, separators=(",", ":")).encode(),
+    )
+    with response:
+        if response.status != 200:
+            raise ValueError("Unexpected content response")
+        raw = response.read(1_000_001)
+    if len(raw) > 1_000_000:
+        raise ValueError("Content response too large")
+    result = json.loads(raw)
+    if (
+        not isinstance(result, dict)
+        or set(result) != {"items", "next_cursor"}
+        or not isinstance(result.get("items"), list)
+        or len(result["items"]) > 20
+        or not all(_valid_item(item) for item in result["items"])
+        or len({item["id"] for item in result["items"]}) != len(result["items"])
+        or result["next_cursor"] is not None and (
+            len(result["items"]) != 20
+            or result["next_cursor"] != result["items"][-1]["id"])
+    ):
+        raise ValueError("Invalid content response")
+    return result
+
+
+def _popular(creator_id):
+    """A creator's public videos ordered by qualified plays, then newest first.
+
+    Content decides what is publicly eligible; Engagement supplies the aggregate. Ties keep Content's
+    deterministic newest-first order (created_at, then id), so the order is stable between requests.
+    """
+    items, cursor = [], None
+    for _ in range(POPULAR_PAGES):
+        page = _content_page({"creator_id": creator_id} | ({"cursor": cursor} if cursor else {}))
+        if any(item["creator_id"] != creator_id for item in page["items"]):
+            raise ValueError("Mismatched creator filter")
+        items.extend(page["items"])
+        cursor = page["next_cursor"]
+        if cursor is None:
+            break
+    else:
+        raise ValueError("Too many videos to rank")
+    counts = {}
+    for start in range(0, len(items), 50):
+        chunk = [item["id"] for item in items[start:start + 50]]
+        part = _counts(engagement_client.play_counts, chunk)
+        if part is None:
+            raise ValueError("Play counts unavailable")
+        counts.update(part)
+    ranked = sorted(range(len(items)), key=lambda index: (-counts[items[index]["id"]], index))
+    return [items[index] for index in ranked[:20]]
 
 
 @never_cache
@@ -42,8 +113,10 @@ def list_videos(request):
         return JsonResponse({"detail": "Invalid query"}, status=400)
     sort = request.GET.get("sort", "recent")
     category = request.GET.get("category")
-    if sort not in {"recent", "trending"} or category is not None and category not in CATEGORIES:
+    if sort not in {"recent", "trending", "popular"} or category is not None and category not in CATEGORIES:
         return JsonResponse({"detail": "Invalid query"}, status=400)
+    if sort == "popular" and (set(request.GET) != {"creator_id", "sort"}):
+        return JsonResponse({"detail": "Popular needs exactly creator_id"}, status=400)
     if sort == "trending" and "cursor" in request.GET:
         return JsonResponse({"detail": "Trending does not accept a cursor"}, status=400)
     filters = {}
@@ -62,6 +135,8 @@ def list_videos(request):
             except ValueError:
                 return JsonResponse({"detail": f"Invalid {key}"}, status=400)
     try:
+        if sort == "popular":
+            return JsonResponse({"items": _with_likes(_popular(filters["creator_id"])), "next_cursor": None})
         if sort == "trending":
             ids = engagement_client.trending_video_ids(20)
             if (not isinstance(ids, list) or len(ids) > 20 or len(set(ids)) != len(ids)
@@ -76,29 +151,7 @@ def list_videos(request):
                      and (query is None or query.strip().casefold() in
                           (item["title"] + " " + item["description"]).casefold())]
             return JsonResponse({"items": _with_likes(items), "next_cursor": None})
-        response = signed_internal_request(
-            "content", "/internal/videos", method="POST",
-            payload=json.dumps(filters, separators=(",", ":")).encode(),
-        )
-        with response:
-            if response.status != 200:
-                raise ValueError("Unexpected content response")
-            raw = response.read(1_000_001)
-        if len(raw) > 1_000_000:
-            raise ValueError("Content response too large")
-        result = json.loads(raw)
-        if (
-            not isinstance(result, dict)
-            or set(result) != {"items", "next_cursor"}
-            or not isinstance(result.get("items"), list)
-            or len(result["items"]) > 20
-            or not all(_valid_item(item) for item in result["items"])
-            or len({item["id"] for item in result["items"]}) != len(result["items"])
-            or result["next_cursor"] is not None and (
-                len(result["items"]) != 20
-                or result["next_cursor"] != result["items"][-1]["id"])
-        ):
-            raise ValueError("Invalid content response")
+        result = _content_page(filters)
         if filters.get("creator_id") and any(
             item["creator_id"] != filters["creator_id"] for item in result["items"]
         ):

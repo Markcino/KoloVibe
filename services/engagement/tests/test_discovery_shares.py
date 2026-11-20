@@ -48,6 +48,32 @@ class DiscoveryShareAnalyticsTests(TestCase):
         response = self.client.post("/internal/engagement/like-counts", {"video_ids": []}, content_type="application/json")
         self.assertEqual(response.status_code, 403)
 
+    def test_play_counts_are_the_all_time_qualified_aggregate_and_expose_nothing_else(self):
+        other, empty = uuid4(), uuid4()
+        for _ in range(3):
+            self.qualify(video=self.video)
+        self.qualify(video=self.video, at=self.now - timedelta(days=400))  # old plays still count
+        self.qualify(video=other)
+        WatchCount = QualifiedWatch.objects.filter(video_id=self.video).count()
+        self.assertEqual(WatchCount, 4)
+        response = discovery(self.request({"video_ids": [str(self.video), str(other), str(empty), str(other)]}),
+                             "play-counts")
+        self.assertEqual(json.loads(response.content),
+                         {"counts": {str(self.video): 4, str(other): 1, str(empty): 0}})
+        self.assertEqual(set(json.loads(response.content)), {"counts"})
+        self.assertEqual(discovery(self.request({"video_ids": []}), "play-counts").status_code, 200)
+
+    def test_play_counts_reject_bad_input_other_callers_and_extra_fields(self):
+        for body in ({"video_ids": [str(uuid4())] * 51}, {"video_ids": [True]}, {"video_ids": ["x"]},
+                     {"video_ids": "id"}, {}, {"video_ids": [], "viewer_id": str(uuid4())},
+                     {"video_ids": [], "creator_id": str(self.creator)}):
+            self.assertEqual(discovery(self.request(body), "play-counts").status_code, 400, body)
+        for caller in ("content", "creators", "", None):
+            self.assertEqual(discovery(self.request({"video_ids": []}, caller), "play-counts").status_code, 403)
+        response = self.client.post("/internal/engagement/play-counts", {"video_ids": []},
+                                    content_type="application/json")
+        self.assertEqual(response.status_code, 403)
+
     def test_trending_uses_seven_day_qualified_records_and_deterministic_cursor_ties(self):
         first, second, third = (UUID(int=value) for value in (1, 2, 3))
         for video in (first, first, second, second, third):

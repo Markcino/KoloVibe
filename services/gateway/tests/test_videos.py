@@ -27,6 +27,7 @@ class Response:
 class VideoGatewayTests(SimpleTestCase):
     def setUp(self):
         self.enterContext(patch("service.engagement_client.like_counts", return_value=None))
+        self.enterContext(patch("service.engagement_client.play_counts", return_value=None))
 
     def test_stale_cursor_is_a_client_error(self):
         with patch("service.videos.signed_internal_request",
@@ -90,7 +91,7 @@ class VideoGatewayTests(SimpleTestCase):
             call.return_value = Response(json.dumps(payload).encode())
             response = self.client.get(reverse("api-video-detail", args=[video_id]))
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), payload | {"like_count": None})
+        self.assertEqual(response.json(), payload | {"like_count": None, "play_count": None})
         self.assertEqual(json.loads(call.call_args.kwargs["payload"]), {"video_id": str(video_id)})
 
     def test_detail_rejects_mismatched_record(self):
