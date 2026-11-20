@@ -25,7 +25,7 @@ PACKAGE = {"name": "ffmpeg", "version": "9.0.2-r0", "type": "apk"}
 VERSION = ("ffmpeg version 9.0.2 Copyright (c) 2000-2026 the FFmpeg developers\n"
            "  built with gcc 15.2.0 (Alpine 15.2.0)\n"
            "  configuration: --prefix=/usr --disable-everything --disable-autodetect --disable-network --disable-doc "
-           "--enable-gpl --enable-libx264 --enable-decoder=h264 --enable-encoder=aac\n"
+           "--disable-hwaccels --disable-vdpau --enable-gpl --enable-libx264 --enable-decoder=h264 --enable-encoder=aac\n"
            "  libavutil      60.  8.100 / 60.  8.100\n")
 DECODERS = (
     "Decoders:\n V..... = Video\n A..... = Audio\n ------\n V....D h264                H.264 / AVC\n"
@@ -124,6 +124,21 @@ class CheckerTests(unittest.TestCase):
         self.assertEqual(checker.listed_names("bsfs", BSFS), {"null", "aac_adtstoasc"})
         with self.assertRaises(ValueError):
             checker.listed_names("decoders", "nonsense")
+
+    def test_vdpau_is_forbidden_even_when_other_hardware_is_disabled(self):
+        self.assertEqual(self.problems(), [])
+        self.assertTrue(any(
+            problem.startswith("CVE-2026-125219")
+            for problem in self.problems(hwaccels=HWACCELS + "vdpau\\n")
+        ))
+        self.assertTrue(any(
+            "the build lacks --disable-vdpau" in problem
+            for problem in self.problems(version=VERSION.replace("--disable-vdpau ", ""))
+        ))
+        self.assertTrue(any(
+            "the build lacks --disable-hwaccels" in problem
+            for problem in self.problems(version=VERSION.replace("--disable-hwaccels ", ""))
+        ))
 
     def test_an_enabled_excepted_component_is_reported_by_cve(self):
         cases = [
