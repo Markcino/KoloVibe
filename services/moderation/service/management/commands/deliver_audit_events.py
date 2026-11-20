@@ -29,7 +29,7 @@ class Command(BaseCommand):
                        .values_list("event_id", flat=True)[:options["limit"]])
             for ident in ids:
                 with transaction.atomic():
-                    delivery = AuditDelivery.objects.select_for_update().select_related("event").get(event_id=ident)
+                    delivery = AuditDelivery.objects.select_for_update(of=("self",)).select_related("event").get(event_id=ident)
                     if delivery.delivered_at is not None or delivery.next_attempt_at > timezone.now():
                         continue
                     event = delivery.event
