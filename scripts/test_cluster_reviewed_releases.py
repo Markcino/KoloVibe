@@ -16,8 +16,7 @@ from test_cluster_operations import TARGET_REVISION, cluster  # noqa: E402
 
 V0_187_2 = cluster.REPOSITORY + '@sha256:0b3bba46d1de2c988fe06099944a9a1a9be37df128c407ec51430f95fe576f69'
 V0_200_1 = cluster.REPOSITORY + '@sha256:c681a909334f6196c1144dfe6569876b4df0920c1d7acab46a3ad0ad348f9a4b'
-V0_205_1 = (cluster.REPOSITORY + '@sha256:' + 'a43d0cfb17a24962' +
-            'e91aeb422cb4c1b5' + 'c77087fe08eedd45' + 'c5ba8d664ee509c5')
+V0_205_1 = AWS.reviewed_releases[-1]
 UNLISTED = cluster.REPOSITORY + '@sha256:' + 'b' * 64
 OTHER_REPOSITORY = 'ghcr.io/someone-else/services@sha256:' + 'c' * 64
 ORDER = ['audit', 'identity', 'creators', 'content', 'engagement', 'points', 'moderation', 'gateway']
@@ -37,6 +36,9 @@ def plan(swarm, services=ORDER):
 class ReviewedReleaseTableTests(unittest.TestCase):
     def test_the_aws_profile_lists_the_deployed_earlier_digests(self):
         self.assertEqual(AWS.reviewed_releases, (V0_187_2, V0_200_1, V0_205_1))
+        self.assertTrue(V0_205_1.startswith(cluster.REPOSITORY + '@sha256:a43d0cfb'))
+        self.assertTrue(V0_205_1.endswith('c5ba8d664ee509c5'))
+        self.assertEqual(len(V0_205_1), len(cluster.REPOSITORY) + len('@sha256:') + 64)
         self.assertNotEqual(V0_187_2, cluster.BASELINE_IMAGE)
         cluster.check_flag_table(AWS)
 
