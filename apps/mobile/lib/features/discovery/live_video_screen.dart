@@ -19,6 +19,7 @@ import '../account/live_account_repository.dart';
 import '../engagement/live_video_engagement_controller.dart';
 import '../engagement/live_video_engagement_repository.dart';
 import 'live_video_repository.dart';
+import 'slow_connection_sheet.dart';
 
 class LiveVideoScreen extends StatefulWidget {
   const LiveVideoScreen(
@@ -265,6 +266,8 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
   String? playerError;
   bool? shownPlaying;
   bool buffering = false, slow = false, starting = false, sharing = false;
+  bool slowDismissed = false;
+  int attempt = 0;
   bool likedToast = false;
   Timer? toastTimer;
   Timer? bufferTimer;
@@ -280,6 +283,7 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
     bufferTimer?.cancel();
     buffering = value;
     slow = false;
+    slowDismissed = false;
     if (value) {
       bufferTimer = Timer(const Duration(seconds: 5), () {
         if (mounted && buffering) setState(() => slow = true);
@@ -580,8 +584,17 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
     }
   }
 
+  /// M-034: the person asked to try again while a slow start was still pending. The earlier
+  /// attempt is abandoned (its controller is disposed when it finishes) and a fresh grant is used.
+  Future<void> _retrySlow() async {
+    starting = false;
+    setBuffering(false);
+    await _startPlayback();
+  }
+
   Future<void> _startPlayback() async {
     if (starting) return;
+    final mine = ++attempt;
     setState(() {
       starting = true;
       playerError = null;
@@ -602,7 +615,7 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
         grant = await widget.repository.playback(widget.id);
       }
     } catch (failure) {
-      if (mounted) {
+      if (mounted && mine == attempt) {
         setBuffering(false);
         setState(() {
           playbackFailure = failure;
@@ -611,7 +624,7 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
       }
       return;
     }
-    if (!mounted) return;
+    if (!mounted || mine != attempt) return;
     final previous = player;
     player = null;
     shownPlaying = null;
@@ -624,7 +637,7 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
         VideoPlayerController.networkUrl(grant.url);
     try {
       await next.initialize().timeout(const Duration(seconds: 15));
-      if (!mounted) {
+      if (!mounted || mine != attempt) {
         await next.dispose();
         return;
       }
@@ -636,7 +649,7 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
     } catch (_) {
       if (identical(player, next)) player = null;
       await next.dispose();
-      if (mounted) {
+      if (mounted && mine == attempt) {
         setBuffering(false);
         setState(() {
           starting = false;
@@ -731,7 +744,7 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
                             style: KoloVibeText.body(12,
                                 weight: FontWeight.w600,
                                 color: Colors.white))))),
-          if (buffering)
+          if (buffering && !(slow && !slowDismissed))
             Center(
                 child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -751,12 +764,24 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
                           borderRadius: BorderRadius.circular(12)),
                       child: Text(
                           slow
-                              ? 'Slow connection. No lower-data rendition is available to select.'
+                              ? 'Still loading on a slow connection…'
                               : 'Preparing playback…',
                           textAlign: TextAlign.center,
                           style: KoloVibeText.body(13,
                               weight: FontWeight.w600, color: Colors.white))),
                 ])),
+          if (buffering && slow && !slowDismissed) ...[
+            const Positioned.fill(
+                child: ColoredBox(color: Color(0x99001539))),
+            Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: SlowConnectionSheet(
+                    key: const ValueKey('M-034'),
+                    onRetry: _retrySlow,
+                    onKeepWaiting: () => setState(() => slowDismissed = true))),
+          ],
           Positioned(
               left: 20,
               right: 96,
@@ -1087,12 +1112,19 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
                       OutlinedButton(
                           onPressed: sharing ? null : share,
                           child: const Text('Share')),
-                      if (buffering)
+                      if (buffering && slow && !slowDismissed)
+                        SlowConnectionSheet(
+                            key: const ValueKey('M-034'),
+                            inline: true,
+                            onRetry: _retrySlow,
+                            onKeepWaiting: () =>
+                                setState(() => slowDismissed = true))
+                      else if (buffering)
                         Column(
                             key: ValueKey(slow ? 'M-034' : 'M-032'),
                             children: [
                               Text(slow
-                                  ? 'Playback is taking longer on this connection. No lower-data rendition is available to select.'
+                                  ? 'Still loading on a slow connection…'
                                   : 'Preparing playback…'),
                               const LinearProgressIndicator(),
                             ]),

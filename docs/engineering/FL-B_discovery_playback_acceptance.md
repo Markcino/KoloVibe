@@ -58,4 +58,4 @@ Toolchain: Flutter 3.47.8 / Dart 3.13.7. FX=/tmp/fl-a-fx invokes the pinned SDK 
 
 ## Remaining acceptance work
 
-Physical-device playback/share, real R2 signed URL delivery/expiry and deployed engagement progression require device/backend UAT. Native provider and server behavior are deliberately represented by fixtures in widget tests. Anonymous playback remains gated by the existing gateway as described above. No lower-data rendition can be selected with the current media contract.
+Physical-device playback/share, real R2 signed URL delivery/expiry and deployed engagement progression require device/backend UAT. Native provider and server behavior are deliberately represented by fixtures in widget tests. Anonymous playback remains gated by the existing gateway as described above. There is one rendition in R1: the app shows a truthful slow-connection state (M-034) with Try again and Keep waiting, no Data Saver switch and no lower-data claim (see `docs/mobile-design-r1-adaptations.md`).

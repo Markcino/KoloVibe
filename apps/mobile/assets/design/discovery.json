@@ -2303,7 +2303,7 @@
                             "weight": 700,
                             "family": "Inter"
                           },
-                          "text": "CURATED COLLECTION · CULTURE"
+                          "text": "LATEST ORIGINAL · CULTURE"
                         },
                         {
                           "kind": "text",
@@ -2663,7 +2663,7 @@
                             "weight": 600,
                             "family": "Inter"
                           },
-                          "text": "Follow"
+                          "text": "View"
                         }
                       ],
                       "action": "do:follow"
@@ -14033,7 +14033,7 @@
                 "lineHeight": 1.48,
                 "fill": true
               },
-              "text": "We couldn’t load the next part of this video. Check your network and try again, or use a lower-data playback setting."
+              "text": "We couldn’t load the next part of this video. Check your network and try again."
             },
             {
               "kind": "row",
@@ -14081,7 +14081,7 @@
                 "lineHeight": 1.48,
                 "fill": true
               },
-              "text": "Check connection · Use Data Saver"
+              "text": "Check connection · Try again"
             }
           ]
         },
@@ -14812,7 +14812,7 @@
                 "lineHeight": 1.48,
                 "fill": true
               },
-              "text": "◉ Data Saver is on"
+              "text": "◉ Slow connection"
             }
           ]
         },
@@ -15091,84 +15091,7 @@
                     "lineHeight": 1.15,
                     "fill": true
                   },
-                  "text": "More story. Less data."
-                },
-                {
-                  "kind": "row",
-                  "name": "Preference row",
-                  "id": "8:81390",
-                  "style": {
-                    "gap": 16.0,
-                    "fill": true,
-                    "cross": "center",
-                    "padding": [
-                      0,
-                      12.0,
-                      0,
-                      12.0
-                    ]
-                  },
-                  "children": [
-                    {
-                      "kind": "column",
-                      "name": "Preference description",
-                      "id": "8:81391",
-                      "style": {
-                        "gap": 5.0,
-                        "lineHeight": 1.48,
-                        "flex": true,
-                        "cross": "start"
-                      },
-                      "children": [
-                        {
-                          "kind": "text",
-                          "name": "",
-                          "id": "8:81392",
-                          "style": {
-                            "fontSize": 14.0,
-                            "color": 4279249494,
-                            "weight": 600,
-                            "family": "Inter",
-                            "fill": true
-                          },
-                          "text": "Data Saver"
-                        },
-                        {
-                          "kind": "text",
-                          "name": "",
-                          "id": "8:81393",
-                          "style": {
-                            "fontSize": 12.0,
-                            "color": 4285100420,
-                            "weight": 400,
-                            "family": "Inter",
-                            "fill": true
-                          },
-                          "text": "Use lower-data playback where available."
-                        }
-                      ]
-                    },
-                    {
-                      "kind": "stack",
-                      "name": "Preference switch",
-                      "id": "8:81394",
-                      "style": {
-                        "width": 48.0,
-                        "height": 28.0
-                      },
-                      "children": [
-                        {
-                          "kind": "image",
-                          "name": "",
-                          "id": "8:81394",
-                          "style": {
-                            "positioned": true
-                          },
-                          "asset": "assets/images/7034b20f29becf6842a7.svg"
-                        }
-                      ]
-                    }
-                  ]
+                  "text": "Your connection is slow."
                 },
                 {
                   "kind": "text",
@@ -15182,7 +15105,7 @@
                     "lineHeight": 1.48,
                     "fill": true
                   },
-                  "text": "Quality adapts to the connection. Video may take longer to start on a weak network."
+                  "text": "This video is taking longer than usual to start. It keeps loading, and you can try again at any time."
                 },
                 {
                   "kind": "row",
@@ -15254,7 +15177,7 @@
                             "fontSize": 12.0,
                             "lineHeight": 1.5
                           },
-                          "text": "Normal carrier data charges apply. Data Saver does not make playback free."
+                          "text": "Normal carrier data charges apply. Try a stronger signal, or switch between Wi-Fi and mobile data. This release plays one video quality."
                         }
                       ]
                     }
@@ -15289,7 +15212,7 @@
                         "weight": 700,
                         "family": "Inter"
                       },
-                      "text": "Continue with Data Saver"
+                      "text": "Try again"
                     }
                   ],
                   "action": "go:24"
