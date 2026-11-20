@@ -251,6 +251,10 @@ class _LiveInformationScreenState extends State<LiveInformationScreen> {
             const Text(
               'Your account information\nHow information is used\nYour available privacy choices\nContent rights and responsibilities',
             ),
+            if (!terms)
+              const Text(
+                'Kept on this phone only: recent searches stay on your phone for 14 days, are removed when you sign out, and are never sent to KoloVibe.',
+              ),
             const Text(
               'Read the complete, current documents. Available requests and actions depend on applicable policy.',
             ),

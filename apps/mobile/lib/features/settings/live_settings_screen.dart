@@ -253,6 +253,9 @@ class _LiveSettingsScreenState extends State<LiveSettingsScreen> {
             row('Account information', 85),
             row('Privacy policy', 88),
             row('Delete account request', 91),
+            note(
+              'Recent searches stay on your phone, are kept for 14 days, and can be cleared from Search. They are never sent to KoloVibe.',
+            ),
             OutlinedButton(
               onPressed: submitAccess,
               child: const Text('Request account data'),

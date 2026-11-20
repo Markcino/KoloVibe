@@ -97,6 +97,15 @@ class LiveAccountRepository implements AccountRepository {
   final ApiClient api;
   final CredentialStore store;
   String? _accessToken;
+
+  /// Called whenever this device's session ends, even when the server could not confirm it, so
+  /// device-local personal data (recent searches) never outlives the signed-in person.
+  Future<void> Function()? onSessionEnded;
+  String? _accountId;
+
+  /// Id of the account holding the current session, from the last token response; null when
+  /// signed out. Used only to keep device-local data apart per account.
+  String? get signedInAccountId => _accessToken == null ? null : _accountId;
   Future<void> _pending = Future<void>.value();
 
   Future<T> _serialized<T>(Future<T> Function() action) {
@@ -118,6 +127,18 @@ class LiveAccountRepository implements AccountRepository {
     await store.writeRefreshToken(refresh);
     _restored = null;
     _accessToken = access;
+    final user = response['user'];
+    final id = user is Map ? user['id'] : null;
+    _accountId = id is String && isApiId(id) ? id : null;
+  }
+
+  Future<void> _sessionEnded() async {
+    _accountId = null;
+    try {
+      await onSessionEnded?.call();
+    } catch (_) {
+      // Failing to tidy local data must not block sign-out.
+    }
   }
 
   Future<LiveAccount?> currentAccount() => _serialized(_currentAccount);
@@ -264,6 +285,7 @@ class LiveAccountRepository implements AccountRepository {
         _restored = null;
         _accessToken = null;
         await store.clearRefreshToken();
+        await _sessionEnded();
       });
 
   Future<void> signOut() => _serialized(_signOut);
@@ -282,6 +304,7 @@ class LiveAccountRepository implements AccountRepository {
       _restored = null;
       _accessToken = null;
       await store.clearRefreshToken();
+      await _sessionEnded();
     }
   }
 

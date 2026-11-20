@@ -6,6 +6,7 @@ import '../core/platform/device_bridge.dart';
 import '../core/security/credential_store.dart';
 import '../features/account/live_account_repository.dart';
 import '../features/discovery/live_video_repository.dart';
+import '../features/discovery/search_history.dart';
 import '../features/creators/live_creator_repository.dart';
 import '../features/points/live_points_repository.dart';
 import '../features/content/live_content_repository.dart';
@@ -18,6 +19,7 @@ class AppDependencies {
         liveCreators = null,
         livePoints = null,
         liveContent = null,
+        searchHistory = null,
         api = null,
         device = const PlatformDeviceBridge();
 
@@ -28,16 +30,21 @@ class AppDependencies {
       this.liveCreators,
       this.livePoints,
       this.liveContent,
+      this.searchHistory,
       this.api,
       this.device);
 
   factory AppDependencies.live(String baseUrl,
       {CredentialStore? credentialStore,
       DeviceBridge? device,
+      SearchHistoryStore? searchHistoryStore,
       http.Client? client}) {
     final api = ApiClient(baseUrl, client: client);
     final account = LiveAccountRepository(
         api, credentialStore ?? const PlatformCredentialStore());
+    final history =
+        SearchHistory(searchHistoryStore ?? const SecureSearchHistoryStore());
+    account.onSessionEnded = history.clearAll;
     return AppDependencies._(
       ServiceRepositories(
         account: account,
@@ -54,6 +61,7 @@ class AppDependencies {
       LiveCreatorRepository(api),
       LivePointsRepository(account),
       LiveContentRepository(account),
+      history,
       api,
       device ?? const PlatformDeviceBridge(),
     );
@@ -65,6 +73,9 @@ class AppDependencies {
   final LiveCreatorRepository? liveCreators;
   final LivePointsRepository? livePoints;
   final LiveContentRepository? liveContent;
+
+  /// Device-local recent searches; never sent to the service.
+  final SearchHistory? searchHistory;
 
   /// Public gateway client for unauthenticated reads; null when unavailable.
   final ApiClient? api;

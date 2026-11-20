@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../app/screen_route.dart';
 import '../../core/network/api_client.dart';
@@ -12,6 +13,7 @@ import '../../shared/widgets/kolo_components.dart';
 import '../../shared/widgets/kolo_media.dart';
 import '../shell/main_shell.dart';
 import 'live_video_repository.dart';
+import 'search_history.dart';
 
 void discoveryNavigate(BuildContext context, int screen, [String? id]) {
   final route = ScreenRoute(screen, entityId: id);
@@ -48,6 +50,7 @@ class DiscoveryCatalogScreen extends StatefulWidget {
       required this.repository,
       required this.catalog,
       this.account,
+      this.history,
       this.creators,
       this.creatorId,
       this.initialQuery,
@@ -56,6 +59,9 @@ class DiscoveryCatalogScreen extends StatefulWidget {
   final LiveVideoRepository repository;
   final DesignCatalog catalog;
   final LiveAccountRepository? account;
+
+  /// Device-local recent searches for the signed-in account; null disables the list.
+  final SearchHistory? history;
   final LiveCreatorRepository? creators;
   final String? creatorId;
   final String? initialQuery, initialCategory;
@@ -75,6 +81,7 @@ class _DiscoveryCatalogState extends State<DiscoveryCatalogScreen> {
   bool alternate = false;
   int resultFilter = 0;
   LiveCreator? spotlight, profile;
+  List<String> recent = const [];
   Object? error;
   int generation = 0;
   @override
@@ -84,6 +91,7 @@ class _DiscoveryCatalogState extends State<DiscoveryCatalogScreen> {
     category = widget.initialCategory;
     search.text = query ?? '';
     searched = query != null;
+    if (widget.screen == 21) _loadRecent();
     if (!{17, 21, 23}.contains(widget.screen)) load(reset: true);
     if (widget.screen == 27 &&
         widget.creatorId != null &&
@@ -91,6 +99,96 @@ class _DiscoveryCatalogState extends State<DiscoveryCatalogScreen> {
       _loadProfile();
     }
   }
+
+  String? get _accountId => widget.account?.signedInAccountId;
+
+  Future<void> _loadRecent() async {
+    final history = widget.history;
+    if (history == null) return;
+    final values = await history.recent(_accountId);
+    if (mounted) setState(() => recent = values);
+  }
+
+  /// Remember a submitted search on this phone only (see docs/privacy/recent-searches.md).
+  void _remember(String term) {
+    final history = widget.history;
+    if (history == null) return;
+    history.add(_accountId, term).then((_) {
+      if (mounted && widget.screen == 21) _loadRecent();
+    });
+  }
+
+  Future<void> _forget(String term) async {
+    await widget.history?.remove(_accountId, term);
+    await _loadRecent();
+  }
+
+  Future<void> _clearRecent() async {
+    await widget.history?.clear(_accountId);
+    if (!mounted) return;
+    setState(() => recent = const []);
+    SemanticsService.sendAnnouncement(
+        View.of(context), 'Recent searches cleared', TextDirection.ltr);
+  }
+
+  void _openSearch(String term) {
+    search.text = term;
+    _remember(term);
+    Navigator.of(context).push(MaterialPageRoute<void>(
+        settings: RouteSettings(name: const ScreenRoute(22).name),
+        builder: (_) => DiscoveryCatalogScreen(
+            screen: 22,
+            repository: widget.repository,
+            catalog: widget.catalog,
+            account: widget.account,
+            history: widget.history,
+            creators: widget.creators,
+            initialQuery: term,
+            initialCategory: category)));
+  }
+
+  Widget _recentSearches() => Column(
+          key: const ValueKey('recent-searches'),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              const Expanded(child: KoloSectionHeading(title: 'Recent searches')),
+              TextButton(
+                  onPressed: _clearRecent,
+                  style: TextButton.styleFrom(
+                      minimumSize: const Size(44, 44),
+                      foregroundColor: KoloVibeColors.red),
+                  child: const Text('Clear')),
+            ]),
+            for (final term in recent)
+              Row(children: [
+                Expanded(
+                    child: InkWell(
+                        onTap: () => _openSearch(term),
+                        child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child: Row(children: [
+                              const Icon(Icons.history,
+                                  size: 20, color: KoloVibeColors.muted),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                  child: Text(term,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: KoloVibeText.body(14,
+                                          color: KoloVibeColors.ink))),
+                            ])))),
+                IconButton(
+                    tooltip: 'Remove $term from recent searches',
+                    onPressed: () => _forget(term),
+                    icon: const Icon(Icons.close,
+                        size: 18, color: KoloVibeColors.muted)),
+              ]),
+            Padding(
+                padding: const EdgeInsets.only(top: 4, bottom: 16),
+                child: Text('Saved on this phone for 14 days. Not sent to KoloVibe.',
+                    style: KoloVibeText.body(12, color: KoloVibeColors.muted))),
+          ]);
 
   Future<void> _loadProfile() async {
     try {
@@ -294,17 +392,9 @@ class _DiscoveryCatalogState extends State<DiscoveryCatalogScreen> {
           onSubmitted: (value) {
             final term = value.trim();
             if ({19, 21}.contains(widget.screen) && term.isNotEmpty) {
-              Navigator.of(context).push(MaterialPageRoute<void>(
-                  settings: RouteSettings(name: const ScreenRoute(22).name),
-                  builder: (_) => DiscoveryCatalogScreen(
-                      screen: 22,
-                      repository: widget.repository,
-                      catalog: widget.catalog,
-                      account: widget.account,
-                      creators: widget.creators,
-                      initialQuery: term,
-                      initialCategory: category)));
+              _openSearch(term);
             } else {
+              if (term.isNotEmpty) _remember(term);
               query = term.isEmpty ? null : term;
               searched = query != null;
               load(reset: true);
@@ -542,6 +632,7 @@ class _DiscoveryCatalogState extends State<DiscoveryCatalogScreen> {
                 child: Text(
                     'Find original videos and the creators behind them.',
                     style: KoloVibeText.body(14, height: 1.5))),
+            if (widget.screen == 21 && recent.isNotEmpty) _recentSearches(),
             if (widget.screen == 21) ...[
               const KoloSectionHeading(title: 'Browse categories'),
               const SizedBox(height: 12),
