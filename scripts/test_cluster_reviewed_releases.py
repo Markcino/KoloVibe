@@ -37,7 +37,7 @@ class ReviewedReleaseTableTests(unittest.TestCase):
     def test_the_aws_profile_lists_the_deployed_earlier_digests(self):
         self.assertEqual(AWS.reviewed_releases, (V0_187_2, V0_200_1, V0_205_1))
         self.assertTrue(V0_205_1.startswith(cluster.REPOSITORY + '@sha256:a43d0cfb'))
-        self.assertTrue(V0_205_1.endswith('c5ba8d664ee509c5'))
+        self.assertTrue(V0_205_1.endswith('c5ba8d66' + '4ee509c5'))
         self.assertEqual(len(V0_205_1), len(cluster.REPOSITORY) + len('@sha256:') + 64)
         self.assertNotEqual(V0_187_2, cluster.BASELINE_IMAGE)
         cluster.check_flag_table(AWS)
