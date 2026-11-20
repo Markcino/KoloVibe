@@ -81,11 +81,10 @@ void useViewport(
   });
 }
 
-/// Writes a PNG of the whole test view when `AUDIT_DIR` is set; otherwise does
-/// nothing, so ordinary test runs stay side-effect free.
-///
-/// With [design] set (an M-number) the approved export is placed to the left of
-/// the render so both can be compared in one picture.
+/// Writes the render of the whole test view to `$AUDIT_DIR/raw/<name>.png`
+/// when `AUDIT_DIR` is set; otherwise does nothing, so ordinary test runs stay
+/// side-effect free. `scripts/compose_mobile_evidence.py` places the raw
+/// renders beside the approved Figma export of the same screen.
 Future<void> captureAudit(WidgetTester tester, GlobalKey boundary, String name,
     {int? design}) async {
   final dir = Platform.environment['AUDIT_DIR'];
@@ -93,33 +92,9 @@ Future<void> captureAudit(WidgetTester tester, GlobalKey boundary, String name,
   await tester.runAsync(() async {
     final render =
         boundary.currentContext!.findRenderObject()! as RenderRepaintBoundary;
-    var image = await render.toImage(pixelRatio: 1);
-    if (design != null) {
-      final tag = 'M-${design.toString().padLeft(3, '0')}';
-      final matches = Directory('../../docs/designed')
-          .listSync(recursive: true)
-          .whereType<File>()
-          .where((f) => f.path.contains(tag) && f.path.endsWith('.png'));
-      if (matches.isNotEmpty) {
-        final reference =
-            await decodeImageFromList(matches.first.readAsBytesSync());
-        final height =
-            reference.height > image.height ? reference.height : image.height;
-        final recorder = ui.PictureRecorder();
-        final canvas = Canvas(recorder);
-        canvas.drawRect(
-            Rect.fromLTWH(0, 0, (reference.width + image.width + 12).toDouble(),
-                height.toDouble()),
-            Paint()..color = const Color(0xFF888888));
-        canvas.drawImage(reference, Offset.zero, Paint());
-        canvas.drawImage(image, Offset(reference.width + 12.0, 0), Paint());
-        image = await recorder
-            .endRecording()
-            .toImage(reference.width + image.width + 12, height);
-      }
-    }
+    final image = await render.toImage(pixelRatio: 1);
     final data = await image.toByteData(format: ui.ImageByteFormat.png);
-    final file = File('$dir/$name.png');
+    final file = File('$dir/raw/$name.png');
     await file.parent.create(recursive: true);
     await file.writeAsBytes(data!.buffer.asUint8List());
   });

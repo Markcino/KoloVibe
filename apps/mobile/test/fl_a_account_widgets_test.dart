@@ -79,7 +79,6 @@ void main() {
     if ({5}.contains(id)) {
       await enter(tester, 'Full name', 'Mark');
       await enter(tester, 'Password', 'typed value'.padRight(32, 'x'));
-      await enter(tester, 'Confirm password', 'typed value'.padRight(32, 'x'));
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.byType(CheckboxListTile));
       await tester.pumpAndSettle();
@@ -141,6 +140,11 @@ void main() {
       if (entry.key == 7) {
         expect(find.textContaining('If eligible, you will receive a new code.'),
             findsOneWidget);
+      } else if (entry.key == 9) {
+        // The designed "Check your email" state stays on the screen and offers
+        // the reset-code step.
+        expect(find.text('Check your email'), findsOneWidget);
+        expect(find.text('Enter reset code'), findsOneWidget);
       } else if (entry.key == 82) {
         expect(find.text('Password updated'), findsOneWidget);
       } else if ({6, 7, 4, 10, 11}.contains(targets[entry.key])) {
@@ -169,7 +173,12 @@ void main() {
         await tap(tester, entry.value);
         final system =
             {403: 'M-100', 429: 'M-103', 503: 'M-102', 0: 'M-095'}[status];
-        if (system != null) {
+        if (status == 429 && {7, 8}.contains(entry.key)) {
+          // A throttled resend is the designed "Resend unavailable" state.
+          expect(find.text('Resend unavailable'), findsOneWidget);
+          expect(
+              find.text('Another request isn’t available yet'), findsOneWidget);
+        } else if (system != null) {
           expect(find.byKey(ValueKey(system)), findsOneWidget);
         } else if (status == 401 && {13, 16, 80, 82}.contains(entry.key)) {
           expect(find.byKey(const ValueKey('M-101')), findsOneWidget);
@@ -179,7 +188,7 @@ void main() {
         } else if ({4, 15}.contains(entry.key) && {400, 401}.contains(status)) {
           expect(find.text('We couldn’t\nsign you in.'), findsOneWidget);
         } else if (entry.key == 6 && status == 400) {
-          expect(find.text('Let’s get a fresh code.'), findsOneWidget);
+          expect(find.text('Let’s get a fresh code'), findsOneWidget);
         } else {
           expect(find.text('Action was not accepted.'), findsOneWidget);
         }
@@ -219,7 +228,7 @@ void main() {
                 matching: find.byType(TextField)))
             .readOnly,
         isTrue);
-    await tap(tester, 'Add or change photo · Optional');
+    await tap(tester, 'Change photo');
     expect(find.textContaining('Profile photos are not available yet.'),
         findsOneWidget);
     await enter(tester, 'Display name', 'Unsaved');

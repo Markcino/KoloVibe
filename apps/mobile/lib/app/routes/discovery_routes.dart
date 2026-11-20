@@ -41,6 +41,7 @@ Widget? discoveryRoute(RouteContext context) {
         following: route.screen == 18,
         catalog: context.catalog,
         account: deps.liveAccount,
+        creators: deps.liveCreators,
         engagement: deps.liveAccount == null
             ? null
             : LiveVideoEngagementRepository(deps.liveAccount!)),
@@ -55,6 +56,7 @@ Widget? discoveryRoute(RouteContext context) {
       LiveVideoDetailScreen(
           id: route.entityId!,
           device: deps.device,
+          creators: deps.liveCreators,
           repository: deps.liveVideos!,
           engagement: deps.liveAccount == null
               ? null

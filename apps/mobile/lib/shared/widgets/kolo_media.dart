@@ -4,6 +4,15 @@ import '../../features/creators/live_creator_repository.dart';
 import '../../features/discovery/live_video_repository.dart';
 import 'kolo_components.dart';
 
+/// Image source for API-supplied posters. Production always loads the signed
+/// URL from the network; tests and the design audit may substitute a local
+/// fixture so populated states can be captured without network access.
+@visibleForTesting
+ImageProvider Function(Uri url)? posterProviderOverride;
+
+ImageProvider posterProvider(Uri url) =>
+    posterProviderOverride?.call(url) ?? NetworkImage(url.toString());
+
 class KoloPoster extends StatelessWidget {
   const KoloPoster({super.key, required this.url, this.iconSize = 28});
   final Uri? url;
@@ -22,7 +31,8 @@ class KoloPoster extends StatelessWidget {
               color: Colors.white54, size: iconSize)),
     );
     if (url == null) return fallback;
-    return Image.network(url.toString(),
+    return Image(
+        image: posterProvider(url!),
         fit: BoxFit.cover,
         excludeFromSemantics: true,
         errorBuilder: (_, __, ___) => fallback,
@@ -36,9 +46,12 @@ class KoloHeroCard extends StatelessWidget {
       {super.key,
       required this.video,
       required this.meta,
-      required this.onTap});
+      required this.onTap,
+      this.eyebrow = 'KOLOVIBE ORIGINAL',
+      this.minHeight = 212});
   final LiveVideo video;
-  final String meta;
+  final String meta, eyebrow;
+  final double minHeight;
   final VoidCallback onTap;
 
   @override
@@ -65,14 +78,14 @@ class KoloHeroCard extends StatelessWidget {
                       Color(0xF5001539)
                     ])))),
                 ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: 212),
+                  constraints: BoxConstraints(minHeight: minHeight),
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(18, 72, 18, 18),
                     child: Column(
                         mainAxisAlignment: MainAxisAlignment.end,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('KOLOVIBE ORIGINAL',
+                          Text(eyebrow,
                               style: KoloVibeText.body(10,
                                   weight: FontWeight.w700,
                                   color: KoloVibeColors.gold,
@@ -118,8 +131,12 @@ class KoloCreatorRow extends StatelessWidget {
       this.following,
       this.busy = false,
       required this.onOpen,
-      this.onFollow});
+      this.onFollow,
+      this.actionLabel,
+      this.showBio = false});
   final LiveCreator creator;
+  final String? actionLabel;
+  final bool showBio;
   final bool? following;
   final bool busy;
   final VoidCallback onOpen;
@@ -134,7 +151,7 @@ class KoloCreatorRow extends StatelessWidget {
       if (creator.displayName.isNotEmpty) '@${creator.handle}',
       if (creator.location.isNotEmpty) creator.location,
     ].join(' · ');
-    return Row(children: [
+    final row = Row(children: [
       Expanded(
         child: Semantics(
           button: true,
@@ -172,10 +189,23 @@ class KoloCreatorRow extends StatelessWidget {
       ),
       const SizedBox(width: 8),
       KoloPillButton(
-        label: following == true ? 'Following' : 'Follow',
-        selected: following == true,
-        semanticLabel: '${following == true ? 'Unfollow' : 'Follow'} $name',
+        label: actionLabel ?? (following == true ? 'Following' : 'Follow'),
+        selected: actionLabel == null && following == true,
+        semanticLabel: actionLabel != null
+            ? '$actionLabel $name'
+            : '${following == true ? 'Unfollow' : 'Follow'} $name',
         onPressed: busy ? null : onFollow,
+      ),
+    ]);
+    if (!showBio || creator.bio.isEmpty) return row;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      row,
+      Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: Text(creator.bio,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: KoloVibeText.body(12, height: 1.5)),
       ),
     ]);
   }
@@ -202,13 +232,13 @@ class KoloVideoRow extends StatelessWidget {
           borderRadius: BorderRadius.circular(KoloVibeRadii.tile),
           onTap: onTap,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 60),
+            constraints: const BoxConstraints(minHeight: 76),
             child: Row(children: [
               ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: SizedBox(
-                      width: 80,
-                      height: 60,
+                      width: 104,
+                      height: 76,
                       child: KoloPoster(url: video.posterUrl, iconSize: 22))),
               const SizedBox(width: 12),
               Expanded(
@@ -227,7 +257,7 @@ class KoloVideoRow extends StatelessWidget {
                     Text(video.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: KoloVibeText.body(13,
+                        style: KoloVibeText.body(14,
                             weight: FontWeight.w600,
                             color: KoloVibeColors.navy,
                             height: 1.35)),
@@ -239,6 +269,56 @@ class KoloVideoRow extends StatelessWidget {
                   ])),
             ]),
           ),
+        ),
+      );
+}
+
+/// Two-up grid card: poster, title and meta line (M-019 "Fresh perspectives",
+/// M-027 creator videos).
+class KoloVideoCard extends StatelessWidget {
+  const KoloVideoCard(
+      {super.key,
+      required this.video,
+      required this.meta,
+      required this.onTap,
+      this.posterHeight = 92,
+      this.titleSize = 12});
+  final LiveVideo video;
+  final String meta;
+  final VoidCallback onTap;
+  final double posterHeight, titleSize;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        button: true,
+        label: '${video.title}. $meta',
+        excludeSemantics: true,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            ClipRRect(
+                borderRadius:
+                    BorderRadius.circular(posterHeight > 100 ? 16 : 14),
+                child: SizedBox(
+                    height: posterHeight,
+                    width: double.infinity,
+                    child: KoloPoster(url: video.posterUrl, iconSize: 28))),
+            const SizedBox(height: 6),
+            Text(video.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: KoloVibeText.body(titleSize,
+                    weight: FontWeight.w600,
+                    color: KoloVibeColors.navy,
+                    height: 1.3)),
+            if (meta.isNotEmpty)
+              Text(meta,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: KoloVibeText.body(10, height: 1.4)),
+          ]),
         ),
       );
 }
