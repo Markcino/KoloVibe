@@ -33,6 +33,7 @@ Widget? discoveryRoute(RouteContext context) {
           catalog: context.catalog,
           creators: deps.liveCreators,
           account: deps.liveAccount,
+          history: deps.searchHistory,
           creatorId: route.entityId),
     // M-018 is the account's Following feed; M-024 is the public feed.
     18 || 24 when deps.liveVideos != null => VerticalVideoFeed(
