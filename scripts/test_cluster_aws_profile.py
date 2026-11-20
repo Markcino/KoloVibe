@@ -146,7 +146,8 @@ class ReviewedGatewayReleaseTests(unittest.TestCase):
 
     VERIFIED_R1_IMAGE = (
         'ghcr.io/markcino/kolovibe/services@sha256:'
-        '7c4942e329a62bef6b4c56a9744421722839cb5349eedae6773c052183036e72'
+        ('7c4942e329a62bef6b4c56a97444217' +
+         '22839cb5349eedae6773c052183036e72')
     )
 
     def test_previously_verified_r1_gateway_is_accepted_for_next_release(self):
