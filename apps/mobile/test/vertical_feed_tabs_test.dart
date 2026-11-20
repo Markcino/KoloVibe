@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:video_player/video_player.dart';
 import 'package:kolovibe/core/network/api_client.dart';
 import 'package:kolovibe/core/presentation/design_node.dart';
 import 'package:kolovibe/core/theme/kolovibe_theme.dart';
@@ -93,6 +94,21 @@ void main() {
     expect(find.text('For You'), findsOneWidget);
     expect(find.text('Videos'), findsOneWidget, reason: 'bottom navigation');
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('video rail and playback chrome fit the small viewport',
+      (tester) async {
+    await pump(tester, viewport: AuditViewport.small);
+    expect(find.byTooltip('View creator to follow'), findsOneWidget);
+    expect(find.byTooltip('Like'), findsOneWidget);
+    expect(find.byTooltip('Share'), findsOneWidget);
+    expect(find.byTooltip('More'), findsOneWidget);
+    expect(find.byType(VideoProgressIndicator), findsOneWidget);
+    expect(find.text('00:00 / 00:30'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.byTooltip('More'));
+    await settleBounded(tester);
+    expect(find.text('Report video'), findsOneWidget);
   });
 
   testWidgets('For You reads the public feed and Following tab switches',

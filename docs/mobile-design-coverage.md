@@ -492,6 +492,16 @@ Rendering without overflow is not treated as a match. Representative pictures (e
 
 Totals: Visually matched 3, Functional but visually different 69, Not verified 36.
 
+Follow-up in progress (20 November 2026): M-018 and M-024 now use the Figma
+engagement rail (creator entry, server-backed like count, Share and More), a
+video caption, contrast scrim and player position/progress controls. These
+screens remain **Functional, visually different** until rendered video frames
+are compared with the Figma exports at both sizes. The video JSON contains no
+creator handle or profile photo, so the rail links to the creator profile and
+uses a generic avatar; the profile's Follow action stays server-backed. The
+More sheet retains the report entry. The original footage is always supplied
+by the playback API, never by the Figma sample image.
+
 
 ### Contract gaps and truthful proposals (20 November 2026)
 
@@ -508,7 +518,7 @@ Figma elements the current API or approved capabilities cannot support, and what
 | Explore curated hero, Fresh perspectives, Creator spotlight (M-019) | No curation endpoint. | Search, chips and rows only. |
 | Recent searches, suggestions (M-021) | Nothing stores them; they would be personal data. | A one-line hint. Proposal: device-local history with a Clear control, subject to privacy review. |
 | Six-box verification code (M-006) | The emailed code is a long token, not six digits. | One masked field. |
-| Following feed side rail: avatar, like count, `@handle` line, progress bar (M-018, M-024) | Data exists (creator lookup, like state) but the rail is not built. | Text controls under the title. Buildable without new endpoints. |
+| Following feed side rail: avatar, like count, `@handle` line, progress bar (M-018, M-024) | Like state and playback position are available. Public video JSON contains only `creator_id`, with no handle or profile photo. | Rail, like count, caption and progress bar added; generic avatar opens the creator profile for Follow. The `@handle` line and real avatar remain absent pending creator data on the feed. |
 
 ### Verification run — 19 November 2026
 

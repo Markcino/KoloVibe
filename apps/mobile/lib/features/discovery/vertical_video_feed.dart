@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:video_player/video_player.dart';
 import '../../app/screen_route.dart';
 import '../../core/platform/device_bridge.dart';
@@ -103,21 +104,31 @@ class _VerticalVideoFeedState extends State<VerticalVideoFeed> {
       selected: selected,
       child: InkWell(
           onTap: onTap,
-          child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 44, minWidth: 44),
-              child: Center(
-                  child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      child: Text(label,
-                          style: KoloVibeText.body(16,
-                              weight:
-                                  selected ? FontWeight.w700 : FontWeight.w500,
-                              color: selected
-                                  ? Colors.white
-                                  : Colors.white60)))))));
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            ConstrainedBox(
+                constraints:
+                    const BoxConstraints(minHeight: 44, minWidth: 44),
+                child: Center(
+                    child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: Text(label,
+                            style: KoloVibeText.body(16,
+                                weight: selected
+                                    ? FontWeight.w800
+                                    : FontWeight.w500,
+                                color: selected
+                                    ? Colors.white
+                                    : const Color(0xFFA8B7D0)))))),
+            Container(
+                width: 40,
+                height: 3,
+                decoration: BoxDecoration(
+                    color: selected ? KoloVibeColors.red : Colors.transparent,
+                    borderRadius: BorderRadius.circular(2)))
+          ])));
 
   Widget _header() => Positioned(
-      top: 0,
+      top: 16,
       left: 0,
       right: 0,
       child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -129,7 +140,8 @@ class _VerticalVideoFeedState extends State<VerticalVideoFeed> {
             tooltip: 'Search',
             color: Colors.white,
             onPressed: () => _go(21),
-            icon: const Icon(Icons.search)),
+            icon: SvgPicture.asset('assets/images/feed/search.svg',
+                width: 22, height: 22)),
       ]));
 
   Widget? _navigation() {
