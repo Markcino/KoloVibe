@@ -974,6 +974,66 @@ void main() {
               ..noticeValue = videoNotice(appealable: eligible),
             moderation: LiveModerationRepository(signedIn().account)));
   }
+  // M-078 eligible states (D-7). The Figma frames for these are a revision pending owner review.
+  LiveModerationRepository appealGateway(
+      {int status = 201, Completer<void>? hold}) {
+    final fixture = AccountFixture(handler: (request) async {
+      if (request.url.path.endsWith('/appeals')) {
+        if (hold != null) await hold.future;
+        return jsonResponse(
+            status == 201
+                ? {
+                    'id': '00000000-0000-4000-8000-000000000a01',
+                    'video_id': videoId,
+                    'status': 'open',
+                    'created_at': '2026-11-20T12:04:00Z',
+                  }
+                : {'detail': 'unavailable'},
+            status);
+      }
+      return jsonResponse({});
+    });
+    return LiveModerationRepository(fixture.account);
+  }
+
+  const statement =
+      'The recording is my own work. I wrote and performed the song, and the sample in the intro is licensed. I can share the licence if you need it.';
+  Future<void> writeAndSend(WidgetTester tester, String text) async {
+    await tester.enterText(find.byType(TextFormField), text);
+    await tester.tap(find.text('Send review request'));
+  }
+
+  for (final (suffix, gateway, text, hold) in [
+    ('-validation', 201, 'Not fair', false),
+    ('-sending', 201, statement, true),
+    ('-failure', 503, statement, false),
+    ('-receipt', 201, statement, false),
+  ]) {
+    final holder = Completer<void>();
+    audit(
+        'M-078-eligible$suffix',
+        0,
+        () => LiveAppealScreen(
+            route: const ScreenRoute(78, entityId: videoId),
+            catalog: catalog,
+            standing: ScriptedStanding()
+              ..noticeValue = videoNotice(appealable: true),
+            moderation: appealGateway(
+                status: gateway, hold: hold ? holder : null)),
+        after: (tester) async {
+      await writeAndSend(tester, text);
+      if (hold) {
+        await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 150)));
+        await tester.pump();
+      } else {
+        await settleAsync(tester);
+      }
+    }, finish: (tester) async {
+      if (!holder.isCompleted) holder.complete();
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
   audit(
       'M-057',
       57,
