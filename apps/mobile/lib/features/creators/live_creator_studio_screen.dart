@@ -5,6 +5,8 @@ import '../../shared/widgets/live_state_view.dart';
 import 'creator_access_controller.dart';
 import 'creator_shell.dart';
 import 'live_become_creator_screen.dart';
+import 'live_analytics_repository.dart';
+import 'live_analytics_screen.dart';
 import 'live_creator_onboarding_repository.dart';
 import 'live_own_creator_repository.dart';
 import 'own_profile_controller.dart';
@@ -20,11 +22,15 @@ class LiveCreatorStudioScreen extends StatefulWidget {
       required this.onboarding,
       required this.profiles,
       this.access,
+      this.analytics,
       this.profile});
 
   final DesignCatalog catalog;
   final LiveCreatorOnboardingRepository onboarding;
   final LiveOwnCreatorRepository profiles;
+
+  /// Reads the last seven days for the studio summary card (optional).
+  final LiveAnalyticsRepository? analytics;
 
   /// Test seams for pre-built controllers.
   final CreatorAccessController? access;
@@ -39,6 +45,7 @@ class _LiveCreatorStudioScreenState extends State<LiveCreatorStudioScreen> {
   late final CreatorAccessController access;
   late final OwnProfileController profile;
   bool _profileRequested = false;
+  CreatorAnalytics? _summary;
 
   @override
   void initState() {
@@ -53,8 +60,22 @@ class _LiveCreatorStudioScreenState extends State<LiveCreatorStudioScreen> {
     if (access.phase == CreatorAccessPhase.eligible && !_profileRequested) {
       _profileRequested = true;
       profile.load();
+      _loadSummary();
     }
     if (access.phase != CreatorAccessPhase.eligible) _profileRequested = false;
+  }
+
+  /// The summary card is optional: when analytics are closed, empty or fail,
+  /// the studio shows the Analytics entry instead of the card.
+  Future<void> _loadSummary() async {
+    final repository = widget.analytics;
+    if (repository == null) return;
+    try {
+      final value = await repository.creator('7d');
+      if (mounted) setState(() => _summary = value);
+    } catch (_) {
+      if (mounted) setState(() => _summary = null);
+    }
   }
 
   @override
@@ -100,17 +121,56 @@ class _LiveCreatorStudioScreenState extends State<LiveCreatorStudioScreen> {
             Text('${own.title} · Creator enabled',
                 style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: 20),
+            if (_summary != null && !_summary!.empty) ...[
+              _summaryCard(context, _summary!),
+              const SizedBox(height: 16),
+            ],
             FilledButton.icon(
                 onPressed: () => openCreatorScreen(context, 41),
                 icon: const Icon(Icons.add),
                 label: const Text('Publish an original')),
             const SizedBox(height: 16),
+            _tile(
+                context, 'Analytics', 'Qualified activity and watch time', 58),
             _tile(context, 'My video library', 'Your drafts and originals', 40),
             _tile(context, 'Creator profile', '@${own.handle}', 38),
             _tile(context, 'Lone Stars', 'Non-cash recognition points', 61),
           ]),
     );
   }
+
+  Widget _summaryCard(BuildContext context, CreatorAnalytics data) => InkWell(
+        borderRadius: BorderRadius.circular(KoloVibeRadii.card),
+        onTap: () => openCreatorScreen(context, 58),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(KoloVibeRadii.card)),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              for (final (label, value) in [
+                ('Qualified plays', analyticsCount(data.qualifiedPlays)),
+                ('Watch time', watchTime(data.watchTimeSeconds)),
+              ])
+                Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                      Text(label, style: KoloVibeText.body(11)),
+                      const SizedBox(height: 5),
+                      Text(value, style: KoloVibeText.heading(26)),
+                    ])),
+            ]),
+            const SizedBox(height: 12),
+            AnalyticsChart(days: data.daily),
+            const SizedBox(height: 8),
+            Text('Last 7 days · View full analytics',
+                style: KoloVibeText.body(10)),
+          ]),
+        ),
+      );
 
   Widget _tile(
           BuildContext context, String title, String subtitle, int screen) =>

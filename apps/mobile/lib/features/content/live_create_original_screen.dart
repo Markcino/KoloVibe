@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../app/screen_route.dart';
+import '../../core/presentation/design_node.dart';
+import '../../core/theme/kolovibe_theme.dart';
+import '../../shared/widgets/kolo_components.dart';
+import '../creators/creator_shell.dart';
 import '../../core/network/api_client.dart';
 import '../../shared/widgets/live_state_view.dart';
 import '../creators/live_creator_onboarding_repository.dart';
@@ -22,11 +27,15 @@ class LiveCreateOriginalScreen extends StatefulWidget {
       required this.content,
       required this.onboarding,
       this.pickVideo = _pickFromGallery,
+      this.catalog,
       this.controller});
 
   final LiveContentRepository content;
   final LiveCreatorOnboardingRepository onboarding;
   final VideoPicker pickVideo;
+
+  /// Supplies the designed bottom navigation.
+  final DesignCatalog? catalog;
 
   /// Test seam for a pre-built controller.
   final LiveUploadController? controller;
@@ -99,6 +108,16 @@ class _LiveCreateOriginalScreenState extends State<LiveCreateOriginalScreen> {
   Widget _message(String text) =>
       Semantics(liveRegion: true, child: Text(text));
 
+  Widget _headline(String text) => Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: KoloHeadline(text, size: 26));
+
+  Widget _alert(String title, String message) => KoloNote(
+      title: title,
+      message: message,
+      asset: KoloIcons.circleAlert,
+      tone: KoloNoteTone.alert);
+
   List<Widget> _panel(BuildContext context) {
     final c = controller;
     switch (c.phase) {
@@ -149,9 +168,15 @@ class _LiveCreateOriginalScreenState extends State<LiveCreateOriginalScreen> {
     }
   }
 
+  /// The designed "1 · File, 2 · Details, 3 · Upload" progress pills.
   List<Widget> _steps(String current) => [
-        Text(current, style: Theme.of(context).textTheme.labelLarge),
-        const SizedBox(height: 8),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          for (final label in const ['1 · File', '2 · Details', '3 · Upload'])
+            Semantics(
+                selected: label == current,
+                child: KoloBadge(label, filled: label == current)),
+        ]),
+        const SizedBox(height: 16),
       ];
 
   List<Widget> _editing(BuildContext context) {
@@ -159,23 +184,48 @@ class _LiveCreateOriginalScreenState extends State<LiveCreateOriginalScreen> {
     final errors = c.detailsErrors.fields;
     final locked = c.draft != null;
     return [
+      if (c.selected == null) _headline('The next story is\nyours.'),
+      Container(
+          padding: const EdgeInsets.all(20),
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(KoloVibeRadii.card)),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            ExcludeSemantics(
+                child: SvgPicture.asset(KoloIcons.cloudUpload,
+                    width: 40,
+                    height: 40,
+                    placeholderBuilder: (_) =>
+                        const SizedBox(width: 40, height: 40))),
+            const SizedBox(height: 12),
+            Text('Choose your video', style: KoloVibeText.heading(20)),
+            const SizedBox(height: 12),
+            Text(
+                'Bring an original film, performance or moment to the KoloVibe community.',
+                style: KoloVibeText.body(14, height: 1.5)),
+            const SizedBox(height: 4),
+            Text('Select an MP4 original under 50 MB.',
+                style: KoloVibeText.body(14, height: 1.5)),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: c.canPickFile ? _select : null,
+              icon: const Icon(Icons.add),
+              label: Text(
+                  c.selected == null ? 'Select a video' : 'Choose another'),
+            ),
+          ])),
       ..._steps(c.selected == null ? '1 · File' : '2 · Details'),
-      Text('Choose your video', style: Theme.of(context).textTheme.titleMedium),
-      const Text(
-          'Bring an original film, performance or moment to the KoloVibe community.'),
-      const Text('Select an MP4 original under 50 MB.'),
-      const SizedBox(height: 12),
-      OutlinedButton.icon(
-        onPressed: c.canPickFile ? _select : null,
-        icon: const Icon(Icons.video_library_outlined),
-        label: Text(c.selected == null ? 'Select a video' : 'Choose another'),
-      ),
       if (c.selected case final file?) ...[
         Text('${file.name} · ${c.selectedBytes} bytes'),
         const Text('File checked · Ready for details'),
       ] else
-        const Text(
-            'Before you upload: choose content you own or have permission to share.'),
+        const KoloNote(
+            title: 'Before you upload',
+            message:
+                'Choose content you own or have permission to share. Supported formats and current requirements are checked by the upload service.',
+            asset: KoloIcons.info),
       if (c.selected != null) ...[
         const SizedBox(height: 16),
         TextField(
@@ -228,27 +278,58 @@ class _LiveCreateOriginalScreenState extends State<LiveCreateOriginalScreen> {
     final progress = c.progress;
     return [
       ..._steps('3 · Upload'),
-      Text('Uploading your original',
-          style: Theme.of(context).textTheme.titleMedium),
-      Semantics(
-        label: 'Upload progress',
-        value: progress == null ? null : '${(progress * 100).round()} percent',
-        child: LinearProgressIndicator(value: progress),
-      ),
-      if (progress != null) Text('${(progress * 100).round()}%'),
-      const Text(
-          'Transferring video securely… Keep KoloVibe open until this step completes.'),
+      Container(
+          padding: const EdgeInsets.all(20),
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(KoloVibeRadii.card)),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Row(children: [
+              Expanded(
+                  child: Text('Transferring securely',
+                      style: KoloVibeText.body(14,
+                          weight: FontWeight.w600,
+                          color: KoloVibeColors.navy))),
+              if (progress != null)
+                Text('${(progress * 100).round()}%',
+                    style: KoloVibeText.body(14,
+                        weight: FontWeight.w700, color: KoloVibeColors.navy)),
+            ]),
+            const SizedBox(height: 12),
+            Semantics(
+              container: true,
+              label: 'Upload progress',
+              value: progress == null
+                  ? null
+                  : '${(progress * 100).round()} percent',
+              child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child:
+                      LinearProgressIndicator(value: progress, minHeight: 6)),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+                'Transferring video securely… Keep KoloVibe open until this step completes.'),
+          ])),
     ];
   }
 
   List<Widget> _interrupted() => [
-        Text('Upload interrupted',
-            style: Theme.of(context).textTheme.titleMedium),
+        const KoloMedallion(KoloIcons.wifiOff),
+        const SizedBox(height: 16),
+        _headline('Connection lost. Story safe on your device.'),
         const Text('Upload not completed'),
+        const SizedBox(height: 12),
         _message(controller.error ??
             'The transfer was interrupted. Reconnect before trying again.'),
-        const Text(
-            'Your original on this device has not changed. It has not been published.'),
+        const SizedBox(height: 12),
+        const KoloNote(
+            title: 'Check before restarting',
+            message:
+                'Your original on this device has not changed. It has not been published.',
+            asset: KoloIcons.info),
         FilledButton(
             onPressed: controller.retry,
             child: const Text('Check connection and retry')),
@@ -263,11 +344,14 @@ class _LiveCreateOriginalScreenState extends State<LiveCreateOriginalScreen> {
     final c = controller;
     final retryable = c.status?.retryable ?? c.selected != null;
     return [
-      Text('Upload failed', style: Theme.of(context).textTheme.titleMedium),
-      const Text("Your upload couldn't be completed"),
-      _message(_failureCopy[reason] ??
-          c.error ??
-          'The service did not confirm receipt of this video. It has not been published.'),
+      _headline('Let’s try that again.'),
+      Semantics(
+          liveRegion: true,
+          child: _alert(
+              "Your upload couldn't be completed",
+              _failureCopy[reason] ??
+                  c.error ??
+                  'The service did not confirm receipt of this video. It has not been published.')),
       if (reason == 'invalid_media')
         FilledButton(
             onPressed: _select, child: const Text('Select a different video'))
@@ -288,12 +372,25 @@ class _LiveCreateOriginalScreenState extends State<LiveCreateOriginalScreen> {
         status.state == 'processing' &&
         status.failureReason != null;
     return [
-      Text('Preparing your video',
-          style: Theme.of(context).textTheme.titleMedium),
-      const Text('Upload received'),
-      const Text('Your story is taking shape.'),
-      const LinearProgressIndicator(),
-      const Text('Processing time varies. Your video is not public yet.'),
+      _headline('Your story is taking\nshape.'),
+      Container(
+          padding: const EdgeInsets.all(20),
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(KoloVibeRadii.card)),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Preparing playback quality',
+                style: KoloVibeText.body(14,
+                    weight: FontWeight.w600, color: KoloVibeColors.navy)),
+            const SizedBox(height: 12),
+            const Text('Upload received'),
+            const SizedBox(height: 12),
+            const LinearProgressIndicator(),
+            const SizedBox(height: 12),
+            const Text('Processing time varies. Your video is not public yet.'),
+          ])),
       if (transient) ...[
         _message(_failureCopy[status.failureReason] ??
             'Preparation did not finish.'),
@@ -317,37 +414,92 @@ class _LiveCreateOriginalScreenState extends State<LiveCreateOriginalScreen> {
 
   List<Widget> _settled() {
     final state = controller.status?.state;
+    // `published` is the service's approval state: the video is not public
+    // until the creator publishes it from Manage video.
     final text = switch (state) {
       'review' => 'Your video is waiting for review. It is not public yet.',
-      'published' => 'Your video is published.',
+      'published' =>
+        'Your video is approved. It is not public until you publish it.',
       'rejected' => "Your video wasn't approved for publication.",
       'removed' => 'Your video has been removed.',
       _ => 'Your video status has changed.',
     };
+    final id = controller.draft?.id;
     return [
+      _headline(switch (state) {
+        'review' => 'A little care before\nthe spotlight.',
+        'published' => 'Your original is\napproved.',
+        'rejected' => 'This version can’t be\npublished.',
+        _ => 'Upload received',
+      }),
       Text('Upload received', style: Theme.of(context).textTheme.titleMedium),
       Semantics(liveRegion: true, child: Text('Video status: $state')),
-      Text(text),
+      const SizedBox(height: 12),
+      if (state == 'rejected' || state == 'removed')
+        _alert('Review notice', text)
+      else
+        KoloNote(
+            title: state == 'review'
+                ? 'No action needed right now'
+                : 'Status updated',
+            message: text,
+            asset:
+                state == 'published' ? KoloIcons.circleCheck : KoloIcons.info,
+            tone: state == 'published'
+                ? KoloNoteTone.success
+                : KoloNoteTone.info),
+      if (id != null &&
+          state != null &&
+          state != 'rejected' &&
+          state != 'removed')
+        FilledButton(
+            onPressed: () => Navigator.of(context).pushNamed(
+                const ScreenRoute(53).name,
+                arguments: ScreenRoute(53, entityId: id)),
+            child: const Text('Manage this video')),
+      if (id != null) const SizedBox(height: 12),
       OutlinedButton(
           onPressed: () => _go(40), child: const Text('Return to my library')),
     ];
   }
 
+  /// The app bar names the step, as each designed screen does.
+  String get _pageTitle => switch (controller.phase) {
+        UploadPhase.interrupted => 'Upload interrupted',
+        UploadPhase.failed => 'Upload failed',
+        UploadPhase.uploading => 'Uploading your original',
+        UploadPhase.preparing => 'Preparing your video',
+        UploadPhase.settled => switch (controller.status?.state) {
+            'review' => 'Pending moderation',
+            'published' => 'Your original is approved',
+            'rejected' || 'removed' => 'Video rejected',
+            _ => 'Upload received',
+          },
+        _ =>
+          controller.selected == null ? 'Create an original' : 'Tell the story',
+      };
+
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Create an original')),
+        appBar: AppBar(title: Text(_pageTitle)),
+        bottomNavigationBar: widget.catalog == null
+            ? null
+            : creatorNavigation(context, widget.catalog!, 41),
         body: SafeArea(
-          child: ListView(padding: const EdgeInsets.all(20), children: [
-            if (controller.busy && controller.phase != UploadPhase.uploading)
-              const LinearProgressIndicator(),
-            if (controller.error case final message?
-                when controller.phase == UploadPhase.editing) ...[
-              const SizedBox(height: 12),
-              _message(message),
-            ],
-            const SizedBox(height: 12),
-            ..._panel(context),
-          ]),
+          child: ListView(
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+              children: [
+                if (controller.busy &&
+                    controller.phase != UploadPhase.uploading)
+                  const LinearProgressIndicator(),
+                if (controller.error case final message?
+                    when controller.phase == UploadPhase.editing) ...[
+                  const SizedBox(height: 12),
+                  _message(message),
+                ],
+                const SizedBox(height: 12),
+                ..._panel(context),
+              ]),
         ),
       );
 }
