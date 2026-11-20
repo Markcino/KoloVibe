@@ -129,7 +129,7 @@ class CheckerTests(unittest.TestCase):
         self.assertEqual(self.problems(), [])
         self.assertTrue(any(
             problem.startswith("CVE-2026-125219")
-            for problem in self.problems(hwaccels=HWACCELS + "vdpau\\n")
+            for problem in self.problems(hwaccels=HWACCELS + "vdpau\n")
         ))
         self.assertTrue(any(
             "the build lacks --disable-vdpau" in problem
