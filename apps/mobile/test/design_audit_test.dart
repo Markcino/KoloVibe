@@ -36,7 +36,6 @@ import 'package:kolovibe/features/creators/live_own_profile_screen.dart';
 import 'package:kolovibe/features/discovery/discovery_catalog_screen.dart';
 import 'package:kolovibe/features/discovery/live_video_repository.dart';
 import 'package:kolovibe/features/discovery/search_history.dart';
-import 'package:kolovibe/core/presentation/feature_repository.dart' show UiOperation, UiRequest;
 import 'package:kolovibe/features/discovery/live_video_screen.dart';
 import 'package:kolovibe/features/discovery/vertical_video_feed.dart';
 import 'package:kolovibe/features/engagement/live_video_engagement_repository.dart';
@@ -417,41 +416,31 @@ void main() {
             creatorId: id == 27 ? creatorId : null,
             initialQuery: id == 22 ? 'Waterside' : null));
   }
-  // D-5: M-021 with a signed-in account's device-local recent searches.
+  // D-5: M-021 with a signed-in account's device-local recent searches. The account only reports an
+  // id (no network, no timers), so the capture cannot hang on a request.
   audit(
       'M-021-recent',
       21,
       () => DiscoveryCatalogScreen(
           screen: 21, repository: videos, catalog: catalog),
       after: (tester) async {
-    final fixture = AccountFixture(handler: (request) async {
-      if (request.url.path.endsWith('/auth/login')) {
-        return jsonResponse({
-          'access_token': 'access',
-          'refresh_token': 'refresh',
-          'user': accountData,
-        });
-      }
-      return jsonResponse({});
-    });
     final history = SearchHistory(MemorySearchHistoryStore());
-    await tester.runAsync(() async {
-      await fixture.account.executeChecked(UiRequest(UiOperation.signIn,
-          fields: {'Email address': 'ama@example.com', 'Password': 'x' * 14}));
-      for (final term in ['river songs', 'Monrovia street food', 'hipco nights']) {
-        await history.add(fixture.account.signedInAccountId, term);
-      }
-    });
+    final account = _SignedInAccount(signedIn().account);
+    for (final term in ['river songs', 'Monrovia street food', 'hipco nights']) {
+      await history.add(account.signedInAccountId, term);
+    }
     navigator.currentState!.push(MaterialPageRoute<void>(
         settings: const RouteSettings(name: '/mobile/M-021'),
         builder: (_) => DiscoveryCatalogScreen(
             screen: 21,
             repository: videos,
             catalog: catalog,
-            account: fixture.account,
+            account: account,
             history: history,
             creators: creators)));
-    await settleAsync(tester);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump(const Duration(milliseconds: 50));
   });
   // M-023 is the category sheet opened from the search results, as designed.
   audit(
@@ -1155,4 +1144,11 @@ class _AuditManage extends LiveContentRepository {
       durationMs: 258000,
       posterUrl: 'https://media.example.test/poster/0',
       revision: 4);
+}
+
+/// A signed-in account for the audit only: it reports an id and does nothing else.
+class _SignedInAccount extends LiveAccountRepository {
+  _SignedInAccount(LiveAccountRepository base) : super(base.api, base.store);
+  @override
+  String? get signedInAccountId => '00000000-0000-4000-8000-000000000001';
 }
