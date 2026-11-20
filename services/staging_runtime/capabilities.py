@@ -124,7 +124,7 @@ def _rules():
     # ---- Engagement, Points, Moderation (internal) ---------------------------------------------------
     add("engagement", "engagement", "POST", r"/internal/likes", r"/internal/likes/status", r"/internal/follows",
         r"/internal/follows/membership", r"/internal/engagement/shares",
-        r"/internal/engagement/(?:like-counts|follower-count|trending)")
+        r"/internal/engagement/(?:like-counts|play-counts|follower-count|trending)")
     add("engagement", "analytics", "POST", r"/internal/engagement/analytics/(?:video|creator)")
     add("engagement", "watch", "POST", rf"/internal/engagement/watch/{OP}")
     add("points", "points", "POST", rf"/internal/points/{OP}")
