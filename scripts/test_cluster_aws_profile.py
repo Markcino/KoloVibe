@@ -140,6 +140,35 @@ class ProfileSelectionTests(unittest.TestCase):
         self.assertEqual(swarm.posts, [])
 
 
+
+class ReviewedGatewayReleaseTests(unittest.TestCase):
+    """Known staging release pins remain exact; a different digest still fails closed."""
+
+    VERIFIED_R1_IMAGE = (
+        'ghcr.io/markcino/kolovibe/services@sha256:'
+        '7c4942e329a62bef6b4c56a9744421722839cb5349eedae6773c052183036e72'
+    )
+
+    def test_previously_verified_r1_gateway_is_accepted_for_next_release(self):
+        gateway = aws_gateway()
+        gateway['Spec']['TaskTemplate']['ContainerSpec']['Image'] = self.VERIFIED_R1_IMAGE
+        swarm = AwsSwarm(gateway=gateway)
+        with aws(swarm):
+            checked = cluster.base_gateway('1.52', NEW_IMAGE)
+        self.assertEqual(cluster.live_image(checked['Spec']), self.VERIFIED_R1_IMAGE)
+
+    def test_unreviewed_gateway_digest_is_still_rejected(self):
+        gateway = aws_gateway()
+        gateway['Spec']['TaskTemplate']['ContainerSpec']['Image'] = (
+            'ghcr.io/markcino/kolovibe/services@sha256:' + 'f' * 64
+        )
+        swarm = AwsSwarm(gateway=gateway)
+        with aws(swarm), self.assertRaisesRegex(
+            RuntimeError, 'Gateway differs from the working pinned baseline'
+        ):
+            cluster.base_gateway('1.52', NEW_IMAGE)
+
+
 class HostGuardTests(unittest.TestCase):
     def check(self, profile, running_on, required, uid=0):
         with patch.object(cluster, 'PROFILE', profile), patch.object(cluster.os, 'geteuid', return_value=uid), \
