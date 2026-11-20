@@ -25,6 +25,10 @@ void main() {
 
   Future<void> pumpWidget(WidgetTester tester, Widget screen,
       {double textScale = 1}) async {
+    // A tall surface keeps the whole notice built (it is a lazy list).
+    tester.view.physicalSize = const Size(800, 3200);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(MaterialApp(
       builder: (context, child) => MediaQuery(

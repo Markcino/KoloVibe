@@ -108,7 +108,8 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.tap(find.byTooltip('More'));
     await settleBounded(tester);
-    expect(find.text('Report video'), findsOneWidget);
+    expect(find.text('Report this video'), findsOneWidget);
+    expect(find.text('Share public link'), findsOneWidget);
   });
 
   testWidgets('For You reads the public feed and Following tab switches',

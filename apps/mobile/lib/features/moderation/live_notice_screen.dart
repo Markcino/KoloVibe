@@ -4,6 +4,8 @@ import '../../core/network/api_client.dart';
 import '../../core/presentation/design_node.dart';
 import '../../shared/state/async_resource.dart';
 import '../../shared/widgets/live_state_view.dart';
+import '../../core/theme/kolovibe_theme.dart';
+import '../../shared/widgets/kolo_components.dart';
 import '../creators/creator_shell.dart';
 import 'live_standing_repository.dart';
 import 'notice_copy.dart';
@@ -55,9 +57,13 @@ class _LiveNoticeScreenState extends State<LiveNoticeScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Content restriction notice')),
+        appBar: AppBar(
+            title: Text(widget.route.screen == 57
+                ? 'Content status notice'
+                : 'Content restriction notice')),
         body: SafeArea(child: _body(context)),
-        bottomNavigationBar: creatorNavigation(context, widget.catalog, 76),
+        bottomNavigationBar: creatorNavigation(
+            context, widget.catalog, widget.route.screen == 57 ? 57 : 76),
       );
 
   Widget _body(BuildContext context) {
@@ -94,7 +100,6 @@ class _LiveNoticeScreenState extends State<LiveNoticeScreen> {
   }
 
   Widget _notice(BuildContext context, VideoNotice notice) {
-    final text = Theme.of(context).textTheme;
     final local = MaterialLocalizations.of(context);
     final date = notice.decidedAt == null
         ? null
@@ -106,56 +111,58 @@ class _LiveNoticeScreenState extends State<LiveNoticeScreen> {
           padding: const EdgeInsets.all(16),
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
+            const KoloMedallion(KoloIcons.shieldAlert, plain: true),
+            const SizedBox(height: 16),
             Semantics(
                 header: true,
-                child: Text(noticeHeadline(notice.decision),
-                    style: text.headlineMedium)),
-            const SizedBox(height: 8),
+                child: KoloHeadline(noticeHeadline(notice.decision), size: 26)),
+            const SizedBox(height: 12),
             if (notice.hasDecision)
-              Row(children: [
-                Chip(label: Text(noticeDecisionLabel(notice.decision))),
-                const SizedBox(width: 8),
-                Flexible(child: Text('Content notice · $date')),
-              ]),
-            const SizedBox(height: 8),
-            Text(noticeSummary(notice.decision)),
-            if (notice.hasDecision) ...[
-              const SizedBox(height: 16),
-              Text('Reason', style: text.titleMedium),
-              Text(noticeReason(notice.reasonCode)),
-            ],
+              Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    KoloBadge(noticeDecisionLabel(notice.decision)),
+                    Text('Content notice · $date',
+                        style: KoloVibeText.body(12)),
+                  ]),
+            const SizedBox(height: 12),
+            KoloNote(
+                title: 'About this decision',
+                message: noticeSummary(notice.decision),
+                asset: KoloIcons.info),
+            if (notice.hasDecision)
+              KoloCard(
+                  title: 'Reason', message: noticeReason(notice.reasonCode)),
             if (appeal != null) ...[
-              const SizedBox(height: 16),
-              Text('Your review request', style: text.titleMedium),
-              Text(appealStatusText(appeal.status)),
-              Text(
-                  'Sent ${local.formatMediumDate(appeal.createdAt.toLocal())}'),
-              const SizedBox(height: 8),
-              Card(
-                  child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Text(appeal.reason))),
+              KoloCard(
+                  title: 'Your review request',
+                  message:
+                      '${appealStatusText(appeal.status)}\nSent ${local.formatMediumDate(appeal.createdAt.toLocal())}'),
+              KoloCard(title: 'Your statement', message: appeal.reason),
             ],
             if (notice.appealable && appeal == null) ...[
-              const SizedBox(height: 8),
-              const Card(
-                  child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Text(
-                          'This decision is eligible for a review request.'))),
+              const KoloNote(
+                  title: 'Review request available',
+                  message: 'This decision is eligible for a review request.',
+                  asset: KoloIcons.circleCheck,
+                  tone: KoloNoteTone.success),
               OutlinedButton(
                   onPressed: () => openCreatorScreen(context, 78,
                       entityId: widget.route.entityId),
                   child: const Text('Request a review')),
+              const SizedBox(height: 12),
             ],
-            const SizedBox(height: 16),
-            const Text(
-                'Next steps depend on the decision and current moderation policy. Review options appear only when permitted.'),
-            const SizedBox(height: 8),
-            TextButton(
+            const KoloCard(
+                title: 'Next steps',
+                message:
+                    'Next steps depend on the decision and current moderation policy. Review options appear only when permitted.'),
+            FilledButton(
                 onPressed: () => _open(87),
                 child: const Text('View policy information')),
-            TextButton(
+            const SizedBox(height: 12),
+            OutlinedButton(
                 onPressed: () => _open(89),
                 child: const Text('Help & Support')),
           ]),

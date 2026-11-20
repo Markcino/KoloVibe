@@ -7,6 +7,7 @@ import '../../core/presentation/feature_repository.dart';
 import '../../core/theme/kolovibe_theme.dart';
 import '../../shared/widgets/kolo_components.dart';
 import '../system/system_ui.dart';
+import '../creators/creator_shell.dart';
 import 'live_account_repository.dart';
 
 const accountFormScreens = {4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 80, 82};
@@ -784,6 +785,10 @@ class _LiveAccountFlowScreenState extends State<LiveAccountFlowScreen> {
         onDiscardRoot: () => go(protected ? 79 : 2, reset: true),
         child: Scaffold(
           key: ValueKey('live-M-${id.toString().padLeft(3, '0')}'),
+          // Profile-area forms carry the designed primary navigation.
+          bottomNavigationBar: {80, 82}.contains(id)
+              ? creatorNavigation(context, widget.catalog, id)
+              : null,
           appBar: AppBar(
             title: Text(widget.catalog[id].name),
             leading: IconButton(

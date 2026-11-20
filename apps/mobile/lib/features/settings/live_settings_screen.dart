@@ -5,7 +5,9 @@ import '../../app/screen_route.dart';
 import '../../core/network/api_client.dart';
 import '../../core/platform/device_bridge.dart';
 import '../../core/presentation/design_node.dart';
+import '../../core/theme/kolovibe_theme.dart';
 import '../account/live_account_flow.dart';
+import '../creators/creator_shell.dart';
 import '../account/live_account_repository.dart';
 import '../system/system_ui.dart';
 import 'live_settings_repository.dart';
@@ -377,15 +379,31 @@ class _LiveSettingsScreenState extends State<LiveSettingsScreen> {
     }
     final receipt = matches.first;
     return [
+      const KoloMedallion(KoloIcons.clipboardCheck),
+      const SizedBox(height: 24),
       heading(
         receipt.existing
             ? 'Your existing request'
             : 'Your request is recorded.',
       ),
-      SelectableText('Request ID: ${receipt.id}'),
-      Text('Kind: ${receipt.kind}'),
-      Text('Status: ${receipt.status.replaceAll('_', ' ')}'),
-      Text('Created: ${receipt.createdAt.toUtc().toIso8601String()}'),
+      // The receipt is the service's own record: id, kind, status and time.
+      Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(KoloVibeRadii.card)),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            SelectableText('Request ID: ${receipt.id}'),
+            const SizedBox(height: 8),
+            Text('Kind: ${receipt.kind}'),
+            const SizedBox(height: 8),
+            Text('Status: ${receipt.status.replaceAll('_', ' ')}'),
+            const SizedBox(height: 8),
+            Text('Created: ${receipt.createdAt.toUtc().toIso8601String()}'),
+          ])),
       note(
         'This acknowledgment does not mean information has been deleted or exported.',
       ),
@@ -401,6 +419,7 @@ class _LiveSettingsScreenState extends State<LiveSettingsScreen> {
         onDiscardRoot: () => go(79, reset: true),
         child: Scaffold(
           appBar: AppBar(title: Text(widget.catalog[id].name)),
+          bottomNavigationBar: creatorNavigation(context, widget.catalog, id),
           body: SafeArea(
             child: loading || busy
                 ? const SystemLoading()

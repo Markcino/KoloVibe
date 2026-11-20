@@ -34,6 +34,8 @@ Widget? trustRoute(RouteContext context) {
           catalog: context.catalog,
           videos: deps.liveVideos!,
           moderation: LiveModerationRepository(deps.liveAccount!)),
+    // M-057 is the same notice reached from the studio; M-076 from the account.
+    57 ||
     76 when deps.liveAccount != null && route.entityId != null =>
       LiveNoticeScreen(
           route: route,

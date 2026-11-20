@@ -185,42 +185,71 @@ class _LiveCreateOriginalScreenState extends State<LiveCreateOriginalScreen> {
     final locked = c.draft != null;
     return [
       if (c.selected == null) _headline('The next story is\nyours.'),
-      Container(
-          padding: const EdgeInsets.all(20),
-          margin: const EdgeInsets.only(bottom: 16),
-          decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(KoloVibeRadii.card)),
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            ExcludeSemantics(
-                child: SvgPicture.asset(KoloIcons.cloudUpload,
-                    width: 40,
-                    height: 40,
-                    placeholderBuilder: (_) =>
-                        const SizedBox(width: 40, height: 40))),
-            const SizedBox(height: 12),
-            Text('Choose your video', style: KoloVibeText.heading(20)),
-            const SizedBox(height: 12),
-            Text(
-                'Bring an original film, performance or moment to the KoloVibe community.',
-                style: KoloVibeText.body(14, height: 1.5)),
-            const SizedBox(height: 4),
-            Text('Select an MP4 original under 50 MB.',
-                style: KoloVibeText.body(14, height: 1.5)),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: c.canPickFile ? _select : null,
-              icon: const Icon(Icons.add),
-              label: Text(
-                  c.selected == null ? 'Select a video' : 'Choose another'),
-            ),
-          ])),
+      if (c.selected case final file?)
+        // M-043: the checked file, with a way to choose another.
+        Container(
+            padding: const EdgeInsets.all(16),
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(KoloVibeRadii.card)),
+            child: Row(children: [
+              ExcludeSemantics(
+                  child: SvgPicture.asset(KoloIcons.cloudUpload,
+                      width: 32,
+                      height: 32,
+                      placeholderBuilder: (_) =>
+                          const SizedBox(width: 32, height: 32))),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    Text('${file.name} · ${c.selectedBytes} bytes',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: KoloVibeText.body(14,
+                            weight: FontWeight.w600,
+                            color: KoloVibeColors.navy)),
+                    const Text('File checked · Ready for details'),
+                  ])),
+              TextButton(
+                  onPressed: c.canPickFile ? _select : null,
+                  child: const Text('Choose another')),
+            ]))
+      else
+        Container(
+            padding: const EdgeInsets.all(20),
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(KoloVibeRadii.card)),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              ExcludeSemantics(
+                  child: SvgPicture.asset(KoloIcons.cloudUpload,
+                      width: 40,
+                      height: 40,
+                      placeholderBuilder: (_) =>
+                          const SizedBox(width: 40, height: 40))),
+              const SizedBox(height: 12),
+              Text('Choose your video', style: KoloVibeText.heading(20)),
+              const SizedBox(height: 12),
+              Text(
+                  'Bring an original film, performance or moment to the KoloVibe community.',
+                  style: KoloVibeText.body(14, height: 1.5)),
+              const SizedBox(height: 4),
+              Text('Select an MP4 original under 50 MB.',
+                  style: KoloVibeText.body(14, height: 1.5)),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: c.canPickFile ? _select : null,
+                icon: const Icon(Icons.add),
+                label: const Text('Select a video'),
+              ),
+            ])),
       ..._steps(c.selected == null ? '1 · File' : '2 · Details'),
-      if (c.selected case final file?) ...[
-        Text('${file.name} · ${c.selectedBytes} bytes'),
-        const Text('File checked · Ready for details'),
-      ] else
+      if (c.selected == null)
         const KoloNote(
             title: 'Before you upload',
             message:

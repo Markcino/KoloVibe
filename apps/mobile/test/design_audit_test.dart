@@ -272,6 +272,41 @@ void main() {
           account: signedIn().account,
           catalog: catalog,
           initialEmail: 'ama@example.com'));
+  // M-105 unsaved-changes guard, M-106 destructive confirmation and M-107
+  // success notification, each reached through a real screen.
+  audit(
+      'M-105',
+      105,
+      () => LiveAccountFlowScreen(
+          screen: 80,
+          account: signedIn().account,
+          catalog: catalog), after: (tester) async {
+    await tester.enterText(find.byType(TextFormField).first, 'Mark Edited');
+    await tester.pump();
+    unawaited(navigator.currentState!.maybePop());
+    await settleBounded(tester);
+  });
+  audit(
+      'M-106', 106, () => AccountSessionsScreen(repository: signedIn().account),
+      after: (tester) async {
+    await tester.tap(find.text('End session').first);
+    await settleBounded(tester);
+  });
+  audit(
+      'M-107',
+      107,
+      () => AccountSessionsScreen(
+              repository: AccountFixture(handler: (request) async {
+            if (request.method == 'DELETE') return jsonResponse({}, 204);
+            return signedIn().handler!(request);
+          }).account),
+      after: (tester) async {
+        await tester.tap(find.text('End session').first);
+        await settleBounded(tester);
+        await tester.tap(find.widgetWithText(FilledButton, 'End session'));
+        await settleBounded(tester);
+      },
+      finish: (tester) async => tester.pump(const Duration(seconds: 5)));
   audit(
       'M-079',
       79,
@@ -289,7 +324,7 @@ void main() {
             account: signedIn().account,
             device: TestDevice()));
   }
-  for (final id in [84, 85, 86, 91, 92, 93, 94]) {
+  for (final id in [84, 85, 86, 91, 92]) {
     audit('M-${id.toString().padLeft(3, '0')}', id, () {
       final fixture = signedIn();
       return LiveSettingsScreen(
@@ -298,6 +333,20 @@ void main() {
           repository: LiveSettingsRepository(fixture.account),
           account: fixture.account,
           device: TestDevice());
+    });
+  }
+  // M-093 and M-094: the populated receipts the service returns.
+  for (final id in [93, 94]) {
+    audit('M-0$id', id, () {
+      final fixture = signedIn();
+      return LiveSettingsScreen(
+          route: ScreenRoute(id),
+          catalog: catalog,
+          repository: LiveSettingsRepository(fixture.account),
+          account: fixture.account,
+          device: TestDevice(),
+          receipt: PrivacyReceipt(receiptId, id == 93 ? 'deletion' : 'access',
+              'received', DateTime.utc(2026, 11, 20, 9, 30)));
     });
   }
   for (final entry in {
@@ -319,6 +368,12 @@ void main() {
                         onRetry: () {},
                         onSignIn: () {})))));
   }
+  // M-096: the same loading placeholder once a request passes its 3 s threshold.
+  audit(
+      'M-096', 96, () => const Scaffold(body: SafeArea(child: SystemLoading())),
+      bounded: true, after: (tester) async {
+    await tester.pump(const Duration(seconds: 4));
+  });
   audit('M-097', 97,
       () => const Scaffold(body: SafeArea(child: SystemLoading())));
   audit(
@@ -454,6 +509,11 @@ void main() {
               : LiveVideoEngagementRepository(fixture.account),
           creators: creators,
           playerFactory: (_) => player ?? FakePlayer());
+  audit('M-070', 70, () => playerScreen(fixture: likesAndShares()),
+      after: (tester) async {
+    await tester.tap(find.byTooltip('More'));
+    await settleBounded(tester);
+  });
   audit('M-029', 29, () => playerScreen(fixture: likesAndShares()),
       after: (tester) async {
     await tester.tap(find.byTooltip('Like'));
@@ -870,6 +930,14 @@ void main() {
               ..noticeValue = videoNotice(appealable: eligible),
             moderation: LiveModerationRepository(signedIn().account)));
   }
+  audit(
+      'M-057',
+      57,
+      () => LiveNoticeScreen(
+          route: const ScreenRoute(57, entityId: videoId),
+          catalog: catalog,
+          repository: ScriptedStanding()
+            ..noticeValue = videoNotice(appealable: false)));
   audit(
       'M-077',
       77,

@@ -403,10 +403,8 @@ class _KoloTextFieldState extends State<KoloTextField> {
             onFieldSubmitted: widget.onSubmitted,
             onChanged: widget.onChanged,
             validator: widget.validator,
-            style: KoloVibeText.body(14,
-                color: widget.readOnly
-                    ? KoloVibeColors.muted
-                    : KoloVibeColors.ink),
+            // Read-only values (the account email) are drawn like any field.
+            style: KoloVibeText.body(14, color: KoloVibeColors.ink),
             decoration: InputDecoration(
               hintText: widget.hint,
               counterText: '',
