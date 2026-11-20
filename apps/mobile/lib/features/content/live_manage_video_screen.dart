@@ -104,7 +104,8 @@ class _LiveManageVideoScreenState extends State<LiveManageVideoScreen> {
         title: result.title,
         description: result.description,
         category: result.category,
-        tags: result.tags);
+        tags: result.tags,
+        coverTimeMs: result.coverTimeMs);
   }
 
   @override
@@ -215,9 +216,11 @@ class _LiveManageVideoScreenState extends State<LiveManageVideoScreen> {
 }
 
 class _Edit {
-  const _Edit(this.title, this.description, this.category, this.tags);
+  const _Edit(
+      this.title, this.description, this.category, this.tags, this.coverTimeMs);
   final String title, description;
   final String? category;
+  final int? coverTimeMs;
   final List<String> tags;
 }
 
@@ -236,6 +239,12 @@ class _EditDialogState extends State<_EditDialog> {
       TextEditingController(text: widget.video.description);
   late final _tags = TextEditingController(text: widget.video.tags.join(' '));
   late String? _category = widget.video.category;
+  late int? _cover = widget.video.coverTimeMs;
+
+  String _clock(int ms) {
+    final seconds = ms ~/ 1000;
+    return '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}';
+  }
 
   @override
   void dispose() {
@@ -274,18 +283,48 @@ class _EditDialogState extends State<_EditDialog> {
                   maxLines: 3,
                   decoration: const InputDecoration(labelText: 'Description')),
               DropdownButtonFormField<String>(
+                  isExpanded: true,
                   initialValue: _category,
                   decoration: const InputDecoration(labelText: 'Category'),
                   items: [
                     for (final entry in videoCategories.entries)
                       DropdownMenuItem(
-                          value: entry.key, child: Text(entry.value))
+                          value: entry.key,
+                          child: Text(entry.value,
+                              overflow: TextOverflow.ellipsis))
                   ],
                   onChanged: (value) => _category = value),
               TextFormField(
                   controller: _tags,
                   decoration: const InputDecoration(labelText: 'Hashtags'),
                   validator: _tagError),
+              // Cover (M-045): the service renders the poster at a chosen
+              // moment. It can only be bounded once the duration is known, and
+              // the service does not offer frame previews.
+              if (widget.video.durationMs case final duration?
+                  when duration > 0) ...[
+                const SizedBox(height: 16),
+                Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                        'Cover moment · ${_clock(_cover ?? 0)} of ${_clock(duration)}',
+                        style: Theme.of(context).textTheme.labelMedium)),
+                Slider(
+                    key: const ValueKey('Cover moment'),
+                    min: 0,
+                    max: (duration < 300000 ? duration : 300000).toDouble(),
+                    divisions: ((duration < 300000 ? duration : 300000) ~/ 1000)
+                        .clamp(1, 300),
+                    value: (_cover ?? 0)
+                        .clamp(0, duration < 300000 ? duration : 300000)
+                        .toDouble(),
+                    label: _clock(_cover ?? 0),
+                    onChanged: (value) =>
+                        setState(() => _cover = value.round())),
+                Text(
+                    'The service picks the poster image at this moment. A new poster appears after processing.',
+                    style: Theme.of(context).textTheme.bodySmall),
+              ],
             ]),
           ),
         ),
@@ -305,7 +344,8 @@ class _EditDialogState extends State<_EditDialog> {
                           _tags.text
                               .split(RegExp(r'[\s,]+'))
                               .where((tag) => tag.isNotEmpty)
-                              .toList()));
+                              .toList(),
+                          _cover));
                 }
               },
               child: const Text('Save')),

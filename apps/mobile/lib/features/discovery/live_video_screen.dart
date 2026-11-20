@@ -601,15 +601,19 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Original'), actions: [
-          PopupMenuButton<String>(
-              onSelected: (_) => navigate(widget.engagement == null ? 4 : 71,
-                  widget.engagement == null ? null : widget.id),
-              itemBuilder: (_) => [
-                    const PopupMenuItem(
-                        value: 'report', child: Text('Report video'))
-                  ])
-        ]),
+        // The vertical feeds draw their own tabs over the video.
+        appBar: widget.fullScreen
+            ? null
+            : AppBar(title: const Text('Original'), actions: [
+                PopupMenuButton<String>(
+                    onSelected: (_) => navigate(
+                        widget.engagement == null ? 4 : 71,
+                        widget.engagement == null ? null : widget.id),
+                    itemBuilder: (_) => [
+                          const PopupMenuItem(
+                              value: 'report', child: Text('Report video'))
+                        ])
+              ]),
         body: SafeArea(child: Builder(
           builder: (context) {
             if (loading) {

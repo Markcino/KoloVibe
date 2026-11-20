@@ -155,7 +155,7 @@ void main() {
         (tester) async {
       final videos = HomeVideos(trending: () async => twoVideos());
       await pumpHome(tester, videos: videos, account: signedIn());
-      await captureAudit(tester, shot, 'M-017_390x844');
+      await captureAudit(tester, shot, 'M-017_390x844', design: 17);
       expect(find.textContaining('Mark'), findsWidgets);
       expect(find.textContaining('Ama'), findsNothing);
       expect(find.text('Waterside at dawn'), findsOneWidget);
@@ -459,7 +459,8 @@ void main() {
               viewport: viewport,
               textScale: scale);
           if (scale == 1.0) {
-            await captureAudit(tester, shot, 'M-017_${viewport.name}');
+            await captureAudit(tester, shot, 'M-017_${viewport.name}',
+                design: viewport == AuditViewport.standard ? 17 : null);
           }
           await tester.ensureVisible(find
               .text('Original voices. More approved services as available.'));

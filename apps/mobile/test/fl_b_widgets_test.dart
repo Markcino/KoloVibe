@@ -187,6 +187,22 @@ void main() {
     await settle(tester);
     expect(calls.last['category'], isNull);
   });
+  testWidgets('search entry shows a hint, not an empty-catalogue claim',
+      (tester) async {
+    final calls = <Map<String, String?>>[];
+    final fixture = CatalogFixture((q) async {
+      calls.add(q);
+      return const LiveVideoPage([], null);
+    });
+    await tester.pumpWidget(app(DiscoveryCatalogScreen(
+        screen: 21, repository: fixture, catalog: catalog)));
+    await settle(tester);
+    expect(calls, isEmpty, reason: 'nothing is requested before a search');
+    expect(find.text('Find original videos and the creators behind them.'),
+        findsOneWidget);
+    expect(find.text('Nothing here yet'), findsNothing);
+    expect(find.text('No originals are available yet.'), findsNothing);
+  });
   for (final screen in [21, 22, 23]) {
     testWidgets(
         'M-$screen search, no results and category filters use live query',

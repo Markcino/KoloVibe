@@ -41,6 +41,7 @@ class HomeDashboard extends StatefulWidget {
     required this.catalog,
     required this.navigate,
     required this.openCategory,
+    this.selectTab,
     this.creators,
     this.account,
     this.clock = DateTime.now,
@@ -51,6 +52,9 @@ class HomeDashboard extends StatefulWidget {
   final DesignCatalog catalog;
   final HomeNavigate navigate;
   final ValueChanged<String> openCategory;
+
+  /// Bottom-navigation tab selection; defaults to [navigate].
+  final ValueChanged<int>? selectTab;
   final DateTime Function() clock;
 
   @override
@@ -426,7 +430,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
       bottomNavigationBar: MainShell(
         navigation: widget.catalog[17].named('Primary navigation')!,
         screen: 17,
-        onSelected: (target) => widget.navigate(target),
+        onSelected: (target) => (widget.selectTab ?? widget.navigate)(target),
       ),
     );
   }

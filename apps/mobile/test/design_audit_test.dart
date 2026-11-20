@@ -25,6 +25,11 @@ import 'package:kolovibe/features/creators/live_own_profile_screen.dart';
 import 'package:kolovibe/features/discovery/discovery_catalog_screen.dart';
 import 'package:kolovibe/features/discovery/live_video_repository.dart';
 import 'package:kolovibe/features/discovery/live_video_screen.dart';
+import 'package:kolovibe/features/discovery/vertical_video_feed.dart';
+import 'package:kolovibe/features/engagement/live_video_engagement_repository.dart';
+import 'package:kolovibe/features/account/live_account_repository.dart';
+import 'package:kolovibe/features/moderation/live_appeal_screen.dart';
+import 'package:kolovibe/features/moderation/live_moderation_repository.dart';
 import 'package:kolovibe/features/moderation/live_notice_screen.dart';
 import 'package:kolovibe/features/moderation/live_report_screen.dart';
 import 'package:kolovibe/features/moderation/live_standing_screen.dart';
@@ -32,6 +37,7 @@ import 'package:kolovibe/features/points/live_points_screen.dart';
 import 'package:kolovibe/features/points/live_points_repository.dart';
 import 'fl_a_support.dart' hide accountId;
 import 'fl_b_repositories_test.dart' show videoJson, creatorJson;
+import 'fl_b_widgets_test.dart' show FakePlayer;
 import 'support/creator_fakes.dart';
 import 'support/points_fakes.dart';
 import 'support/report_fakes.dart';
@@ -227,6 +233,19 @@ void main() {
             creatorId: id == 27 ? creatorId : null,
             initialQuery: id == 22 ? 'Waterside' : null));
   }
+  // The vertical feeds, rendered with an in-memory player (no platform view).
+  for (final following in [false, true]) {
+    audit(
+        following ? 'M-018' : 'M-024',
+        following ? 18 : 24,
+        () => VerticalVideoFeed(
+            repository: videos,
+            device: TestDevice(),
+            following: following,
+            catalog: catalog,
+            account: following ? signedIn().account : null,
+            playerFactory: (_) => FakePlayer()));
+  }
   audit(
       'M-025',
       25,
@@ -291,6 +310,22 @@ void main() {
       41,
       () => LiveCreateOriginalScreen(
           content: FakeContent(), onboarding: FakeOnboarding()));
+  // The upload journey: each step is reached through the real controller.
+  for (final step in [42, 43, 44]) {
+    audit(
+        'M-0$step',
+        step,
+        () => LiveCreateOriginalScreen(
+            content: FakeContent(),
+            onboarding: FakeOnboarding(),
+            pickVideo: () async => mp4(size: 2048)),
+        after: step == 42
+            ? null
+            : (tester) async {
+                await tester.tap(find.text('Select a video'));
+                await settleAsync(tester);
+              });
+  }
   audit(
       'M-053',
       53,
@@ -365,6 +400,19 @@ void main() {
           catalog: catalog,
           repository: ScriptedStanding()
             ..noticeValue = videoNotice(appealable: true)));
+  // M-078: the designed "availability not confirmed" state, then the proposed
+  // eligible state (no Figma export exists for it; 0 selects no export).
+  for (final eligible in [false, true]) {
+    audit(
+        eligible ? 'M-078-eligible' : 'M-078',
+        eligible ? 0 : 78,
+        () => LiveAppealScreen(
+            route: const ScreenRoute(78, entityId: videoId),
+            catalog: catalog,
+            standing: ScriptedStanding()
+              ..noticeValue = videoNotice(appealable: eligible),
+            moderation: LiveModerationRepository(signedIn().account)));
+  }
   audit(
       'M-077',
       77,
@@ -411,6 +459,17 @@ class _AuditVideos extends LiveVideoRepository {
     if (failure != null) throw failure!;
     return items.first;
   }
+
+  @override
+  Future<PlaybackGrant> playback(String id,
+          {LiveAccountRepository? account}) async =>
+      PlaybackGrant.fromJson({
+        'playback_url': 'https://media.example.test/signed/video',
+        'expires_at': DateTime.now()
+            .toUtc()
+            .add(const Duration(minutes: 5))
+            .toIso8601String()
+      }, tracked: false);
 }
 
 class _AuditCreators extends LiveCreatorRepository {

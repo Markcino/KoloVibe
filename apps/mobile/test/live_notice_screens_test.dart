@@ -144,17 +144,21 @@ void main() {
     });
 
     testWidgets(
-        'an appealable removal is described, with no button to send one',
+        'an appealable removal is described and links to M-078; the notice itself sends nothing',
         (tester) async {
       service.noticeValue = videoNotice(appealable: true);
       await notice(tester);
       expect(
           find.textContaining('eligible for a review request'), findsOneWidget);
-      expect(
-          find.textContaining('not available in the app yet'), findsOneWidget);
+      expect(find.textContaining('not available in the app yet'), findsNothing);
+      // The statement and the send action live on M-078, never on the notice.
       expect(find.byType(TextField), findsNothing);
       expect(
           find.widgetWithText(FilledButton, 'Request a review'), findsNothing);
+      await tester.scrollUntilVisible(find.text('Request a review'), 200,
+          scrollable: find.byType(Scrollable).first);
+      expect(find.widgetWithText(OutlinedButton, 'Request a review'),
+          findsOneWidget);
     });
 
     testWidgets('an existing review request shows its status and statement',

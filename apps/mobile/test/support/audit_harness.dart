@@ -97,7 +97,7 @@ Future<void> captureAudit(WidgetTester tester, GlobalKey boundary, String name,
     if (design != null) {
       final tag = 'M-${design.toString().padLeft(3, '0')}';
       final matches = Directory('../../docs/designed')
-          .listSync()
+          .listSync(recursive: true)
           .whereType<File>()
           .where((f) => f.path.contains(tag) && f.path.endsWith('.png'));
       if (matches.isNotEmpty) {
@@ -123,4 +123,14 @@ Future<void> captureAudit(WidgetTester tester, GlobalKey boundary, String name,
     await file.parent.create(recursive: true);
     await file.writeAsBytes(data!.buffer.asUint8List());
   });
+}
+
+/// Like [settleAsync] but never waits for animations to stop, for screens
+/// that legitimately animate forever (buffering indicators, players).
+Future<void> settleBounded(WidgetTester tester) async {
+  for (var i = 0; i < 10; i++) {
+    await tester
+        .runAsync(() => Future<void>.delayed(const Duration(milliseconds: 2)));
+    await tester.pump(const Duration(milliseconds: 50));
+  }
 }

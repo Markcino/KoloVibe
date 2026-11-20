@@ -31,6 +31,13 @@ Widget videoTile(BuildContext context, LiveVideo video) => Padding(
         meta: videoMeta(video),
         onTap: () => discoveryNavigate(context, 25, video.id)));
 
+/// Bottom-navigation tabs replace the current tab, so Back never walks
+/// through every tab that was visited.
+void discoveryTab(BuildContext context, int screen) {
+  final route = ScreenRoute(screen);
+  Navigator.of(context).pushReplacementNamed(route.name, arguments: route);
+}
+
 class DiscoveryCatalogScreen extends StatefulWidget {
   const DiscoveryCatalogScreen(
       {super.key,
@@ -211,6 +218,7 @@ class _DiscoveryCatalogState extends State<DiscoveryCatalogScreen> {
           account: widget.account,
           catalog: widget.catalog,
           navigate: (screen, [id]) => discoveryNavigate(context, screen, id),
+          selectTab: (screen) => discoveryTab(context, screen),
           openCategory: openCategory)
       : _catalogScaffold(context);
 
@@ -325,7 +333,22 @@ class _DiscoveryCatalogState extends State<DiscoveryCatalogScreen> {
                 () => load(
                     reset: items.isEmpty && !retryCreators,
                     creatorsOnly: retryCreators)),
-          if (!busy && error == null && items.isEmpty && creatorItems.isEmpty)
+          // Search entry (M-021) and filters (M-023) have not asked the service
+          // anything yet, so they show a hint, never an empty-catalogue claim.
+          if (!busy &&
+              !searched &&
+              {21, 23}.contains(widget.screen) &&
+              items.isEmpty &&
+              creatorItems.isEmpty)
+            Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                    'Find original videos and the creators behind them.',
+                    style: KoloVibeText.body(14, height: 1.5)))
+          else if (!busy &&
+              error == null &&
+              items.isEmpty &&
+              creatorItems.isEmpty)
             searched
                 ? SystemEmpty(
                     query: query ?? '',
@@ -369,7 +392,7 @@ class _DiscoveryCatalogState extends State<DiscoveryCatalogScreen> {
           : MainShell(
               navigation: navigation,
               screen: widget.screen,
-              onSelected: (target) => discoveryNavigate(context, target)),
+              onSelected: (target) => discoveryTab(context, target)),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import '../../features/moderation/live_moderation_repository.dart';
 import '../../features/moderation/live_notice_screen.dart';
+import '../../features/moderation/live_appeal_screen.dart';
 import '../../features/moderation/live_report_screen.dart';
 import '../../features/moderation/live_standing_repository.dart';
 import '../../features/moderation/live_standing_screen.dart';
@@ -38,6 +39,12 @@ Widget? trustRoute(RouteContext context) {
           route: route,
           catalog: context.catalog,
           repository: LiveStandingRepository(deps.liveAccount!)),
+    78 when deps.liveAccount != null && route.entityId != null =>
+      LiveAppealScreen(
+          route: route,
+          catalog: context.catalog,
+          standing: LiveStandingRepository(deps.liveAccount!),
+          moderation: LiveModerationRepository(deps.liveAccount!)),
     77 when deps.liveAccount != null => LiveStandingScreen(
         catalog: context.catalog,
         repository: LiveStandingRepository(deps.liveAccount!),

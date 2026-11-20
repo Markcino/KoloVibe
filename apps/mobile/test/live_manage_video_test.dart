@@ -109,7 +109,8 @@ class _Fake extends LiveContentRepository {
       {String? title,
       String? description,
       String? category,
-      List<String>? tags}) async {
+      List<String>? tags,
+      int? coverTimeMs}) async {
     calls.add('edit');
     return video;
   }
@@ -240,6 +241,38 @@ void main() {
       });
       expect(result.title, 'Renamed');
       expect(server.calls, ['PATCH /api/v1/videos/$_video']);
+    });
+
+    test('cover moment is sent as cover_time_ms and bounded by the duration',
+        () async {
+      late Object? sent;
+      final withDuration = {..._json(), 'duration_ms': 90000};
+      final server = _Server((request) {
+        sent = jsonDecode(request.body);
+        return _ok({...withDuration, 'cover_time_ms': 12000});
+      });
+      final video = OwnedVideo.fromJson(withDuration);
+      final result =
+          await server.repository().editDetails(video, coverTimeMs: 12000);
+      expect(sent, {'cover_time_ms': 12000});
+      expect(result.coverTimeMs, 12000);
+      for (final bad in [-1, 90001, 300001]) {
+        await expectLater(
+            server.repository().editDetails(video, coverTimeMs: bad),
+            throwsFormatException);
+      }
+      // Without a known duration the moment cannot be bounded, so it is refused.
+      await expectLater(
+          server
+              .repository()
+              .editDetails(OwnedVideo.fromJson(_json()), coverTimeMs: 1000),
+          throwsFormatException);
+      // The echo must carry the requested moment.
+      final liar =
+          _Server((_) => _ok({...withDuration, 'cover_time_ms': 3000}));
+      await expectLater(
+          liar.repository().editDetails(video, coverTimeMs: 12000),
+          throwsFormatException);
     });
 
     test('edit refuses no-op, invalid and out-of-state requests locally',

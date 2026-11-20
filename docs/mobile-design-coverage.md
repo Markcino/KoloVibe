@@ -367,6 +367,149 @@ AUDIT_DIR=$PWD/build/design-audit flutter test test/design_audit_test.dart
 
 Totals: Fixed 44, Deviation 33, Deviation (not audited) 31, Match 0.
 
+
+
+## Visual review of 20 November 2026 (supersedes the status column above)
+
+Each screen is in exactly one class, set only after looking at the render beside the export (or, where none could be captured, left as Not verified):
+
+- **Visually matched**: layout, type, colour and copy equal the export apart from the status bar and sample data.
+- **Functional, visually different**: renders at 390 × 844 and 375 × 667 without layout errors and does the real job, but a listed difference from the export remains.
+- **Not verified**: not captured, not compared, not wired, or a state that needs a device.
+
+Rendering without overflow is not treated as a match. Representative pictures (export | render 390 × 844 | render 375 × 667) and a per-screen list of visible differences are in `docs/evidence/mobile-2026-11-20/`.
+
+| Screen | Class | Notes |
+| --- | --- | --- |
+| M-001 · Splash Screen | Not verified | Static recipe views (`MobileScreen`), not `live_*` screens. Last evidence is the 29 Oct 2026 render. |
+| M-002 · Welcome Screen | Not verified | Static recipe views (`MobileScreen`), not `live_*` screens. Last evidence is the 29 Oct 2026 render. |
+| M-003 · A world of original voices | Not verified | Static recipe views (`MobileScreen`), not `live_*` screens. Last evidence is the 29 Oct 2026 render. |
+| M-004 · Sign in | Visually matched | Sign-in header, headline, labelled fields, red primary and soft secondary match the export; only the status bar and sample values differ. |
+| M-005 · Create an account | Visually matched | Headline, labelled fields, helper text, acknowledgement and actions match the export; only the status bar and sample values differ. |
+| M-006 · Verify your email | Functional, visually different | Layout and copy match. Deviation: one masked field, because the emailed code is a long token, instead of six boxes; envelope medallion and the verifying note are not drawn. |
+| M-007 · Resend verification | Functional, visually different | Request form with the service’s honest acknowledgement. Deviation: the designed resend-unavailable state and mail medallion are not reproduced. |
+| M-008 · Verification expired | Functional, visually different | Headline, lead, labelled fields, notes and actions match. Deviation: icon medallion omitted; M-010 adds the reset-code field the API requires. |
+| M-009 · Forgot password | Functional, visually different | Headline, lead, labelled fields, notes and actions match. Deviation: icon medallion omitted; M-010 adds the reset-code field the API requires. |
+| M-010 · Reset password | Functional, visually different | Headline, lead, labelled fields, notes and actions match. Deviation: icon medallion omitted; M-010 adds the reset-code field the API requires. |
+| M-011 · Password reset | Functional, visually different | Headline, lead, labelled fields, notes and actions match. Deviation: icon medallion omitted; M-010 adds the reset-code field the API requires. |
+| M-012 · Account already exists | Functional, visually different | Headline, lead, labelled fields, notes and actions match. Deviation: icon medallion omitted; M-010 adds the reset-code field the API requires. |
+| M-013 · Make it yours | Functional, visually different | Headline, name field and actions match. Deviation: no photo (not supported; the text action says so); status pills omitted. |
+| M-014 · Your voice belongs here | Functional, visually different | Plain text sections and two rows; no hero image or creator-access card. Theme tokens only. |
+| M-015 · Sign-in problem | Functional, visually different | Alert note, labelled fields and actions match. Medallion omitted. |
+| M-016 · Confirm it’s you | Functional, visually different | Headline, read-only email, password field, note and actions match. |
+| M-017 · Multi-Service Home Dashboard | Visually matched | Header, greeting, search, hero, tiles, creator row, trending row, chips and nav match the export. Data-driven differences are expected: initial avatar instead of a photo, poster fallback when no image loads, no duration or play counts, an added Following block. |
+| M-018 · Following Video Feed | Functional, visually different | Now the account’s Following feed (`GET /videos/following`) with Following / For You tabs, search and the bottom navigation. Not captured with real video: the capture uses an in-memory player, so the picture is black; the side rail, handle line and progress bar are not drawn. Visible-difference list in `docs/evidence/mobile-2026-11-20/README.md`. |
+| M-019 · Explore & Discover | Functional, visually different | Search field, category chips and video rows with posters. Deviation: no curated hero, “Fresh perspectives” grid or creator spotlight (no endpoints; nothing invented). |
+| M-020 · Trending originals | Functional, visually different | Eyebrow, headline and rows match. Deviation: no Trending / Fresh picks tabs, ranking or play counts. |
+| M-021 · Search | Functional, visually different | Search field and filters control match. Deviation: no recent searches or suggestions (none are stored or invented). |
+| M-022 · Search results | Functional, visually different | Videos and Creators sections with posters and creator rows. Deviation: no result-type chips or bio line. |
+| M-023 · Search filters | Functional, visually different | Bottom sheet title, chips, red Apply and soft Reset match. |
+| M-024 · Full-Screen Vertical Video Feed / Player | Functional, visually different | Public vertical feed with the same tabs, nav and controls as M-018. Same differences as M-018. Playback on a device is checklist D1/D2. |
+| M-025 · Video Details | Functional, visually different | Poster card, badges, actions and likes restyled. Deviation: design is a dark player with a sheet; no plays count or duration. |
+| M-026 · Ama Kollie | Functional, visually different | Avatar, name, handle, bio, follower and video cards, Follow. Deviation: avatar is an initial; no tagline, tabs or featured card. |
+| M-027 · Ama’s published videos | Functional, visually different | Same rows as M-020. Deviation: no creator header. |
+| M-028 · Follow / Unfollow State | Not verified | States reached by tapping Follow, Like or Share on M-025 / M-026; behaviour covered by `fl_b_widgets_test.dart`, visuals not captured. |
+| M-029 · Like / Unlike State | Not verified | States reached by tapping Follow, Like or Share on M-025 / M-026; behaviour covered by `fl_b_widgets_test.dart`, visuals not captured. |
+| M-030 · Native Share State | Not verified | States reached by tapping Follow, Like or Share on M-025 / M-026; behaviour covered by `fl_b_widgets_test.dart`, visuals not captured. |
+| M-031 · Video unavailable | Not verified | Captured through the shared state views; not compared in detail. |
+| M-032 · Video Buffering | Not verified | Player states need `video_player`; covered by `fl_b_widgets_test.dart`, not captured. |
+| M-033 · Video Playback Error | Not verified | Player states need `video_player`; covered by `fl_b_widgets_test.dart`, not captured. |
+| M-034 · Low-Bandwidth Playback | Not verified | Player states need `video_player`; covered by `fl_b_widgets_test.dart`, not captured. |
+| M-035 · Restricted video | Not verified | Captured through the shared state views; not compared in detail. |
+| M-036 · Become a creator | Functional, visually different | No hero image; different copy; theme tokens only. |
+| M-037 · Creator Studio | Functional, visually different | Deep navy surface, headline, red action and rows. Deviation: no analytics chart or Lone Stars card (not wired). |
+| M-038 · Creator profile | Functional, visually different | No profile photo (not supported); rows and note styled by theme only. |
+| M-039 · Edit creator profile | Functional, visually different | Fields keep Material floating labels and counters; no photo. |
+| M-040 · My video library | Functional, visually different | Rows only: no thumbnails, status colours, filter chips or search. |
+| M-041 · Create an original | Functional, visually different | Plain step with a select button; no stepper or illustration. |
+| M-042 · Select a video | Functional, visually different | Select step captured at both sizes; plain step with a select button, no stepper pills or illustration. |
+| M-043 · Check your file | Functional, visually different | Checked-file step captured; text summary instead of the thumbnail card. |
+| M-044 · Tell the story | Functional, visually different | Story form captured at both sizes (category dropdown now fits a 375 pt screen). Material floating labels, no thumbnail strip, primary action is Create and upload, not Choose thumbnail. |
+| M-045 · Choose a cover | Not verified | Contract gap, not a screen: the service accepts a cover only as `cover_time_ms` (0 to 300000 ms, at most the duration) and renders the poster after processing; it offers no frame thumbnails and the duration is unknown before processing, so a pre-upload frame picker cannot be truthful. Implemented instead: a cover-moment slider in Edit details (M-054) once the duration is known. |
+| M-046 · Uploading your original | Not verified | Steps and states inside the M-041 flow (M-045 is not wired); covered by upload controller and screen tests, not captured. |
+| M-047 · Upload interrupted | Not verified | Steps and states inside the M-041 flow (M-045 is not wired); covered by upload controller and screen tests, not captured. |
+| M-048 · Upload failed | Not verified | Steps and states inside the M-041 flow (M-045 is not wired); covered by upload controller and screen tests, not captured. |
+| M-049 · Preparing your video | Not verified | Steps and states inside the M-041 flow (M-045 is not wired); covered by upload controller and screen tests, not captured. |
+| M-050 · Pending moderation | Not verified | Steps and states inside the M-041 flow (M-045 is not wired); covered by upload controller and screen tests, not captured. |
+| M-051 · Your original is published | Not verified | Steps and states inside the M-041 flow (M-045 is not wired); covered by upload controller and screen tests, not captured. |
+| M-052 · Video rejected | Not verified | Steps and states inside the M-041 flow (M-045 is not wired); covered by upload controller and screen tests, not captured. |
+| M-053 · Manage video | Functional, visually different | Actions only: no hero card, stats or analytics row. |
+| M-054 · Edit video details | Not verified | Edit dialog (now with the cover-moment slider) is covered by tests and fits at 375 pt; its picture is not captured. |
+| M-055 · Unpublish confirmation | Not verified | Dialogs and notice inside M-053; behaviour covered by `live_manage_video_test.dart`, not captured. |
+| M-056 · Delete video confirmation | Not verified | Dialogs and notice inside M-053; behaviour covered by `live_manage_video_test.dart`, not captured. |
+| M-057 · Content status notice | Not verified | Dialogs and notice inside M-053; behaviour covered by `live_manage_video_test.dart`, not captured. |
+| M-058 · Creator analytics | Not verified | Analytics are not wired (see the FL-C gap matrix). |
+| M-059 · Video analytics | Not verified | Analytics are not wired (see the FL-C gap matrix). |
+| M-060 · Creator Analytics — Empty / Unavailable | Not verified | Analytics are not wired (see the FL-C gap matrix). |
+| M-061 · Lone Stars | Functional, visually different | Hero card, stat rows and ledger rows (star, signed amount) match. Deviation: no month grouping; stats are rows. |
+| M-062 · Confirmed Lone Stars | Functional, visually different | Hero card, stat rows and ledger rows (star, signed amount) match. Deviation: no month grouping; stats are rows. |
+| M-063 · Pending Lone Stars | Functional, visually different | Hero card, stat rows and ledger rows (star, signed amount) match. Deviation: no month grouping; stats are rows. |
+| M-064 · Transaction history | Functional, visually different | Filter chips and ledger rows match. Deviation: no month grouping. |
+| M-065 · Transaction details | Functional, visually different | Dark hero, source, date and status rows, recognition note. Deviation: no per-row icons. |
+| M-066 · Withheld points | Functional, visually different | Hero card, notes and actions match. |
+| M-067 · Reversed points | Functional, visually different | Hero card, notes and actions match. |
+| M-068 · Engagement eligibility | Functional, visually different | Headline and rows; no icon rows. |
+| M-069 · No points activity | Functional, visually different | Hero card, notes and actions match. |
+| M-070 · Report Video Entry | Not verified | Report entry is a menu item on M-025. |
+| M-071 · Report a video | Functional, visually different | Reason list, privacy line and primary action match. Deviation: title card instead of the thumbnail card. |
+| M-072 · Report details | Functional, visually different | Reached by driving the flow; theme tokens only. No thumbnail card or medallion. |
+| M-073 · Report submitted | Functional, visually different | Reached by driving the flow; theme tokens only. No thumbnail card or medallion. |
+| M-074 · Report submission error | Functional, visually different | Reached by driving the flow; theme tokens only. No thumbnail card or medallion. |
+| M-075 · Already reported | Functional, visually different | Reached by driving the flow; theme tokens only. No thumbnail card or medallion. |
+| M-076 · Content restriction notice | Functional, visually different | Notice now offers Request a review when the server says `appealable`; otherwise no control. Theme tokens only; no thumbnail or medallion. |
+| M-077 · Account status | Functional, visually different | Notice and standing lists use theme tokens only; no thumbnail or medallion. |
+| M-078 · Appeal / Review Request | Functional, visually different | New screen. The designed “availability not confirmed” state matches in copy; when the server says `appealable` a statement field and Send review request post to `POST /videos/{id}/appeals`. That eligible state has no Figma export (proposal, needs design approval). Evidence: `M-078.png`, `M-078-eligible.png`. |
+| M-079 · My account | Functional, visually different | Avatar, name, badge, studio card and icon rows. Deviation: no photo or originals count. |
+| M-080 · Edit personal profile | Functional, visually different | Labelled fields, notes and actions match. |
+| M-081 · Account settings | Functional, visually different | Section headings and rows. Deviation: no row icons or dividers between headings. |
+| M-082 · Change password | Functional, visually different | Labelled fields, notes and actions match. |
+| M-083 · Active sessions | Functional, visually different | Lists real sessions as plain rows; the designed provider note is for the unsupported state. |
+| M-084 · Privacy settings | Functional, visually different | Headline, lead and rows. Deviation: rows are the real actions, with no icons or subtitles. |
+| M-085 · Security settings | Functional, visually different | No dark hero card; rows only. |
+| M-086 · Notification preferences | Not verified | Captured; switches keep Material styling. |
+| M-087 · Community guidelines | Functional, visually different | Headline and rows by theme; no icon rows, tabs styling or search. |
+| M-088 · Terms & Privacy | Functional, visually different | Headline and rows by theme; no icon rows, tabs styling or search. |
+| M-089 · Help & Support | Functional, visually different | Headline and rows by theme; no icon rows, tabs styling or search. |
+| M-090 · Logout confirmation | Functional, visually different | Full page instead of a confirmation dialog over the account page. |
+| M-091 · Delete account request | Functional, visually different | Intake pages by theme; fields and notes differ from the design. |
+| M-092 · Confirm account deletion | Functional, visually different | Intake pages by theme; fields and notes differ from the design. |
+| M-093 · Deletion request received | Not verified | Populated receipt not captured (fixture lacks the privacy-request response); error state shown. |
+| M-094 · Privacy request received | Not verified | Populated receipt not captured (fixture lacks the privacy-request response); error state shown. |
+| M-095 · No Internet Connection | Functional, visually different | Shared state panel: icon medallion, display headline, message and actions. Deviation: embedded without app bar, notes or secondary actions. |
+| M-096 · Slow Connection | Not verified | Slow-connection state appears after a 3 s timer; not captured. |
+| M-097 · Loading Skeleton | Not verified | Skeleton bars only, without the surrounding page. |
+| M-098 · No search results | Functional, visually different | Panel with headline and Edit search. Deviation: no search bar, chips or suggested creator. |
+| M-099 · Application error | Functional, visually different | Shared state panel: icon medallion, display headline, message and actions. Deviation: embedded without app bar, notes or secondary actions. |
+| M-100 · Access denied | Functional, visually different | Shared state panel: icon medallion, display headline, message and actions. Deviation: embedded without app bar, notes or secondary actions. |
+| M-101 · Session expired | Functional, visually different | Shared state panel: icon medallion, display headline, message and actions. Deviation: embedded without app bar, notes or secondary actions. |
+| M-102 · Service unavailable | Functional, visually different | Shared state panel: icon medallion, display headline, message and actions. Deviation: embedded without app bar, notes or secondary actions. |
+| M-103 · Rate limit exceeded | Functional, visually different | Shared state panel: icon medallion, display headline, message and actions. Deviation: embedded without app bar, notes or secondary actions. |
+| M-104 · Media permission | Functional, visually different | Panel and settings action. Deviation: full screen instead of a sheet over the upload step. |
+| M-105 · Unsaved Changes Warning | Not verified | Dialogs and snackbar; `dialogTheme` and `snackBarTheme` carry the tokens. Not captured. |
+| M-106 · Destructive-Action Confirmation | Not verified | Dialogs and snackbar; `dialogTheme` and `snackBarTheme` carry the tokens. Not captured. |
+| M-107 · Success Notification | Not verified | Dialogs and snackbar; `dialogTheme` and `snackBarTheme` carry the tokens. Not captured. |
+| M-108 · Application Update / Compatibility Notice | Not verified | Captured; not compared in detail. |
+
+Totals: Visually matched 3, Functional but visually different 69, Not verified 36.
+
+
+### Contract gaps and truthful proposals (20 November 2026)
+
+Figma elements the current API or approved capabilities cannot support, and what the app does instead. Nothing here is invented data.
+
+| Figma element | Gap | What the app shows now / proposal |
+| --- | --- | --- |
+| M-045 Choose a cover (frame strip) | The service takes `cover_time_ms` (0–300000 ms, at most the duration) via `PATCH /videos/{id}` and renders the poster after processing. It returns no frame thumbnails, and the duration is unknown before processing. | A cover-moment slider in Edit details (M-054), shown only once the duration is known; saved as `cover_time_ms`. Proposal for a frame strip: the API would need a frame-sprite or thumbnail endpoint. |
+| M-078 eligible state | The export draws only “availability not confirmed”. `POST /videos/{id}/appeals` exists and `appealable` comes from the notice. | Unavailable state as designed; eligible state (statement + Send review request) shown only when the server says `appealable`. Needs design approval; the FL-D matrix recorded the owner decision as open. |
+| M-017 Creators to know | No creator-list or recommendation endpoint. | Creators of the first trending videos, via `GET /creators/{id}`. Proposal: a `GET /creators/suggested` endpoint if recommendations are approved. |
+| Plays, duration, “12.4K plays” on cards (M-017 to M-027) | Public video JSON has no `duration_ms` or play count. | Category and likes only. Proposal: add `duration_ms` and a public view count to the public video contract. |
+| Profile photos (M-013, M-038, M-039, M-079, creator rows) | No photo endpoint; photo moderation policy pending. | Initial avatar. |
+| Studio and creator analytics (M-037 chart, M-058 to M-060) | No analytics endpoint. | Not shown. |
+| Explore curated hero, Fresh perspectives, Creator spotlight (M-019) | No curation endpoint. | Search, chips and rows only. |
+| Recent searches, suggestions (M-021) | Nothing stores them; they would be personal data. | A one-line hint. Proposal: device-local history with a Clear control, subject to privacy review. |
+| Six-box verification code (M-006) | The emailed code is a long token, not six digits. | One masked field. |
+| Following feed side rail: avatar, like count, `@handle` line, progress bar (M-018, M-024) | Data exists (creator lookup, like state) but the rail is not built. | Text controls under the title. Buildable without new endpoints. |
+
 ### Verification run — 19 November 2026
 
 | Check | Result |

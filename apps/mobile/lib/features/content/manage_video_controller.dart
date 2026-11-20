@@ -72,13 +72,15 @@ class ManageVideoController extends ChangeNotifier {
           {String? title,
           String? description,
           String? category,
-          List<String>? tags}) =>
+          List<String>? tags,
+          int? coverTimeMs}) =>
       _run(
           () async => video = await _repository.editDetails(video!,
               title: title,
               description: description,
               category: category,
-              tags: tags),
+              tags: tags,
+              coverTimeMs: coverTimeMs),
           success: 'Details saved.');
 
   Future<bool> delete() => _run(() async {
