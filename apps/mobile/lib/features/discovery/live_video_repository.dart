@@ -31,8 +31,10 @@ class LiveVideo {
       this.posterUrl,
       this.likeCount,
       this.publishedAt,
+      this.durationMs,
       this.tags = const []});
   final String? category;
+  final int? durationMs;
   final Uri? posterUrl;
   final int? likeCount;
   final DateTime? publishedAt;
@@ -59,6 +61,13 @@ class LiveVideo {
         count = data['like_count'],
         tags = data['tags'] ?? [];
     final published = data['published_at'];
+    // The public contract carries an optional duration, in milliseconds or in
+    // whole seconds; neither is invented when absent.
+    final millis = data['duration_ms'], seconds = data['duration_seconds'];
+    if (millis != null && (millis is! int || millis < 1 || millis > 300000) ||
+        seconds != null && (seconds is! int || seconds < 0 || seconds > 300)) {
+      throw const FormatException('Invalid video duration');
+    }
     if (category != null && !videoCategories.contains(category) ||
         count != null && (count is! int || count < 0) ||
         tags is! List ||
@@ -75,6 +84,8 @@ class LiveVideo {
         category: category as String?,
         posterUrl: mediaPoster(data['poster_url']),
         likeCount: count as int?,
+        durationMs: millis as int? ??
+            (seconds == null ? null : (seconds as int) * 1000),
         tags: tags.cast<String>(),
         publishedAt:
             published == null ? null : DateTime.parse(published as String));
@@ -196,4 +207,11 @@ class LiveVideoRepository {
     if (video.id != id) throw const FormatException('Mismatched video');
     return video;
   }
+}
+
+/// `03:12` style duration, or null when the service did not supply one.
+String? formatDuration(int? milliseconds) {
+  if (milliseconds == null || milliseconds <= 0) return null;
+  final total = (milliseconds / 1000).round();
+  return '${(total ~/ 60).toString().padLeft(2, '0')}:${(total % 60).toString().padLeft(2, '0')}';
 }

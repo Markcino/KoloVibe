@@ -62,7 +62,16 @@ class _LiveCreatorScreenState extends State<LiveCreatorScreen> {
       final result = await widget.account!.authenticatedRequest(
           '/creators/${widget.id}/follow',
           method: before ? 'DELETE' : 'PUT');
-      if (mounted) acceptFollow(result, expected: !before);
+      if (mounted) {
+        acceptFollow(result, expected: !before);
+        if (!before) {
+          final shown = profile == null || profile!.displayName.isEmpty
+              ? '@${profile?.handle ?? ''}'
+              : profile!.displayName;
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('You’re now following $shown')));
+        }
+      }
     } catch (failure) {
       if (mounted) {
         following = before;
@@ -176,43 +185,95 @@ class _LiveCreatorScreenState extends State<LiveCreatorScreen> {
                         style: KoloVibeText.body(14, height: 1.5)),
                   ],
                   const SizedBox(height: 16),
-                  Row(children: [
+                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Expanded(
-                        child: KoloNote(
-                            title: followerCount == null
-                                ? 'Followers unavailable'
-                                : '$followerCount followers',
-                            message: 'Community',
-                            icon: Icons.people_outline)),
-                    const SizedBox(width: 8),
+                        child: _Metric(
+                            label: 'Followers',
+                            value: followerCount,
+                            unavailable: 'Unavailable')),
+                    const SizedBox(width: 12),
                     Expanded(
-                        child: KoloNote(
-                            title: creator.publishedVideoCount == null
-                                ? 'Published count unavailable'
-                                : '${creator.publishedVideoCount} published videos',
-                            message: 'Originals',
-                            icon: Icons.video_library_outlined)),
+                        child: _Metric(
+                            label: 'Published videos',
+                            value: creator.publishedVideoCount,
+                            unavailable: 'Unavailable')),
                   ]),
+                  const SizedBox(height: 16),
                   if (followFailure != null && !signInRejected)
                     SystemFailureView(
                         error: followFailure!,
                         onRetry: load,
                         onSignIn: () => go(4)),
-                  FilledButton(
-                      onPressed: updatingFollow
-                          ? null
-                          : following == null &&
-                                  widget.account != null &&
-                                  !signInRejected
-                              ? load
-                              : toggleFollow,
-                      child: Text(following == true ? 'Unfollow' : 'Follow')),
+                  if (following == true)
+                    FilledButton.icon(
+                        onPressed: updatingFollow ? null : toggleFollow,
+                        style: FilledButton.styleFrom(
+                            backgroundColor: KoloVibeColors.softBlue,
+                            foregroundColor: KoloVibeColors.navy),
+                        icon: const Icon(Icons.check, size: 18),
+                        label: const Text('Following'))
+                  else
+                    FilledButton(
+                        onPressed: updatingFollow
+                            ? null
+                            : following == null &&
+                                    widget.account != null &&
+                                    !signInRejected
+                                ? load
+                                : toggleFollow,
+                        child: Text('Follow ${_firstName(name)}')),
+                  if (following == true) ...[
+                    const SizedBox(height: 16),
+                    KoloNote(
+                        title: 'You’re connected',
+                        message:
+                            '${_firstName(name)}’s new videos can appear in your Following feed. Tap Following again to unfollow.',
+                        asset: KoloIcons.circleCheck,
+                        tone: KoloNoteTone.success),
+                  ],
                   const SizedBox(height: 12),
                   OutlinedButton(
                       onPressed: () => go(27),
-                      child: const Text('Published videos')),
+                      child: const Text('See all videos')),
                 ]);
           },
         )),
+      );
+}
+
+String _firstName(String name) {
+  final first = name.trim().split(RegExp(r'\s+')).first;
+  return first.isEmpty ? 'creator' : first;
+}
+
+/// Large numeral with a small caption, as drawn on the creator profile.
+/// Counts of 1,000 or more are abbreviated (2.8K) like the design.
+class _Metric extends StatelessWidget {
+  const _Metric(
+      {required this.label, required this.value, required this.unavailable});
+  final String label, unavailable;
+  final int? value;
+
+  static String compact(int value) {
+    if (value < 1000) return '$value';
+    if (value < 1000000) {
+      final k = value / 1000;
+      return '${k.toStringAsFixed(k >= 10 ? 0 : 1).replaceFirst(RegExp(r'\.0$'), '')}K';
+    }
+    final m = value / 1000000;
+    return '${m.toStringAsFixed(m >= 10 ? 0 : 1).replaceFirst(RegExp(r'\.0$'), '')}M';
+  }
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        container: true,
+        label: value == null ? '$label $unavailable' : '$label $value',
+        excludeSemantics: true,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label, style: KoloVibeText.body(11)),
+          const SizedBox(height: 5),
+          Text(value == null ? '—' : compact(value!),
+              style: KoloVibeText.heading(26)),
+        ]),
       );
 }

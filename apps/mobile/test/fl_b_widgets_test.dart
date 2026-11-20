@@ -230,6 +230,10 @@ void main() {
   }
   testWidgets('paging retains records after outage and retries the same cursor',
       (tester) async {
+    // A tall surface keeps the hero card and the retry control on screen.
+    tester.view.physicalSize = const Size(800, 3200);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
     var fail = true;
     final calls = <String?>[];
     final fixture = CatalogFixture((q) async {
@@ -306,15 +310,15 @@ void main() {
         id: accountId, repository: profile, account: fixture.account)));
     await settle(tester);
     expect(find.text('@mark · Monrovia'), findsOneWidget);
-    expect(find.text('2 published videos'), findsOneWidget);
-    await tap(tester, 'Follow');
-    expect(find.text('Unfollow'), findsOneWidget);
-    expect(find.text('8 followers'), findsOneWidget);
+    expect(find.bySemanticsLabel('Published videos 2'), findsOneWidget);
+    await tap(tester, 'Follow Mark');
+    expect(find.text('Following'), findsOneWidget);
+    expect(find.bySemanticsLabel('Followers 8'), findsOneWidget);
     pending.complete(jsonResponse({}, 503));
     await settle(tester);
-    expect(find.text('Follow'), findsOneWidget);
-    expect(find.text('7 followers'), findsOneWidget);
-    await tap(tester, 'Published videos');
+    expect(find.text('Follow Mark'), findsOneWidget);
+    expect(find.bySemanticsLabel('Followers 7'), findsOneWidget);
+    await tap(tester, 'See all videos');
     expect(find.text('Destination /mobile/M-027'), findsOneWidget);
     expect(find.byKey(const ValueKey(accountId)), findsOneWidget);
   });
@@ -337,8 +341,17 @@ void main() {
         device: device)));
     await settle(tester);
     await tap(tester, 'Share');
+    // The recorded share opens the designed sheet; nothing is shared until the
+    // person chooses a destination.
+    expect(find.text('Share original stories'), findsOneWidget);
+    expect(device.shared, isEmpty);
+    await tap(tester, 'Share link using a device app');
     expect(device.shared, ['https://web.example.test/videos/$videoId']);
     expect(device.urls, isEmpty);
+    await tap(tester, 'Share');
+    await tap(tester, 'Copy public link');
+    expect(find.text('Public link copied'), findsOneWidget);
+    expect(device.shared.length, 1);
     await tap(tester, 'View creator');
     expect(find.text('Destination /mobile/M-026'), findsOneWidget);
     expect(find.byKey(const ValueKey(accountId)), findsOneWidget);
@@ -424,13 +437,13 @@ void main() {
             action == 'like'
                 ? 'Like'
                 : action == 'follow'
-                    ? 'Follow'
+                    ? 'Follow Mark'
                     : 'Share');
         if (status == 401) {
           expect(find.text('Destination /mobile/M-004'), findsOneWidget);
         } else if (action == 'follow') {
-          expect(find.text('Follow'), findsOneWidget);
-          expect(find.text('7 followers'), findsOneWidget);
+          expect(find.text('Follow Mark'), findsOneWidget);
+          expect(find.bySemanticsLabel('Followers 7'), findsOneWidget);
         } else if (action == 'like') {
           expect(find.text('Like'), findsOneWidget);
           expect(find.text('12 likes'), findsOneWidget);
@@ -460,7 +473,7 @@ void main() {
       await settle(tester);
       expect(find.text('@mark · Monrovia'), findsOneWidget);
       if (status == 401) {
-        await tap(tester, 'Follow');
+        await tap(tester, 'Follow Mark');
         expect(find.text('Destination /mobile/M-004'), findsOneWidget);
       } else {
         final id = {

@@ -703,6 +703,20 @@ abstract final class KoloIcons {
   static const info = 'assets/images/d8eedea853f449ea1543.svg';
   static const loader = 'assets/images/ca4c1bcc5542a3416b63.svg';
   static const emblem = 'assets/images/88dfdf7ffa8d70c62080.svg';
+  static const videoOff = 'assets/images/f523f033e54d4ea7bfa8.svg';
+  static const shieldAlert = 'assets/images/a6231cbc39941a194e8d.svg';
+  static const wifiOff = 'assets/images/f175639d9525b14b3858.svg';
+  static const cloudOff = 'assets/images/cf55c6bf1c919f5c36b1.svg';
+  static const searchX = 'assets/images/3688066412462a9cc404.svg';
+  static const triangleAlert = 'assets/images/e8e8a03ba6dd35fbf97e.svg';
+  static const lockKeyhole = 'assets/images/a31a69c3cef5c90d08b2.svg';
+  static const shieldBan = 'assets/images/d4291633db8d1b507d90.svg';
+  static const clipboardCheck = 'assets/images/fd18c882d12a2a9d4106.svg';
+  static const badgeCheck = 'assets/images/ef06f9af14bb3097c9ec.svg';
+  static const clock3 = 'assets/images/cf3ec46737707b4fdc9a.svg';
+  static const rotateCcw = 'assets/images/e86250b3ab559a10656f.svg';
+  static const userRoundX = 'assets/images/e2e09b68a17805674b06.svg';
+  static const circleHelp = 'assets/images/66f784e9986a4b86faf3.svg';
 }
 
 /// Rounded soft-blue "State emblem" (80 pt, 24 pt radius) holding a Figma icon,

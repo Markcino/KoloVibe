@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kolovibe/app/app_dependencies.dart';
 import 'package:kolovibe/app/app_session.dart';
 import 'package:kolovibe/app/screen_route.dart';
 import 'package:kolovibe/features/shell/mobile_screen.dart';
+import 'package:kolovibe/shared/widgets/kolo_media.dart'
+    show posterProviderOverride;
 import 'package:kolovibe/core/network/api_client.dart';
 import 'package:kolovibe/core/presentation/design_node.dart';
 import 'package:kolovibe/core/theme/kolovibe_theme.dart';
@@ -39,7 +43,7 @@ import 'package:kolovibe/features/moderation/live_standing_screen.dart';
 import 'package:kolovibe/features/points/live_points_screen.dart';
 import 'package:kolovibe/features/points/live_points_repository.dart';
 import 'fl_a_support.dart' hide accountId;
-import 'fl_b_repositories_test.dart' show videoJson, creatorJson;
+import 'fl_b_repositories_test.dart' show videoJson, creatorJson, playbackJson;
 import 'fl_b_widgets_test.dart' show FakePlayer;
 import 'support/creator_fakes.dart';
 import 'support/points_fakes.dart';
@@ -58,7 +62,17 @@ void main() {
   setUpAll(() async {
     catalog = await DesignCatalog.load();
     await loadBrandFonts();
+    const artwork = [
+      'cf4e0afe1785eddefaf3',
+      'cf426f68e5d77930975f',
+      'bc602f519501034df0ce',
+      '7946319d1619bf9cc1db',
+      '87dff3b6e061e594f8c0',
+    ];
+    posterProviderOverride = (url) => AssetImage(
+        'assets/images/${artwork[int.parse(url.pathSegments.last) % artwork.length]}.png');
   });
+  tearDownAll(() => posterProviderOverride = null);
 
   final shot = GlobalKey();
   final navigator = GlobalKey<NavigatorState>();
@@ -324,7 +338,7 @@ void main() {
   audit('M-104', 104, () => MediaPermissionScreen(device: TestDevice()));
 
   // Discovery.
-  for (final id in [18, 19, 20, 21, 22, 23, 27]) {
+  for (final id in [19, 20, 21, 22, 27]) {
     audit(
         'M-${id.toString().padLeft(3, '0')}',
         id,
@@ -337,6 +351,54 @@ void main() {
             creatorId: id == 27 ? creatorId : null,
             initialQuery: id == 22 ? 'Waterside' : null));
   }
+  // M-023 is the category sheet opened from the search results, as designed.
+  audit(
+      'M-023',
+      23,
+      () => DiscoveryCatalogScreen(
+          screen: 22,
+          repository: videos,
+          catalog: catalog,
+          account: signedIn().account,
+          creators: creators,
+          initialQuery: 'Waterside'), after: (tester) async {
+    await tester.tap(find.byTooltip('Filters'));
+    await settleAsync(tester);
+  });
+  audit(
+      'M-023-page',
+      23,
+      () => DiscoveryCatalogScreen(
+          screen: 23,
+          repository: videos,
+          catalog: catalog,
+          account: signedIn().account,
+          creators: creators));
+  audit(
+      'M-020-fresh',
+      20,
+      () => DiscoveryCatalogScreen(
+          screen: 20,
+          repository: videos,
+          catalog: catalog,
+          account: signedIn().account,
+          creators: creators), after: (tester) async {
+    await tester.tap(find.text('Fresh picks'));
+    await settleAsync(tester);
+  });
+  audit(
+      'M-022-creators',
+      22,
+      () => DiscoveryCatalogScreen(
+          screen: 22,
+          repository: videos,
+          catalog: catalog,
+          account: signedIn().account,
+          creators: creators,
+          initialQuery: 'Waterside'), after: (tester) async {
+    await tester.tap(find.text('Creators').first);
+    await settleAsync(tester);
+  });
   // The vertical feeds, rendered with an in-memory player (no platform view).
   for (final following in [false, true]) {
     audit(
@@ -348,18 +410,114 @@ void main() {
             following: following,
             catalog: catalog,
             account: following ? signedIn().account : null,
+            creators: creators,
             playerFactory: (_) => FakePlayer()));
   }
+  // Player states, reached through the real player controller and fixtures.
+  final firstId = videos.items.first.id;
+  AccountFixture likesAndShares() => AccountFixture(handler: (request) async {
+        if (request.url.path.endsWith('/shares')) {
+          return jsonResponse({
+            'video_id': firstId,
+            'share_url': 'https://web.example.test/videos/$firstId'
+          });
+        }
+        if (request.url.path.endsWith('/watch-sessions')) {
+          return jsonResponse({
+            'session_id': receiptId,
+            'session_expires_at': proofData['expires_at'],
+            'playback_url': playbackJson()['playback_url'],
+            'playback_expires_at': playbackJson()['expires_at']
+          });
+        }
+        if (request.url.path.endsWith('/like')) {
+          final liked = request.method == 'PUT';
+          return jsonResponse({
+            'video_id': firstId,
+            'liked': liked,
+            'like_count': 1240 + (liked ? 1 : 0)
+          });
+        }
+        return jsonResponse({});
+      });
+  Widget playerScreen({FakePlayer? player, AccountFixture? fixture}) =>
+      VerticalVideoFeed(
+          repository: videos,
+          device: TestDevice(),
+          catalog: catalog,
+          account: fixture?.account,
+          engagement: fixture == null
+              ? null
+              : LiveVideoEngagementRepository(fixture.account),
+          creators: creators,
+          playerFactory: (_) => player ?? FakePlayer());
+  audit('M-029', 29, () => playerScreen(fixture: likesAndShares()),
+      after: (tester) async {
+    await tester.tap(find.byTooltip('Like'));
+    await settleBounded(tester);
+  });
+  audit('M-030', 30, () => playerScreen(fixture: likesAndShares()),
+      after: (tester) async {
+    await tester.tap(find.byTooltip('Share'));
+    await settleBounded(tester);
+  });
+  final stalled = <FakePlayer>[];
+  FakePlayer pendingPlayer() {
+    final player = FakePlayer()..pending = Completer<void>();
+    stalled.add(player);
+    return player;
+  }
+
+  Future<void> release(WidgetTester tester) async {
+    for (final player in stalled) {
+      if (!(player.pending?.isCompleted ?? true)) player.pending!.complete();
+    }
+    stalled.clear();
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 6));
+  }
+
+  audit('M-032', 32, () => playerScreen(player: pendingPlayer()),
+      bounded: true, finish: release);
+  audit('M-034', 34, () => playerScreen(player: pendingPlayer()),
+      bounded: true,
+      after: (tester) async => tester.pump(const Duration(seconds: 6)),
+      finish: release);
+  audit('M-033', 33, () => playerScreen(player: FakePlayer()..fail = true),
+      after: (tester) async => settleBounded(tester));
   audit(
       'M-025',
       25,
-      () =>
-          LiveVideoDetailScreen(id: videos.items.first.id, repository: videos));
+      () => LiveVideoDetailScreen(
+          id: videos.items.first.id, repository: videos, creators: creators));
   audit(
       'M-026',
       26,
       () => LiveCreatorScreen(
           id: creatorId, repository: creators, account: signedIn().account));
+  // M-028: the creator page after a confirmed follow (PUT), with the designed
+  // "You're connected" note and the confirmation toast.
+  audit(
+      'M-028',
+      28,
+      () => LiveCreatorScreen(
+          id: creatorId,
+          repository: creators,
+          account: AccountFixture(handler: (request) async {
+            if (request.url.path.endsWith('/follow')) {
+              return jsonResponse({
+                'creator_id': creatorId,
+                'following': request.method == 'PUT',
+                'follower_count': request.method == 'PUT' ? 2801 : 2800
+              });
+            }
+            return jsonResponse({});
+          }).account),
+      after: (tester) async {
+        await tapLabel(tester, 'Follow Ama');
+        await tester.pump(const Duration(milliseconds: 300));
+      },
+      finish: (tester) async => tester.pump(const Duration(seconds: 5)));
   audit(
       'M-031',
       31,
@@ -518,22 +676,28 @@ class _AuditVideos extends LiveVideoRepository {
   _AuditVideos({this.failure})
       : super(ApiClient('https://api.example.test/api/v1'));
   final Object? failure;
+  // Fixture data for the audit only; posters are local design artwork served
+  // through `posterProviderOverride`, never through the network.
   final items = [
-    LiveVideo.fromJson({
-      ...videoJson(),
-      'creator_id': creatorId,
-      'title': 'Waterside at dawn',
-      'description': 'A city waking up on the river.',
-      'category': 'short_films',
-      'like_count': 1240,
-    }),
-    LiveVideo.fromJson({
-      ...videoJson('00000000-0000-4000-8000-000000000004'),
-      'creator_id': creatorId,
-      'title': 'City lights, fresh bars',
-      'category': 'hipco',
-      'like_count': 86,
-    }),
+    for (final (index, title, category, likes, seconds) in [
+      (0, 'Waterside at dawn', 'short_films', 1240, 258),
+      (1, 'City lights, fresh bars', 'hipco', 86, 118),
+      (2, 'Walls that speak', 'culture', 826, 166),
+      (3, 'The rhythm of home', 'documentaries', 412, 192),
+      (4, 'Inside the session', 'afrobeats', 260, 118),
+    ])
+      LiveVideo.fromJson({
+        ...videoJson(index == 0
+            ? '00000000-0000-4000-8000-000000000003'
+            : '00000000-0000-4000-8000-00000000001$index'),
+        'creator_id': creatorId,
+        'title': title,
+        'description': 'A city waking up on the river.',
+        'category': category,
+        'like_count': likes,
+        'duration_seconds': seconds,
+        'poster_url': 'https://media.example.test/poster/$index',
+      }),
   ];
   @override
   Future<LiveVideoPage> filteredPage(

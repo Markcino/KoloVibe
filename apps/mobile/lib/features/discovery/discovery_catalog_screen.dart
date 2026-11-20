@@ -20,6 +20,8 @@ void discoveryNavigate(BuildContext context, int screen, [String? id]) {
 
 String videoMeta(LiveVideo video) => [
       if (video.category != null) categoryLabel(video.category!),
+      if (formatDuration(video.durationMs) != null)
+        formatDuration(video.durationMs)!,
       if (video.likeCount != null)
         '${video.likeCount} ${video.likeCount == 1 ? 'like' : 'likes'}',
     ].join(' · ');
@@ -67,6 +69,11 @@ class _DiscoveryCatalogState extends State<DiscoveryCatalogScreen> {
   final creatorItems = <LiveCreator>[];
   String? cursor, creatorCursor, category, query;
   bool busy = false, searched = false, retryCreators = false;
+  // M-020: false = Trending, true = Fresh picks. M-027: false = Latest, true =
+  // Trending. M-022: 0 all results, 1 videos, 2 creators.
+  bool alternate = false;
+  int resultFilter = 0;
+  LiveCreator? spotlight, profile;
   Object? error;
   int generation = 0;
   @override
@@ -77,6 +84,35 @@ class _DiscoveryCatalogState extends State<DiscoveryCatalogScreen> {
     search.text = query ?? '';
     searched = query != null;
     if (!{17, 21, 23}.contains(widget.screen)) load(reset: true);
+    if (widget.screen == 27 &&
+        widget.creatorId != null &&
+        widget.creators != null) {
+      _loadProfile();
+    }
+  }
+
+  Future<void> _loadProfile() async {
+    try {
+      final value = await widget.creators!.detail(widget.creatorId!);
+      if (mounted) setState(() => profile = value);
+    } catch (_) {
+      // The header is optional; the list stays usable without it.
+    }
+  }
+
+  /// The creator of the first result, shown as the spotlight on Explore.
+  Future<void> _loadSpotlight() async {
+    if (widget.screen != 19 || widget.creators == null || items.isEmpty) return;
+    final creatorId = items.first.creatorId;
+    if (spotlight?.id == creatorId) return;
+    try {
+      final value = await widget.creators!.detail(creatorId);
+      if (mounted && items.isNotEmpty && items.first.creatorId == creatorId) {
+        setState(() => spotlight = value);
+      }
+    } catch (_) {
+      if (mounted) setState(() => spotlight = null);
+    }
   }
 
   @override
@@ -113,7 +149,11 @@ class _DiscoveryCatalogState extends State<DiscoveryCatalogScreen> {
                 creatorId: widget.creatorId,
                 query: query,
                 category: category,
-                sort: widget.screen == 20 ? 'trending' : 'recent');
+                sort: switch (widget.screen) {
+                  20 => alternate ? 'recent' : 'trending',
+                  27 => alternate ? 'trending' : 'recent',
+                  _ => 'recent',
+                });
         if (!mounted || token != generation) return;
         final seen = items.map((e) => e.id).toSet();
         if (page.items.any((e) => seen.contains(e.id))) {
@@ -140,6 +180,7 @@ class _DiscoveryCatalogState extends State<DiscoveryCatalogScreen> {
     } finally {
       if (mounted && token == generation) setState(() => busy = false);
     }
+    if (mounted && token == generation && error == null) _loadSpotlight();
   }
 
   Future<void> filters() async {
@@ -269,8 +310,125 @@ class _DiscoveryCatalogState extends State<DiscoveryCatalogScreen> {
             }
           }));
 
+  Widget _chipRow(List<(String, bool, VoidCallback?)> chips) =>
+      Wrap(spacing: 8, runSpacing: 4, children: [
+        for (final (label, selected, onTap) in chips)
+          ChoiceChip(
+              label: Text(label),
+              labelStyle: KoloVibeText.body(12,
+                  weight: FontWeight.w600,
+                  color: selected ? Colors.white : KoloVibeColors.navy),
+              selected: selected,
+              onSelected: onTap == null ? null : (_) => onTap()),
+      ]);
+
+  List<Widget> _categoryChips() => [
+        _chipRow([
+          for (final value in <String?>[null, ...videoCategories])
+            (
+              value == null ? 'All' : categoryLabel(value),
+              category == value,
+              busy
+                  ? null
+                  : () {
+                      category = value;
+                      load(reset: true);
+                    }
+            )
+        ]),
+        const SizedBox(height: 12),
+      ];
+
+  Widget _grid(List<LiveVideo> videos, {double posterHeight = 92}) =>
+      Column(children: [
+        for (var i = 0; i < videos.length; i += 2)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Expanded(
+                  child: KoloVideoCard(
+                      video: videos[i],
+                      meta: videoMeta(videos[i]),
+                      posterHeight: posterHeight,
+                      titleSize: posterHeight > 100 ? 13 : 12,
+                      onTap: () =>
+                          discoveryNavigate(context, 25, videos[i].id))),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: i + 1 < videos.length
+                      ? KoloVideoCard(
+                          video: videos[i + 1],
+                          meta: videoMeta(videos[i + 1]),
+                          posterHeight: posterHeight,
+                          titleSize: posterHeight > 100 ? 13 : 12,
+                          onTap: () =>
+                              discoveryNavigate(context, 25, videos[i + 1].id))
+                      : const SizedBox()),
+            ]),
+          ),
+      ]);
+
+  Widget _creatorRow(LiveCreator creator,
+          {String? actionLabel, bool bio = false}) =>
+      Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: KoloCreatorRow(
+              creator: creator,
+              showBio: bio,
+              actionLabel: actionLabel,
+              onFollow: actionLabel == null
+                  ? null
+                  : () => discoveryNavigate(context, 26, creator.id),
+              onOpen: () => discoveryNavigate(context, 26, creator.id)));
+
+  /// Explore (M-019): the latest originals from the service. The hero is the
+  /// newest original, "Fresh perspectives" the next two and the creator
+  /// spotlight its creator. Nothing is curated by hand: the design's
+  /// "Curated collection" label is replaced by "Latest original".
+  List<Widget> _exploreSections() {
+    if (items.isEmpty) return const [];
+    final hero = items.first;
+    final fresh = items.skip(1).take(2).toList();
+    final rest = items.skip(3).toList();
+    return [
+      KoloHeroCard(
+          video: hero,
+          eyebrow: 'LATEST ORIGINAL',
+          minHeight: 144,
+          meta: videoMeta(hero),
+          onTap: () => discoveryNavigate(context, 25, hero.id)),
+      if (fresh.isNotEmpty) ...[
+        const SizedBox(height: 16),
+        KoloSectionHeading(
+            title: 'Fresh perspectives',
+            actionLabel: 'View all',
+            onAction: () => discoveryNavigate(context, 20)),
+        const SizedBox(height: 12),
+        _grid(fresh),
+      ],
+      if (spotlight != null) ...[
+        const SizedBox(height: 4),
+        Text('CREATOR SPOTLIGHT',
+            style: KoloVibeText.body(11,
+                weight: FontWeight.w600,
+                color: KoloVibeColors.red,
+                letterSpacing: 0.4)),
+        const SizedBox(height: 12),
+        _creatorRow(spotlight!, actionLabel: 'View'),
+      ],
+      if (rest.isNotEmpty) ...[
+        const SizedBox(height: 8),
+        const KoloSectionHeading(title: 'More originals'),
+        const SizedBox(height: 12),
+        ...rest.map((v) => videoTile(context, v)),
+      ],
+    ];
+  }
+
   Widget _body(BuildContext context) {
     final searchy = {19, 21, 22, 23}.contains(widget.screen);
+    final showVideos = widget.screen != 22 || resultFilter != 2;
+    final showCreators = widget.screen != 22 || resultFilter != 1;
     return ListView(
         padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -284,47 +442,85 @@ class _DiscoveryCatalogState extends State<DiscoveryCatalogScreen> {
             const SizedBox(height: 8),
             const KoloHeadline('Big stories.\nLocal energy.', size: 32),
             const SizedBox(height: 16),
+            _chipRow([
+              ('Trending', !alternate, busy ? null : () => _switch(false)),
+              ('Fresh picks', alternate, busy ? null : () => _switch(true)),
+            ]),
+            const SizedBox(height: 16),
+          ],
+          if (widget.screen == 27) ...[
+            if (profile != null)
+              _creatorRow(profile!, actionLabel: 'Profile')
+            else
+              const SizedBox(height: 4),
+            _chipRow([
+              ('Latest', !alternate, busy ? null : () => _switch(false)),
+              ('Trending', alternate, busy ? null : () => _switch(true)),
+            ]),
+            const SizedBox(height: 12),
+            if (profile?.publishedVideoCount != null)
+              Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Text(
+                      '${profile!.publishedVideoCount} published ${profile!.publishedVideoCount == 1 ? 'original' : 'originals'}',
+                      style: KoloVibeText.body(12))),
           ],
           if (searchy) _search(context),
           if (widget.screen == 19) ...[
-            Wrap(spacing: 8, runSpacing: 4, children: [
-              for (final value in <String?>[null, ...videoCategories])
-                ChoiceChip(
-                    label: Text(value == null ? 'All' : categoryLabel(value)),
-                    labelStyle: KoloVibeText.body(12,
-                        weight: FontWeight.w600,
-                        color: category == value
-                            ? Colors.white
-                            : KoloVibeColors.navy),
-                    selected: category == value,
-                    onSelected: busy
-                        ? null
-                        : (_) {
-                            category = value;
-                            load(reset: true);
-                          })
+            ..._categoryChips(),
+            ..._exploreSections(),
+          ],
+          if (widget.screen == 22 &&
+              (items.isNotEmpty || creatorItems.isNotEmpty)) ...[
+            _chipRow([
+              (
+                'All results',
+                resultFilter == 0,
+                () => setState(() => resultFilter = 0)
+              ),
+              (
+                'Videos',
+                resultFilter == 1,
+                () => setState(() => resultFilter = 1)
+              ),
+              (
+                'Creators',
+                resultFilter == 2,
+                () => setState(() => resultFilter = 2)
+              ),
             ]),
             const SizedBox(height: 12),
+            if (query != null)
+              Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Text('Results for “$query”',
+                      style: KoloVibeText.body(12))),
           ],
-          if (items.isNotEmpty && widget.screen == 22)
+          if (items.isNotEmpty && widget.screen == 22 && showVideos)
             KoloSectionHeading(
                 title: 'Videos',
                 actionLabel: busy ? null : 'Filters',
                 onAction: filters),
-          if (items.isNotEmpty && widget.screen == 22)
+          if (items.isNotEmpty && widget.screen == 22 && showVideos)
             const SizedBox(height: 12),
-          ...items.map((v) => videoTile(context, v)),
-          if (creatorItems.isNotEmpty) ...[
+          if (widget.screen == 20 && items.isNotEmpty) ...[
+            KoloHeroCard(
+                video: items.first,
+                eyebrow: alternate ? 'FRESH PICK' : 'TRENDING ORIGINAL',
+                meta: videoMeta(items.first),
+                onTap: () => discoveryNavigate(context, 25, items.first.id)),
+            const SizedBox(height: 16),
+            ...items.skip(1).map((v) => videoTile(context, v)),
+          ] else if (widget.screen == 27) ...[
+            _grid(items, posterHeight: 135),
+          ] else if (widget.screen != 19 && showVideos)
+            ...items.map((v) => videoTile(context, v)),
+          if (creatorItems.isNotEmpty && showCreators) ...[
             const SizedBox(height: 8),
             const KoloSectionHeading(title: 'Creators'),
             const SizedBox(height: 12),
             for (final creator in creatorItems)
-              Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: KoloCreatorRow(
-                      creator: creator,
-                      onOpen: () =>
-                          discoveryNavigate(context, 26, creator.id))),
+              _creatorRow(creator, bio: widget.screen == 22),
           ],
           if (busy) const SystemLoading(),
           if (error != null)
@@ -339,13 +535,21 @@ class _DiscoveryCatalogState extends State<DiscoveryCatalogScreen> {
               !searched &&
               {21, 23}.contains(widget.screen) &&
               items.isEmpty &&
-              creatorItems.isEmpty)
+              creatorItems.isEmpty) ...[
             Padding(
-                padding: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.only(top: 8, bottom: 16),
                 child: Text(
                     'Find original videos and the creators behind them.',
-                    style: KoloVibeText.body(14, height: 1.5)))
-          else if (!busy &&
+                    style: KoloVibeText.body(14, height: 1.5))),
+            if (widget.screen == 21) ...[
+              const KoloSectionHeading(title: 'Browse categories'),
+              const SizedBox(height: 12),
+              _chipRow([
+                for (final value in videoCategories)
+                  (categoryLabel(value), false, () => openCategory(value)),
+              ]),
+            ],
+          ] else if (!busy &&
               error == null &&
               items.isEmpty &&
               creatorItems.isEmpty)
@@ -376,6 +580,12 @@ class _DiscoveryCatalogState extends State<DiscoveryCatalogScreen> {
                 child: FilledButton(
                     onPressed: filters, child: const Text('Choose category'))),
         ]);
+  }
+
+  void _switch(bool value) {
+    if (alternate == value) return;
+    alternate = value;
+    load(reset: true);
   }
 
   Widget _catalogScaffold(BuildContext context) {

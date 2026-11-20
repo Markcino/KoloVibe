@@ -10,6 +10,7 @@ import '../../core/network/api_client.dart';
 import '../../core/theme/kolovibe_theme.dart';
 import '../engagement/live_video_engagement_repository.dart';
 import '../system/system_ui.dart';
+import '../creators/live_creator_repository.dart';
 import 'live_video_repository.dart';
 import 'live_video_screen.dart';
 
@@ -25,6 +26,7 @@ class VerticalVideoFeed extends StatefulWidget {
       this.following = false,
       this.catalog,
       this.onNavigate,
+      this.creators,
       this.playerFactory});
   final LiveVideoRepository repository;
   final LiveVideoEngagementRepository? engagement;
@@ -41,6 +43,9 @@ class VerticalVideoFeed extends StatefulWidget {
   /// Tab and search navigation; [screen] is a design number.
   final void Function(int screen)? onNavigate;
   final VideoPlayerController Function(Uri)? playerFactory;
+
+  /// Resolves the creator handle shown in the caption (`GET /creators/{id}`).
+  final LiveCreatorRepository? creators;
   @override
   State<VerticalVideoFeed> createState() => _VerticalVideoFeedState();
 }
@@ -209,6 +214,7 @@ class _VerticalVideoFeedState extends State<VerticalVideoFeed> {
                               id: items[index].id,
                               repository: widget.repository,
                               engagement: widget.engagement,
+                              creators: widget.creators,
                               fullScreen: true,
                               playerFactory: widget.playerFactory,
                               device: widget.device);

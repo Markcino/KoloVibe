@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:video_player/video_player.dart';
 import '../../app/screen_route.dart';
@@ -237,12 +238,14 @@ class LiveVideoDetailScreen extends StatefulWidget {
       required this.id,
       required this.repository,
       this.engagement,
+      this.creators,
       this.fullScreen = false,
       this.playerFactory,
       this.device = const PlatformDeviceBridge()});
   final String id;
   final LiveVideoRepository repository;
   final LiveVideoEngagementRepository? engagement;
+  final LiveCreatorRepository? creators;
   final DeviceBridge device;
   final bool fullScreen;
   final VideoPlayerController Function(Uri)? playerFactory;
@@ -254,6 +257,7 @@ class LiveVideoDetailScreen extends StatefulWidget {
 class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
     with WidgetsBindingObserver {
   LiveVideo? item;
+  LiveCreator? creator;
   Object? error;
   bool loading = true;
   LiveVideoEngagementController? engagementController;
@@ -261,6 +265,8 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
   String? playerError;
   bool? shownPlaying;
   bool buffering = false, slow = false, starting = false, sharing = false;
+  bool likedToast = false;
+  Timer? toastTimer;
   Timer? bufferTimer;
   Object? playbackFailure;
   void navigate(int screen, [String? id]) {
@@ -295,6 +301,13 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
     }
     await controller.toggleLike();
     if (!mounted) return;
+    if (controller.likeFailure == null && controller.liked == true) {
+      toastTimer?.cancel();
+      setState(() => likedToast = true);
+      toastTimer = Timer(const Duration(seconds: 3), () {
+        if (mounted) setState(() => likedToast = false);
+      });
+    }
     final failure = controller.likeFailure;
     if (failure is ApiFailure && failure.status == 401) navigate(4);
   }
@@ -309,10 +322,7 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
     try {
       final url = await widget.engagement!.share(widget.id);
       if (!mounted) return;
-      final opened = await widget.device.share(url.toString());
-      if (!mounted || opened) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Native sharing is not available on this device.')));
+      await _shareSheet(url);
     } catch (failure) {
       if (!mounted) return;
       if (failure is ApiFailure && failure.status == 401) {
@@ -327,6 +337,153 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
     }
   }
 
+  /// M-031 (404) and M-035 (403): the designed state layout. The text states
+  /// only what the service reported; no alternative video is suggested unless
+  /// the service lists one.
+  Widget _unavailable(int status) => SingleChildScrollView(
+      key: ValueKey(status == 403 ? 'M-035' : 'M-031'),
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        KoloMedallion(
+            status == 403 ? KoloIcons.shieldAlert : KoloIcons.videoOff),
+        const SizedBox(height: 24),
+        KoloHeadline(
+            status == 403
+                ? 'This video is\nrestricted.'
+                : 'This story isn’t\navailable right now.',
+            size: 26),
+        const SizedBox(height: 12),
+        Text(
+            status == 403
+                ? 'This content isn’t available to your account under the current account or content rules.'
+                : 'This original is not available for public viewing. It may have been unpublished, removed or made unavailable.',
+            style: KoloVibeText.body(14, height: 1.5)),
+        const SizedBox(height: 16),
+        if (status == 403)
+          const KoloNote(
+              title: 'A safer viewing experience',
+              message:
+                  'We can only show information permitted by the content policy. This restriction cannot be bypassed.',
+              asset: KoloIcons.info),
+        FilledButton(
+            onPressed: () => navigate(19),
+            child: Text(status == 403
+                ? 'Explore other videos'
+                : 'Explore other originals')),
+        const SizedBox(height: 12),
+        if (status == 403)
+          OutlinedButton(
+              onPressed: () => navigate(87),
+              child: const Text('Read community guidelines'))
+        else ...[
+          OutlinedButton(
+              onPressed: () => Navigator.of(context).maybePop(),
+              child: const Text('Go back')),
+          _anotherStory(),
+        ],
+      ]));
+
+  /// "Try another story": the newest public original other than this one, read
+  /// from the service. Shown only when the service returns one.
+  Widget _anotherStory() => FutureBuilder<LiveVideoPage>(
+      future: widget.repository.filteredPage(),
+      builder: (context, snapshot) {
+        final other = snapshot.data?.items
+            .where((video) => video.id != widget.id)
+            .firstOrNull;
+        if (other == null) return const SizedBox.shrink();
+        return Padding(
+            padding: const EdgeInsets.only(top: 24),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const KoloHeadline('Try another story', size: 18),
+              const SizedBox(height: 12),
+              KoloVideoRow(
+                  video: other,
+                  meta: [
+                    if (other.category != null) categoryLabel(other.category!),
+                    if (formatDuration(other.durationMs) != null)
+                      formatDuration(other.durationMs)!,
+                  ].join(' · '),
+                  onTap: () => navigate(25, other.id)),
+            ]));
+      });
+
+  /// M-030: the designed share sheet. The share was already recorded and the
+  /// link is the server's public video URL; the device sheet and the clipboard
+  /// are the only destinations offered.
+  Future<void> _shareSheet(Uri url) async {
+    final title = item?.title ?? 'Original';
+    final choice = await showModalBottomSheet<String>(
+        context: context,
+        routeSettings: RouteSettings(name: const ScreenRoute(30).name),
+        isScrollControlled: true,
+        // The feed is dark; the sheet keeps the light design theme.
+        builder: (sheet) => Theme(
+            data: KoloVibeTheme.light(),
+            child: SafeArea(
+                child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                    child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const KoloHeadline('Share original stories',
+                              size: 24),
+                          const SizedBox(height: 16),
+                          Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius:
+                                      BorderRadius.circular(KoloVibeRadii.tile),
+                                  border:
+                                      Border.all(color: KoloVibeColors.line)),
+                              child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(title,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: KoloVibeText.body(14,
+                                            weight: FontWeight.w600,
+                                            color: KoloVibeColors.navy)),
+                                    const SizedBox(height: 4),
+                                    Text('Public video link',
+                                        style: KoloVibeText.body(12)),
+                                  ])),
+                          const SizedBox(height: 16),
+                          FilledButton(
+                              onPressed: () => Navigator.pop(sheet, 'device'),
+                              child:
+                                  const Text('Share link using a device app')),
+                          const SizedBox(height: 12),
+                          OutlinedButton.icon(
+                              onPressed: () => Navigator.pop(sheet, 'copy'),
+                              icon: const Icon(Icons.copy, size: 18),
+                              label: const Text('Copy public link')),
+                          const SizedBox(height: 12),
+                          Text(
+                              'Device share options vary. Shares a link, not a video download.',
+                              style: KoloVibeText.body(11, height: 1.5)),
+                          TextButton(
+                              onPressed: () => Navigator.pop(sheet),
+                              child: const Text('Cancel')),
+                        ])))));
+    if (!mounted || choice == null) return;
+    if (choice == 'copy') {
+      await Clipboard.setData(ClipboardData(text: url.toString()));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Public link copied')));
+      return;
+    }
+    final opened = await widget.device.share(url.toString());
+    if (!mounted || opened) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Native sharing is not available on this device.')));
+  }
+
   Widget playbackState(Object failure,
       {bool media = false, bool metadata = false}) {
     final status = failure is ApiFailure ? failure.status : null;
@@ -334,31 +491,37 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
       return FilledButton(
           onPressed: () => navigate(4), child: const Text('Sign in to watch'));
     }
-    if (status == 403 || status == 404 || media) {
-      return Column(
-          key: ValueKey(status == 403
-              ? 'M-035'
-              : status == 404
-                  ? 'M-031'
-                  : 'M-033'),
-          children: [
-            Text(status == 403
-                ? 'This video is restricted.'
-                : status == 404
-                    ? 'This original is not available for public viewing.'
-                    : 'Playback paused. We couldn’t load this video.'),
-            if (status != 403 && status != 404)
-              TextButton(
-                  onPressed: _startPlayback,
-                  child: const Text('Retry playback')),
-            TextButton(
-                onPressed: () => navigate(19),
-                child: const Text('Explore other originals')),
-            if (status == 403)
-              TextButton(
-                  onPressed: () => navigate(87),
-                  child: const Text('Read community guidelines')),
-          ]);
+    if (status == 403 || status == 404) {
+      return _unavailable(status!);
+    }
+    if (media) {
+      // M-033: the designed "Playback paused" card.
+      return Container(
+          key: const ValueKey('M-033'),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+              color: KoloVibeColors.navy,
+              borderRadius: BorderRadius.circular(KoloVibeRadii.card)),
+          child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Playback paused',
+                    style: KoloVibeText.heading(22, color: Colors.white)),
+                const SizedBox(height: 8),
+                Text(
+                    'We couldn’t load this video. Check your network and try again.',
+                    style: KoloVibeText.body(13,
+                        color: const Color(0xFFD0D8E8), height: 1.5)),
+                const SizedBox(height: 16),
+                FilledButton(
+                    onPressed: _startPlayback,
+                    child: const Text('Retry playback')),
+                TextButton(
+                    onPressed: () => navigate(19),
+                    style: TextButton.styleFrom(foregroundColor: Colors.white),
+                    child: const Text('Explore other originals')),
+              ]));
     }
     return SystemFailureView(
         error: failure,
@@ -387,6 +550,7 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     bufferTimer?.cancel();
+    toastTimer?.cancel();
     player?.removeListener(_onPlaybackChanged);
     player?.dispose();
     engagementController?.removeListener(_refresh);
@@ -481,6 +645,19 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
     }
   }
 
+  /// The handle is optional chrome: a failed lookup leaves the caption
+  /// without it rather than blocking playback.
+  Future<void> _loadCreator(String id) async {
+    final repository = widget.creators;
+    if (repository == null) return;
+    try {
+      final value = await repository.detail(id);
+      if (mounted) setState(() => creator = value);
+    } catch (_) {
+      // No handle is shown.
+    }
+  }
+
   Future<void> load() async {
     setState(() {
       loading = true;
@@ -491,6 +668,7 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
       if (mounted) {
         setState(() => item = value);
         if (widget.fullScreen) _startPlayback();
+        _loadCreator(value.creatorId);
       }
     } on ApiFailure catch (failure) {
       if (mounted) setState(() => error = failure);
@@ -513,7 +691,8 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
                     aspectRatio: current.value.aspectRatio,
                     child: VideoPlayer(current)))
           else if (video.posterUrl != null)
-            Image.network(video.posterUrl.toString(),
+            Image(
+                image: posterProvider(video.posterUrl!),
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => const SizedBox()),
           const IgnorePointer(
@@ -534,26 +713,49 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
                 Color(0x22001539),
                 Color(0xFA001539)
               ])))),
+          if (likedToast)
+            Positioned(
+                top: 112,
+                left: 20,
+                child: Semantics(
+                    liveRegion: true,
+                    child: Container(
+                        key: const ValueKey('M-029'),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                            color: KoloVibeColors.navy,
+                            borderRadius: BorderRadius.circular(12)),
+                        child: Text('Liked · Tap heart to unlike',
+                            style: KoloVibeText.body(12,
+                                weight: FontWeight.w600,
+                                color: Colors.white))))),
           if (buffering)
             Center(
-                child: Card(
-                    child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            key: ValueKey(slow ? 'M-034' : 'M-032'),
-                            children: [
-                              Text(slow
-                                  ? 'Slow connection. No lower-data rendition is available to select.'
-                                  : 'Preparing playback…'),
-                              const LinearProgressIndicator(),
-                            ])))),
-          if (playbackFailure != null || playerError != null)
-            Center(
-                child: Card(
-                    child: playbackState(
-                        playbackFailure ?? StateError('Playback failed'),
-                        media: playerError != null))),
+                child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    key: ValueKey(slow ? 'M-034' : 'M-032'),
+                    children: [
+                  const SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 3, color: Colors.white)),
+                  const SizedBox(height: 12),
+                  Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                          color: const Color(0xCC001539),
+                          borderRadius: BorderRadius.circular(12)),
+                      child: Text(
+                          slow
+                              ? 'Slow connection. No lower-data rendition is available to select.'
+                              : 'Preparing playback…',
+                          textAlign: TextAlign.center,
+                          style: KoloVibeText.body(13,
+                              weight: FontWeight.w600, color: Colors.white))),
+                ])),
           Positioned(
               left: 20,
               right: 96,
@@ -562,10 +764,20 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    if (creator != null) ...[
+                      Text('@${creator!.handle}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: KoloVibeText.heading(17, color: Colors.white)),
+                      const SizedBox(height: 8),
+                    ],
                     Text(video.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: KoloVibeText.heading(17, color: Colors.white)),
+                        style: creator != null
+                            ? KoloVibeText.body(15,
+                                weight: FontWeight.w600, color: Colors.white)
+                            : KoloVibeText.heading(17, color: Colors.white)),
                     if (video.description.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Text(video.description,
@@ -595,11 +807,13 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
                     tooltip: 'View creator to follow',
                     onPressed: () => navigate(26, video.creatorId),
                     icon: Stack(clipBehavior: Clip.none, children: [
-                      const CircleAvatar(
-                          radius: 22,
-                          backgroundColor: Color(0xFF142D52),
-                          child:
-                              Icon(Icons.person_outline, color: Colors.white)),
+                      creator == null || creator!.displayName.isEmpty
+                          ? const CircleAvatar(
+                              radius: 22,
+                              backgroundColor: Color(0xFF142D52),
+                              child: Icon(Icons.person_outline,
+                                  color: Colors.white))
+                          : KoloAvatar(name: creator!.displayName, size: 44),
                       Positioned(
                           bottom: -8,
                           right: 10,
@@ -670,6 +884,12 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
                 ] else
                   const Expanded(child: SizedBox()),
               ])),
+          if (playbackFailure != null || playerError != null)
+            Center(
+                child: Card(
+                    child: playbackState(
+                        playbackFailure ?? StateError('Playback failed'),
+                        media: playerError != null))),
         ]));
   }
 
@@ -736,12 +956,22 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
     return '${utc.day} ${_months[utc.month - 1]} ${utc.year}';
   }
 
+  String get _pageTitle {
+    final failure = error;
+    final status = failure is ApiFailure ? failure.status : null;
+    return status == 404
+        ? 'Video unavailable'
+        : status == 403
+            ? 'Restricted video'
+            : 'Original';
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
         // The vertical feeds draw their own tabs over the video.
         appBar: widget.fullScreen
             ? null
-            : AppBar(title: const Text('Original'), actions: [
+            : AppBar(title: Text(_pageTitle), actions: [
                 PopupMenuButton<String>(
                     onSelected: (_) => navigate(
                         widget.engagement == null ? 4 : 71,
@@ -777,6 +1007,14 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
                                 aspectRatio: 16 / 9,
                                 child: KoloPoster(
                                     url: video.posterUrl, iconSize: 44))),
+                      if (creator != null) ...[
+                        const SizedBox(height: 16),
+                        KoloCreatorRow(
+                            creator: creator!,
+                            actionLabel: 'View',
+                            onOpen: () => navigate(26, video.creatorId),
+                            onFollow: () => navigate(26, video.creatorId)),
+                      ],
                       if (video.description.isNotEmpty) ...[
                         const SizedBox(height: 16),
                         Text(video.description,
@@ -791,7 +1029,8 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
                       ]),
                       if (video.publishedAt != null) ...[
                         const SizedBox(height: 12),
-                        Text('Published ${_date(video.publishedAt!)}',
+                        Text(
+                            'Published ${_date(video.publishedAt!)}${formatDuration(video.durationMs) == null ? '' : ' · ${formatDuration(video.durationMs)}'}',
                             style: Theme.of(context).textTheme.bodySmall),
                       ],
                       const SizedBox(height: 4),
@@ -846,7 +1085,10 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
                       const SizedBox(height: 16),
                       OutlinedButton(
                           onPressed: () => navigate(26, video.creatorId),
-                          child: const Text('View creator')),
+                          child: Text(creator == null ||
+                                  creator!.displayName.isEmpty
+                              ? 'View creator'
+                              : 'Visit ${creator!.displayName.split(' ').first}’s profile')),
                       if (engagementController != null)
                         TextButton.icon(
                           onPressed: () => navigate(71, video.id),
