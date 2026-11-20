@@ -1,5 +1,6 @@
 """Fail-closed application settings; production activation requires approved deployment configuration."""
 import os
+import re
 from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 ENVIRONMENT = os.environ.get("KOLOVIBE_ENV")
@@ -52,6 +53,11 @@ else:
         "NAME": BASE_DIR / "local.sqlite3",
     }}
 KOLOVIBE_SERVICE_NAME = "gateway"
+# Name of a request header the trusted edge sets to the caller's address and overwrites on every request
+# (for example "CF-Connecting-IP" behind Cloudflare). Empty means no client origin is forwarded.
+KOLOVIBE_TRUSTED_CLIENT_IP_HEADER = os.environ.get("KOLOVIBE_TRUSTED_CLIENT_IP_HEADER", "")
+if KOLOVIBE_TRUSTED_CLIENT_IP_HEADER and not re.fullmatch(r"[A-Za-z][A-Za-z0-9-]{1,63}", KOLOVIBE_TRUSTED_CLIENT_IP_HEADER):
+    raise RuntimeError("Invalid trusted client address header name")
 from .shares import validate_public_origin
 
 KOLOVIBE_PUBLIC_WEB_ORIGIN = validate_public_origin(os.environ.get("KOLOVIBE_PUBLIC_WEB_ORIGIN"))

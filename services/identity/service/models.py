@@ -88,11 +88,24 @@ class LoginThrottle(models.Model):
     window_started_at = models.DateTimeField()
 
 
+class CodeKind(models.TextChoices):
+    """`token` rows are the retired 64-character links; `code` rows are six digits (ADR-013 A-1)."""
+
+    TOKEN = "token", "Legacy long token"
+    CODE = "code", "Six-digit code"
+
+
 class EmailVerification(models.Model):
+    """Single-use email proof. Only a keyed verifier is stored, never the raw code."""
+
     digest = models.CharField(max_length=64, primary_key=True)
     account = models.ForeignKey(Account, on_delete=models.CASCADE)
     expires_at = models.DateTimeField()
     used_at = models.DateTimeField(null=True, blank=True)
+    kind = models.CharField(max_length=5, choices=CodeKind.choices, default=CodeKind.CODE)
+    issue_id = models.UUIDField(default=uuid.uuid4, editable=False)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(default=timezone.now)
 
 
 class PasswordReset(models.Model):
@@ -102,6 +115,10 @@ class PasswordReset(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE)
     expires_at = models.DateTimeField()
     used_at = models.DateTimeField(null=True, blank=True)
+    kind = models.CharField(max_length=5, choices=CodeKind.choices, default=CodeKind.CODE)
+    issue_id = models.UUIDField(default=uuid.uuid4, editable=False)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(default=timezone.now)
 
 
 class ReauthenticationToken(models.Model):

@@ -330,7 +330,10 @@ class LiveAccountRepository implements AccountRepository {
         await api.request(
           '/auth/verify',
           method: 'POST',
-          body: {'code': fields['verificationCode'] ?? ''},
+          body: {
+            'email': fields['Email address'] ?? '',
+            'code': fields['verificationCode'] ?? '',
+          },
         );
         return const UiResult.success(
           message: 'Email verified. You can sign in.',
@@ -364,6 +367,7 @@ class LiveAccountRepository implements AccountRepository {
           '/auth/password/reset',
           method: 'POST',
           body: {
+            'email': fields['Email address'] ?? '',
             'code': fields['Reset code'] ?? '',
             'new_password': newPassword,
           },

@@ -186,7 +186,8 @@ def verify(request):
         return render(request, "form.html", {"title": "Verify your email", "kind": "verify"})
     if request.method != "POST":
         return HttpResponseNotAllowed(["GET", "POST"])
-    status, payload = _api("/auth/verify", method="POST", data={"code": request.POST.get("code", "")})
+    status, payload = _api("/auth/verify", method="POST", data={
+        "email": request.POST.get("email", ""), "code": request.POST.get("code", "")})
     if status == 200:
         return redirect("login")
     return render(request, "form.html", {"title": "Verify your email", "kind": "verify",
@@ -216,6 +217,7 @@ def password_reset(request):
     if request.method != "POST":
         return HttpResponseNotAllowed(["GET", "POST"])
     status, payload = _api("/auth/password/reset", method="POST", data={
+        "email": request.POST.get("email", ""),
         "code": request.POST.get("code", ""),
         "new_password": request.POST.get("new_password", ""),
     })

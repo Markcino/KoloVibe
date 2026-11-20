@@ -14,7 +14,8 @@
 {% elif kind == 'reset_request' %}
   <label>Email<input type="email" name="email" autocomplete="email" maxlength="254" required></label>
 {% elif kind == 'reset' %}
-  <label>Reset code<input name="code" autocomplete="one-time-code" minlength="32" maxlength="128" required></label>
+  <label>Email<input type="email" name="email" autocomplete="email" maxlength="254" required></label>
+  <label>Reset code<input name="code" inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code" minlength="6" maxlength="6" required></label>
   <label>New password<input type="password" name="new_password" autocomplete="new-password" minlength="12" maxlength="128" required></label>
 {% elif kind == 'profile' %}
   <label>Display name<input name="display_name" autocomplete="name" minlength="2" maxlength="80" value="{{ account.display_name }}" required></label>
@@ -22,7 +23,8 @@
   <label>Current password<input type="password" name="current_password" autocomplete="current-password" required></label>
   <label>New password<input type="password" name="new_password" autocomplete="new-password" minlength="12" maxlength="128" required></label>
 {% else %}
-  <label>Verification code<input name="code" autocomplete="one-time-code" required></label>
+  <label>Email<input type="email" name="email" autocomplete="email" maxlength="254" required></label>
+  <label>Verification code<input name="code" inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code" minlength="6" maxlength="6" required></label>
 {% endif %}
   <button type="submit">Continue</button>
 </form>

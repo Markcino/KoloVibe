@@ -57,14 +57,14 @@ class DesignView extends StatelessWidget {
           labelText: 'Verification code',
           counterText: '',
         ),
-        keyboardType: TextInputType.text,
-        maxLength: 128,
+        keyboardType: TextInputType.number,
+        maxLength: 6,
         autofillHints: const [AutofillHints.oneTimeCode],
         style: const TextStyle(fontSize: 16),
         onChanged: (v) => controller.update('verificationCode', v),
-        validator: (v) => v != null && v.length >= 32
+        validator: (v) => v != null && RegExp(r'^[0-9]{6}$').hasMatch(v)
             ? null
-            : 'Enter the verification code from your email.',
+            : 'Enter the six-digit code from your email.',
       );
     }
     if (node.name == 'Report text area') {

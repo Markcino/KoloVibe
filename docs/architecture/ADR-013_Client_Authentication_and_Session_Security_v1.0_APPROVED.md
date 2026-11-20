@@ -56,8 +56,8 @@ The following are **KoloVibe owner-approved design policy choices**, not timeout
 | ADR013-P07 | Sensitive-action freshness | Successful reauthentication / step-up within **5 minutes** | Require again when older or auth strength inadequate; specific action and session checked server-side |
 | ADR013-P08 | MFA challenge | **5 minutes**, single-use, at most **5 failed attempts** per challenge | Expire and invalidate challenge; audit suspicious attempts; rate-limit retries |
 | ADR013-P09 | TOTP | **30-second** timestep; accept at most current step ±1 | Reject reuse of an accepted timestep, even during adjacent valid windows; time sync monitored |
-| ADR013-P10 | Password-reset token | **15 minutes**, single-use | Token verifier protected at rest, purpose-bound, revoked on successful use |
-| ADR013-P11 | Email verification | **24 hours maximum** pending separate risk review | Existing code uses 24h; verification token remains single-use and rate-limited; consider shorter expiry before release |
+| ADR013-P10 | Password-reset token | **15 minutes**, single-use | Token verifier protected at rest, purpose-bound, revoked on successful use. **Amended by A-1:** the credential is a six-digit code; see §19A |
+| ADR013-P11 | Email verification | **24 hours maximum** pending separate risk review | **Amended by A-1:** six-digit code, **30 minutes**, single-use, attempt- and send-limited; see §19A. The 24-hour figure now bounds only long links mailed before rollout |
 | ADR013-P12 | Security-session rotation | Regenerate browser cookie ID on login, MFA elevation and privilege transition | Old browser session invalidated atomically; no fixation or privilege reuse |
 | ADR013-P13 | User-initiated revocation | Current device, selected device, or all devices | Revocation takes effect on the next server-side authorization check; clients cannot override it |
 | ADR013-P14 | Administrative recovery | No privileged recovery without high-assurance verification | Existing privileged sessions revoked; factor reset audited, notified and protected against unauthorized downgrade |
@@ -338,6 +338,35 @@ Primary existing DOC-206 controls to link: **SEC-003, SEC-005, SEC-006, SEC-007,
 | Architecture review | **Owner accepted design baseline; independent architectural evidence pending** |
 | Security review / residual-risk acceptance | **PENDING — control execution and residual-risk disposition** |
 | Release / operational acceptance | **NOT REQUESTED** |
+
+## 19A. Amendment A-1 — six-digit email codes (2026-11-20)
+
+**Status:** product direction D-1, recorded with the implementation. It changes the *credential format* of ADR013-P10 and P11 and nothing else in this ADR. Independent security verification of the amended controls is **NOT RUN** (DOC-206 SEC-005 / SEC-010 / SEC-012 remain open) and this amendment is not production approval.
+
+**Why.** The approved mobile design (M-006, M-010) asks the person to type six digits. A 64-character token cannot be typed or read from a phone notification. A six-digit value has only 10⁶ possibilities, so safety comes from binding, expiry and attempt limits, not from the value.
+
+**Decision.**
+
+| Control | Rule |
+| --- | --- |
+| Generation | `secrets.randbelow(10**6)`, zero-padded to six digits, from the operating-system CSPRNG; one code per issue. |
+| Binding | The client sends **the email address and the code**. The code is only ever compared with the newest unused code of that one account and purpose, never searched globally. |
+| Storage | Only `HMAC-SHA256(key, purpose ‖ account id ‖ issue id ‖ code)` is stored. The key is derived from the service secret, so a copied database row cannot be brute-forced offline, and a code cannot be replayed across accounts, purposes or issues. Raw codes exist only in the outgoing email and the person's device; they are never written to logs, audit events or error text. |
+| Lifetime | Email verification **30 minutes**; password reset **15 minutes** (ADR013-P10). Single use. Issuing a new code ends every earlier unused code of that purpose. |
+| Guess limits | The **5th wrong guess destroys the code**. Across all codes an address may fail **10 times per hour** per purpose; a trusted network origin may fail **40 times per 15 minutes**. A spent budget returns `429` even for a correct code, so the limit cannot be used as an oracle. Failure counters are keyed on the submitted address whether or not an account exists. |
+| Send limits | **60-second** cooldown and **3 emails per hour** per account and purpose; a trusted origin may request **20 emails per hour**. Over-limit requests are dropped silently. |
+| Anti-enumeration | Verify and reset return the same `400` for an unknown address, a wrong, expired, used or exhausted code. Resend and reset-request return the same empty `204` for unknown, ineligible, throttled and delivery-failed cases. **Known residual risks:** registration still answers `409` for an existing address because the approved M-012 screen depends on it, and the time spent sending mail can differ between known and unknown addresses; both rely on edge rate limits and are tracked for the independent review. |
+| Network signal | Identity cannot see the caller (its peer is the gateway). The gateway forwards an `origin` only when `KOLOVIBE_TRUSTED_CLIENT_IP_HEADER` names a header the trusted edge overwrites on every request (for example `CF-Connecting-IP`). With no such header only address-level limits apply, and a caller-supplied `origin` field is rejected. **Deployment action:** configure and test that header before the origin limits count for anything. |
+| Not MFA | Email verification proves access to a mailbox. It is **not multifactor authentication**, is never offered or described as such, issues no session, and never raises assurance. Reset signs nobody in and revokes all sessions (ADR §6, §7). |
+| Audit | `account.verification_code_failed`, `account.verification_throttled`, `account.password_reset_code_failed`, `account.password_reset_throttled` carry the account id (when one exists) and no code. |
+
+**Migration (expand → contract).**
+
+1. *Expand* (migration `0010_six_digit_codes`): adds `kind`, `issue_id`, `attempts`, `created_at`. Every existing row becomes `kind='token'`; every new row is `kind='code'`. Pending long links keep working through the old branch, bounded by their own expiry (verification 24 hours, reset 30 minutes). A new code retires them. The gateway accepts a bare `{code}` for the same window.
+2. *Operate:* new emails carry six digits. A client built before this change cannot verify from a new email; the mobile app is pre-release, so no store-version coordination is needed. The web form was updated together with the app.
+3. *Contract:* 24 hours after rollout set `KOLOVIBE_ACCEPT_LEGACY_LONG_CODES=0`, then delete `_verify_legacy`, `_reset_legacy`, the `kind='token'` rows, the bare-code gateway shape and the setting in a follow-up change. A pending long link cannot outlive that window, so no account is stranded.
+
+**Verification evidence (local, not staging).** `services/identity/tests/test_codes.py` (27 cases: CSPRNG source, keyed verifier and cross-binding, expiry, single use, 5-guess destruction, address and origin budgets with correct-code refusal, unknown-versus-known indistinguishability, purpose separation, cooldown and hourly cap, log and audit contents, legacy window open/closed); `services/gateway/tests/test_accounts.py` (request shapes, origin trust); `apps/web_django/tests/test_journeys.py`.
 
 ## 20. References and provenance
 

@@ -6,8 +6,10 @@ gated on ADR-013, transport approval, and deployment review.
 
 import hashlib
 import hmac
+import ipaddress
 import json
 import logging
+import re
 import secrets
 import smtplib
 import uuid
@@ -25,15 +27,24 @@ from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from .models import (Account, EmailVerification, LoginSession, LoginThrottle, PasswordReset,
-                     ReauthenticationToken, UsedRefreshToken)
+from .models import (Account, CodeKind, EmailVerification, LoginSession, LoginThrottle,
+                     PasswordReset, ReauthenticationToken, UsedRefreshToken)
 from .mfa import challenge, privileged_enabled, session_allowed
 from .security_audit import record
 
 ACCESS_SECONDS = 300
 REFRESH_DAYS = 30
-VERIFY_HOURS = 24
-RESET_MINUTES = 30
+VERIFY_HOURS = 24  # retired long-token links only (ADR-013 A-1); six-digit codes use VERIFY_MINUTES
+VERIFY_MINUTES = 30
+RESET_MINUTES = 15
+CODE_DIGITS = 6
+CODE_ATTEMPTS = 5            # wrong guesses before one issued code is destroyed
+CODE_SENDS_PER_HOUR = 3      # emails per account and purpose
+CODE_RESEND_COOLDOWN = timedelta(seconds=60)
+CODE_ACCOUNT_FAILURES = 10   # wrong guesses per address and purpose across all codes in an hour
+CODE_ORIGIN_FAILURES = 40    # wrong guesses per trusted network origin in 15 minutes
+CODE_ORIGIN_SENDS = 20       # code emails requested per trusted network origin per hour
+CODE_HOUR = timedelta(hours=1)
 LOGIN_LIMIT = 5
 LOGIN_WINDOW = timedelta(minutes=15)
 ACCESS_SALT = "kolovibe.identity.access.v1"
@@ -163,45 +174,174 @@ def _throttle_key(email, origin):
     return _digest("login\0" + email + "\0" + origin)
 
 
+_NIL = uuid.UUID(int=0)
+_KIND = {"verify": ("account.verification_code_failed", "account.verification_throttled"),
+         "reset": ("account.password_reset_code_failed", "account.password_reset_throttled")}
+_CODE_RE = re.compile(r"[0-9]{6}")
+
+
+def _new_code():
+    return "%0*d" % (CODE_DIGITS, secrets.randbelow(10 ** CODE_DIGITS))
+
+
+def _code_digest(purpose, account_id, issue_id, code):
+    """Keyed verifier bound to purpose, account and issue.
+
+    A leaked database row alone cannot be brute-forced offline (the key is derived from the
+    service secret), and a code issued for one account, purpose or issue never matches another.
+    """
+    key = hashlib.sha256(b"kolovibe.identity.code.v1\0" + settings.SECRET_KEY.encode()).digest()
+    message = "\0".join((purpose, str(account_id), str(issue_id), code)).encode()
+    return hmac.new(key, message, hashlib.sha256).hexdigest()
+
+
+def _issue_code(model, purpose, account, now, lifetime):
+    """Create one row and return the raw code for the email; nothing is logged or stored raw."""
+    code = _new_code()
+    issue_id = uuid.uuid4()
+    model.objects.create(
+        digest=_code_digest(purpose, account.id, issue_id, code), account=account,
+        issue_id=issue_id, kind=CodeKind.CODE, expires_at=now + lifetime, created_at=now)
+    return code
+
+
+def _guard_key(scope, value):
+    return _digest("code-guard\0" + scope + "\0" + value)
+
+
+def _origin(data):
+    """Gateway-supplied network origin, or None when the edge cannot vouch for one."""
+    value = data.get("origin")
+    if value is None:
+        return None
+    try:
+        return str(ipaddress.ip_address(value))
+    except (TypeError, ValueError):
+        raise ValueError("Invalid origin")
+
+
+def _bucket(key, now, window):
+    throttle, _ = LoginThrottle.objects.select_for_update().get_or_create(
+        key=key, defaults={"window_started_at": now})
+    if now - throttle.window_started_at >= window:
+        throttle.failures = 0
+        throttle.window_started_at = now
+        throttle.save(update_fields=["failures", "window_started_at"])
+    return throttle
+
+
+def _bucket_full(key, limit, now, window):
+    return _bucket(key, now, window).failures >= limit
+
+
+def _bucket_add(key, now, window):
+    throttle = _bucket(key, now, window)
+    throttle.failures += 1
+    throttle.save(update_fields=["failures"])
+
+
+def _code_guards(purpose, email, origin):
+    guards = [(_guard_key(purpose + "-address", email), CODE_ACCOUNT_FAILURES, CODE_HOUR)]
+    if origin is not None:
+        guards.append((_guard_key(purpose + "-origin", origin), CODE_ORIGIN_FAILURES,
+                       timedelta(minutes=15)))
+    return guards
+
+
+def _send_budget_spent(purpose, origin, now):
+    """Count a send request against the trusted origin; True means drop it silently."""
+    if origin is None:
+        return False
+    key = _guard_key(purpose + "-send-origin", origin)
+    if _bucket_full(key, CODE_ORIGIN_SENDS, now, CODE_HOUR):
+        return True
+    _bucket_add(key, now, CODE_HOUR)
+    return False
+
+
+def _send_allowed(model, account, now):
+    rows = model.objects.filter(account=account)
+    return (rows.exists() and not rows.filter(created_at__gt=now - CODE_RESEND_COOLDOWN).exists()
+            and rows.filter(created_at__gt=now - CODE_HOUR).count() < CODE_SENDS_PER_HOUR)
+
+
 def _send_verification(account, now):
-    raw = secrets.token_urlsafe(48)
-    EmailVerification.objects.create(
-        digest=_digest(raw), account=account,
-        expires_at=now + timedelta(hours=VERIFY_HOURS),
-    )
-    send_mail("Verify your KoloVibe account",
-              "Your verification code: " + raw,
+    code = _issue_code(EmailVerification, "verify", account, now, timedelta(minutes=VERIFY_MINUTES))
+    send_mail("Your KoloVibe verification code",
+              "Your verification code: " + code + "\n\n"
+              "It expires in " + str(VERIFY_MINUTES) + " minutes and works once. "
+              "KoloVibe will never ask you to share it. "
+              "If you did not create an account, ignore this message.",
               settings.DEFAULT_FROM_EMAIL, [account.email], fail_silently=False)
+
+
+def _spend_guess(guards, now, challenge):
+    """Record one wrong guess against every guard and the code that was attacked."""
+    for key, _limit, window in guards:
+        _bucket_add(key, now, window)
+    if challenge is not None:
+        challenge.attempts += 1
+        if challenge.attempts >= CODE_ATTEMPTS:
+            challenge.used_at = now
+        challenge.save(update_fields=["attempts", "used_at"])
+
+
+def _check_code(model, purpose, account, email, raw, origin, now):
+    """Return (challenge, response). On success response is None; the caller consumes the row.
+
+    The same work and the same generic answer are produced for an unknown address, a wrong
+    code, an expired code and an exhausted code, so the response never reveals which it was.
+    """
+    guards = _code_guards(purpose, email, origin)
+    if any(_bucket_full(key, limit, now, window) for key, limit, window in guards):
+        record(_KIND[purpose][1])
+        return None, _error("Too many attempts", 429)
+    challenge = None
+    if account is not None:
+        challenge = model.objects.select_for_update().filter(
+            account=account, kind=CodeKind.CODE, used_at__isnull=True, expires_at__gt=now,
+        ).order_by("-created_at").first()
+    expected = challenge.digest if challenge is not None else "0" * 64
+    supplied = _code_digest(purpose, account.id if account else _NIL,
+                            challenge.issue_id if challenge else _NIL, raw)
+    if challenge is None or not hmac.compare_digest(supplied, expected):
+        _spend_guess(guards, now, challenge)
+        if account is not None:
+            record(_KIND[purpose][0], account.id)
+        return None, _error("Invalid or expired code")
+    return challenge, None
+
+
+def _email_field(data):
+    email = data.get("email")
+    if not isinstance(email, str) or len(email) > 254:
+        raise ValueError
+    email = email.strip().casefold()
+    validate_email(email)
+    return email
 
 
 @require_POST
 def resend_verification(request):
     try:
-        data = _body(request, {"email"})
-        email = data.get("email")
-        if not isinstance(email, str) or len(email) > 254:
-            raise ValueError
-        email = email.strip().casefold()
-        validate_email(email)
-    except (ValueError, ValidationError):
+        data = _body(request, {"email", "origin"})
+        email = _email_field(data)
+        origin = _origin(data)
+    except (KeyError, ValueError, ValidationError, json.JSONDecodeError):
         return _error("Invalid email address")
     if not settings.EMAIL_HOST or not settings.DEFAULT_FROM_EMAIL:
         return _error("Email delivery unavailable", 503)
     try:
         with transaction.atomic():
+            now = timezone.now()
             account = Account.objects.select_for_update().filter(
                 email=email, is_active=False, email_verified_at__isnull=True,
             ).first()
-            if account is not None:
-                now = timezone.now()
-                codes = EmailVerification.objects.filter(account=account)
-                recent = codes.filter(
-                    expires_at__gt=now + timedelta(hours=VERIFY_HOURS, minutes=-2),
-                )
-                if codes.exists() and not recent.exists():
-                    codes.filter(used_at__isnull=True).update(used_at=now)
-                    _send_verification(account, now)
-                    record("account.verification_resent", account.id)
+            if not _send_budget_spent("verify", origin, now) and account is not None \
+                    and _send_allowed(EmailVerification, account, now):
+                EmailVerification.objects.filter(account=account, used_at__isnull=True).update(used_at=now)
+                _send_verification(account, now)
+                record("account.verification_resent", account.id)
     except (smtplib.SMTPException, OSError):
         logger.error("Verification resend email delivery failed")
     return HttpResponse(status=204)
@@ -232,69 +372,96 @@ def register(request):
     return JsonResponse({"id": str(account.id), "verification_required": True}, status=201)
 
 
+def _legacy_codes_accepted():
+    return getattr(settings, "KOLOVIBE_ACCEPT_LEGACY_LONG_CODES", False)
+
+
+def _verify_legacy(raw):
+    """Pre-A-1 long link. Only rows issued before migration 0010 exist; remove with the flag."""
+    with transaction.atomic():
+        digest = _digest(raw)
+        account_id = EmailVerification.objects.filter(
+            digest=digest, kind=CodeKind.TOKEN).values_list("account_id", flat=True).first()
+        account = Account.objects.select_for_update().filter(
+            pk=account_id, is_active=False, email_verified_at__isnull=True,
+        ).first()
+        now = timezone.now()
+        if account is None or not EmailVerification.objects.filter(
+            digest=digest, account=account, kind=CodeKind.TOKEN, used_at__isnull=True,
+            expires_at__gt=now,
+        ).update(used_at=now):
+            return _error("Invalid or expired verification", 400)
+        account.is_active = True
+        account.email_verified_at = now
+        account.save(update_fields=["is_active", "email_verified_at"])
+        EmailVerification.objects.filter(account=account, used_at__isnull=True).update(used_at=now)
+        record("account.verified", account.id)
+    return JsonResponse({"verified": True})
+
+
 @require_POST
 def verify_email(request):
+    """Consume a six-digit code. Email verification proves mailbox access; it is not MFA."""
     try:
-        data = _body(request, {"code"})
+        data = _body(request, {"email", "code", "origin"})
         raw = data["code"]
-        if not isinstance(raw, str) or not 32 <= len(raw) <= 128:
+        if not isinstance(raw, str):
             raise ValueError("Invalid code")
-        with transaction.atomic():
-            digest = _digest(raw)
-            account_id = EmailVerification.objects.filter(digest=digest).values_list(
-                "account_id", flat=True,
-            ).first()
-            account = Account.objects.select_for_update().filter(
-                pk=account_id, is_active=False, email_verified_at__isnull=True,
-            ).first()
-            now = timezone.now()
-            if account is None or not EmailVerification.objects.filter(
-                digest=digest, account=account, used_at__isnull=True, expires_at__gt=now,
-            ).update(used_at=now):
-                return _error("Invalid or expired verification", 400)
-            account.is_active = True
-            account.email_verified_at = now
-            account.save(update_fields=["is_active", "email_verified_at"])
-            record("account.verified", account.id)
-    except (KeyError, ValueError, json.JSONDecodeError):
+        if "email" not in data:
+            if not _legacy_codes_accepted() or not 32 <= len(raw) <= 128:
+                raise ValueError("Invalid code")
+            return _verify_legacy(raw)
+        email = _email_field(data)
+        origin = _origin(data)
+        if _CODE_RE.fullmatch(raw) is None:
+            raise ValueError("Invalid code")
+    except (KeyError, ValueError, ValidationError, json.JSONDecodeError):
         return _error("Invalid verification")
+    with transaction.atomic():
+        now = timezone.now()
+        account = Account.objects.select_for_update().filter(
+            email=email, is_active=False, email_verified_at__isnull=True).first()
+        challenge, failure = _check_code(EmailVerification, "verify", account, email, raw, origin, now)
+        if failure is not None:
+            return failure  # returning (not raising) commits the attempt counters
+        EmailVerification.objects.filter(account=account, used_at__isnull=True).update(used_at=now)
+        account.is_active = True
+        account.email_verified_at = now
+        account.save(update_fields=["is_active", "email_verified_at"])
+        record("account.verified", account.id)
     return JsonResponse({"verified": True})
 
 
 @require_POST
 def request_password_reset(request):
     try:
-        data = _body(request, {"email"})
-        email = data["email"]
-        if not isinstance(email, str) or len(email) > 254:
-            raise ValueError
-        email = email.strip().casefold()
-        validate_email(email)
+        data = _body(request, {"email", "origin"})
+        email = _email_field(data)
+        origin = _origin(data)
     except (KeyError, ValueError, ValidationError, json.JSONDecodeError):
         return _error("Invalid email address")
     if not settings.EMAIL_HOST or not settings.DEFAULT_FROM_EMAIL:
         return _error("Email delivery unavailable", 503)
     try:
         with transaction.atomic():
+            now = timezone.now()
             account = Account.objects.select_for_update().filter(
                 email=email, is_active=True, email_verified_at__isnull=False,
                 role__in=(Account.Role.VIEWER, Account.Role.CREATOR),
             ).first()
-            if account is not None:
-                now = timezone.now()
-                recent = PasswordReset.objects.filter(
-                    account=account,
-                    expires_at__gt=now + timedelta(minutes=RESET_MINUTES - 2),
-                ).exists()
-                if not recent:
-                    raw = secrets.token_urlsafe(48)
-                    PasswordReset.objects.filter(account=account, used_at__isnull=True).update(used_at=now)
-                    PasswordReset.objects.create(
-                        digest=_digest(raw), account=account,
-                        expires_at=now + timedelta(minutes=RESET_MINUTES),
-                    )
-                    send_mail("Reset your KoloVibe password",
-                              "Your password reset code: " + raw,
+            if not _send_budget_spent("reset", origin, now) and account is not None:
+                rows = PasswordReset.objects.filter(account=account)
+                # A first request has no earlier row, so the "has a row" test of resend is skipped.
+                if (not rows.filter(created_at__gt=now - CODE_RESEND_COOLDOWN).exists()
+                        and rows.filter(created_at__gt=now - CODE_HOUR).count() < CODE_SENDS_PER_HOUR):
+                    rows.filter(used_at__isnull=True).update(used_at=now)
+                    code = _issue_code(PasswordReset, "reset", account, now,
+                                       timedelta(minutes=RESET_MINUTES))
+                    send_mail("Your KoloVibe password reset code",
+                              "Your password reset code: " + code + "\n\n"
+                              "It expires in " + str(RESET_MINUTES) + " minutes and works once. "
+                              "KoloVibe will never ask you to share it. "
+                              "If you did not ask to reset your password, ignore this message.",
                               settings.DEFAULT_FROM_EMAIL, [account.email], fail_silently=False)
                     record("account.password_reset_requested", account.id)
     except (smtplib.SMTPException, OSError):
@@ -303,36 +470,61 @@ def request_password_reset(request):
     return HttpResponse(status=204)
 
 
+def _finish_reset(account, password, now):
+    validate_password(password, user=account)
+    PasswordReset.objects.filter(account=account, used_at__isnull=True).update(used_at=now)
+    account.set_password(password)
+    account.save(update_fields=["password"])
+    LoginSession.objects.filter(account=account, revoked_at__isnull=True).update(revoked_at=now)
+    ReauthenticationToken.objects.filter(account=account, used_at__isnull=True).update(used_at=now)
+    record("account.password_reset", account.id)
+
+
+def _reset_legacy(raw, password):
+    with transaction.atomic():
+        digest = _digest(raw)
+        account_id = PasswordReset.objects.filter(
+            digest=digest, kind=CodeKind.TOKEN).values_list("account_id", flat=True).first()
+        account = Account.objects.select_for_update().filter(
+            pk=account_id, is_active=True,
+            role__in=(Account.Role.VIEWER, Account.Role.CREATOR),
+        ).first()
+        now = timezone.now()
+        if account is None or not PasswordReset.objects.filter(
+            digest=digest, account=account, kind=CodeKind.TOKEN, used_at__isnull=True,
+            expires_at__gt=now,
+        ).exists():
+            return _error("Invalid or expired reset code")
+        _finish_reset(account, password, now)
+    return HttpResponse(status=204)
+
+
 @require_POST
 def reset_password(request):
     try:
-        data = _body(request, {"code", "new_password"})
+        data = _body(request, {"email", "code", "new_password", "origin"})
         raw, password = data["code"], data["new_password"]
-        if (not isinstance(raw, str) or not 32 <= len(raw) <= 128
-                or not isinstance(password, str) or not 1 <= len(password) <= 128):
+        if (not isinstance(raw, str) or not isinstance(password, str)
+                or not 1 <= len(password) <= 128):
+            raise ValueError
+        if "email" not in data:
+            if not _legacy_codes_accepted() or not 32 <= len(raw) <= 128:
+                raise ValueError
+            return _reset_legacy(raw, password)
+        email = _email_field(data)
+        origin = _origin(data)
+        if _CODE_RE.fullmatch(raw) is None:
             raise ValueError
         with transaction.atomic():
-            digest = _digest(raw)
-            account_id = PasswordReset.objects.filter(digest=digest).values_list(
-                "account_id", flat=True,
-            ).first()
-            account = Account.objects.select_for_update().filter(
-                pk=account_id, is_active=True,
-                role__in=(Account.Role.VIEWER, Account.Role.CREATOR),
-            ).first()
             now = timezone.now()
-            if account is None or not PasswordReset.objects.filter(
-                digest=digest, account=account, used_at__isnull=True,
-                expires_at__gt=now,
-            ).exists():
-                return _error("Invalid or expired reset code")
-            validate_password(password, user=account)
-            PasswordReset.objects.filter(account=account, used_at__isnull=True).update(used_at=now)
-            account.set_password(password)
-            account.save(update_fields=["password"])
-            LoginSession.objects.filter(account=account, revoked_at__isnull=True).update(revoked_at=now)
-            ReauthenticationToken.objects.filter(account=account, used_at__isnull=True).update(used_at=now)
-            record("account.password_reset", account.id)
+            account = Account.objects.select_for_update().filter(
+                email=email, is_active=True,
+                role__in=(Account.Role.VIEWER, Account.Role.CREATOR)).first()
+            challenge, failure = _check_code(PasswordReset, "reset", account, email, raw, origin, now)
+            if failure is not None:
+                return failure
+            # A weak new password raises and rolls back, so the right code is not burned.
+            _finish_reset(account, password, now)
     except (KeyError, ValueError, ValidationError, json.JSONDecodeError):
         return _error("Invalid password or reset code")
     return HttpResponse(status=204)

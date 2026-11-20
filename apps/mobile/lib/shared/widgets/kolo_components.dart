@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../core/theme/kolovibe_theme.dart';
 
@@ -779,78 +780,144 @@ class KoloCard extends StatelessWidget {
       );
 }
 
-/// Large boxed entry for the emailed verification or reset code, drawn like the
-/// approved six-digit boxes (white, 12 pt radius, navy 1.5 pt border, 24 pt
-/// bold). The code issued by the identity service is a long URL-safe token, so
-/// it is one masked field rather than six boxes; see the design decisions in
-/// `docs/mobile-design-coverage.md`.
+/// Six digit boxes for the emailed verification or reset code (M-006, M-010): white, 12 pt radius,
+/// navy 1.5 pt border, bold digits. One invisible text field receives typing, paste and the
+/// operating system's one-time-code suggestion, so the boxes are only a rendering of it. Digits are
+/// shown, as in the approved design. Nothing is stored beyond the controller the caller clears.
 class KoloCodeField extends StatefulWidget {
   const KoloCodeField({
     super.key,
     required this.controller,
     this.semanticLabel = 'Verification code',
-    this.hint = 'Paste the code from your email',
     this.onChanged,
     this.validator,
+    this.enabled = true,
   });
+  static const length = 6;
   final TextEditingController controller;
-  final String semanticLabel, hint;
+  final String semanticLabel;
   final ValueChanged<String>? onChanged;
   final FormFieldValidator<String>? validator;
+  final bool enabled;
 
   @override
   State<KoloCodeField> createState() => _KoloCodeFieldState();
 }
 
 class _KoloCodeFieldState extends State<KoloCodeField> {
-  bool hidden = true;
+  final focus = FocusNode();
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 16),
-        child: Semantics(
-          label: widget.semanticLabel,
-          textField: true,
-          child: TextFormField(
-            controller: widget.controller,
-            obscureText: hidden,
-            maxLength: 128,
-            autocorrect: false,
-            enableSuggestions: false,
-            autofillHints: const [AutofillHints.oneTimeCode],
-            onChanged: widget.onChanged,
-            validator: widget.validator,
-            textAlign: TextAlign.center,
-            style: KoloVibeText.body(22,
-                weight: FontWeight.w700, color: KoloVibeColors.navy),
-            decoration: InputDecoration(
-              hintText: widget.hint,
-              hintStyle: KoloVibeText.body(14, color: KoloVibeColors.muted),
-              counterText: '',
-              fillColor: Colors.white,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
-              border: _border(KoloVibeColors.navy),
-              enabledBorder: _border(KoloVibeColors.navy),
-              focusedBorder: _border(KoloVibeColors.navy, 2),
-              errorBorder: _border(KoloVibeColors.red),
-              focusedErrorBorder: _border(KoloVibeColors.red, 2),
-              suffixIcon: IconButton(
-                  tooltip: hidden ? 'Show code' : 'Hide code',
-                  onPressed: () => setState(() => hidden = !hidden),
-                  icon: Icon(
-                      hidden
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                      size: 20,
-                      color: KoloVibeColors.muted)),
-            ),
+  void dispose() {
+    focus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => FormField<String>(
+        validator: (_) => widget.validator?.call(widget.controller.text),
+        builder: (state) => Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Semantics(
+                label: widget.semanticLabel,
+                textField: true,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: widget.enabled ? focus.requestFocus : null,
+                  child: SizedBox(
+                    height: 56,
+                    child: Stack(children: [
+                      ExcludeSemantics(
+                        child: ListenableBuilder(
+                          listenable:
+                              Listenable.merge([widget.controller, focus]),
+                          builder: (context, _) => Row(children: [
+                            for (var i = 0; i < KoloCodeField.length; i++) ...[
+                              if (i > 0) const SizedBox(width: 8),
+                              Expanded(child: _box(i, state.hasError)),
+                            ],
+                          ]),
+                        ),
+                      ),
+                      Positioned.fill(
+                        child: Opacity(
+                          opacity: 0.011,
+                          child: TextField(
+                            focusNode: focus,
+                            controller: widget.controller,
+                            enabled: widget.enabled,
+                            autocorrect: false,
+                            enableSuggestions: false,
+                            enableInteractiveSelection: false,
+                            showCursor: false,
+                            maxLength: KoloCodeField.length,
+                            keyboardType: TextInputType.number,
+                            textInputAction: TextInputAction.done,
+                            autofillHints: const [AutofillHints.oneTimeCode],
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(
+                                  KoloCodeField.length),
+                            ],
+                            style: const TextStyle(fontSize: 1),
+                            decoration: const InputDecoration(
+                              counterText: '',
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              filled: false,
+                            ),
+                            onChanged: (value) {
+                              state.didChange(value);
+                              widget.onChanged?.call(value);
+                            },
+                          ),
+                        ),
+                      ),
+                    ]),
+                  ),
+                ),
+              ),
+              if (state.hasError)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Semantics(
+                    liveRegion: true,
+                    child: Text(state.errorText!,
+                        style: KoloVibeText.body(12, color: KoloVibeColors.red)),
+                  ),
+                ),
+            ],
           ),
         ),
       );
 
-  OutlineInputBorder _border(Color color, [double width = 1.5]) =>
-      OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: color, width: width));
+  Widget _box(int index, bool error) {
+    final text = widget.controller.text;
+    final digit = index < text.length ? text[index] : '';
+    final active = focus.hasFocus &&
+        (index == text.length ||
+            (index == KoloCodeField.length - 1 &&
+                text.length == KoloCodeField.length));
+    final color = error
+        ? KoloVibeColors.red
+        : widget.enabled
+            ? KoloVibeColors.navy
+            : KoloVibeColors.muted;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color, width: active ? 2.5 : 1.5),
+      ),
+      child: Center(
+        child: Text(digit,
+            style: KoloVibeText.body(24,
+                weight: FontWeight.w700, color: KoloVibeColors.navy)),
+      ),
+    );
+  }
 }

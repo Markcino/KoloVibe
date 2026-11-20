@@ -65,7 +65,7 @@ paths:
       tags: [Identity]
       operationId: resendEmailVerification
       summary: Request another email verification code
-      description: The response is identical for unknown, verified, or throttled addresses. Eligible requests replace the previous code with a two-minute resend cooldown.
+      description: The response is identical for unknown, verified, or throttled addresses. An eligible request replaces every earlier code, after a 60-second cooldown and at most 3 emails per hour. Each email carries a new six-digit code that expires in 30 minutes.
       x-implementation: local
       security: []
       requestBody:
@@ -93,7 +93,10 @@ paths:
       tags: [Identity]
       operationId: post__auth_verify
       x-implementation: local
-      summary: Verify local account email
+      summary: Verify local account email with the six-digit code that was emailed
+      description: |
+        Send the address the code was mailed to together with the six digits. The code proves access to that mailbox and nothing more: it is **not** multifactor authentication and no session is issued.
+        A code lives 30 minutes, works once, and is destroyed by its fifth wrong guess. An address that fails 10 times in an hour, or a trusted network origin that fails 40 times in 15 minutes, receives 429 until the window passes, even for a correct code. Unknown addresses, wrong, expired, used and exhausted codes all return the same 400. A bare long `code` (no `email`) is the retired link, honoured only for links already mailed before this contract and removed 24 hours after rollout.
       security: []
       requestBody:
         required: true
@@ -109,7 +112,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/VerificationResponse'
         '400':
-          description: Invalid, expired or reused code
+          description: Invalid, expired, reused or unknown code or address (identical answers)
+        '429':
+          description: Too many attempts; try again later. Returned for known and unknown addresses alike.
         '503':
           description: Identity unavailable
   /auth/password/reset-request:
@@ -118,7 +123,7 @@ paths:
       operationId: requestPasswordReset
       x-implementation: local
       summary: Request a single-use password reset code
-      description: Unknown, eligible and throttled accounts receive the same empty response, including delivery failure. Privileged account recovery requires a separate reviewed workflow.
+      description: Unknown, eligible and throttled accounts receive the same empty response, including delivery failure. An eligible account is mailed a six-digit code that expires in 15 minutes, after a 60-second cooldown and at most 3 emails per hour; a new code replaces earlier ones. Privileged account recovery requires a separate reviewed workflow.
       security: []
       requestBody:
         required: true
@@ -139,7 +144,9 @@ paths:
       tags: [Identity]
       operationId: resetPassword
       x-implementation: local
-      summary: Consume reset code and revoke all account sessions
+      summary: Consume the six-digit reset code and revoke all account sessions
+      description: >-
+        Same limits as email verification. 5 wrong guesses destroy the code, 10 per address per hour and 40 per trusted origin per 15 minutes return 429. A weak new password is rejected without spending the code. No session is issued; the person signs in again.
       security: []
       requestBody:
         required: true
@@ -150,11 +157,16 @@ paths:
               additionalProperties: false
               required: [code, new_password]
               properties:
-                code: {type: string, minLength: 32, maxLength: 128}
+                email: {type: string, format: email, maxLength: 254, description: 'Required with a six-digit code, omitted only by the retired long link'}
+                code:
+                  oneOf:
+                    - {type: string, pattern: '^[0-9]{6}$'}
+                    - {type: string, minLength: 32, maxLength: 128, deprecated: true, description: 'Retired long link, accepted without email until it expires'}
                 new_password: {type: string, minLength: 1, maxLength: 128}
       responses:
         '204': {description: Password changed and sessions revoked}
         '400': {description: Invalid or expired code or password}
+        '429': {description: Too many attempts}
         '503': {$ref: '#/components/responses/LocalUnavailable'}
   /auth/login:
     post:
@@ -2989,10 +3001,21 @@ components:
       type: object
       additionalProperties: false
       properties:
-        code:
+        email:
           type: string
-          minLength: 32
-          maxLength: 128
+          format: email
+          maxLength: 254
+          description: Address the code was mailed to. Required with a six-digit code.
+        code:
+          oneOf:
+            - type: string
+              pattern: '^[0-9]{6}$'
+              description: Six-digit code from the email. Never logged.
+            - type: string
+              minLength: 32
+              maxLength: 128
+              deprecated: true
+              description: Retired long link, accepted without email until it expires.
       required: [code]
     VerificationResponse:
       type: object
@@ -4306,6 +4329,10 @@ components:
           - account.reauthentication_throttled
           - account.registered
           - account.verification_resent
+          - account.password_reset_code_failed
+          - account.password_reset_throttled
+          - account.verification_code_failed
+          - account.verification_throttled
           - account.verified
           - creator.application_submitted
           - creator.approved
@@ -4380,6 +4407,10 @@ components:
         - account.reauthentication_throttled
         - account.registered
         - account.verification_resent
+        - account.password_reset_code_failed
+        - account.password_reset_throttled
+        - account.verification_code_failed
+        - account.verification_throttled
         - account.verified
         - login.failed
         - login.succeeded
