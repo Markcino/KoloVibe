@@ -23,9 +23,28 @@ GAP = 12
 BACKGROUND = (136, 136, 136)
 
 
+REVISED_DIR = ROOT / "docs/designed/R1 adaptations (pending owner review)"
+
+# Screens whose approved export was revised for R1 (docs/mobile-design-r1-adaptations.md). The key is the
+# capture tag; the revised frame replaces the approved export for that tag only, and is labelled as such.
+REVISED = {
+    "M-019": "M-019 R1 latest original.png",
+    "M-033": "M-033 R1 playback error.png",
+    "M-034": "M-034 R1 slow connection.png",
+    "M-096": "M-096 R1 slow connection page.png",
+    "M-078-eligible": "M-078 R1 eligible entry.png",
+    "M-078-eligible-validation": "M-078 R1 eligible validation.png",
+    "M-078-eligible-sending": "M-078 R1 eligible sending.png",
+    "M-078-eligible-failure": "M-078 R1 eligible failure.png",
+    "M-078-eligible-receipt": "M-078 R1 eligible receipt.png",
+}
+
+
 def exports():
     found = {}
     for path in (ROOT / "docs/designed").rglob("*.png"):
+        if REVISED_DIR in path.parents:
+            continue
         match = re.search(r"M-(\d{3})", str(path.relative_to(ROOT / "docs/designed")))
         if match:
             found[int(match.group(1))] = path
@@ -64,8 +83,13 @@ def main(raw, out):
     for number, variants in sorted(states.items()):
         for variant in sorted(variants):
             tag = f"M-{number:03d}{variant}"
+            revised = REVISED_DIR / REVISED[tag] if tag in REVISED else None
+            if revised is not None and revised.exists():
+                reference = panel(revised, f"Figma R1 revision {tag} (owner review pending)", (402, 874))
+            else:
+                reference = panel(refs[number], f"Figma export M-{number:03d}", (402, 874))
             panels = [
-                panel(refs[number], f"Figma export M-{number:03d}", (402, 874)),
+                reference,
                 panel(raw / f"{tag}_390x844.png", "Flutter 390x844", (390, 844)),
                 panel(raw / f"{tag}_375x667.png", "Flutter 375x667", (375, 667)),
             ]
