@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:video_player/video_player.dart';
 import '../../app/screen_route.dart';
 import '../../core/network/api_client.dart';
@@ -513,8 +514,21 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
                     child: VideoPlayer(current)))
           else if (video.posterUrl != null)
             Image.network(video.posterUrl.toString(),
-                fit: BoxFit.contain,
+                fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => const SizedBox()),
+          const IgnorePointer(
+              child: DecoratedBox(
+                  decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          stops: [0, .24, .58, 1],
+                          colors: [
+                        Color(0xBB001539),
+                        Color(0x11001539),
+                        Color(0x22001539),
+                        Color(0xFA001539)
+                      ])))),
           if (buffering)
             Center(
                 child: Card(
@@ -535,49 +549,166 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
                     child: playbackState(
                         playbackFailure ?? StateError('Playback failed'),
                         media: playerError != null))),
-          Align(
-              alignment: Alignment.bottomCenter,
-              child: Container(
-                  color: Colors.black87,
-                  padding: const EdgeInsets.all(16),
-                  child: SingleChildScrollView(
-                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Positioned(
+              left: 20,
+              right: 96,
+              bottom: 66,
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                     Text(video.title,
-                        style:
-                            const TextStyle(color: Colors.white, fontSize: 22)),
-                    Text(
-                        '${controller?.likeCount ?? video.likeCount ?? 'Unavailable'} likes',
-                        style: const TextStyle(color: Colors.white)),
-                    Wrap(children: [
-                      TextButton(
-                          onPressed: () => navigate(26, video.creatorId),
-                          child: const Text('View creator')),
-                      TextButton(
-                          onPressed: controller?.liked == null
-                              ? () => navigate(4)
-                              : controller!.likeBusy
-                                  ? null
-                                  : toggleLike,
-                          child: Text(
-                              controller?.liked == true ? 'Unlike' : 'Like')),
-                      TextButton(
-                          onPressed: sharing ? null : share,
-                          child: const Text('Share')),
-                      TextButton(
-                          onPressed: () => navigate(
-                              widget.engagement == null ? 4 : 71,
-                              widget.engagement == null ? null : video.id),
-                          child: const Text('Report video')),
-                      if (current != null && current.value.isInitialized)
-                        TextButton(
-                            onPressed: () => current.value.isPlaying
-                                ? current.pause()
-                                : current.play(),
-                            child: Text(
-                                current.value.isPlaying ? 'Pause' : 'Play')),
-                    ]),
-                  ])))),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: KoloVibeText.heading(17, color: Colors.white)),
+                    if (video.description.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(video.description,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: KoloVibeText.body(12, color: Colors.white)),
+                    ],
+                    if (video.category != null || video.tags.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text([
+                        if (video.category != null) categoryLabel(video.category!),
+                        ...video.tags.map((tag) => '#$tag')
+                      ].join(' · '),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: KoloVibeText.body(11,
+                              color: const Color(0xFFA8B7D0))),
+                    ]
+                  ])),
+          Positioned(
+              right: 14,
+              bottom: 96,
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                IconButton(
+                    tooltip: 'View creator to follow',
+                    onPressed: () => navigate(26, video.creatorId),
+                    icon: Stack(clipBehavior: Clip.none, children: [
+                      const CircleAvatar(
+                          radius: 22,
+                          backgroundColor: Color(0xFF142D52),
+                          child: Icon(Icons.person_outline,
+                              color: Colors.white)),
+                      Positioned(
+                          bottom: -8,
+                          right: 10,
+                          child: SvgPicture.asset(
+                              'assets/images/feed/plus.svg',
+                              width: 20,
+                              height: 20))
+                    ])),
+                const SizedBox(height: 16),
+                _feedAction(
+                    asset: 'heart.svg',
+                    label: controller?.liked == true ? 'Unlike' : 'Like',
+                    caption: controller?.likeCount?.toString() ??
+                        video.likeCount?.toString(),
+                    active: controller?.liked == true,
+                    onPressed: controller?.liked == null
+                        ? () => navigate(4)
+                        : controller!.likeBusy
+                            ? null
+                            : toggleLike),
+                const SizedBox(height: 12),
+                _feedAction(
+                    asset: 'share.svg',
+                    label: 'Share',
+                    onPressed: sharing ? null : share),
+                const SizedBox(height: 12),
+                _feedAction(
+                    asset: 'more.svg',
+                    label: 'More',
+                    onPressed: () => _showFeedActions(video)),
+              ])),
+          Positioned(
+              left: 20,
+              right: 20,
+              bottom: 8,
+              child: Row(children: [
+                IconButton(
+                    tooltip: current?.value.isPlaying == true
+                        ? 'Pause video'
+                        : 'Play video',
+                    onPressed: current == null || !current.value.isInitialized
+                        ? null
+                        : () => current.value.isPlaying
+                            ? current.pause()
+                            : current.play(),
+                    icon: SvgPicture.asset('assets/images/feed/pause.svg',
+                        width: 18, height: 18)),
+                if (current != null && current.value.isInitialized) ...[
+                  ValueListenableBuilder<VideoPlayerValue>(
+                      valueListenable: current,
+                      builder: (_, value, __) => Text(
+                          '${_playbackTime(value.position)} / ${_playbackTime(value.duration)}',
+                          style: KoloVibeText.body(10, color: Colors.white))),
+                  const SizedBox(width: 10),
+                  Expanded(
+                      child: VideoProgressIndicator(current,
+                          allowScrubbing: false,
+                          colors: const VideoProgressColors(
+                              playedColor: KoloVibeColors.red,
+                              bufferedColor: Color(0x66FFFFFF),
+                              backgroundColor: Color(0xFFA8B7D0)))),
+                  IconButton(
+                      tooltip: current.value.volume == 0
+                          ? 'Unmute video'
+                          : 'Mute video',
+                      onPressed: () => current.setVolume(
+                          current.value.volume == 0 ? 1 : 0),
+                      icon: SvgPicture.asset('assets/images/feed/volume.svg',
+                          width: 18, height: 18)),
+                ] else
+                  const Expanded(child: SizedBox()),
+              ])),
         ]));
+  }
+
+  String _playbackTime(Duration value) =>
+      '${value.inMinutes.toString().padLeft(2, '0')}:${(value.inSeconds % 60).toString().padLeft(2, '0')}';
+
+  Widget _feedAction({
+    required String asset,
+    required String label,
+    required VoidCallback? onPressed,
+    String? caption,
+    bool active = false,
+  }) => SizedBox(
+        width: 50,
+        child: Column(children: [
+          IconButton(
+              tooltip: label,
+              onPressed: onPressed,
+              icon: SvgPicture.asset('assets/images/feed/$asset',
+                  width: 28,
+                  height: 28,
+                  colorFilter: active
+                      ? const ColorFilter.mode(
+                          KoloVibeColors.red, BlendMode.srcIn)
+                      : null)),
+          Text(caption ?? label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: KoloVibeText.body(11, color: Colors.white)),
+        ]),
+      );
+
+  void _showFeedActions(LiveVideo video) {
+    showModalBottomSheet<void>(
+        context: context,
+        builder: (sheetContext) => SafeArea(
+            child: ListTile(
+                leading: const Icon(Icons.flag_outlined),
+                title: const Text('Report video'),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  navigate(widget.engagement == null ? 4 : 71,
+                      widget.engagement == null ? null : video.id);
+                })));
   }
 
   static const _months = [
