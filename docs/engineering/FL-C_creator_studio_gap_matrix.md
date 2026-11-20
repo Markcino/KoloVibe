@@ -23,9 +23,9 @@ VERIFIED = live screen, real gateway data, states and tests. PARTIAL = some beha
 | M-055 | Unpublish confirmation | MISSING | MISSING | `POST /videos/{id}/unpublish`; `409 review_required`; allowed for a restricted creator. |
 | M-056 | Delete confirmation | PARTIAL (drafts only) | PARTIAL | `DELETE /videos/{id}` is a soft delete in any state (media retained, ADR-020). |
 | M-057 | Content status notice | MISSING | MISSING | Same notice read as M-052. |
-| M-058 | Creator analytics | MISSING | MISSING | `GET /creators/me/analytics?range=7d|28d` (`CreatorContentAnalytics`); gateway capability `analytics`. |
-| M-059 | Video analytics | MISSING | MISSING | `GET /creators/me/videos/{id}/analytics?range=7d|since_published`. |
-| M-060 | Analytics empty or unavailable | MISSING | MISSING | Zero-filled responses and 503 map to this state. |
+| M-058 | Creator analytics | MISSING | **LIVE** (20 Nov 2026, `live_analytics_screen.dart`) | `GET /creators/me/analytics?range=7d|28d` (`CreatorContentAnalytics`); gateway capability `analytics`. |
+| M-059 | Video analytics | MISSING | **LIVE** (totals; no daily series in the API) | `GET /creators/me/videos/{id}/analytics?range=7d|since_published`. |
+| M-060 | Analytics empty or unavailable | MISSING | **LIVE** (zero-activity and 403/404/503 states) | Zero-filled responses and 503 map to this state. |
 
 Staging capabilities `media`, `analytics` and `moderation` are closed by default; every client must treat 403, 404 and 503 as normal states.
 

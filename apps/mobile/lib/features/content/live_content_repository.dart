@@ -393,12 +393,28 @@ class LiveContentRepository {
     return VideoUploadStatus.fromJson(result, videoId);
   }
 
-  Future<OwnedVideoPage> library({String? cursor}) async {
+  /// [state] is one of the service's library filters; `all` sends none.
+  Future<OwnedVideoPage> library({String? cursor, String state = 'all'}) async {
     if (cursor != null && !isApiId(cursor)) {
       throw const FormatException('Invalid video cursor');
     }
-    final raw = await account.authenticatedRequest('/creators/me/videos',
-        query: {if (cursor != null) 'cursor': cursor});
+    if (!const {
+      'all',
+      'draft',
+      'in_progress',
+      'review',
+      'published',
+      'rejected',
+      'removed',
+      'failed'
+    }.contains(state)) {
+      throw const FormatException('Invalid library filter');
+    }
+    final raw =
+        await account.authenticatedRequest('/creators/me/videos', query: {
+      if (cursor != null) 'cursor': cursor,
+      if (state != 'all') 'state': state,
+    });
     final entries = raw['items'];
     final next = raw['next_cursor'];
     if (raw.keys.toSet().difference({'items', 'next_cursor'}).isNotEmpty ||

@@ -4,6 +4,8 @@ import '../../app/screen_route.dart';
 import '../../core/network/api_client.dart';
 import '../../core/presentation/design_node.dart';
 import '../../core/theme/kolovibe_theme.dart';
+import '../../shared/widgets/kolo_components.dart';
+import '../../shared/widgets/kolo_media.dart';
 import '../../shared/widgets/live_state_view.dart';
 import '../discovery/live_video_repository.dart';
 import '../shell/main_shell.dart';
@@ -160,7 +162,12 @@ class _LiveReportScreenState extends State<LiveReportScreen> {
       case ReportPhase.ready:
         return ListView(
             padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-            children: [_videoCard(), ..._stage(context)]);
+            children: [
+              if (controller.stage != ReportStage.submitted &&
+                  controller.stage != ReportStage.alreadyReported)
+                _videoCard(),
+              ..._stage(context)
+            ]);
     }
   }
 
@@ -168,23 +175,39 @@ class _LiveReportScreenState extends State<LiveReportScreen> {
       Navigator.of(context).pushNamed(const ScreenRoute(4, returnTo: 24).name,
           arguments: const ScreenRoute(4, returnTo: 24));
 
-  Widget _videoCard() => Card(
-      child: Padding(
-          padding: const EdgeInsets.all(16),
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(controller.video!.title,
-                style: const TextStyle(
-                    fontWeight: FontWeight.w700, color: KoloVibeColors.navy)),
-            Text(
-                switch (controller.stage) {
-                  ReportStage.submitted => 'Reported privately',
-                  ReportStage.alreadyReported => 'Previously reported',
-                  ReportStage.details || ReportStage.error => 'Selected video',
-                  ReportStage.reason => 'Reporting privately',
-                },
-                style: const TextStyle(color: KoloVibeColors.muted)),
-          ])));
+  /// The video under report: thumbnail, title and the report status line.
+  Widget _videoCard({String? subtitle}) => Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(children: [
+        ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: SizedBox(
+                width: 72,
+                height: 54,
+                child: KoloPoster(
+                    url: controller.video!.posterUrl, iconSize: 20))),
+        const SizedBox(width: 12),
+        Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(controller.video!.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: KoloVibeText.body(14,
+                  weight: FontWeight.w600, color: KoloVibeColors.navy)),
+          Text(
+              subtitle ??
+                  switch (controller.stage) {
+                    ReportStage.submitted => 'Reported privately',
+                    ReportStage.alreadyReported => 'Previously reported',
+                    ReportStage.details ||
+                    ReportStage.error =>
+                      'Selected video',
+                    ReportStage.reason => 'Reporting privately',
+                  },
+              style: KoloVibeText.body(11)),
+        ])),
+      ]));
 
   List<Widget> _stage(BuildContext context) => switch (controller.stage) {
         ReportStage.reason => _reason(context),
@@ -221,7 +244,9 @@ class _LiveReportScreenState extends State<LiveReportScreen> {
   List<Widget> _details(BuildContext context) {
     return [
       const SizedBox(height: 16),
-      Chip(label: Text(controller.reason!.label)),
+      Align(
+          alignment: Alignment.centerLeft,
+          child: KoloBadge(controller.reason!.label, filled: true)),
       const SizedBox(height: 16),
       TextField(
           controller: details,
@@ -231,12 +256,11 @@ class _LiveReportScreenState extends State<LiveReportScreen> {
           onChanged: controller.setDetails,
           decoration: const InputDecoration(
               labelText: 'Additional details · Optional')),
-      const Card(
-          color: KoloVibeColors.softBlue,
-          child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                  'Your report is private. Include only relevant details. Do not add passwords or sensitive personal information.'))),
+      const KoloNote(
+          title: 'Your report is private',
+          message:
+              'Include only relevant details. Do not add passwords or sensitive personal information.',
+          asset: KoloIcons.info),
       FilledButton(
           style: FilledButton.styleFrom(backgroundColor: KoloVibeColors.red),
           onPressed: controller.submitting ? null : controller.submit,
@@ -253,27 +277,26 @@ class _LiveReportScreenState extends State<LiveReportScreen> {
         controller.receipt == null && record != null && record.status != 'open';
     final reason = record?.reason ?? controller.reason?.code;
     return [
+      const KoloMedallion(KoloIcons.shieldCheck),
       const SizedBox(height: 24),
       Semantics(
           liveRegion: true,
-          child: Text('Thank you for speaking up.',
-              style: Theme.of(context).textTheme.headlineMedium)),
+          child: const KoloHeadline('Thank you for speaking up.', size: 26)),
       const SizedBox(height: 12),
       Text(reviewed
           ? 'Your report about ${controller.video!.title} has been reviewed.'
           : 'Your report about ${controller.video!.title} has been submitted for review under the applicable guidelines.'),
       const SizedBox(height: 12),
-      Card(
-          child: ListTile(
-              title: Text(controller.video!.title),
-              subtitle: Text(reason == null
-                  ? 'Reported privately'
-                  : 'Reported privately · ${reportReasonLabel(reason)}'))),
-      const SizedBox(height: 12),
-      Text('What happens next', style: Theme.of(context).textTheme.titleMedium),
-      const Text(
-          'Reporting doesn’t automatically remove a video. We can share only information permitted by the review policy.'),
-      const SizedBox(height: 16),
+      _videoCard(
+          subtitle: reason == null
+              ? 'Reported privately'
+              : 'Reported privately · ${reportReasonLabel(reason)}'),
+      const SizedBox(height: 8),
+      const KoloNote(
+          title: 'What happens next',
+          message:
+              'Reporting doesn’t automatically remove a video. We can share only information permitted by the review policy.',
+          asset: KoloIcons.info),
       FilledButton(
           onPressed: () => go(24), child: const Text('Return to videos')),
       TextButton(
@@ -285,27 +308,26 @@ class _LiveReportScreenState extends State<LiveReportScreen> {
   List<Widget> _already(BuildContext context) {
     final record = controller.existing;
     return [
+      const KoloMedallion(KoloIcons.clipboardCheck),
       const SizedBox(height: 24),
       Semantics(
           liveRegion: true,
-          child: Text('Your concern is already recorded.',
-              style: Theme.of(context).textTheme.headlineMedium)),
+          child: const KoloHeadline('Your concern is already recorded.',
+              size: 26)),
       const SizedBox(height: 12),
       const Text(
           'You’ve already submitted a report about this video. You don’t need to submit the same concern again.'),
       const SizedBox(height: 12),
-      Card(
-          child: ListTile(
-              title: Text(controller.video!.title),
-              subtitle: Text(record == null
-                  ? 'Previously reported'
-                  : 'Previously reported · ${reportReasonLabel(record.reason)}'))),
-      const SizedBox(height: 12),
-      Text('No duplicate report was created',
-          style: Theme.of(context).textTheme.titleMedium),
-      const Text(
-          'The video’s availability is determined separately under the review policy.'),
-      const SizedBox(height: 16),
+      _videoCard(
+          subtitle: record == null
+              ? 'Previously reported'
+              : 'Previously reported · ${reportReasonLabel(record.reason)}'),
+      const SizedBox(height: 8),
+      const KoloNote(
+          title: 'No duplicate report was created',
+          message:
+              'The video’s availability is determined separately under the review policy.',
+          asset: KoloIcons.info),
       FilledButton(
           onPressed: () => go(24), child: const Text('Return to videos')),
       TextButton(
@@ -357,19 +379,18 @@ class _LiveReportScreenState extends State<LiveReportScreen> {
       const SizedBox(height: 16),
       Semantics(
           liveRegion: true,
-          child: Text('Report not confirmed',
-              style: Theme.of(context).textTheme.headlineMedium)),
+          child: const KoloHeadline('We couldn’t send your report.', size: 26)),
       const SizedBox(height: 8),
-      const Text('We couldn’t send your report.'),
-      const SizedBox(height: 8),
-      Card(
-          color: KoloVibeColors.softBlue,
-          child: ListTile(title: Text(title), subtitle: Text(message))),
-      if (controller.reason != null) ...[
-        Text('Your selected reason',
-            style: Theme.of(context).textTheme.titleMedium),
-        Text(controller.reason!.label),
-      ],
+      const Text('Report not confirmed'),
+      const SizedBox(height: 12),
+      KoloNote(
+          title: title,
+          message: message,
+          asset: KoloIcons.circleAlert,
+          tone: KoloNoteTone.alert),
+      if (controller.reason != null)
+        KoloCard(
+            title: 'Your selected reason', message: controller.reason!.label),
       if (kind != FailureKind.expired)
         const Text(
             'Your text remains on this screen while you retry. Leaving may discard it.',

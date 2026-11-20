@@ -35,7 +35,8 @@ class _ContentFixture extends LiveContentRepository {
   ];
 
   @override
-  Future<OwnedVideoPage> library({String? cursor}) async =>
+  Future<OwnedVideoPage> library(
+          {String? cursor, String state = 'all'}) async =>
       OwnedVideoPage(List.of(videos), null);
 
   @override

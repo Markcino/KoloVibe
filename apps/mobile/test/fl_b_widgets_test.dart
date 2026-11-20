@@ -528,7 +528,7 @@ void main() {
     expect(players.last.value.isPlaying, isTrue);
     await tester.tap(find.byTooltip('More'));
     await settle(tester);
-    await tap(tester, 'Report video');
+    await tap(tester, 'Report this video');
     expect(players.last.value.isPlaying, isFalse);
     expect(find.text('Destination /mobile/M-004'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());

@@ -492,6 +492,8 @@ Rendering without overflow is not treated as a match. Representative pictures (e
 
 Totals: Visually matched 3, Functional but visually different 69, Not verified 36.
 
+> **Superseded on 20 November 2026 (later) by [mobile-design-parity.md](mobile-design-parity.md):** 8 visually matched, 99 functional with a specified deviation, 1 not verified, with per-screen pictures at 390 × 844 and 375 × 667 in `evidence/mobile-parity-2026-11-20/` and the decisions D-1 to D-10. The table above is kept as the earlier baseline.
+
 Follow-up in progress (20 November 2026): M-018 and M-024 now use the Figma
 engagement rail (creator entry, server-backed like count, Share and More), a
 video caption, contrast scrim and player position/progress controls. These
@@ -512,13 +514,13 @@ Figma elements the current API or approved capabilities cannot support, and what
 | M-045 Choose a cover (frame strip) | The service takes `cover_time_ms` (0–300000 ms, at most the duration) via `PATCH /videos/{id}` and renders the poster after processing. It returns no frame thumbnails, and the duration is unknown before processing. | A cover-moment slider in Edit details (M-054), shown only once the duration is known; saved as `cover_time_ms`. Proposal for a frame strip: the API would need a frame-sprite or thumbnail endpoint. |
 | M-078 eligible state | The export draws only “availability not confirmed”. `POST /videos/{id}/appeals` exists and `appealable` comes from the notice. | Unavailable state as designed; eligible state (statement + Send review request) shown only when the server says `appealable`. Needs design approval; the FL-D matrix recorded the owner decision as open. |
 | M-017 Creators to know | No creator-list or recommendation endpoint. | Creators of the first trending videos, via `GET /creators/{id}`. Proposal: a `GET /creators/suggested` endpoint if recommendations are approved. |
-| Plays, duration, “12.4K plays” on cards (M-017 to M-027) | Public video JSON has no `duration_ms` or play count. | Category and likes only. Proposal: add `duration_ms` and a public view count to the public video contract. |
+| Plays, duration, “12.4K plays” on cards (M-017 to M-027) | Public video JSON **does** carry optional `duration_ms`/`duration_seconds` (now parsed and shown on cards, rows and details). It has no play count; analytics are creator-only. | Category, duration and likes. Proposal: a public view count (decision D-9). |
 | Profile photos (M-013, M-038, M-039, M-079, creator rows) | No photo endpoint; photo moderation policy pending. | Initial avatar. |
-| Studio and creator analytics (M-037 chart, M-058 to M-060) | No analytics endpoint. | Not shown. |
+| Studio and creator analytics (M-037 chart, M-058 to M-060) | **Resolved:** the gateway has `GET /creators/me/analytics?range=7d\|28d` and `GET /creators/me/videos/{id}/analytics?range=7d\|since_published` (capability `analytics`, open in staging). | Live as M-058 to M-060, the Studio summary card and the Manage video figures; 403/404/503 are shown as the designed unavailable state. No period-over-period deltas (not in the API). |
 | Explore curated hero, Fresh perspectives, Creator spotlight (M-019) | No curation endpoint. | Search, chips and rows only. |
 | Recent searches, suggestions (M-021) | Nothing stores them; they would be personal data. | A one-line hint. Proposal: device-local history with a Clear control, subject to privacy review. |
 | Six-box verification code (M-006) | The emailed code is a long token, not six digits. | One masked field. |
-| Following feed side rail: avatar, like count, `@handle` line, progress bar (M-018, M-024) | Like state and playback position are available. Public video JSON contains only `creator_id`, with no handle or profile photo. | Rail, like count, caption and progress bar added; generic avatar opens the creator profile for Follow. The `@handle` line and real avatar remain absent pending creator data on the feed. |
+| Following feed side rail: avatar, like count, `@handle` line, progress bar (M-018, M-024) | Public video JSON has only `creator_id`; the handle is resolved with `GET /creators/{id}`. There is still no profile photo. | Rail, like count, caption, progress bar and `@handle` (when the lookup succeeds); initial avatar opens the creator profile. |
 
 ### Verification run — 19 November 2026
 

@@ -10,6 +10,7 @@ library;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../core/network/api_client.dart';
 import '../../core/platform/device_bridge.dart';
@@ -187,25 +188,55 @@ class SystemEmpty extends StatelessWidget {
       );
 }
 
+/// The designed confirmation dialog layout: a left-aligned alert mark, a
+/// display title, an explanation and stacked actions (a red primary and a soft
+/// secondary). Used by the unsaved-changes and destructive confirmations.
+Widget _confirmDialog(
+  BuildContext dialog, {
+  required Key key,
+  required String title,
+  required String message,
+  required String primary,
+  required String secondary,
+  required bool primaryResult,
+}) =>
+    AlertDialog(
+      key: key,
+      scrollable: true,
+      icon: Align(
+        alignment: Alignment.centerLeft,
+        child: SvgPicture.asset(KoloIcons.circleAlert,
+            width: 24, height: 24, excludeFromSemantics: true),
+      ),
+      iconPadding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+      title: Text(title),
+      content: Text(message),
+      actionsAlignment: MainAxisAlignment.center,
+      actionsOverflowDirection: VerticalDirection.down,
+      actions: [
+        FilledButton(
+          onPressed: () => Navigator.pop(dialog, primaryResult),
+          child: Text(primary),
+        ),
+        OutlinedButton(
+          onPressed: () => Navigator.pop(dialog, !primaryResult),
+          child: Text(secondary),
+        ),
+      ],
+    );
+
 Future<bool> confirmDiscard(BuildContext context) async =>
     await showDialog<bool>(
       context: context,
-      builder: (dialog) => AlertDialog(
+      builder: (dialog) => _confirmDialog(
+        dialog,
         key: const ValueKey('M-105'),
-        title: const Text('Keep your changes?'),
-        content: const Text(
-          'Leaving discards changes that have not been saved.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialog, false),
-            child: const Text('Keep editing'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialog, true),
-            child: const Text('Discard changes'),
-          ),
-        ],
+        title: 'Keep your changes?',
+        message: 'Leaving discards changes that have not been saved.',
+        // Keeping the edits is the safe, primary choice.
+        primary: 'Keep editing',
+        secondary: 'Discard changes',
+        primaryResult: false,
       ),
     ) ??
     false;
@@ -267,20 +298,14 @@ Future<bool> confirmDestructive(
 }) async =>
     await showDialog<bool>(
       context: context,
-      builder: (dialog) => AlertDialog(
+      builder: (dialog) => _confirmDialog(
+        dialog,
         key: const ValueKey('M-106'),
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialog, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialog, true),
-            child: Text(confirmLabel),
-          ),
-        ],
+        title: title,
+        message: message,
+        primary: confirmLabel,
+        secondary: 'Cancel',
+        primaryResult: true,
       ),
     ) ??
     false;

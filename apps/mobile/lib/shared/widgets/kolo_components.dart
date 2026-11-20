@@ -403,10 +403,8 @@ class _KoloTextFieldState extends State<KoloTextField> {
             onFieldSubmitted: widget.onSubmitted,
             onChanged: widget.onChanged,
             validator: widget.validator,
-            style: KoloVibeText.body(14,
-                color: widget.readOnly
-                    ? KoloVibeColors.muted
-                    : KoloVibeColors.ink),
+            // Read-only values (the account email) are drawn like any field.
+            style: KoloVibeText.body(14, color: KoloVibeColors.ink),
             decoration: InputDecoration(
               hintText: widget.hint,
               counterText: '',
@@ -703,6 +701,8 @@ abstract final class KoloIcons {
   static const info = 'assets/images/d8eedea853f449ea1543.svg';
   static const loader = 'assets/images/ca4c1bcc5542a3416b63.svg';
   static const emblem = 'assets/images/88dfdf7ffa8d70c62080.svg';
+  static const chartNoAxes = 'assets/images/5b85dca48e7671a667a1.svg';
+  static const cloudUpload = 'assets/images/b8b6f386e7fec243e8f7.svg';
   static const videoOff = 'assets/images/f523f033e54d4ea7bfa8.svg';
   static const shieldAlert = 'assets/images/a6231cbc39941a194e8d.svg';
   static const wifiOff = 'assets/images/f175639d9525b14b3858.svg';

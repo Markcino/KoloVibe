@@ -6,6 +6,7 @@ import 'package:kolovibe/app/screen_route.dart';
 import 'package:kolovibe/core/network/api_client.dart';
 import 'package:kolovibe/core/presentation/design_node.dart';
 import 'package:kolovibe/features/moderation/live_report_screen.dart';
+import 'package:kolovibe/shared/widgets/kolo_components.dart';
 
 import 'support/report_fakes.dart';
 import 'support/upload_fakes.dart';
@@ -157,7 +158,7 @@ void main() {
       await pump(tester, 71);
       await toDetails(tester);
       expect(find.text('Report details'), findsOneWidget);
-      expect(find.widgetWithText(Chip, 'Rights or ownership concern'),
+      expect(find.widgetWithText(KoloBadge, 'Rights or ownership concern'),
           findsOneWidget);
       expect(find.text('Additional details · Optional'), findsOneWidget);
       expect(find.textContaining('Your report is private'), findsOneWidget);
@@ -185,7 +186,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('What’s your concern?'), findsOneWidget);
       await tapText(tester, 'Continue');
-      expect(find.widgetWithText(Chip, 'Rights or ownership concern'),
+      expect(find.widgetWithText(KoloBadge, 'Rights or ownership concern'),
           findsOneWidget);
     });
 

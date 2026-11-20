@@ -1,5 +1,7 @@
 # Figma versus Flutter evidence, 20 November 2026
 
+> **Superseded** by [`../mobile-parity-2026-11-20/`](../mobile-parity-2026-11-20/) and [`../../mobile-design-parity.md`](../../mobile-design-parity.md), which cover all 108 screens. This folder is the earlier 33-picture baseline.
+
 Each picture is three panels, left to right: the approved export from `docs/designed/`; the Flutter render at 390 × 844 (status bar 47 pt, home indicator 34 pt); the Flutter render at 375 × 667 (iPhone SE class, status bar 20 pt, no home indicator). Renders come from `apps/mobile/test/design_audit_test.dart` and `home_dashboard_test.dart` with scripted repositories and the bundled brand fonts. They are **simulated renders, not device screenshots**: they have no status bar, no real video frames (an in-memory player is used) and sample data.
 
 Regenerate: `cd apps/mobile && AUDIT_DIR=$PWD/build/design-audit flutter test test/design_audit_test.dart test/home_dashboard_test.dart`.

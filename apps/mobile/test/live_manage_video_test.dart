@@ -432,6 +432,10 @@ void main() {
         {String state = 'published',
         String visibility = 'private',
         ApiFailure? onChange}) async {
+      // A tall surface keeps the hero and every action on screen.
+      tester.view.physicalSize = const Size(800, 3200);
+      tester.view.devicePixelRatio = 2;
+      addTearDown(tester.view.reset);
       final fake = _Fake(
           OwnedVideo.fromJson(_json(state: state, visibility: visibility)),
           onChange: onChange);
@@ -466,8 +470,8 @@ void main() {
       final fake = await pump(tester, visibility: 'public');
       await tester.tap(find.text('Unpublish'));
       await tester.pumpAndSettle();
-      expect(find.text('Unpublish this video?'), findsOneWidget);
-      await tester.tap(find.widgetWithText(FilledButton, 'Unpublish'));
+      expect(find.text('Take this video off stage?'), findsOneWidget);
+      await tester.tap(find.widgetWithText(FilledButton, 'Unpublish video'));
       await tester.pumpAndSettle();
       expect(find.text('Your video is no longer public.'), findsOneWidget);
       expect(find.text('Publish'), findsOneWidget);
@@ -476,6 +480,9 @@ void main() {
 
     testWidgets('a rejected or removed video links to its notice (M-052)',
         (tester) async {
+      tester.view.physicalSize = const Size(800, 3200);
+      tester.view.devicePixelRatio = 2;
+      addTearDown(tester.view.reset);
       final pushed = <RouteSettings>[];
       final fake = _Fake(OwnedVideo.fromJson(_json(state: 'rejected')));
       await tester.pumpWidget(MaterialApp(
@@ -548,18 +555,30 @@ void main() {
                               builder: (_) => LiveManageVideoScreen(
                                   videoId: _video, repository: fake))),
                       child: const Text('open'))))));
+      tester.view.physicalSize = const Size(800, 3200);
+      tester.view.devicePixelRatio = 2;
+      addTearDown(tester.view.reset);
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('Delete video'));
       await tester.tap(find.text('Delete video'));
       await tester.pumpAndSettle();
-      expect(find.text('Delete this video?'), findsOneWidget);
+      expect(find.text('Delete this original?'), findsOneWidget);
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
       expect(fake.calls, isEmpty);
       await tester.tap(find.text('Delete video'));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+      // The destructive action stays disabled until DELETE is typed.
+      expect(
+          tester
+              .widget<FilledButton>(
+                  find.widgetWithText(FilledButton, 'Delete video'))
+              .onPressed,
+          isNull);
+      await tester.enterText(find.byType(TextFormField), 'DELETE');
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Delete video'));
       await tester.pumpAndSettle();
       expect(fake.calls, ['delete']);
       expect(find.byType(LiveManageVideoScreen), findsNothing);

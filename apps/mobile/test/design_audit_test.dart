@@ -24,7 +24,10 @@ import 'package:kolovibe/features/content/live_content_repository.dart';
 import 'package:kolovibe/features/content/live_content_screen.dart';
 import 'package:kolovibe/features/content/live_create_original_screen.dart';
 import 'package:kolovibe/features/content/live_manage_video_screen.dart';
+import 'package:kolovibe/features/content/live_upload_controller.dart';
 import 'package:kolovibe/features/creators/live_become_creator_screen.dart';
+import 'package:kolovibe/features/creators/live_analytics_repository.dart';
+import 'package:kolovibe/features/creators/live_analytics_screen.dart';
 import 'package:kolovibe/features/creators/live_creator_repository.dart';
 import 'package:kolovibe/features/creators/live_creator_screen.dart';
 import 'package:kolovibe/features/creators/live_creator_studio_screen.dart';
@@ -275,6 +278,41 @@ void main() {
           account: signedIn().account,
           catalog: catalog,
           initialEmail: 'ama@example.com'));
+  // M-105 unsaved-changes guard, M-106 destructive confirmation and M-107
+  // success notification, each reached through a real screen.
+  audit(
+      'M-105',
+      105,
+      () => LiveAccountFlowScreen(
+          screen: 80,
+          account: signedIn().account,
+          catalog: catalog), after: (tester) async {
+    await tester.enterText(find.byType(TextFormField).first, 'Mark Edited');
+    await tester.pump();
+    unawaited(navigator.currentState!.maybePop());
+    await settleBounded(tester);
+  });
+  audit(
+      'M-106', 106, () => AccountSessionsScreen(repository: signedIn().account),
+      after: (tester) async {
+    await tester.tap(find.text('End session').first);
+    await settleBounded(tester);
+  });
+  audit(
+      'M-107',
+      107,
+      () => AccountSessionsScreen(
+              repository: AccountFixture(handler: (request) async {
+            if (request.method == 'DELETE') return jsonResponse({}, 204);
+            return signedIn().handler!(request);
+          }).account),
+      after: (tester) async {
+        await tester.tap(find.text('End session').first);
+        await settleBounded(tester);
+        await tester.tap(find.widgetWithText(FilledButton, 'End session'));
+        await settleBounded(tester);
+      },
+      finish: (tester) async => tester.pump(const Duration(seconds: 5)));
   audit(
       'M-079',
       79,
@@ -292,7 +330,7 @@ void main() {
             account: signedIn().account,
             device: TestDevice()));
   }
-  for (final id in [84, 85, 86, 91, 92, 93, 94]) {
+  for (final id in [84, 85, 86, 91, 92]) {
     audit('M-${id.toString().padLeft(3, '0')}', id, () {
       final fixture = signedIn();
       return LiveSettingsScreen(
@@ -301,6 +339,20 @@ void main() {
           repository: LiveSettingsRepository(fixture.account),
           account: fixture.account,
           device: TestDevice());
+    });
+  }
+  // M-093 and M-094: the populated receipts the service returns.
+  for (final id in [93, 94]) {
+    audit('M-0$id', id, () {
+      final fixture = signedIn();
+      return LiveSettingsScreen(
+          route: ScreenRoute(id),
+          catalog: catalog,
+          repository: LiveSettingsRepository(fixture.account),
+          account: fixture.account,
+          device: TestDevice(),
+          receipt: PrivacyReceipt(receiptId, id == 93 ? 'deletion' : 'access',
+              'received', DateTime.utc(2026, 11, 20, 9, 30)));
     });
   }
   for (final entry in {
@@ -322,6 +374,12 @@ void main() {
                         onRetry: () {},
                         onSignIn: () {})))));
   }
+  // M-096: the same loading placeholder once a request passes its 3 s threshold.
+  audit(
+      'M-096', 96, () => const Scaffold(body: SafeArea(child: SystemLoading())),
+      bounded: true, after: (tester) async {
+    await tester.pump(const Duration(seconds: 4));
+  });
   audit('M-097', 97,
       () => const Scaffold(body: SafeArea(child: SystemLoading())));
   audit(
@@ -457,6 +515,11 @@ void main() {
               : LiveVideoEngagementRepository(fixture.account),
           creators: creators,
           playerFactory: (_) => player ?? FakePlayer());
+  audit('M-070', 70, () => playerScreen(fixture: likesAndShares()),
+      after: (tester) async {
+    await tester.tap(find.byTooltip('More'));
+    await settleBounded(tester);
+  });
   audit('M-029', 29, () => playerScreen(fixture: likesAndShares()),
       after: (tester) async {
     await tester.tap(find.byTooltip('Like'));
@@ -594,11 +657,215 @@ void main() {
                 await settleAsync(tester);
               });
   }
+  // The upload journey after "Create and upload": each state is reached
+  // through the real controller with a scripted content service.
+  Future<void> uploadThrough(WidgetTester tester) async {
+    await tapLabel(tester, 'Select a video');
+    Future<void> type(String label, String value) async {
+      final field = find.widgetWithText(TextField, label);
+      if (field.evaluate().isEmpty) {
+        await tester.scrollUntilVisible(field, 200,
+            scrollable: find.byType(Scrollable).first);
+      }
+      await tester.ensureVisible(field);
+      await tester.pump();
+      await tester.enterText(field, value);
+      await tester.pump();
+    }
+
+    await type('Title · Required', 'Walls that speak');
+    await type('Description', 'An afternoon with the artists.');
+    final dropdown = find.byType(DropdownButtonFormField<String>);
+    if (dropdown.evaluate().isEmpty) {
+      await tester.scrollUntilVisible(dropdown, 200,
+          scrollable: find.byType(Scrollable).first);
+    }
+    tester
+        .widget<DropdownButtonFormField<String>>(dropdown)
+        .onChanged!('culture');
+    await tester.pump();
+    await type('Hashtags · Optional', '#Monrovia #StreetArt');
+    final submit = find.text('Create and upload');
+    await tester.ensureVisible(submit);
+    await tester.pump();
+    await tester.tap(submit);
+    for (var i = 0; i < 6; i++) {
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 5)));
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+  }
+
+  void uploadState(String name, int number, void Function(FakeContent) setup,
+      {Completer<void>? gate}) {
+    audit(
+        name,
+        number,
+        () {
+          final content = FakeContent();
+          setup(content);
+          if (gate != null) content.transferGate = gate;
+          final onboarding = FakeOnboarding();
+          return LiveCreateOriginalScreen(
+              catalog: catalog,
+              content: content,
+              onboarding: onboarding,
+              // Polling never fires in a capture: a delay that does not
+              // complete leaves no timer behind.
+              controller: LiveUploadController(content, onboarding,
+                  delay: (_) => Completer<void>().future),
+              pickVideo: () async => mp4(size: 2048));
+        },
+        bounded: true,
+        after: uploadThrough,
+        finish: (tester) async {
+          if (gate != null && !gate.isCompleted) gate.complete();
+          await tester.pumpWidget(const SizedBox());
+          await tester.pump(const Duration(seconds: 1));
+        });
+  }
+
+  uploadState('M-046', 46, (_) {}, gate: Completer<void>());
+  uploadState('M-047', 47,
+      (c) => c.transferError = const ApiFailure(0, 'x', offline: true));
+  uploadState(
+      'M-048',
+      48,
+      (c) => c.completion =
+          FakeContent.status('failed', reason: 'upload_missing'));
+  uploadState('M-049', 49, (_) {});
+  uploadState('M-050', 50, (c) => c.completion = FakeContent.status('review'));
+  uploadState(
+      'M-051', 51, (c) => c.completion = FakeContent.status('published'));
+  uploadState(
+      'M-052', 52, (c) => c.completion = FakeContent.status('rejected'));
+
+  // Analytics (M-058 to M-060) against scripted gateway responses.
+  Map<String, Object?> analyticsJson(String range, {bool empty = false}) {
+    final days = range == '7d' ? 7 : 28;
+    return {
+      'total_videos': empty ? 0 : 12,
+      'videos_by_state': {},
+      'range': range,
+      'qualified_plays': empty ? 0 : 18200,
+      'watch_time_seconds': empty ? 0 : 2311200,
+      'likes': empty ? 0 : 1826,
+      'new_followers': empty ? 0 : 184,
+      'shares': empty ? 0 : 412,
+      'daily': [
+        for (var i = 0; i < days; i++)
+          {
+            'date': DateTime.utc(2026, 10, 22 + i - (days - 7))
+                .toIso8601String()
+                .substring(0, 10),
+            'qualified_plays': empty ? 0 : 1200 + (i * 937) % 2400,
+            'likes': empty ? 0 : 100 + i * 7
+          }
+      ],
+      'top_videos': empty
+          ? []
+          : [
+              {
+                'video_id': videoId,
+                'title': 'Waterside at dawn',
+                'qualified_plays': 12400
+              }
+            ],
+    };
+  }
+
+  LiveAnalyticsRepository analyticsFixture({int? status, bool empty = false}) {
+    final fixture = AccountFixture(handler: (request) async {
+      if (status != null) return jsonResponse({'detail': 'x'}, status);
+      if (request.url.path.endsWith('/analytics') &&
+          request.url.path.contains('/videos/')) {
+        final range = request.url.queryParameters['range']!;
+        return jsonResponse({
+          'video_id': videoId,
+          'state': 'published',
+          'current_likes': 1248,
+          'qualified_viewers': 9800,
+          'range': range,
+          'qualified_plays': empty ? 0 : 12400,
+          'watch_time_seconds': empty ? 0 : 1576800,
+          'likes': empty ? 0 : 1248,
+          'shares': empty ? 0 : 216,
+          'average_watch_seconds': empty ? 0 : 127
+        });
+      }
+      if (request.url.path.endsWith('/analytics')) {
+        return jsonResponse(
+            analyticsJson(request.url.queryParameters['range']!, empty: empty));
+      }
+      return jsonResponse({});
+    });
+    return LiveAnalyticsRepository(fixture.account);
+  }
+
+  audit(
+      'M-058',
+      58,
+      () =>
+          LiveAnalyticsScreen(catalog: catalog, analytics: analyticsFixture()));
+  audit(
+      'M-059',
+      59,
+      () => LiveAnalyticsScreen(
+          catalog: catalog,
+          analytics: analyticsFixture(),
+          content: _AuditManage(),
+          videoId: videoId));
+  audit(
+      'M-060',
+      60,
+      () => LiveAnalyticsScreen(
+          catalog: catalog, analytics: analyticsFixture(empty: true)));
+  audit(
+      'M-060-unavailable',
+      60,
+      () => LiveAnalyticsScreen(
+          catalog: catalog, analytics: analyticsFixture(status: 503)));
+  audit(
+      'M-037-analytics',
+      37,
+      () => LiveCreatorStudioScreen(
+          catalog: catalog,
+          onboarding: onboarding(),
+          profiles: ScriptedOwnCreator(),
+          analytics: analyticsFixture()));
   audit(
       'M-053',
       53,
-      () =>
-          LiveManageVideoScreen(videoId: videoId, repository: _AuditManage()));
+      () => LiveManageVideoScreen(
+          videoId: videoId,
+          catalog: catalog,
+          repository: _AuditManage(visibility: 'public'),
+          analytics: analyticsFixture()));
+  // M-054 edit details, M-055 unpublish and M-056 delete confirmations.
+  audit(
+      'M-054',
+      54,
+      () => LiveManageVideoScreen(
+          videoId: videoId,
+          catalog: catalog,
+          repository: _AuditManage(visibility: 'public')),
+      after: (tester) async => tapLabel(tester, 'Edit details'));
+  audit(
+      'M-055',
+      55,
+      () => LiveManageVideoScreen(
+          videoId: videoId,
+          catalog: catalog,
+          repository: _AuditManage(visibility: 'public')),
+      after: (tester) async => tapLabel(tester, 'Unpublish'));
+  audit(
+      'M-056',
+      56,
+      () => LiveManageVideoScreen(
+          videoId: videoId,
+          catalog: catalog,
+          repository: _AuditManage(visibility: 'public')),
+      after: (tester) async => tapLabel(tester, 'Delete video'));
 
   // Lone Stars.
   ScriptedPoints points({List<PointsEntry>? ledger}) => ScriptedPoints()
@@ -669,6 +936,14 @@ void main() {
               ..noticeValue = videoNotice(appealable: eligible),
             moderation: LiveModerationRepository(signedIn().account)));
   }
+  audit(
+      'M-057',
+      57,
+      () => LiveNoticeScreen(
+          route: const ScreenRoute(57, entityId: videoId),
+          catalog: catalog,
+          repository: ScriptedStanding()
+            ..noticeValue = videoNotice(appealable: false)));
   audit(
       'M-077',
       77,
@@ -754,7 +1029,9 @@ class _AuditCreators extends LiveCreatorRepository {
 class _AuditLibrary extends LiveContentRepository {
   _AuditLibrary() : super(unusedAccount());
   @override
-  Future<OwnedVideoPage> library({String? cursor}) async => OwnedVideoPage([
+  Future<OwnedVideoPage> library(
+          {String? cursor, String state = 'all'}) async =>
+      OwnedVideoPage([
         OwnedVideo(videoId, creatorId, 'Waterside at dawn', 'A city waking up.',
             'published', DateTime.utc(2026, 11, 11),
             visibility: 'public', category: 'short_films'),
@@ -764,7 +1041,8 @@ class _AuditLibrary extends LiveContentRepository {
 }
 
 class _AuditManage extends LiveContentRepository {
-  _AuditManage() : super(unusedAccount());
+  _AuditManage({this.visibility = 'private'}) : super(unusedAccount());
+  final String visibility;
   @override
   Future<OwnedVideo> ownedVideo(String videoId) async => OwnedVideo(
       videoId,
@@ -773,7 +1051,9 @@ class _AuditManage extends LiveContentRepository {
       'A city waking up.',
       'published',
       DateTime.utc(2026, 11, 11),
-      visibility: 'private',
+      visibility: visibility,
       category: 'short_films',
+      durationMs: 258000,
+      posterUrl: 'https://media.example.test/poster/0',
       revision: 4);
 }

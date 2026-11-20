@@ -418,7 +418,8 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
         context: context,
         routeSettings: RouteSettings(name: const ScreenRoute(30).name),
         isScrollControlled: true,
-        // The feed is dark; the sheet keeps the light design theme.
+        // The feed is dark; the sheet keeps the light design surface.
+        backgroundColor: Colors.white,
         builder: (sheet) => Theme(
             data: KoloVibeTheme.light(),
             child: SafeArea(
@@ -923,18 +924,54 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
         ]),
       );
 
+  /// M-070: the designed "Video options" sheet. Share uses the recorded share
+  /// flow; Report opens the report journey (sign-in first when signed out).
   void _showFeedActions(LiveVideo video) {
     showModalBottomSheet<void>(
         context: context,
-        builder: (sheetContext) => SafeArea(
-            child: ListTile(
-                leading: const Icon(Icons.flag_outlined),
-                title: const Text('Report video'),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  navigate(widget.engagement == null ? 4 : 71,
-                      widget.engagement == null ? null : video.id);
-                })));
+        routeSettings: RouteSettings(name: const ScreenRoute(70).name),
+        isScrollControlled: true,
+        // The feed is dark; the sheet keeps the light design surface.
+        backgroundColor: Colors.white,
+        builder: (sheetContext) => Theme(
+            data: KoloVibeTheme.light(),
+            child: SafeArea(
+                child: SingleChildScrollView(
+                    child: Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+                        child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              const KoloHeadline('Video options', size: 24),
+                              const SizedBox(height: 8),
+                              KoloListRow(
+                                  title: 'Share public link',
+                                  icon: Icons.ios_share,
+                                  onTap: () {
+                                    Navigator.of(sheetContext).pop();
+                                    share();
+                                  }),
+                              KoloListRow(
+                                  title: 'Report this video',
+                                  subtitle:
+                                      'Tell us about a possible guideline concern',
+                                  icon: Icons.flag_outlined,
+                                  destructive: true,
+                                  divider: false,
+                                  onTap: () {
+                                    Navigator.of(sheetContext).pop();
+                                    navigate(
+                                        widget.engagement == null ? 4 : 71,
+                                        widget.engagement == null
+                                            ? null
+                                            : video.id);
+                                  }),
+                              const SizedBox(height: 8),
+                              Text(
+                                  'Reporting is private. Submitting a report does not automatically remove this video.',
+                                  style: KoloVibeText.body(11, height: 1.5)),
+                            ]))))));
   }
 
   static const _months = [
@@ -972,14 +1009,16 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
         appBar: widget.fullScreen
             ? null
             : AppBar(title: Text(_pageTitle), actions: [
-                PopupMenuButton<String>(
-                    onSelected: (_) => navigate(
-                        widget.engagement == null ? 4 : 71,
-                        widget.engagement == null ? null : widget.id),
-                    itemBuilder: (_) => [
-                          const PopupMenuItem(
-                              value: 'report', child: Text('Report video'))
-                        ])
+                // Nothing to report when the video itself is unavailable.
+                if (error == null)
+                  PopupMenuButton<String>(
+                      onSelected: (_) => navigate(
+                          widget.engagement == null ? 4 : 71,
+                          widget.engagement == null ? null : widget.id),
+                      itemBuilder: (_) => [
+                            const PopupMenuItem(
+                                value: 'report', child: Text('Report video'))
+                          ])
               ]),
         body: SafeArea(child: Builder(
           builder: (context) {

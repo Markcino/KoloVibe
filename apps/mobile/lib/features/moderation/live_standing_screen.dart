@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../core/presentation/design_node.dart';
 import '../../shared/state/async_resource.dart';
 import '../../shared/widgets/live_state_view.dart';
+import '../../core/theme/kolovibe_theme.dart';
+import '../../shared/widgets/kolo_components.dart';
 import '../creators/creator_shell.dart';
 import 'live_standing_repository.dart';
 import 'notice_copy.dart';
@@ -74,7 +76,6 @@ class _LiveStandingScreenState extends State<LiveStandingScreen> {
   }
 
   Widget _standing(BuildContext context, AccountStanding standing) {
-    final text = Theme.of(context).textTheme;
     final copy = standingCopy(standing);
     final local = MaterialLocalizations.of(context);
     return RefreshIndicator(
@@ -83,21 +84,26 @@ class _LiveStandingScreenState extends State<LiveStandingScreen> {
           padding: const EdgeInsets.all(16),
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
+            KoloMedallion(standing.publishingAllowed
+                ? KoloIcons.shieldCheck
+                : KoloIcons.shieldBan),
+            const SizedBox(height: 24),
             Semantics(
-                header: true,
-                child: Text(copy.headline, style: text.headlineMedium)),
-            const SizedBox(height: 8),
-            Text(copy.body),
+                header: true, child: KoloHeadline(copy.headline, size: 26)),
+            const SizedBox(height: 12),
+            Text(copy.body, style: KoloVibeText.body(14, height: 1.5)),
             const SizedBox(height: 16),
-            Card(
-                child: ListTile(
-                    leading: Icon(standing.publishingAllowed
-                        ? Icons.check_circle_outline
-                        : Icons.block_outlined),
-                    title: Text(standing.publishingAllowed
-                        ? 'Publishing is available'
-                        : 'Publishing is unavailable'),
-                    subtitle: Text(copy.publishing))),
+            KoloNote(
+                title: standing.publishingAllowed
+                    ? 'Publishing is available'
+                    : 'Publishing is unavailable',
+                message: copy.publishing,
+                asset: standing.publishingAllowed
+                    ? KoloIcons.circleCheck
+                    : KoloIcons.circleAlert,
+                tone: standing.publishingAllowed
+                    ? KoloNoteTone.success
+                    : KoloNoteTone.alert),
             if (standing.creatorStatus == null)
               FilledButton(
                   onPressed: () => _open(36),
@@ -106,7 +112,7 @@ class _LiveStandingScreenState extends State<LiveStandingScreen> {
               const SizedBox(height: 16),
               Semantics(
                   header: true,
-                  child: Text('Content notices', style: text.titleMedium)),
+                  child: const KoloHeadline('Content notices', size: 18)),
               if (standing.notices.isEmpty)
                 const ListTile(title: Text('No content notices.')),
               for (final notice in standing.notices)
@@ -124,10 +130,11 @@ class _LiveStandingScreenState extends State<LiveStandingScreen> {
                 )),
             ],
             const SizedBox(height: 16),
-            TextButton(
+            FilledButton(
                 onPressed: () => _open(87),
                 child: const Text('View policy information')),
-            TextButton(
+            const SizedBox(height: 12),
+            OutlinedButton(
                 onPressed: () => _open(89),
                 child: const Text('Help & Support')),
           ]),

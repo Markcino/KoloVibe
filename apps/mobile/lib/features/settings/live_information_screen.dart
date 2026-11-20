@@ -7,6 +7,7 @@ import '../../core/network/api_client.dart';
 import '../../core/platform/device_bridge.dart';
 import '../../core/presentation/design_node.dart';
 import '../account/live_account_repository.dart';
+import '../creators/creator_shell.dart';
 import '../system/system_ui.dart';
 
 /// Static recipe policy/help content, live account settings and real sign-out.
@@ -86,9 +87,22 @@ class _LiveInformationScreenState extends State<LiveInformationScreen> {
     }
   }
 
+  /// Page titles are 26 pt display text; section titles are 18 pt, as designed.
+  static const _sectionTitles = {
+    'Your account',
+    'Community & support',
+    'Respect people',
+    'Share responsibly',
+    'Honour original work',
+    'Keep engagement genuine',
+    'In this policy',
+    'Popular help topics',
+  };
   Widget heading(String value) => Padding(
-        padding: const EdgeInsets.only(top: 4, bottom: 12),
-        child: KoloHeadline(value, size: 26),
+        padding: EdgeInsets.only(
+            top: _sectionTitles.contains(value) ? 16 : 4, bottom: 12),
+        child:
+            KoloHeadline(value, size: _sectionTitles.contains(value) ? 18 : 26),
       );
   Widget row(String title, int target, [String? subtitle]) => KoloListRow(
         title: title,
@@ -286,6 +300,7 @@ class _LiveInformationScreenState extends State<LiveInformationScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: Text(widget.catalog[id].name)),
+        bottomNavigationBar: creatorNavigation(context, widget.catalog, id),
         body: SafeArea(
           child: loading || busy
               ? const SystemLoading()

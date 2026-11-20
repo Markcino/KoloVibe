@@ -45,6 +45,7 @@ void main() {
         theme: KoloVibeTheme.light(),
         home: LiveManageVideoScreen(videoId: videoId, repository: repo)));
     await settleAsync(tester);
+    await tester.ensureVisible(find.text('Edit details'));
     await tester.tap(find.text('Edit details'));
     await settleAsync(tester);
     return repo;

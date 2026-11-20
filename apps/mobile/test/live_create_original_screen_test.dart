@@ -43,6 +43,8 @@ void main() {
   }
 
   Future<void> choose(WidgetTester tester) async {
+    await tester.ensureVisible(find.text('Select a video'));
+    await tester.pump();
     await tester.tap(find.text('Select a video'));
     await tester.pump();
     await tester.pump();

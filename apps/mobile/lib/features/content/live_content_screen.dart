@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import '../../app/screen_route.dart';
 import '../../core/network/api_client.dart';
 import '../../core/presentation/design_node.dart';
+import '../../core/theme/kolovibe_theme.dart';
+import '../../shared/widgets/kolo_media.dart';
+import '../creators/creator_shell.dart';
 import 'live_content_repository.dart';
 
 class LiveContentScreen extends StatefulWidget {
@@ -26,6 +29,7 @@ class _LiveContentScreenState extends State<LiveContentScreen> {
   String? _error;
   bool _loading = false;
   bool _loaded = false;
+  String _filter = 'all';
 
   @override
   void initState() {
@@ -44,7 +48,8 @@ class _LiveContentScreenState extends State<LiveContentScreen> {
       }
     });
     try {
-      final page = await widget.repository.library(cursor: _cursor);
+      final page =
+          await widget.repository.library(cursor: _cursor, state: _filter);
       if (!mounted) return;
       final known = _items.map((video) => video.id).toSet();
       if (page.items.any((video) => known.contains(video.id))) {
@@ -161,52 +166,108 @@ class _LiveContentScreenState extends State<LiveContentScreen> {
   void _notify(String message) => ScaffoldMessenger.of(context)
       .showSnackBar(SnackBar(content: Text(message)));
 
+  Widget _row(OwnedVideo video) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(children: [
+        InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: video.canEditDraft ? null : () => _manage(video),
+            child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: SizedBox(
+                    width: 80,
+                    height: 60,
+                    // A short-lived signed link: shown, never stored.
+                    child: KoloPoster(
+                        url: video.posterUrl == null
+                            ? null
+                            : Uri.tryParse(video.posterUrl!),
+                        iconSize: 22)))),
+        const SizedBox(width: 12),
+        Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(video.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: KoloVibeText.body(14,
+                  weight: FontWeight.w600, color: KoloVibeColors.navy)),
+          const SizedBox(height: 2),
+          Text(video.state,
+              style: KoloVibeText.body(11,
+                  weight: FontWeight.w600,
+                  color: video.state == 'published'
+                      ? KoloVibeColors.green
+                      : video.state == 'rejected' || video.state == 'failed'
+                          ? KoloVibeColors.red
+                          : KoloVibeColors.muted)),
+        ])),
+        video.canEditDraft
+            ? PopupMenuButton<String>(
+                tooltip: 'Manage draft',
+                onSelected: (action) {
+                  if (action == 'edit') _edit(video);
+                  if (action == 'delete') _delete(video);
+                },
+                itemBuilder: (_) => const [
+                  PopupMenuItem(value: 'edit', child: Text('Edit draft')),
+                  PopupMenuItem(value: 'delete', child: Text('Delete draft')),
+                ],
+              )
+            : TextButton(
+                onPressed: () => _manage(video), child: const Text('Manage')),
+      ]));
+
+  void _setFilter(String value) {
+    if (_filter == value) return;
+    _filter = value;
+    _load(reset: true);
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
+        bottomNavigationBar: creatorNavigation(context, widget.catalog, 40),
         appBar: AppBar(title: const Text('My video library')),
         body: SafeArea(
             child: RefreshIndicator(
           onRefresh: () => _load(reset: true),
-          child: ListView(padding: const EdgeInsets.all(16), children: [
-            if (_loading && !_loaded)
-              const Center(child: CircularProgressIndicator()),
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Semantics(liveRegion: true, child: Text(_error!)),
-              ),
-            if (_loaded && _items.isEmpty && !_loading && _error == null)
-              const Center(child: Text('You have no videos yet.')),
-            for (final video in _items)
-              Card(
-                  child: ListTile(
-                title: Text(video.title),
-                subtitle: Text(video.state),
-                trailing: video.canEditDraft
-                    ? PopupMenuButton<String>(
-                        tooltip: 'Manage draft',
-                        onSelected: (action) {
-                          if (action == 'edit') _edit(video);
-                          if (action == 'delete') _delete(video);
-                        },
-                        itemBuilder: (_) => const [
-                          PopupMenuItem(
-                              value: 'edit', child: Text('Edit draft')),
-                          PopupMenuItem(
-                              value: 'delete', child: Text('Delete draft')),
-                        ],
-                      )
-                    : TextButton(
-                        onPressed: () => _manage(video),
-                        child: const Text('Manage')),
-              )),
-            if (_loading && _loaded)
-              const Center(child: CircularProgressIndicator()),
-            if (!_loading && (_cursor != null || _error != null))
-              TextButton(
-                  onPressed: () => _load(reset: _cursor == null),
-                  child: Text(_error == null ? 'Load more' : 'Try again')),
-          ]),
+          child: ListView(
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+              children: [
+                Wrap(spacing: 8, runSpacing: 4, children: [
+                  for (final (label, value) in const [
+                    ('All', 'all'),
+                    ('Published', 'published'),
+                    ('In progress', 'in_progress'),
+                  ])
+                    ChoiceChip(
+                        label: Text(label),
+                        labelStyle: KoloVibeText.body(12,
+                            weight: FontWeight.w600,
+                            color: _filter == value
+                                ? Colors.white
+                                : KoloVibeColors.navy),
+                        selected: _filter == value,
+                        onSelected: _loading ? null : (_) => _setFilter(value)),
+                ]),
+                const SizedBox(height: 8),
+                if (_loading && !_loaded)
+                  const Center(child: CircularProgressIndicator()),
+                if (_error != null)
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Semantics(liveRegion: true, child: Text(_error!)),
+                  ),
+                if (_loaded && _items.isEmpty && !_loading && _error == null)
+                  const Center(child: Text('You have no videos yet.')),
+                for (final video in _items) _row(video),
+                if (_loading && _loaded)
+                  const Center(child: CircularProgressIndicator()),
+                if (!_loading && (_cursor != null || _error != null))
+                  TextButton(
+                      onPressed: () => _load(reset: _cursor == null),
+                      child: Text(_error == null ? 'Load more' : 'Try again')),
+              ]),
         )),
       );
 }

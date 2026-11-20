@@ -9,6 +9,7 @@ import 'package:kolovibe/app/screen_route.dart';
 import 'package:kolovibe/core/presentation/design_node.dart';
 import 'package:kolovibe/features/content/live_content_screen.dart';
 import 'package:kolovibe/features/content/live_create_original_screen.dart';
+import 'package:kolovibe/features/creators/live_analytics_screen.dart';
 import 'package:kolovibe/features/creators/live_become_creator_screen.dart';
 import 'package:kolovibe/features/creators/live_creator_studio_screen.dart';
 import 'package:kolovibe/features/creators/live_edit_creator_profile_screen.dart';
@@ -45,6 +46,24 @@ void main() {
     }
   });
 
+  testWidgets('M-058 and M-060 open creator analytics; M-059 needs a video',
+      (tester) async {
+    final live = AppDependencies.live('https://api.example.test/api/v1');
+    expect(build(58, live), isA<LiveAnalyticsScreen>());
+    expect(build(60, live), isA<LiveAnalyticsScreen>());
+    // M-059 has no cold entry: without a video id it stays a protected fallback.
+    expect(build(59, live), isNull);
+    expect(
+        creatorRoute(RouteContext(
+            route: const ScreenRoute(59,
+                entityId: '00000000-0000-4000-8000-000000000003'),
+            catalog: catalog,
+            dependencies: live,
+            session: AppSession())),
+        isA<LiveAnalyticsScreen>());
+    expect(build(58, const AppDependencies.unavailable()), isNull);
+  });
+
   testWidgets('with a gateway M-036 to M-040 open the live creator screens',
       (tester) async {
     final live = AppDependencies.live('https://api.example.test/api/v1');
@@ -59,9 +78,10 @@ void main() {
       (tester) async {
     // M-045: no frame API. M-050-M-057: outcomes (M-053 manage, with its M-054-M-056 dialogs, is live and
     // needs a video id; see live_manage_video_test.dart), M-058-M-060:
-    // analytics. Each is a later journey; none may show design sample data.
+    // M-058-M-060 are live analytics (see live_analytics_test.dart). Each other
+    // screen is a later journey; none may show design sample data.
     final live = AppDependencies.live('https://api.example.test/api/v1');
-    for (final screen in [45, 50, 51, 52, 54, 55, 56, 57, 58, 59, 60]) {
+    for (final screen in [45, 50, 51, 52, 54, 55, 56, 57]) {
       expect(build(screen, live), isNull, reason: 'M-0$screen');
     }
   });
