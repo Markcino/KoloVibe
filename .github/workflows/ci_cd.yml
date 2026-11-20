@@ -538,6 +538,9 @@ jobs:
             -keyout "$secrets_dir/web_tls_key" -out "$secrets_dir/web_tls_cert" >/dev/null 2>&1
           chmod 0400 "$secrets_dir"/*
           sudo chown 10001:10001 "$secrets_dir"/*
+          # The certificate is public; the host-side curl runs as the runner user and
+          # must be able to read it as its trust anchor. Keys stay 0400 and owned by 10001.
+          sudo chmod 0444 "$secrets_dir/web_tls_cert"
           docker run --rm \
             --mount "type=bind,source=$secrets_dir/web_django_key,target=/run/secrets/web_django_key,readonly" \
             --mount "type=bind,source=$secrets_dir/web_token_key,target=/run/secrets/web_token_key,readonly" \
