@@ -10,7 +10,9 @@
   },
   "build_must_have": [
     "--disable-everything",
-    "--disable-autodetect"
+    "--disable-autodetect",
+    "--disable-hwaccels",
+    "--disable-vdpau"
   ],
   "rows": [
     {
