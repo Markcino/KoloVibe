@@ -989,7 +989,10 @@ void main() {
       'The recording is my own work. I wrote and performed the song, and the sample in the intro is licensed. I can share the licence if you need it.';
   Future<void> writeAndSend(WidgetTester tester, String text) async {
     await tester.enterText(find.byType(TextFormField), text);
-    await tester.tap(find.text('Send review request'));
+    final submit = find.text('Send review request');
+    await tester.ensureVisible(submit);
+    await tester.pump();
+    await tester.tap(submit);
   }
 
   for (final (suffix, gateway, text, hold) in [
@@ -998,29 +1001,38 @@ void main() {
     ('-failure', 503, statement, false),
     ('-receipt', 201, statement, false),
   ]) {
-    final holder = Completer<void>();
+    // Each viewport/text-scale case needs its own held request. Reusing a
+    // completed gate across tests leaves the HTTP timeout from a later request
+    // active at test teardown.
+    late Completer<void> holder;
     audit(
         'M-078-eligible$suffix',
         0,
-        () => LiveAppealScreen(
-            route: const ScreenRoute(78, entityId: videoId),
-            catalog: catalog,
-            standing: ScriptedStanding()
-              ..noticeValue = videoNotice(appealable: true),
-            moderation: appealGateway(
-                status: gateway, hold: hold ? holder : null)),
+        () {
+          holder = Completer<void>();
+          return LiveAppealScreen(
+              route: const ScreenRoute(78, entityId: videoId),
+              catalog: catalog,
+              standing: ScriptedStanding()
+                ..noticeValue = videoNotice(appealable: true),
+              moderation: appealGateway(
+                  status: gateway, hold: hold ? holder : null));
+        },
         after: (tester) async {
       await writeAndSend(tester, text);
       if (hold) {
         await tester.runAsync(
             () => Future<void>.delayed(const Duration(milliseconds: 150)));
         await tester.pump();
+        expect(find.text('Sending…'), findsOneWidget);
       } else {
         await settleAsync(tester);
       }
     }, finish: (tester) async {
       if (!holder.isCompleted) holder.complete();
+      if (hold) await settleAsync(tester);
       await tester.pumpWidget(const SizedBox());
+      await tester.pump();
     });
   }
   audit(
