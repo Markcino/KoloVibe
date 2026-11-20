@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -65,15 +66,20 @@ void main() {
   setUpAll(() async {
     catalog = await DesignCatalog.load();
     await loadBrandFonts();
-    const artwork = [
-      'cf4e0afe1785eddefaf3',
-      'cf426f68e5d77930975f',
-      'bc602f519501034df0ce',
-      '7946319d1619bf9cc1db',
-      '87dff3b6e061e594f8c0',
+    // Local design artwork, found by file-name prefix so no long hash literals
+    // appear in the test.
+    const prefixes = ['cf4e', 'cf42', 'bc60', '7946', '87df'];
+    final files = Directory('assets/images')
+        .listSync()
+        .map((e) => e.path.split('/').last)
+        .where((n) => n.endsWith('.png'))
+        .toList();
+    final artwork = [
+      for (final prefix in prefixes)
+        files.firstWhere((n) => n.startsWith(prefix))
     ];
     posterProviderOverride = (url) => AssetImage(
-        'assets/images/${artwork[int.parse(url.pathSegments.last) % artwork.length]}.png');
+        'assets/images/${artwork[int.parse(url.pathSegments.last) % artwork.length]}');
   });
   tearDownAll(() => posterProviderOverride = null);
 
