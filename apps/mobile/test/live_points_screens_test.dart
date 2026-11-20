@@ -96,6 +96,8 @@ void main() {
       expect(find.text('42'), findsOneWidget);
       expect(find.text('Recent recognition'), findsOneWidget);
       expect(find.text('Qualified engagement'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Activity being checked'), 200,
+          scrollable: find.byType(Scrollable).first);
       expect(find.text('Activity being checked'), findsOneWidget);
     });
 

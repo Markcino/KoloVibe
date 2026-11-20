@@ -145,9 +145,9 @@ void main() {
           creatorId: screen == 27 ? accountId : null)));
       await settle(tester);
       if (screen == 17) {
-        expect(calls.length, 3);
-        expect(find.text('No trending originals are available yet.'),
-            findsOneWidget);
+        // Trending and following; the greeting never carries a fixed name.
+        expect(calls.length, 2);
+        expect(find.text('No trending originals yet'), findsOneWidget);
       } else if (screen == 20) {
         expect(calls.single['sort'], 'trending');
       } else if (screen == 18) {
@@ -180,12 +180,28 @@ void main() {
     await tester.pumpWidget(app(DiscoveryCatalogScreen(
         screen: 19, repository: fixture, catalog: catalog)));
     await settle(tester);
-    await tester.tap(find.widgetWithText(ChoiceChip, 'hipco'));
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Hipco'));
     await settle(tester);
     expect(calls.last['category'], 'hipco');
     await tester.tap(find.widgetWithText(ChoiceChip, 'All'));
     await settle(tester);
     expect(calls.last['category'], isNull);
+  });
+  testWidgets('search entry shows a hint, not an empty-catalogue claim',
+      (tester) async {
+    final calls = <Map<String, String?>>[];
+    final fixture = CatalogFixture((q) async {
+      calls.add(q);
+      return const LiveVideoPage([], null);
+    });
+    await tester.pumpWidget(app(DiscoveryCatalogScreen(
+        screen: 21, repository: fixture, catalog: catalog)));
+    await settle(tester);
+    expect(calls, isEmpty, reason: 'nothing is requested before a search');
+    expect(find.text('Find original videos and the creators behind them.'),
+        findsOneWidget);
+    expect(find.text('Nothing here yet'), findsNothing);
+    expect(find.text('No originals are available yet.'), findsNothing);
   });
   for (final screen in [21, 22, 23]) {
     testWidgets(
@@ -204,8 +220,9 @@ void main() {
       await settle(tester);
       expect(calls.last['q'], 'Waterside');
       expect(find.byKey(const ValueKey('M-098')), findsOneWidget);
-      await tap(tester, 'Filters');
-      await tester.tap(find.widgetWithText(ChoiceChip, 'culture'));
+      await tester.tap(find.byTooltip('Filters'));
+      await settle(tester);
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Culture'));
       await tap(tester, 'Apply category');
       expect(calls.last['category'], 'culture');
       expect(calls.last['q'], 'Waterside');

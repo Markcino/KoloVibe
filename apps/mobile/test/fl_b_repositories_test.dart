@@ -120,7 +120,8 @@ void main() {
     final leaked = LiveCreator.fromJson(
         {...creatorJson(), 'user_id': '00000000-0000-4000-8000-0000000000ff'});
     expect(leaked.id, creatorJson()['id']);
-    expect(leaked.toString(), isNot(contains('00000000-0000-4000-8000-0000000000ff')));
+    expect(leaked.toString(),
+        isNot(contains('00000000-0000-4000-8000-0000000000ff')));
   });
   test('public creator with a malformed id is still rejected', () {
     expect(() => LiveCreator.fromJson({...creatorJson(), 'id': 'not-an-id'}),

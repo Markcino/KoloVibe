@@ -8,6 +8,9 @@ import '../system/system_ui.dart';
 import '../../core/presentation/design_node.dart';
 import '../../core/theme/kolovibe_theme.dart';
 import '../shell/main_shell.dart';
+import '../../shared/widgets/kolo_components.dart';
+import '../../shared/widgets/kolo_media.dart';
+import 'home_dashboard.dart' show categoryLabel;
 import '../creators/live_creator_repository.dart';
 import '../creators/creator_search_screen.dart';
 import '../account/live_account_repository.dart';
@@ -577,17 +580,40 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
         ]));
   }
 
+  static const _months = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December'
+  ];
+  String _date(DateTime value) {
+    final utc = value.toUtc();
+    return '${utc.day} ${_months[utc.month - 1]} ${utc.year}';
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Original'), actions: [
-          PopupMenuButton<String>(
-              onSelected: (_) => navigate(widget.engagement == null ? 4 : 71,
-                  widget.engagement == null ? null : widget.id),
-              itemBuilder: (_) => [
-                    const PopupMenuItem(
-                        value: 'report', child: Text('Report video'))
-                  ])
-        ]),
+        // The vertical feeds draw their own tabs over the video.
+        appBar: widget.fullScreen
+            ? null
+            : AppBar(title: const Text('Original'), actions: [
+                PopupMenuButton<String>(
+                    onSelected: (_) => navigate(
+                        widget.engagement == null ? 4 : 71,
+                        widget.engagement == null ? null : widget.id),
+                    itemBuilder: (_) => [
+                          const PopupMenuItem(
+                              value: 'report', child: Text('Report video'))
+                        ])
+              ]),
         body: SafeArea(child: Builder(
           builder: (context) {
             if (loading) {
@@ -598,114 +624,146 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
             }
             final video = item!;
             if (widget.fullScreen) return fullScreen(video);
-            return ListView(padding: const EdgeInsets.all(24), children: [
-              Text(video.title,
-                  style: Theme.of(context).textTheme.headlineMedium),
-              const SizedBox(height: 16),
-              if (video.posterUrl != null && player == null)
-                Image.network(video.posterUrl.toString(),
-                    height: 220,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) =>
-                        const Icon(Icons.movie_outlined)),
-              Text(video.description),
-              Text(
-                  '${video.category ?? 'Original'} ${video.tags.map((t) => '#$t').join(' ')}'),
-              if (video.publishedAt != null)
-                Text(
-                    'Published ${video.publishedAt!.toUtc().toIso8601String()}'),
-              Text(
-                  '${engagementController?.likeCount ?? video.likeCount ?? 'Unavailable'} likes'),
-              OutlinedButton(
-                  onPressed: sharing ? null : share,
-                  child: const Text('Share')),
-              if (buffering)
-                Column(key: ValueKey(slow ? 'M-034' : 'M-032'), children: [
-                  Text(slow
-                      ? 'Playback is taking longer on this connection. No lower-data rendition is available to select.'
-                      : 'Preparing playback…'),
-                  const LinearProgressIndicator(),
-                ]),
-              if (playbackFailure != null) playbackState(playbackFailure!),
-              if (playerError != null)
-                playbackState(StateError('Playback failed'), media: true),
-              if (engagementController case final controller?) ...[
-                const SizedBox(height: 16),
-                if (controller.likeBusy && controller.liked == null)
-                  const LinearProgressIndicator(),
-                if (controller.liked != null)
-                  OutlinedButton.icon(
-                    onPressed: controller.likeBusy ? null : toggleLike,
-                    icon: Icon(controller.liked!
-                        ? Icons.favorite
-                        : Icons.favorite_border),
-                    label: Text(controller.liked! ? 'Unlike' : 'Like'),
-                  ),
-                if (controller.likeError case final message?)
-                  Semantics(liveRegion: true, child: Text(message)),
-                if (controller.liked == null && !controller.likeBusy)
-                  TextButton(
-                      onPressed: () => controller.likeFailure is ApiFailure &&
-                              (controller.likeFailure as ApiFailure).status ==
-                                  401
-                          ? navigate(4)
-                          : controller.loadLike(),
-                      child: const Text('Like')),
-              ],
-              const SizedBox(height: 16),
-              TextButton(
-                  onPressed: () => navigate(26, video.creatorId),
-                  child: const Text('View creator')),
-              if (engagementController != null)
-                TextButton.icon(
-                  onPressed: () => navigate(71, video.id),
-                  icon: const Icon(Icons.flag_outlined),
-                  label: const Text('Report this video'),
-                ),
-              const SizedBox(height: 24),
-              if (player case final current?
-                  when current.value.isInitialized) ...[
-                AspectRatio(
-                  aspectRatio: current.value.aspectRatio,
-                  child: VideoPlayer(current),
-                ),
-                const SizedBox(height: 8),
-                TextButton.icon(
-                  onPressed: () => current.value.isPlaying
-                      ? current.pause()
-                      : current.play(),
-                  icon: Icon(
-                      current.value.isPlaying ? Icons.pause : Icons.play_arrow),
-                  label: Text(current.value.isPlaying ? 'Pause' : 'Play'),
-                ),
-                if (playerError case final message?) ...[
-                  Semantics(liveRegion: true, child: Text(message)),
-                  TextButton(
-                    onPressed: _startPlayback,
-                    child: const Text('Retry playback'),
-                  ),
-                ],
-              ] else if (engagementController case final controller?) ...[
-                FilledButton.icon(
-                  onPressed: controller.playbackBusy ? null : _startPlayback,
-                  icon: const Icon(Icons.play_arrow),
-                  label: Text(controller.playbackBusy
-                      ? 'Loading playback…'
-                      : 'Play original'),
-                ),
-                if (controller.playbackError case final message?)
-                  Semantics(liveRegion: true, child: Text(message)),
-                if (playerError case final message?)
-                  Semantics(liveRegion: true, child: Text(message)),
-              ] else
-                FilledButton(
-                    onPressed: starting ? null : _startPlayback,
-                    child: const Text('Play original')),
-              if (widget.engagement == null)
-                TextButton(
-                    onPressed: () => navigate(4),
-                    child: const Text('Sign in to like')),
-            ]);
+            return SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(video.title,
+                          style: Theme.of(context).textTheme.headlineMedium),
+                      const SizedBox(height: 16),
+                      if (player == null)
+                        ClipRRect(
+                            borderRadius:
+                                BorderRadius.circular(KoloVibeRadii.card),
+                            child: AspectRatio(
+                                aspectRatio: 16 / 9,
+                                child: KoloPoster(
+                                    url: video.posterUrl, iconSize: 44))),
+                      if (video.description.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        Text(video.description,
+                            style: Theme.of(context).textTheme.bodyLarge),
+                      ],
+                      const SizedBox(height: 16),
+                      Wrap(spacing: 8, runSpacing: 8, children: [
+                        KoloBadge(video.category == null
+                            ? 'Original'
+                            : categoryLabel(video.category!)),
+                        for (final tag in video.tags) KoloBadge('#$tag'),
+                      ]),
+                      if (video.publishedAt != null) ...[
+                        const SizedBox(height: 12),
+                        Text('Published ${_date(video.publishedAt!)}',
+                            style: Theme.of(context).textTheme.bodySmall),
+                      ],
+                      const SizedBox(height: 4),
+                      Text(
+                          '${engagementController?.likeCount ?? video.likeCount ?? 'Unavailable'} likes',
+                          style: KoloVibeText.body(14,
+                              weight: FontWeight.w600,
+                              color: KoloVibeColors.navy)),
+                      const SizedBox(height: 16),
+                      OutlinedButton(
+                          onPressed: sharing ? null : share,
+                          child: const Text('Share')),
+                      if (buffering)
+                        Column(
+                            key: ValueKey(slow ? 'M-034' : 'M-032'),
+                            children: [
+                              Text(slow
+                                  ? 'Playback is taking longer on this connection. No lower-data rendition is available to select.'
+                                  : 'Preparing playback…'),
+                              const LinearProgressIndicator(),
+                            ]),
+                      if (playbackFailure != null)
+                        playbackState(playbackFailure!),
+                      if (playerError != null)
+                        playbackState(StateError('Playback failed'),
+                            media: true),
+                      if (engagementController case final controller?) ...[
+                        const SizedBox(height: 16),
+                        if (controller.likeBusy && controller.liked == null)
+                          const LinearProgressIndicator(),
+                        if (controller.liked != null)
+                          OutlinedButton.icon(
+                            onPressed: controller.likeBusy ? null : toggleLike,
+                            icon: Icon(controller.liked!
+                                ? Icons.favorite
+                                : Icons.favorite_border),
+                            label: Text(controller.liked! ? 'Unlike' : 'Like'),
+                          ),
+                        if (controller.likeError case final message?)
+                          Semantics(liveRegion: true, child: Text(message)),
+                        if (controller.liked == null && !controller.likeBusy)
+                          TextButton(
+                              onPressed: () =>
+                                  controller.likeFailure is ApiFailure &&
+                                          (controller.likeFailure as ApiFailure)
+                                                  .status ==
+                                              401
+                                      ? navigate(4)
+                                      : controller.loadLike(),
+                              child: const Text('Like')),
+                      ],
+                      const SizedBox(height: 16),
+                      OutlinedButton(
+                          onPressed: () => navigate(26, video.creatorId),
+                          child: const Text('View creator')),
+                      if (engagementController != null)
+                        TextButton.icon(
+                          onPressed: () => navigate(71, video.id),
+                          icon: const Icon(Icons.flag_outlined),
+                          label: const Text('Report this video'),
+                        ),
+                      const SizedBox(height: 24),
+                      if (player case final current?
+                          when current.value.isInitialized) ...[
+                        AspectRatio(
+                          aspectRatio: current.value.aspectRatio,
+                          child: VideoPlayer(current),
+                        ),
+                        const SizedBox(height: 8),
+                        TextButton.icon(
+                          onPressed: () => current.value.isPlaying
+                              ? current.pause()
+                              : current.play(),
+                          icon: Icon(current.value.isPlaying
+                              ? Icons.pause
+                              : Icons.play_arrow),
+                          label:
+                              Text(current.value.isPlaying ? 'Pause' : 'Play'),
+                        ),
+                        if (playerError case final message?) ...[
+                          Semantics(liveRegion: true, child: Text(message)),
+                          TextButton(
+                            onPressed: _startPlayback,
+                            child: const Text('Retry playback'),
+                          ),
+                        ],
+                      ] else if (engagementController
+                          case final controller?) ...[
+                        FilledButton.icon(
+                          onPressed:
+                              controller.playbackBusy ? null : _startPlayback,
+                          icon: const Icon(Icons.play_arrow),
+                          label: Text(controller.playbackBusy
+                              ? 'Loading playback…'
+                              : 'Play original'),
+                        ),
+                        if (controller.playbackError case final message?)
+                          Semantics(liveRegion: true, child: Text(message)),
+                        if (playerError case final message?)
+                          Semantics(liveRegion: true, child: Text(message)),
+                      ] else
+                        FilledButton(
+                            onPressed: starting ? null : _startPlayback,
+                            child: const Text('Play original')),
+                      if (widget.engagement == null)
+                        TextButton(
+                            onPressed: () => navigate(4),
+                            child: const Text('Sign in to like')),
+                    ]));
           },
         )),
       );

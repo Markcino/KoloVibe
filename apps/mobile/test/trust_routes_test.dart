@@ -7,6 +7,7 @@ import 'package:kolovibe/app/routes/route_context.dart';
 import 'package:kolovibe/app/routes/trust_routes.dart';
 import 'package:kolovibe/app/screen_route.dart';
 import 'package:kolovibe/core/presentation/design_node.dart';
+import 'package:kolovibe/features/moderation/live_appeal_screen.dart';
 import 'package:kolovibe/features/moderation/live_notice_screen.dart';
 import 'package:kolovibe/features/moderation/live_report_screen.dart';
 import 'package:kolovibe/features/moderation/live_standing_screen.dart';
@@ -44,10 +45,20 @@ void main() {
     expect(build(71, live), isNull);
     expect(build(71, live, entityId: '00000000-0000-4000-8000-000000000003'),
         isA<LiveReportScreen>());
-    // M-070 is the player's own control; M-078 is not built yet.
+    // M-070 is the player's own control; M-078 needs a video.
     for (final screen in [70, 78]) {
       expect(build(screen, live), isNull, reason: 'M-0$screen');
     }
+  });
+
+  test('M-078 opens the live appeal screen for a video', () {
+    final live = AppDependencies.live('https://api.example.test/api/v1');
+    expect(build(78, live, entityId: '00000000-0000-4000-8000-000000000003'),
+        isA<LiveAppealScreen>());
+    expect(
+        build(78, const AppDependencies.unavailable(),
+            entityId: '00000000-0000-4000-8000-000000000003'),
+        isNull);
   });
 
   test('M-076 needs a video; M-077 needs only a signed-in gateway', () {

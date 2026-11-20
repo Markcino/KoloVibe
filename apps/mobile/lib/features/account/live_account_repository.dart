@@ -116,6 +116,7 @@ class LiveAccountRepository implements AccountRepository {
       throw const ApiFailure(503, 'The sign-in response was invalid.');
     }
     await store.writeRefreshToken(refresh);
+    _restored = null;
     _accessToken = access;
   }
 
@@ -126,8 +127,21 @@ class LiveAccountRepository implements AccountRepository {
         if (_accessToken == null && await store.readRefreshToken() == null) {
           return null;
         }
-        return LiveAccount.fromJson(await _sessionRequest('/me'));
+        final account = LiveAccount.fromJson(await _sessionRequest('/me'));
+        _restored = account;
+        return account;
       });
+
+  LiveAccount? _restored;
+
+  /// The account read by [restoreSession], handed over once so the first
+  /// screen after startup does not repeat the request. Later calls, and any
+  /// call after the session ended, return null and callers read /me instead.
+  LiveAccount? takeRestoredAccount() {
+    final account = _restored;
+    _restored = null;
+    return account;
+  }
 
   Future<bool> _refresh() async {
     final refresh = await store.readRefreshToken();
@@ -247,6 +261,7 @@ class LiveAccountRepository implements AccountRepository {
       });
 
   Future<void> clearSession() => _serialized(() async {
+        _restored = null;
         _accessToken = null;
         await store.clearRefreshToken();
       });
@@ -264,6 +279,7 @@ class LiveAccountRepository implements AccountRepository {
         );
       }
     } finally {
+      _restored = null;
       _accessToken = null;
       await store.clearRefreshToken();
     }

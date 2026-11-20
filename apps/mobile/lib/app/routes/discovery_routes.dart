@@ -21,7 +21,6 @@ Widget? discoveryRoute(RouteContext context) {
   }
   return switch (route.screen) {
     17 ||
-    18 ||
     19 ||
     20 ||
     21 ||
@@ -35,9 +34,13 @@ Widget? discoveryRoute(RouteContext context) {
           creators: deps.liveCreators,
           account: deps.liveAccount,
           creatorId: route.entityId),
-    24 when deps.liveVideos != null => VerticalVideoFeed(
+    // M-018 is the account's Following feed; M-024 is the public feed.
+    18 || 24 when deps.liveVideos != null => VerticalVideoFeed(
         repository: deps.liveVideos!,
         device: deps.device,
+        following: route.screen == 18,
+        catalog: context.catalog,
+        account: deps.liveAccount,
         engagement: deps.liveAccount == null
             ? null
             : LiveVideoEngagementRepository(deps.liveAccount!)),

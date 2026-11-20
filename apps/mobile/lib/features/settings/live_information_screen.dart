@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../shared/widgets/kolo_components.dart';
 
 import '../../app/screen_route.dart';
 import '../../core/network/api_client.dart';
@@ -85,13 +86,12 @@ class _LiveInformationScreenState extends State<LiveInformationScreen> {
   }
 
   Widget heading(String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Text(value, style: Theme.of(context).textTheme.headlineSmall),
+        padding: const EdgeInsets.only(top: 4, bottom: 12),
+        child: KoloHeadline(value, size: 26),
       );
-  Widget row(String title, int target, [String? subtitle]) => ListTile(
-        title: Text(title),
-        subtitle: subtitle == null ? null : Text(subtitle),
-        trailing: const Icon(Icons.chevron_right),
+  Widget row(String title, int target, [String? subtitle]) => KoloListRow(
+        title: title,
+        subtitle: subtitle,
         onTap: busy ? null : () => go(target),
       );
   Widget? webLink(String title, String path) {

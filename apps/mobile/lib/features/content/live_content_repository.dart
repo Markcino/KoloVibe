@@ -489,7 +489,8 @@ class LiveContentRepository {
       {String? title,
       String? description,
       String? category,
-      List<String>? tags}) async {
+      List<String>? tags,
+      int? coverTimeMs}) async {
     final changes = <String, Object?>{};
     if (title != null && title.trim() != video.title) {
       final cleaned = title.trim();
@@ -516,6 +517,18 @@ class LiveContentRepository {
         changes['tags'] = normalized;
       }
     }
+    if (coverTimeMs != null && coverTimeMs != video.coverTimeMs) {
+      // The service renders the poster at this moment once the video has been
+      // processed, so the duration must be known to bound it.
+      final duration = video.durationMs;
+      if (duration == null ||
+          coverTimeMs < 0 ||
+          coverTimeMs > 300000 ||
+          coverTimeMs > duration) {
+        throw const FormatException('Invalid cover moment');
+      }
+      changes['cover_time_ms'] = coverTimeMs;
+    }
     if (!video.canEditDetails || !isApiId(video.id) || changes.isEmpty) {
       throw const FormatException('Invalid video edit');
     }
@@ -529,6 +542,7 @@ class LiveContentRepository {
               'title' => result.title != entry.value,
               'description' => result.description != entry.value,
               'category' => result.category != entry.value,
+              'cover_time_ms' => result.coverTimeMs != entry.value,
               _ => result.tags.join(',') != (entry.value as List).join(','),
             })) {
       throw const FormatException('Mismatched edited video');

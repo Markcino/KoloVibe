@@ -136,13 +136,17 @@ class _LiveNoticeScreenState extends State<LiveNoticeScreen> {
                       padding: const EdgeInsets.all(16),
                       child: Text(appeal.reason))),
             ],
-            if (notice.appealable) ...[
+            if (notice.appealable && appeal == null) ...[
               const SizedBox(height: 8),
               const Card(
                   child: Padding(
                       padding: EdgeInsets.all(16),
                       child: Text(
-                          'This decision is eligible for a review request. Sending a review request is not available in the app yet.'))),
+                          'This decision is eligible for a review request.'))),
+              OutlinedButton(
+                  onPressed: () => openCreatorScreen(context, 78,
+                      entityId: widget.route.entityId),
+                  child: const Text('Request a review')),
             ],
             const SizedBox(height: 16),
             const Text(

@@ -194,6 +194,7 @@ class _LiveCreateOriginalScreenState extends State<LiveCreateOriginalScreen> {
               labelText: 'Description', errorText: errors['description']),
         ),
         DropdownButtonFormField<String>(
+          isExpanded: true,
           initialValue: category,
           decoration: InputDecoration(
               labelText: 'Category · Required', errorText: errors['category']),

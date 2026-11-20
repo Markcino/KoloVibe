@@ -536,6 +536,7 @@ class DesignView extends StatelessWidget {
     final multiline = label == 'Bio' || label == 'Description';
     if (label.contains('Category')) {
       return DropdownButtonFormField<String>(
+        isExpanded: true,
         decoration: InputDecoration(labelText: label),
         items: [
           for (final category in const [

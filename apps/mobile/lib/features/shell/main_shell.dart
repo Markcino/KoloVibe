@@ -55,7 +55,7 @@ class MainShell extends StatelessWidget {
                   child: InkWell(
                     onTap: () => onSelected(targets[i]),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.fromLTRB(0, 10, 0, 4),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -63,6 +63,8 @@ class MainShell extends StatelessWidget {
                               icons[i].children.first.asset != null)
                             SvgPicture.asset(
                               icons[i].children.first.asset!,
+                              width: 24,
+                              height: 24,
                               excludeFromSemantics: true,
                               colorFilter: ColorFilter.mode(
                                 selected == i ? KoloVibeColors.red : inactive,
@@ -82,12 +84,24 @@ class MainShell extends StatelessWidget {
                                   selected == i ? KoloVibeColors.red : inactive,
                             ),
                           const SizedBox(height: 5),
-                          Text(
-                            labels[i],
-                            style: TextStyle(
-                              fontSize: 10,
-                              color:
-                                  selected == i ? KoloVibeColors.red : inactive,
+                          // Labels keep the design's 10 px size; very large text
+                          // settings would otherwise push the bar off screen.
+                          MediaQuery.withClampedTextScaling(
+                            maxScaleFactor: 1.3,
+                            child: Text(
+                              labels[i],
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: KoloVibeText.body(
+                                10,
+                                weight: selected == i
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                                color: selected == i
+                                    ? KoloVibeColors.red
+                                    : inactive,
+                                height: 1.2,
+                              ),
                             ),
                           ),
                         ],

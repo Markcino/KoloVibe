@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/presentation/design_node.dart';
+import '../../core/theme/kolovibe_theme.dart';
 import '../../shared/widgets/live_state_view.dart';
 import 'creator_access_controller.dart';
 import 'creator_shell.dart';
@@ -65,14 +66,18 @@ class _LiveCreatorStudioScreenState extends State<LiveCreatorStudioScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Creator Studio')),
-        body: SafeArea(
-            child: ListenableBuilder(
-                listenable: Listenable.merge([access, profile]),
-                builder: (context, _) => CreatorAccessPanel(
-                    controller: access, screen: 37, eligible: _studio))),
-        bottomNavigationBar: creatorNavigation(context, widget.catalog, 37),
+  // The approved Creator Studio design is drawn on the deep navy surface.
+  Widget build(BuildContext context) => Theme(
+        data: KoloVibeTheme.dark(),
+        child: Scaffold(
+          appBar: AppBar(title: const Text('Creator Studio')),
+          body: SafeArea(
+              child: ListenableBuilder(
+                  listenable: Listenable.merge([access, profile]),
+                  builder: (context, _) => CreatorAccessPanel(
+                      controller: access, screen: 37, eligible: _studio))),
+          bottomNavigationBar: creatorNavigation(context, widget.catalog, 37),
+        ),
       );
 
   Widget _studio(BuildContext context) {
@@ -86,21 +91,24 @@ class _LiveCreatorStudioScreenState extends State<LiveCreatorStudioScreen> {
     final own = profile.profile!;
     return RefreshIndicator(
       onRefresh: profile.load,
-      child: ListView(padding: const EdgeInsets.all(16), children: [
-        Text('Good stories travel.',
-            style: Theme.of(context).textTheme.headlineMedium),
-        const SizedBox(height: 4),
-        Text('${own.title} · Creator enabled'),
-        const SizedBox(height: 16),
-        FilledButton.icon(
-            onPressed: () => openCreatorScreen(context, 41),
-            icon: const Icon(Icons.add),
-            label: const Text('Publish an original')),
-        const SizedBox(height: 8),
-        _tile(context, 'My video library', 'Your drafts and originals', 40),
-        _tile(context, 'Creator profile', '@${own.handle}', 38),
-        _tile(context, 'Lone Stars', 'Non-cash recognition points', 61),
-      ]),
+      child: ListView(
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+          children: [
+            Text('Good stories travel.',
+                style: Theme.of(context).textTheme.headlineMedium),
+            const SizedBox(height: 4),
+            Text('${own.title} · Creator enabled',
+                style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 20),
+            FilledButton.icon(
+                onPressed: () => openCreatorScreen(context, 41),
+                icon: const Icon(Icons.add),
+                label: const Text('Publish an original')),
+            const SizedBox(height: 16),
+            _tile(context, 'My video library', 'Your drafts and originals', 40),
+            _tile(context, 'Creator profile', '@${own.handle}', 38),
+            _tile(context, 'Lone Stars', 'Non-cash recognition points', 61),
+          ]),
     );
   }
 

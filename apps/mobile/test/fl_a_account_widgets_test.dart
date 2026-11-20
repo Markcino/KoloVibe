@@ -80,8 +80,11 @@ void main() {
       await enter(tester, 'Full name', 'Mark');
       await enter(tester, 'Password', 'typed value'.padRight(32, 'x'));
       await enter(tester, 'Confirm password', 'typed value'.padRight(32, 'x'));
+      await tester.pumpAndSettle();
       await tester.ensureVisible(find.byType(CheckboxListTile));
+      await tester.pumpAndSettle();
       await tester.tap(find.byType(CheckboxListTile));
+      await tester.pumpAndSettle();
     }
     if ({4, 15}.contains(id)) {
       await enter(tester, 'Password', 'typed value'.padRight(32, 'x'));
@@ -174,7 +177,7 @@ void main() {
           expect(
               find.textContaining('This email can’t be used'), findsOneWidget);
         } else if ({4, 15}.contains(entry.key) && {400, 401}.contains(status)) {
-          expect(find.text('We couldn’t sign you in.'), findsOneWidget);
+          expect(find.text('We couldn’t\nsign you in.'), findsOneWidget);
         } else if (entry.key == 6 && status == 400) {
           expect(find.text('Let’s get a fresh code.'), findsOneWidget);
         } else {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../shared/widgets/kolo_components.dart';
 
 import '../../app/screen_route.dart';
 import '../../core/network/api_client.dart';
@@ -232,17 +233,15 @@ class _LiveSettingsScreenState extends State<LiveSettingsScreen> {
     );
   }
 
-  Widget row(String title, int target) => ListTile(
-        title: Text(title),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () => leave(target),
-      );
+  Widget row(String title, int target) =>
+      KoloListRow(title: title, onTap: () => leave(target));
   Widget heading(String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        child: Text(value, style: Theme.of(context).textTheme.headlineSmall),
+        padding: const EdgeInsets.only(top: 4, bottom: 12),
+        child: KoloHeadline(value, size: 26),
       );
-  Widget note(String value) =>
-      Padding(padding: const EdgeInsets.only(bottom: 16), child: Text(value));
+  Widget note(String value) => Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Text(value, style: Theme.of(context).textTheme.bodyMedium));
   List<Widget> content() => switch (id) {
         84 => [
             heading('Your data. A clearer view.'),
