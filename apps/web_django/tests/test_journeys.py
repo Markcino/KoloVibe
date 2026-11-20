@@ -94,15 +94,16 @@ class WebJourneys(SimpleTestCase):
         self.assertEqual(response.cookies["kv_refresh"]["max-age"], 0)
 
     def test_verification_and_reset_send_the_address_with_a_six_digit_code(self):
+        chosen = secrets.token_urlsafe(28)
         with patch("web.views._api", return_value=(200, {"verified": True})) as api:
             self.client.post(reverse("verify"), {"email": "viewer@example.test", "code": "012345"})
         self.assertEqual(api.call_args.args, ("/auth/verify",))
         self.assertEqual(api.call_args.kwargs["data"], {"email": "viewer@example.test", "code": "012345"})
         with patch("web.views._api", return_value=(204, {})) as api:
             self.client.post(reverse("password-reset"), {
-                "email": "viewer@example.test", "code": "012345", "new_password": "a-long-new-secret"})
+                "email": "viewer@example.test", "code": "012345", "new_password": chosen})
         self.assertEqual(api.call_args.kwargs["data"], {
-            "email": "viewer@example.test", "code": "012345", "new_password": "a-long-new-secret"})
+            "email": "viewer@example.test", "code": "012345", "new_password": chosen})
         page = self.client.get(reverse("verify")).content.decode()
         self.assertIn('pattern="[0-9]{6}"', page)
         self.assertIn('autocomplete="one-time-code"', page)

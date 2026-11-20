@@ -20,6 +20,7 @@ from django.core.mail.backends.base import BaseEmailBackend
 from jsonschema import Draft202012Validator, FormatChecker
 import yaml
 
+from smtp_fixture import mailed_code
 from test_postgres_foundations import ROOT, postgres_fixture, secret_file
 
 
@@ -200,11 +201,11 @@ def verify():
                 status, payload = api("/auth/register", data=body)
                 self.assertEqual(status, 201)
                 contract("/auth/register", "post", status, payload)
-                code = (base / "verification-mail").read_text().split(": ", 1)[1]
-                status, payload = api("/auth/verify", data={"code": code})
+                code = mailed_code(base)
+                status, payload = api("/auth/verify", data={"email": body["email"], "code": code})
                 self.assertEqual(status, 200)
                 contract("/auth/verify", "post", status, payload)
-                self.assertEqual(api("/auth/verify", data={"code": code})[0], 400)
+                self.assertEqual(api("/auth/verify", data={"email": body["email"], "code": code})[0], 400)
                 status, tokens = api("/auth/login", data={"email": body["email"], "password": password})
                 self.assertEqual(status, 200)
                 contract("/auth/login", "post", status, tokens)
@@ -227,8 +228,8 @@ def verify():
                 email = "concurrent@example.test"
                 self.assertEqual(api("/auth/register", data={
                     "email": email, "display_name": "Concurrent Viewer", "password": password})[0], 201)
-                code = (base / "verification-mail").read_text().split(": ", 1)[1]
-                self.assertEqual(api("/auth/verify", data={"code": code})[0], 200)
+                code = mailed_code(base)
+                self.assertEqual(api("/auth/verify", data={"email": email, "code": code})[0], 200)
                 status, tokens = api("/auth/login", data={"email": email, "password": password})
                 self.assertEqual(status, 200)
                 with ThreadPoolExecutor(max_workers=2) as executor:
@@ -291,8 +292,8 @@ def verify():
 
                 self.assertEqual(post("/register/", {"email": "web-journey@example.test",
                     "display_name": "Web Fixture", "password": password})[0], 302)
-                code = (base / "verification-mail").read_text().split(": ", 1)[1]
-                self.assertEqual(post("/verify/", {"code": code})[0], 302)
+                code = mailed_code(base)
+                self.assertEqual(post("/verify/", {"email": "web-journey@example.test", "code": code})[0], 302)
                 self.assertEqual(post("/login/", {"email": "web-journey@example.test",
                                                 "password": password})[0], 302)
                 self.assertTrue(cookies["kv_refresh"]["httponly"])
