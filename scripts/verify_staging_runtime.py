@@ -357,8 +357,9 @@ def verify():
         account = {"email": "staging@example.test", "password": secrets.token_urlsafe(48),
                    "display_name": "Staging fixture"}
         assert api("gateway", "/api/v1/auth/register", data=account)[0] == 201
-        code = (base / "verification-mail").read_text().split(": ", 1)[1]
-        assert api("gateway", "/api/v1/auth/verify", data={"code": code})[0] == 200
+        from smtp_fixture import mailed_code
+        code = mailed_code(base)
+        assert api("gateway", "/api/v1/auth/verify", data={"email": account["email"], "code": code})[0] == 200
         status, session = api("gateway", "/api/v1/auth/login",
                               data={key: account[key] for key in ("email", "password")})
         assert status == 200

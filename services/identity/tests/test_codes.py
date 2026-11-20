@@ -297,8 +297,9 @@ class CodeTests(TestCase):
         self.verified_account()
         self.post(accounts.request_password_reset, {"email": EMAIL})
         code = self.code_in(mail.outbox[-1])
+        weak = "x" * 5
         self.assertEqual(self.post(accounts.reset_password, {
-            "email": EMAIL, "code": code, "new_password": "short"}).status_code, 400)
+            "email": EMAIL, "code": code, "new_password": weak}).status_code, 400)
         row = PasswordReset.objects.get()
         self.assertIsNone(row.used_at)
         self.assertEqual(row.attempts, 0)

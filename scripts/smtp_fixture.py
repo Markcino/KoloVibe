@@ -8,9 +8,18 @@ from email.parser import BytesParser
 import socketserver
 import ssl
 import hmac
+import re
 from threading import Thread
 
 from test_postgres_foundations import secret_file
+
+
+def mailed_code(base):
+    """The six-digit code in the captured verification or reset email (ADR-013 amendment A-1)."""
+    found = re.search(r": ([0-9]{6})(?:\n|$)", (base / "verification-mail").read_text())
+    if found is None:
+        raise AssertionError("The captured email carries no six-digit code")
+    return found.group(1)
 
 
 @contextmanager
