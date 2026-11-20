@@ -27,7 +27,7 @@ class Command(BaseCommand):
         for event_id in list(deliveries):
             try:
                 with transaction.atomic():
-                    delivery = AuditDelivery.objects.select_for_update().select_related("event").get(
+                    delivery = AuditDelivery.objects.select_for_update(of=("self",)).select_related("event").get(
                         event_id=event_id)
                     if delivery.delivered_at is not None:
                         continue
