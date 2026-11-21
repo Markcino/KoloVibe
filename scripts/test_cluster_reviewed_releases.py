@@ -101,7 +101,8 @@ class GatewayGuardTests(unittest.TestCase):
         spec = swarm.services['kolovibe-gateway']['Spec']
         self.assertEqual(spec['Labels'][cluster.LABEL], '1')
         self.assertEqual(spec['Labels']['kolovibe.source-revision'], TARGET_REVISION)
-        self.assertRegex(spec['Labels'][cluster.PIN_PROOF_LABEL], r'^[a-f0-9]{64}        next_target = cluster.REPOSITORY + '@sha256:' + 'd' * 64
+        self.assertRegex(spec['Labels'][cluster.PIN_PROOF_LABEL], r'^[a-f0-9]{64}$')
+        next_target = cluster.REPOSITORY + '@sha256:' + 'd' * 64
         self.assertNotIn(NEW_IMAGE, AWS.reviewed_releases)
         with aws(swarm):
             forward = cluster.update_plan(EVIDENCE, next_target, 'a' * 40, ['gateway'])
