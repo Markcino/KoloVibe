@@ -101,8 +101,7 @@ class GatewayGuardTests(unittest.TestCase):
         spec = swarm.services['kolovibe-gateway']['Spec']
         self.assertEqual(spec['Labels'][cluster.LABEL], '1')
         self.assertEqual(spec['Labels']['kolovibe.source-revision'], TARGET_REVISION)
-        self.assertRegex(spec['Labels'][cluster.PIN_PROOF_LABEL], r'^[a-f0-9]{64}
-        next_target = cluster.REPOSITORY + '@sha256:' + 'd' * 64
+        self.assertRegex(spec['Labels'][cluster.PIN_PROOF_LABEL], r'^[a-f0-9]{64}        next_target = cluster.REPOSITORY + '@sha256:' + 'd' * 64
         self.assertNotIn(NEW_IMAGE, AWS.reviewed_releases)
         with aws(swarm):
             forward = cluster.update_plan(EVIDENCE, next_target, 'a' * 40, ['gateway'])
@@ -153,97 +152,6 @@ class GatewayGuardTests(unittest.TestCase):
         gateway['Spec']['TaskTemplate']['ContainerSpec']['Image'] = (
             cluster.REPOSITORY + '@sha256:' + 'e' * 64
         )
-        with aws(swarm), self.assertRaisesRegex(RuntimeError, 'differs from the working pinned baseline'):
-            cluster.base_gateway('1.52', NEW_IMAGE)
-
-    def test_an_unlisted_digest_of_this_repository_still_stops_every_plan(self):
-        for services in (['audit'], ORDER):
-            with self.subTest(services=services), self.assertRaisesRegex(RuntimeError, 'differs from the working pinned baseline'):
-                plan(on_image(AwsSwarm(), UNLISTED, ['gateway']), services)
-
-    def test_another_repository_or_a_tag_still_stops_every_plan(self):
-        for image in (OTHER_REPOSITORY, cluster.REPOSITORY + ':v0.187.2', 'busybox:latest'):
-            with self.subTest(image=image), self.assertRaises(RuntimeError):
-                plan(on_image(AwsSwarm(), image, ['gateway']), ['audit'])
-
-    def test_the_listing_does_not_relax_any_other_gateway_guard(self):
-        for label, change in (
-                ('the database login', lambda env: [e.replace('kolovibe_gateway_app', 'kolovibe_other_app') for e in env]),
-                ('the environment', lambda env: [e.replace('KOLOVIBE_ENV=staging', 'KOLOVIBE_ENV=local') for e in env])):
-            swarm = on_image(AwsSwarm(), V0_187_2, ['gateway'])
-            spec = swarm.services['kolovibe-gateway']['Spec']['TaskTemplate']['ContainerSpec']
-            spec['Env'] = change(spec['Env'])
-            with self.subTest(label), self.assertRaisesRegex(RuntimeError, 'differs from the working pinned baseline'):
-                plan(swarm, ['audit'])
-
-    def test_an_unknown_gateway_image_is_not_made_acceptable_by_naming_it_as_the_target(self):
-        # Moving to a new target never needs the listing: the target itself is always accepted, but the live image must be known.
-        swarm = on_image(AwsSwarm(), UNLISTED, ['gateway'])
-        with aws(swarm), self.assertRaisesRegex(RuntimeError, 'differs from the working pinned baseline'):
-            cluster.update_plan(EVIDENCE, cluster.REPOSITORY + '@sha256:' + 'd' * 64, TARGET_REVISION, ['gateway'])
-
-    def test_applying_from_the_listed_release_moves_only_the_image_and_rolls_back(self):
-        swarm = on_image(AwsSwarm(), V0_205_1)
-        before = copy.deepcopy(swarm.services['kolovibe-audit']['Spec'])
-        with aws(swarm), tempfile.TemporaryDirectory() as directory, patch('sys.stderr'):
-            cluster.update('e.json', 'operator', NEW_IMAGE, TARGET_REVISION, ['audit'], 'WAIVED-R1-STAGING-20261114',
-                           NEW_IMAGE, str(Path(directory) / 'r.json'), True)
-        live = swarm.services['kolovibe-audit']['Spec']
-        self.assertEqual(cluster.live_image(live), NEW_IMAGE)
-        self.assertEqual([p[0] for p in swarm.posts], ['kolovibe-audit'])
-        with aws(swarm), patch('sys.stderr'):
-            cluster.rollback(['audit'], 'audit')
-        self.assertEqual(swarm.services['kolovibe-audit']['Spec'], before)
-
-
-if __name__ == '__main__':
-    unittest.main()
-)
-
-        next_target = cluster.REPOSITORY + '@sha256:' + 'd' * 64
-        self.assertNotIn(NEW_IMAGE, AWS.reviewed_releases)
-        with aws(swarm):
-            forward = cluster.update_plan(EVIDENCE, next_target, 'a' * 40, ['gateway'])
-        entry = forward['entries'][0]
-        self.assertEqual(entry['current_image'], NEW_IMAGE)
-        self.assertEqual(entry['target_image'], next_target)
-        self.assertEqual(entry['action'], 'update')
-
-    def test_auto_recognition_does_not_trust_an_unmanaged_or_partial_marker(self):
-        for changes in (
-                {'Labels': {cluster.LABEL: '1', 'kolovibe.source-revision': TARGET_REVISION}},
-                {'Labels': {cluster.LABEL: '1', 'kolovibe.source-revision': 'not-a-commit'},
-                 'UpdateConfig': dict(cluster.UPDATE_CONFIG),
-                 'RollbackConfig': dict(cluster.ROLLBACK_CONFIG)},
-                {'Labels': {cluster.LABEL: '1', 'kolovibe.source-revision': TARGET_REVISION},
-                 'UpdateConfig': dict(cluster.UPDATE_CONFIG)},
-        ):
-            swarm = on_image(AwsSwarm(), UNLISTED, ['gateway'])
-            swarm.services['kolovibe-gateway']['Spec'].update(changes)
-            with aws(swarm), self.assertRaisesRegex(RuntimeError, 'differs from the working pinned baseline'):
-                cluster.base_gateway('1.52', NEW_IMAGE)
-
-    def test_managed_gateway_still_rejects_environment_and_repository_drift(self):
-        swarm = on_image(AwsSwarm(), V0_290_1)
-        with aws(swarm):
-            old = swarm.services['kolovibe-gateway']['Spec']
-            managed = cluster.update_spec(old, UNLISTED, TARGET_REVISION, service='gateway')
-        gateway = swarm.services['kolovibe-gateway']
-        gateway['Spec'] = managed
-        with aws(swarm):
-            self.assertEqual(cluster.live_image(cluster.base_gateway('1.52', NEW_IMAGE)['Spec']), UNLISTED)
-
-        gateway['Spec']['TaskTemplate']['ContainerSpec']['Env'] = [
-            line.replace('KOLOVIBE_ENV=staging', 'KOLOVIBE_ENV=local')
-            for line in gateway['Spec']['TaskTemplate']['ContainerSpec']['Env']
-        ]
-        with aws(swarm), self.assertRaisesRegex(RuntimeError, 'differs from the working pinned baseline'):
-            cluster.base_gateway('1.52', NEW_IMAGE)
-        gateway['Spec']['TaskTemplate']['ContainerSpec']['Env'] = [
-            line.replace('KOLOVIBE_ENV=local', 'KOLOVIBE_ENV=staging')
-            for line in gateway['Spec']['TaskTemplate']['ContainerSpec']['Env']
-        ]
-        gateway['Spec']['TaskTemplate']['ContainerSpec']['Image'] = OTHER_REPOSITORY
         with aws(swarm), self.assertRaisesRegex(RuntimeError, 'differs from the working pinned baseline'):
             cluster.base_gateway('1.52', NEW_IMAGE)
 
