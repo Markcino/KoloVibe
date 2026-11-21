@@ -158,7 +158,15 @@ def _manage(video_id, creator_id, data, operation):
 def _enqueue(video_id):
     from .media_tasks import process_video
 
-    process_video.apply_async(args=[str(video_id)], retry=False)
+    # Celery may fall back to amq.default when no explicit exchange is given.
+    # The scoped Content RabbitMQ account can publish only to this exchange.
+    process_video.apply_async(
+        args=[str(video_id)],
+        queue="kolovibe.content.media",
+        exchange="kolovibe.content.media",
+        routing_key="kolovibe.content.media",
+        retry=False,
+    )
 
 
 def _complete(video_id, creator_id):
