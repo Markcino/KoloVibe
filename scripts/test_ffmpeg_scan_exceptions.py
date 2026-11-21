@@ -1,6 +1,8 @@
 """The FFmpeg scanner exceptions: evidence, `.grype.yaml`, the build recipe and the CI binary check stay in agreement."""
+import contextlib
 import copy
 import datetime
+import io
 import json
 from pathlib import Path
 import re
@@ -201,7 +203,13 @@ class CheckerTests(unittest.TestCase):
             args = ["x", str(ROOT / "infra/docker/ffmpeg/scan-exceptions.json")] + [str(base / n) for n in "vdehb"]
             self.assertEqual(checker.main(args), 0)
             (base / "h").write_text(HWACCELS + "vdpau\n")
-            self.assertEqual(checker.main(args), 1)
+            # The negative test MUST fail the checker but must not emit a real
+            # GitHub Actions ::error:: annotation for a synthetic fixture.
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                self.assertEqual(checker.main(args), 1)
+            self.assertIn("CVE-2026-125219: vdpau is present", stdout.getvalue())
+            self.assertIn("FFmpeg scan exceptions no longer hold", stderr.getvalue())
         self.assertEqual(checker.main(["x"]), 2)
 
 
