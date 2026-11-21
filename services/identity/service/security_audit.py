@@ -2,6 +2,7 @@ from django.db import connection
 from .models import AuditDelivery, SecurityEvent
 
 KINDS = {
+    "account.administrator_role_granted",
     "account.creator_role_granted",
     "account.registered", "account.verified", "account.verification_resent",
     "account.password_reset_code_failed", "account.password_reset_throttled", "account.verification_code_failed", "account.verification_throttled",
@@ -21,3 +22,4 @@ def record(kind, actor_id=None):
     event = SecurityEvent.objects.create(kind=kind, actor_id=actor_id)
     AuditDelivery.objects.create(event=event)
     return event
+

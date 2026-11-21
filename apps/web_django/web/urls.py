@@ -15,6 +15,7 @@ urlpatterns = [
     path("password/reset-request/", views.password_reset_request, name="password-reset-request"),
     path("password/reset/", views.password_reset, name="password-reset"),
     path("login/", views.login, name="login"),
+    path("login/mfa/", views.login_mfa, name="login-mfa"),
     path("account/", views.account, name="account"),
     path("account/profile/", views.profile_edit, name="profile-edit"),
     path("account/password/", views.password_change, name="password-change"),
@@ -26,3 +27,4 @@ urlpatterns = [
     path("creator/", views.gated_creator, name="creator"),
     path("points/", views.points, name="points"),
 ]
+
