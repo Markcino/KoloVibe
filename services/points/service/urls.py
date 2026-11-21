@@ -10,5 +10,8 @@ urlpatterns = [
 
 if settings.LOCAL_POINTS_ENABLED:
     from .pilot_points import points_read
+    from .admin_review import review
+    urlpatterns.append(path("internal/points/admin/balances", review, {"operation": "balances"}))
+    urlpatterns.append(path("internal/points/admin/account", review, {"operation": "account"}))
 
     urlpatterns.append(path("internal/points/<slug:operation>", points_read))

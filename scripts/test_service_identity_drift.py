@@ -43,7 +43,7 @@ class ServiceIdentityDriftTests(unittest.TestCase):
         self.assertEqual(set(policies["content"]), {"gateway", "moderation"})
         self.assertEqual(policies["content"]["moderation"], ("/internal/videos/moderation/",))
         self.assertEqual(set(policies["audit"]), PRODUCERS | {"gateway"})
-        self.assertEqual(policies["audit"]["gateway"], ("/internal/probe",))
+        self.assertEqual(policies["audit"]["gateway"], ("/internal/probe", "/internal/audit/read"))
         for producer in PRODUCERS:
             self.assertEqual(policies["audit"][producer], ("/internal/security-events",))
 

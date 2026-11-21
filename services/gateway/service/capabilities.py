@@ -7,6 +7,7 @@ by default and production remains unauthorized.
 from django.conf import settings
 
 CAPABILITIES = frozenset({
+    "audit_read",
     "creator_onboarding",
     "media",
     "analytics",
@@ -21,6 +22,7 @@ def _local(name):
     media = getattr(settings, "LOCAL_MEDIA_ENABLED", False)
     points = getattr(settings, "LOCAL_POINTS_ENABLED", False)
     return {
+        "audit_read": True,
         "creator_onboarding": True,
         "media": media,
         "analytics": media,

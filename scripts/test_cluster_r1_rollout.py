@@ -54,9 +54,9 @@ def entry(report, service):
 
 class R1TableTests(unittest.TestCase):
     def test_tool_tables_mirror_the_runtime_capability_policy(self):
-        self.assertEqual(cluster.R1_CAPABILITIES, frozenset(policy.CAPABILITIES))
-        self.assertEqual(cluster.R1_APPLICABLE, {s: frozenset(c) for s, c in policy.APPLICABLE.items()})
-        self.assertEqual(cluster.R1_REQUIRES, {c: frozenset(r) for c, r in policy.REQUIRES.items()})
+        self.assertEqual(cluster.R1_CAPABILITIES, frozenset(policy.CAPABILITIES) - {"audit_read"})
+        self.assertEqual(cluster.R1_APPLICABLE, {s: frozenset(c) - {"audit_read"} for s, c in policy.APPLICABLE.items()})
+        self.assertEqual(cluster.R1_REQUIRES, {c: frozenset(r) for c, r in policy.REQUIRES.items() if c != "audit_read"})
 
     def test_every_r1_row_is_exactly_what_the_runtime_accepts(self):
         rows = cluster.AWS_STAGING.r1_flags
@@ -67,9 +67,9 @@ class R1TableTests(unittest.TestCase):
                          privileged=row[cluster.FLAG_PRIVILEGED] == '1')
             self.assertEqual(caps, policy.slice_for(service, gateway), service)
 
-    def test_the_full_r1_set_is_on_the_gateway_and_the_audit_service_stays_off(self):
+    def test_reviewed_r1_rollout_keeps_new_audit_reads_off(self):
         rows = cluster.AWS_STAGING.r1_flags
-        self.assertEqual(set(rows['gateway'][cluster.FLAG_CAPABILITIES].split(',')), set(policy.CAPABILITIES))
+        self.assertEqual(set(rows['gateway'][cluster.FLAG_CAPABILITIES].split(',')), set(policy.CAPABILITIES) - {"audit_read"})
         self.assertEqual(rows['audit'], {cluster.FLAG_ACCOUNTS: '0', cluster.FLAG_PRIVILEGED: '0',
                                          cluster.FLAG_ONBOARDING: '0', cluster.FLAG_CAPABILITIES: ''})
         self.assertEqual(rows['gateway'][cluster.FLAG_PRIVILEGED], '1')  # reviewer routes stay behind MFA

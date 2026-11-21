@@ -66,6 +66,7 @@ ROOT_URLCONF = "web.urls"
 INSTALLED_APPS = ["django.contrib.staticfiles", "django.contrib.sessions", "web"]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "web.security.AdminSecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",

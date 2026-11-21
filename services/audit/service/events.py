@@ -28,13 +28,13 @@ KINDS = {
 PRODUCER_KINDS = {
     "identity": KINDS,
     "moderation": {"moderation.report_created", "moderation.appeal_created", "moderation.decision_recorded",
-                   "moderation.decision_applied", "moderation.decision_conflicted"},
+                   "moderation.decision_applied", "moderation.decision_conflicted", "moderation.assignment_denied", "moderation.reviewer_read", "moderation.preview_read", "moderation.totals_read", "moderation.fraud_scope_read"},
     "creators": {"creator.invited", "creator.application_submitted", "creator.approved", "creator.rejected",
                  "creator.profile_updated", "creator.restricted", "creator.suspended", "creator.restored"},
     "content": {"video.created", "video.updated", "video.upload_intent_created", "video.upload_completed",
                 "video.processing_succeeded", "video.processing_failed", "video.deleted", "video.published",
                 "video.unpublished", "video.moderated"},
-    "points": {"points.awarded", "points.withheld", "points.reversed", "points.adjusted"},
+    "points": {"points.awarded", "points.withheld", "points.reversed", "points.adjusted", "points.review_read", "points.review_denied"},
 }
 SUBJECT_TYPES = {"account", "creator", "video", "report", "appeal", "moderation_action", "points_entry"}
 

@@ -2241,6 +2241,11 @@ paths:
       - moderator
       - administrator
       parameters:
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum: [open, resolved, dismissed]
       - name: cursor
         in: query
         schema:
@@ -2282,7 +2287,7 @@ paths:
           description: Moderation temporarily unavailable
       x-capability: moderation
       x-mfa-required: true
-      description: ' Requires moderator/administrator role AND a live MFA-verified identity session. The gateway verifies
+      description: ' Requires moderator/administrator role AND a live MFA-verified identity session. Moderator queue reads and decisions require an active explicit resource assignment enforced by Moderation; denials are audited. Administrators retain global supervision. The gateway verifies
         and binds session identity before signing its moderation envelope; password-only and expired/revoked sessions
         are rejected. Decisions retain reviewer ID, reason text and reason_code with immutable transactional audit
         evidence.'
@@ -2356,7 +2361,7 @@ paths:
           description: Moderation temporarily unavailable
       x-capability: moderation
       x-mfa-required: true
-      description: ' Requires moderator/administrator role AND a live MFA-verified identity session. The gateway verifies
+      description: ' Requires moderator/administrator role AND a live MFA-verified identity session. Moderator queue reads and decisions require an active explicit resource assignment enforced by Moderation; denials are audited. Administrators retain global supervision. The gateway verifies
         and binds session identity before signing its moderation envelope; password-only and expired/revoked sessions
         are rejected. Decisions retain reviewer ID, reason text and reason_code with immutable transactional audit
         evidence.'
@@ -2371,6 +2376,11 @@ paths:
       - moderator
       - administrator
       parameters:
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum: [review, published, rejected, removed]
       - name: cursor
         in: query
         schema:
@@ -2422,7 +2432,7 @@ paths:
           description: Moderation temporarily unavailable
       x-capability: moderation
       x-mfa-required: true
-      description: ' Requires moderator/administrator role AND a live MFA-verified identity session. The gateway verifies
+      description: ' Requires moderator/administrator role AND a live MFA-verified identity session. Moderator queue reads and decisions require an active explicit resource assignment enforced by Moderation; denials are audited. Administrators retain global supervision. The gateway verifies
         and binds session identity before signing its moderation envelope; password-only and expired/revoked sessions
         are rejected. Decisions retain reviewer ID, reason text and reason_code with immutable transactional audit
         evidence.'
@@ -2497,7 +2507,7 @@ paths:
           description: Moderation temporarily unavailable
       x-capability: moderation
       x-mfa-required: true
-      description: ' Requires moderator/administrator role AND a live MFA-verified identity session. The gateway verifies
+      description: ' Requires moderator/administrator role AND a live MFA-verified identity session. Moderator queue reads and decisions require an active explicit resource assignment enforced by Moderation; denials are audited. Administrators retain global supervision. The gateway verifies
         and binds session identity before signing its moderation envelope; password-only and expired/revoked sessions
         are rejected. Decisions retain reviewer ID, reason text and reason_code with immutable transactional audit
         evidence.'
@@ -2569,6 +2579,11 @@ paths:
       - moderator
       - administrator
       parameters:
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum: [open, denied, restored]
       - name: cursor
         in: query
         schema:
@@ -2610,7 +2625,7 @@ paths:
           description: Moderation temporarily unavailable
       x-capability: moderation
       x-mfa-required: true
-      description: ' Requires moderator/administrator role AND a live MFA-verified identity session. The gateway verifies
+      description: ' Requires moderator/administrator role AND a live MFA-verified identity session. Moderator queue reads and decisions require an active explicit resource assignment enforced by Moderation; denials are audited. Administrators retain global supervision. The gateway verifies
         and binds session identity before signing its moderation envelope; password-only and expired/revoked sessions
         are rejected. Decisions retain reviewer ID, reason text and reason_code with immutable transactional audit
         evidence.'
@@ -2684,7 +2699,7 @@ paths:
           description: Moderation temporarily unavailable
       x-capability: moderation
       x-mfa-required: true
-      description: ' Requires moderator/administrator role AND a live MFA-verified identity session. The gateway verifies
+      description: ' Requires moderator/administrator role AND a live MFA-verified identity session. Moderator queue reads and decisions require an active explicit resource assignment enforced by Moderation; denials are audited. Administrators retain global supervision. The gateway verifies
         and binds session identity before signing its moderation envelope; password-only and expired/revoked sessions
         are rejected. Decisions retain reviewer ID, reason text and reason_code with immutable transactional audit
         evidence.'
@@ -2967,6 +2982,1025 @@ paths:
           description: Unapproved or invalid producer signature
         '409':
           description: ID collision with different content or producer
+  /moderation/videos/{video_id}:
+    get:
+      tags:
+      - Moderation
+      summary: Reviewer detail for videos
+      operationId: get_reviewer_videos_detail
+      x-implementation: local
+      x-capability: moderation
+      x-required-roles:
+      - moderator
+      - administrator
+      x-mfa-required: true
+      description: Owning-service assignment authorization; every read and denial audited.
+        Most recent 20 authorized history entries; truncation is explicit. Rights status
+        is not_recorded until a rights verification contract exists. Preview leases
+        expire after 60 seconds and require fresh MFA/role/assignment authorization
+        on every fetch. No storage keys or raw storage URLs.
+      parameters:
+      - name: video_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Authorized reviewer detail
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - record
+                - video
+                - preview
+                - reports
+                - decisions
+                - history_truncated
+                properties:
+                  record:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - id
+                    - title
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      title:
+                        type: string
+                  video:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - id
+                    - title
+                    - description
+                    - state
+                    - duration_seconds
+                    - rights_status
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      title:
+                        type: string
+                        minLength: 1
+                        maxLength: 160
+                      description:
+                        type: string
+                        maxLength: 2000
+                      state:
+                        type: string
+                        enum:
+                        - draft
+                        - uploading
+                        - processing
+                        - failed
+                        - review
+                        - published
+                        - rejected
+                        - removed
+                      duration_seconds:
+                        type:
+                        - integer
+                        - 'null'
+                        minimum: 1
+                        maximum: 300
+                      rights_status:
+                        type: string
+                        enum:
+                        - not_recorded
+                  preview:
+                    oneOf:
+                    - type: 'null'
+                    - type: object
+                      additionalProperties: false
+                      required:
+                      - id
+                      - url
+                      - expires_at
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        url:
+                          type: string
+                          pattern: ^/api/v1/moderation/previews/[0-9a-f-]{36}$
+                        expires_at:
+                          type: string
+                          format: date-time
+                  reports:
+                    type: array
+                    maxItems: 20
+                    items:
+                      $ref: '#/components/schemas/PilotReportQueueItem'
+                  decisions:
+                    type: array
+                    maxItems: 20
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - id
+                      - action
+                      - reason
+                      - status
+                      - created_at
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        action:
+                          type: string
+                          enum:
+                          - publish
+                          - reject
+                          - remove
+                          - restore
+                          - dismiss
+                          - deny
+                        reason:
+                          type: string
+                          maxLength: 2000
+                        status:
+                          type: string
+                          enum:
+                          - pending
+                          - applied
+                          - conflict
+                        created_at:
+                          type: string
+                          format: date-time
+                  history_truncated:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - reports
+                    - decisions
+                    properties:
+                      reports:
+                        type: boolean
+                      decisions:
+                        type: boolean
+        '400':
+          description: Invalid request
+        '401':
+          description: Sign in required
+        '403':
+          description: Scope or MFA denied
+        '404':
+          description: Resource unavailable
+        '503':
+          description: Service unavailable
+  /moderation/reports/{report_id}:
+    get:
+      tags:
+      - Moderation
+      summary: Reviewer detail for reports
+      operationId: get_reviewer_reports_detail
+      x-implementation: local
+      x-capability: moderation
+      x-required-roles:
+      - moderator
+      - administrator
+      x-mfa-required: true
+      description: Owning-service assignment authorization; every read and denial audited.
+        Most recent 20 authorized history entries; truncation is explicit. Rights status
+        is not_recorded until a rights verification contract exists. Preview leases
+        expire after 60 seconds and require fresh MFA/role/assignment authorization
+        on every fetch. No storage keys or raw storage URLs.
+      parameters:
+      - name: report_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Authorized reviewer detail
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - record
+                - video
+                - preview
+                - reports
+                - decisions
+                - history_truncated
+                properties:
+                  record:
+                    $ref: '#/components/schemas/PilotReportQueueItem'
+                  video:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - id
+                    - title
+                    - description
+                    - state
+                    - duration_seconds
+                    - rights_status
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      title:
+                        type: string
+                        minLength: 1
+                        maxLength: 160
+                      description:
+                        type: string
+                        maxLength: 2000
+                      state:
+                        type: string
+                        enum:
+                        - draft
+                        - uploading
+                        - processing
+                        - failed
+                        - review
+                        - published
+                        - rejected
+                        - removed
+                      duration_seconds:
+                        type:
+                        - integer
+                        - 'null'
+                        minimum: 1
+                        maximum: 300
+                      rights_status:
+                        type: string
+                        enum:
+                        - not_recorded
+                  preview:
+                    oneOf:
+                    - type: 'null'
+                    - type: object
+                      additionalProperties: false
+                      required:
+                      - id
+                      - url
+                      - expires_at
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        url:
+                          type: string
+                          pattern: ^/api/v1/moderation/previews/[0-9a-f-]{36}$
+                        expires_at:
+                          type: string
+                          format: date-time
+                  reports:
+                    type: array
+                    maxItems: 20
+                    items:
+                      $ref: '#/components/schemas/PilotReportQueueItem'
+                  decisions:
+                    type: array
+                    maxItems: 20
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - id
+                      - action
+                      - reason
+                      - status
+                      - created_at
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        action:
+                          type: string
+                          enum:
+                          - publish
+                          - reject
+                          - remove
+                          - restore
+                          - dismiss
+                          - deny
+                        reason:
+                          type: string
+                          maxLength: 2000
+                        status:
+                          type: string
+                          enum:
+                          - pending
+                          - applied
+                          - conflict
+                        created_at:
+                          type: string
+                          format: date-time
+                  history_truncated:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - reports
+                    - decisions
+                    properties:
+                      reports:
+                        type: boolean
+                      decisions:
+                        type: boolean
+        '400':
+          description: Invalid request
+        '401':
+          description: Sign in required
+        '403':
+          description: Scope or MFA denied
+        '404':
+          description: Resource unavailable
+        '503':
+          description: Service unavailable
+  /moderation/appeals/{appeal_id}:
+    get:
+      tags:
+      - Moderation
+      summary: Reviewer detail for appeals
+      operationId: get_reviewer_appeals_detail
+      x-implementation: local
+      x-capability: moderation
+      x-required-roles:
+      - moderator
+      - administrator
+      x-mfa-required: true
+      description: Owning-service assignment authorization; every read and denial audited.
+        Most recent 20 authorized history entries; truncation is explicit. Rights status
+        is not_recorded until a rights verification contract exists. Preview leases
+        expire after 60 seconds and require fresh MFA/role/assignment authorization
+        on every fetch. No storage keys or raw storage URLs.
+      parameters:
+      - name: appeal_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Authorized reviewer detail
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - record
+                - video
+                - preview
+                - reports
+                - decisions
+                - history_truncated
+                properties:
+                  record:
+                    $ref: '#/components/schemas/PilotAppealQueueItem'
+                  video:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - id
+                    - title
+                    - description
+                    - state
+                    - duration_seconds
+                    - rights_status
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      title:
+                        type: string
+                        minLength: 1
+                        maxLength: 160
+                      description:
+                        type: string
+                        maxLength: 2000
+                      state:
+                        type: string
+                        enum:
+                        - draft
+                        - uploading
+                        - processing
+                        - failed
+                        - review
+                        - published
+                        - rejected
+                        - removed
+                      duration_seconds:
+                        type:
+                        - integer
+                        - 'null'
+                        minimum: 1
+                        maximum: 300
+                      rights_status:
+                        type: string
+                        enum:
+                        - not_recorded
+                  preview:
+                    oneOf:
+                    - type: 'null'
+                    - type: object
+                      additionalProperties: false
+                      required:
+                      - id
+                      - url
+                      - expires_at
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        url:
+                          type: string
+                          pattern: ^/api/v1/moderation/previews/[0-9a-f-]{36}$
+                        expires_at:
+                          type: string
+                          format: date-time
+                  reports:
+                    type: array
+                    maxItems: 20
+                    items:
+                      $ref: '#/components/schemas/PilotReportQueueItem'
+                  decisions:
+                    type: array
+                    maxItems: 20
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - id
+                      - action
+                      - reason
+                      - status
+                      - created_at
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        action:
+                          type: string
+                          enum:
+                          - publish
+                          - reject
+                          - remove
+                          - restore
+                          - dismiss
+                          - deny
+                        reason:
+                          type: string
+                          maxLength: 2000
+                        status:
+                          type: string
+                          enum:
+                          - pending
+                          - applied
+                          - conflict
+                        created_at:
+                          type: string
+                          format: date-time
+                  history_truncated:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - reports
+                    - decisions
+                    properties:
+                      reports:
+                        type: boolean
+                      decisions:
+                        type: boolean
+        '400':
+          description: Invalid request
+        '401':
+          description: Sign in required
+        '403':
+          description: Scope or MFA denied
+        '404':
+          description: Resource unavailable
+        '503':
+          description: Service unavailable
+  /moderation/previews/{preview_id}:
+    get:
+      tags:
+      - Moderation
+      summary: Fetch an expiring authorized MP4 preview
+      operationId: get_reviewer_preview
+      x-implementation: local
+      x-capability: moderation
+      x-required-roles:
+      - moderator
+      - administrator
+      x-mfa-required: true
+      parameters:
+      - name: preview_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Private no-store MP4, bounded to 50 MiB; gateway proxies bytes
+            without redirecting to storage
+          content:
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+        '401':
+          description: Sign in required
+        '403':
+          description: Expired, wrong account, assignment revoked or missing MFA
+        '503':
+          description: Preview unavailable
+
+  /moderation/totals:
+    get:
+      tags:
+      - Administration
+      summary: Read scoped moderation totals
+      operationId: read_scoped_moderation_totals
+      x-implementation: local
+      x-capability: moderation
+      x-required-roles:
+      - moderator
+      - administrator
+      x-mfa-required: true
+      responses:
+        '200':
+          description: Caller-scoped read
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - videos
+                - reports
+                - appeals
+                properties:
+                  videos:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - review
+                    - published
+                    - rejected
+                    - removed
+                    properties:
+                      review:
+                        type: integer
+                        minimum: 0
+                      published:
+                        type: integer
+                        minimum: 0
+                      rejected:
+                        type: integer
+                        minimum: 0
+                      removed:
+                        type: integer
+                        minimum: 0
+                  reports:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - open
+                    - resolved
+                    - dismissed
+                    properties:
+                      open:
+                        type: integer
+                        minimum: 0
+                      resolved:
+                        type: integer
+                        minimum: 0
+                      dismissed:
+                        type: integer
+                        minimum: 0
+                  appeals:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - open
+                    - denied
+                    - restored
+                    properties:
+                      open:
+                        type: integer
+                        minimum: 0
+                      denied:
+                        type: integer
+                        minimum: 0
+                      restored:
+                        type: integer
+                        minimum: 0
+        '400':
+          description: Unsupported filter
+        '401':
+          description: Sign in required
+        '403':
+          description: Scope or MFA denied
+        '503':
+          description: Service unavailable
+  /engagement/fraud-holds:
+    get:
+      tags:
+      - Administration
+      summary: Read active scoped fraud holds
+      operationId: read_active_scoped_fraud_holds
+      x-implementation: local
+      x-capability: moderation
+      x-required-roles:
+      - moderator
+      - administrator
+      x-mfa-required: true
+      responses:
+        '200':
+          description: Caller-scoped read
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - total
+                - items
+                - next_cursor
+                properties:
+                  total:
+                    type: integer
+                    minimum: 0
+                  items:
+                    type: array
+                    maxItems: 20
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - id
+                      - video_id
+                      - reason_code
+                      - created_at
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        video_id:
+                          type: string
+                          format: uuid
+                        reason_code:
+                          type: string
+                          maxLength: 64
+                        created_at:
+                          type: string
+                          format: date-time
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                    format: uuid
+        '400':
+          description: Unsupported filter
+        '401':
+          description: Sign in required
+        '403':
+          description: Scope or MFA denied
+        '503':
+          description: Service unavailable
+      parameters:
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          format: uuid
+      description: Active, unexpired holds only. Moderation supplies the signed caller
+        assignment scope to Engagement. Account identifiers are redacted. Read-only;
+        no fraud policy or hold mutation endpoint is introduced.
+
+  /admin/audit:
+    get:
+      tags:
+      - Administration
+      summary: Read redacted role-scoped audit events
+      operationId: get_admin_audit
+      x-implementation: local
+      x-capability: audit_read
+      x-required-roles:
+      - moderator
+      - administrator
+      x-mfa-required: true
+      description: Audit enforces moderators own actions and explicit active administrator
+        producer grants. Newest-first timestamp/UUID cursor pagination. Actor/subject
+        IDs, digests and raw payloads are omitted. Reads and authorization denials create
+        immutable audit evidence. No edit/delete contract. Retention and broader redaction
+        policy remain open owner decisions.
+      parameters:
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: producer
+        in: query
+        schema:
+          type: string
+          maxLength: 64
+      - name: kind
+        in: query
+        schema:
+          type: string
+          maxLength: 64
+      - name: since
+        in: query
+        schema:
+          type: string
+          format: date-time
+      - name: until
+        in: query
+        schema:
+          type: string
+          format: date-time
+      responses:
+        '200':
+          description: Authorized immutable events
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - items
+                - next_cursor
+                properties:
+                  items:
+                    type: array
+                    maxItems: 20
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - id
+                      - kind
+                      - occurred_at
+                      - producer
+                      - subject_type
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        kind:
+                          type: string
+                          maxLength: 64
+                        occurred_at:
+                          type: string
+                          format: date-time
+                        producer:
+                          type: string
+                          enum:
+                          - identity
+                          - moderation
+                          - creators
+                          - content
+                          - points
+                          - audit
+                        subject_type:
+                          type:
+                          - string
+                          - 'null'
+                          maxLength: 32
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                    format: uuid
+        '400':
+          description: Invalid or out-of-scope cursor/filter
+        '401':
+          description: Sign in required
+        '403':
+          description: Role, MFA or grant denied
+        '503':
+          description: Service unavailable
+
+  /admin/points/balances:
+    get:
+      tags:
+      - Administration
+      summary: Read administrative non-cash points balances
+      operationId: get_admin_points_balances
+      x-implementation: local
+      x-capability: points
+      x-required-roles:
+      - administrator
+      x-mfa-required: true
+      parameters:
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: as_of
+        in: query
+        schema:
+          type: string
+          format: date-time
+      description: Points enforces administrator role and live MFA attested by Gateway.
+        Read-only immutable ledger projection with attributed audit evidence; no award/adjust/reverse/payout
+        path. Balance is SUM(delta) at the returned as_of snapshot, shared across pages.
+        Reversal review state describes retained ledger relationships, not an approval
+        or eligibility decision. No cash value.
+      responses:
+        '200':
+          description: Authorized points review
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - items
+                - next_cursor
+                - as_of
+                properties:
+                  items:
+                    type: array
+                    maxItems: 20
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - account_id
+                      - balance
+                      - currency
+                      properties:
+                        account_id:
+                          type: string
+                          format: uuid
+                        balance:
+                          type: integer
+                        currency:
+                          type: string
+                          enum:
+                          - POINTS
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                    format: uuid
+                  as_of:
+                    type: string
+                    format: date-time
+        '400':
+          description: Invalid query or cross-account cursor
+        '401':
+          description: Sign in required
+        '403':
+          description: Administrator or MFA required
+        '404':
+          description: No ledger for resource
+        '503':
+          description: Service unavailable
+  /admin/points/accounts/{account_id}:
+    get:
+      tags:
+      - Administration
+      summary: Read administrative non-cash points history
+      operationId: get_admin_points_account
+      x-implementation: local
+      x-capability: points
+      x-required-roles:
+      - administrator
+      x-mfa-required: true
+      parameters:
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: as_of
+        in: query
+        schema:
+          type: string
+          format: date-time
+      - name: account_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - all
+          - awards
+          - reversals
+          - adjustments
+      description: Points enforces administrator role and live MFA attested by Gateway.
+        Read-only immutable ledger projection with attributed audit evidence; no award/adjust/reverse/payout
+        path. Balance is SUM(delta) at the returned as_of snapshot, shared across pages.
+        Reversal review state describes retained ledger relationships, not an approval
+        or eligibility decision. No cash value.
+      responses:
+        '200':
+          description: Authorized points review
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - items
+                - next_cursor
+                - as_of
+                - account_id
+                - balance
+                - currency
+                properties:
+                  items:
+                    type: array
+                    maxItems: 20
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - id
+                      - amount
+                      - kind
+                      - rule_version
+                      - reason_code
+                      - created_at
+                      - reversal_review_state
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        amount:
+                          type: integer
+                          not:
+                            const: 0
+                        kind:
+                          type: string
+                          enum:
+                          - award
+                          - reversal
+                          - adjustment
+                        rule_version:
+                          type: string
+                          maxLength: 32
+                        reason_code:
+                          type: string
+                          maxLength: 64
+                        created_at:
+                          type: string
+                          format: date-time
+                        reversal_review_state:
+                          type: string
+                          enum:
+                          - reversed
+                          - not_reversed
+                          - reversal
+                          - not_applicable
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                    format: uuid
+                  as_of:
+                    type: string
+                    format: date-time
+                  account_id:
+                    type: string
+                    format: uuid
+                  balance:
+                    type: integer
+                  currency:
+                    type: string
+                    enum:
+                    - POINTS
+        '400':
+          description: Invalid query or cross-account cursor
+        '401':
+          description: Sign in required
+        '403':
+          description: Administrator or MFA required
+        '404':
+          description: No ledger for resource
+        '503':
+          description: Service unavailable
+
 components:
   securitySchemes:
     bearerAuth:

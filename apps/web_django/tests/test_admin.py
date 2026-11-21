@@ -51,11 +51,16 @@ class AdminConsoleTests(TestCase):
     def page(self, kind):
         return {"items": [self.record(kind)], "next_cursor": None}
 
+    def detail(self, kind):
+        return {"record": self.record(kind), "video": {"id": self.target, "title": "Review this video",
+                "description": "Video description", "state": "review", "duration_seconds": 30, "rights_status": "not_recorded"},
+                "preview": None, "reports": [], "decisions": [], "history_truncated": {"reports": False, "decisions": False}}
+
     def detail_url(self, kind, target=None):
         return reverse(f"moderation-{kind}-detail", args=[target or self.target])
 
     def intent(self, kind, client=None):
-        with patch("web.views._api", side_effect=[(200, self.account), (200, self.page(kind))]):
+        with patch("web.views._api", side_effect=[(200, self.account), (200, self.detail(kind))]):
             response = (client or self.client).get(self.detail_url(kind))
         self.assertEqual(response.status_code, 200)
         self.assertNotIn(self.client.session.session_key.encode(), response.content)
@@ -73,7 +78,7 @@ class AdminConsoleTests(TestCase):
                     api.assert_not_called()
         self.assertRedirects(self.client.get("/"), "/login/", fetch_redirect_response=False)
         self.login()
-        self.assertRedirects(self.client.get("/"), "/admin/", fetch_redirect_response=False)
+        self.assertRedirects(self.client.get("/"), "/login/", fetch_redirect_response=False)
 
     def test_all_admin_routes_require_login_even_posts(self):
         for path in self.paths():
@@ -92,25 +97,18 @@ class AdminConsoleTests(TestCase):
                     self.assertEqual(api.call_count, 1)
                 self.assertFalse(WebCredential.objects.exists())
 
-    def test_roles_succeed_on_allowed_pages_and_moderators_never_read_global_queues(self):
+    def test_roles_use_gateway_authorized_queues(self):
         for role in ("moderator", "administrator"):
             self.login(role)
             for path in ("/admin/", "/admin/account/", "/admin/audit/",
                          "/admin/account/profile/", "/admin/account/password/"):
-                with patch("web.views._api", return_value=(200, self.account)):
+                with patch("web.views._api", side_effect=[(200, self.account)] + ([(200, {"videos": dict.fromkeys(["review", "published", "rejected", "removed"], 0), "reports": dict.fromkeys(["open", "resolved", "dismissed"], 0), "appeals": dict.fromkeys(["open", "denied", "restored"], 0)}), (200, {"total": 0, "items": [], "next_cursor": None}), (200, {"items": [], "next_cursor": None})] if path == "/admin/" else [(200, {"items": [], "next_cursor": None})] if path == "/admin/audit/" else [])):
                     self.assertEqual(self.client.get(path).status_code, 200)
             for kind in ACTIONS:
-                replies = [(200, self.account)] + ([(200, self.page(kind))] if role == "administrator" else [])
-                with patch("web.views._api", side_effect=replies) as api:
+                with patch("web.views._api", side_effect=[(200, self.account), (200, self.page(kind))]):
                     response = self.client.get(reverse(f"moderation-{kind}"))
                 self.assertEqual(response.status_code, 200)
-                if role == "moderator":
-                    self.assertContains(response, "Not available in R1")
-                    self.assertEqual(api.call_count, 1)
-                    with patch("web.views._api", return_value=(200, self.account)) as api:
-                        self.assertEqual(self.client.post(self.detail_url(kind), {}).status_code, 403)
-                        self.assertEqual(api.call_count, 1)
-            with patch("web.views._api", return_value=(200, self.account)):
+            with patch("web.views._api", side_effect=[(200, self.account), (200, {"items": [], "next_cursor": None, "as_of": "2026-11-21T10:00:00Z"}) if role == "administrator" else (403, {})]):
                 self.assertEqual(self.client.get("/admin/points/").status_code, 200 if role == "administrator" else 403)
 
     def test_mfa_cannot_be_bypassed_by_password_response_or_browser_cookie(self):
@@ -222,7 +220,7 @@ class AdminConsoleTests(TestCase):
                 response = self.client.get(reverse(f"moderation-{kind}"), {"cursor": ids[19]})
             self.assertEqual(response.status_code, 200)
             self.assertEqual(api.call_args.args, (f"/moderation/{kind}?cursor={ids[19]}",))
-            for query in ("?cursor=bad", "?cursor=x&cursor=y", "?status=closed", "?actor_id=" + self.target,
+            for query in ("?cursor=bad", "?cursor=x&cursor=y", "?status=unsupported", "?actor_id=" + self.target,
                           "?status=open&status=open"):
                 with patch("web.views._api", return_value=(200, self.account)) as api:
                     self.assertEqual(self.client.get(reverse(f"moderation-{kind}") + query).status_code, 400)
@@ -250,7 +248,7 @@ class AdminConsoleTests(TestCase):
         self.login()
         for kind in ACTIONS:
             with patch("web.views._api", side_effect=[(200, self.account), (200, {"items": [], "next_cursor": None})]):
-                self.assertContains(self.client.get(reverse(f"moderation-{kind}")), "No records awaiting review")
+                self.assertContains(self.client.get(reverse(f"moderation-{kind}")), "No records match this status")
         for status in (403, 404, 500, 502, 503):
             with patch("web.views._api", side_effect=[(200, self.account), (status, {
                     "detail": "private-token internal-host person@example.test"})]):
@@ -265,7 +263,7 @@ class AdminConsoleTests(TestCase):
 
     def test_cross_resource_detail_and_decision_gateway_denials_preserve_status(self):
         self.login()
-        with patch("web.views._api", side_effect=[(200, self.account), (200, self.page("videos"))]):
+        with patch("web.views._api", side_effect=[(200, self.account), (404, {})]):
             self.assertEqual(self.client.get(self.detail_url("videos", str(uuid.uuid4()))).status_code, 404)
         for status in (403, 404):
             intent = self.intent("videos")
@@ -279,7 +277,8 @@ class AdminConsoleTests(TestCase):
         self.login()
         record = {**self.record("videos"), "title": '<script>alert("x")</script>'}
         for url in (reverse("moderation-videos"), self.detail_url("videos")):
-            with patch("web.views._api", side_effect=[(200, self.account), (200, {"items": [record], "next_cursor": None})]) as api:
+            with patch("web.views._api", side_effect=[(200, self.account), (200, ({"items": [record], "next_cursor": None} if url == reverse("moderation-videos") else
+                    {**self.detail("videos"), "record": record, "video": {**self.detail("videos")["video"], "title": record["title"]}}))]) as api:
                 response = self.client.get(url)
             self.assertContains(response, "&lt;script&gt;")
             self.assertNotContains(response, "<script>")
@@ -349,3 +348,78 @@ class AdminConsoleTests(TestCase):
         for result in ({"items": [None]}, {"items": [{"id": self.target}]}, {"items": [], "extra": "private"}):
             with patch("web.views._api", side_effect=[(200, self.account), (200, result)]):
                 self.assertEqual(self.client.get("/admin/account/sessions/").status_code, 503)
+
+
+    def test_reviewer_metadata_and_history_are_escaped_and_storage_url_rejected(self):
+        self.login("moderator")
+        detail = self.detail("videos")
+        detail["video"]["description"] = "<script>private</script>"
+        with patch("web.views._api", side_effect=[(200, self.account), (200, detail)]) as api:
+            response = self.client.get(self.detail_url("videos"))
+        self.assertContains(response, "&lt;script&gt;private&lt;/script&gt;")
+        self.assertEqual(api.call_args.args, (f"/moderation/videos/{self.target}",))
+        detail["preview"] = {"id": self.target, "url": "https://storage.example/secret-key", "expires_at": "2026-11-21T10:00:00Z"}
+        with patch("web.views._api", side_effect=[(200, self.account), (200, detail)]):
+            self.assertEqual(self.client.get(self.detail_url("videos")).status_code, 503)
+
+    def test_preview_uses_server_credentials_and_is_not_cached(self):
+        self.login()
+        url = reverse("reviewer-preview", args=[self.target])
+        with patch("web.views._api", side_effect=[(200, self.account), (200, b"mp4")]) as api:
+            response = self.client.get(url)
+        self.assertEqual(response.content, b"mp4")
+        self.assertEqual(api.call_args.kwargs, {"token": self.access, "binary": True})
+        self.assertIn("no-store", response["Cache-Control"])
+        with patch("web.views._api", side_effect=[(200, self.account), (403, {})]):
+            self.assertEqual(self.client.get(url).status_code, 403)
+
+
+    def test_dashboard_displays_only_validated_service_counts(self):
+        self.login("moderator")
+        totals = {"videos": dict.fromkeys(["review", "published", "rejected", "removed"], 0),
+                  "reports": {"open": 7, "resolved": 3, "dismissed": 2}, "appeals": {"open": 2, "denied": 1, "restored": 0}}
+        with patch("web.views._api", side_effect=[(200, self.account), (200, totals),
+                (200, {"total": 9, "items": [], "next_cursor": None}), (403, {})]):
+            response = self.client.get("/admin/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["totals"]["reports"]["open"], 7)
+        self.assertEqual(response.context["holds"]["total"], 9)
+        with patch("web.views._api", side_effect=[(200, self.account), (403, {})]):
+            self.assertEqual(self.client.get("/admin/").status_code, 403)
+        with patch("web.views._api", side_effect=[(200, self.account), (200, {**totals, "videos": {"review": True}})]):
+            self.assertEqual(self.client.get("/admin/").status_code, 503)
+
+
+    def test_audit_filters_pagination_and_malformed_records(self):
+        self.login("moderator")
+        records = [{"id": str(uuid.uuid4()), "kind": "moderation.reviewer_read", "producer": "moderation",
+                    "subject_type": "video", "occurred_at": f"2026-11-21T10:{minute:02d}:00Z"} for minute in reversed(range(20))]
+        with patch("web.views._api", side_effect=[(200, self.account), (200, {"items": records, "next_cursor": records[-1]["id"]})]) as api:
+            response = self.client.get("/admin/audit/?producer=moderation")
+        self.assertContains(response, "Next page")
+        self.assertIn("producer=moderation", response.context["next_query"])
+        self.assertEqual(api.call_args.args, ("/admin/audit?producer=moderation",))
+        records[0]["actor_id"] = str(uuid.uuid4())
+        with patch("web.views._api", side_effect=[(200, self.account), (200, {"items": records, "next_cursor": None})]):
+            self.assertEqual(self.client.get("/admin/audit/").status_code, 503)
+        with patch("web.views._api", return_value=(200, self.account)) as api:
+            self.assertEqual(self.client.get("/admin/audit/?actor_id=someone").status_code, 400)
+            api.assert_called_once()
+
+
+    def test_points_review_renders_ledger_and_follows_service_authorization(self):
+        self.login("moderator")
+        with patch("web.views._api", side_effect=[(200, self.account), (403, {})]) as api:
+            self.assertEqual(self.client.get("/admin/points/").status_code, 403)
+        self.assertEqual(api.call_args.args, ("/admin/points/balances",))
+        self.login()
+        page = {"account_id": self.target, "balance": 7, "currency": "POINTS", "as_of": "2026-11-21T10:00:00Z",
+                "items": [{"id": str(uuid.uuid4()), "amount": 7, "kind": "award", "rule_version": "v1",
+                    "reason_code": "<script>unsafe</script>", "created_at": "2026-11-21T10:00:00Z", "reversal_review_state": "not_reversed"}], "next_cursor": None}
+        with patch("web.views._api", side_effect=[(200, self.account), (200, page)]):
+            response = self.client.get("/admin/points/", {"account": self.target})
+        self.assertContains(response, "Balance 7 POINTS")
+        self.assertContains(response, "&lt;script&gt;unsafe&lt;/script&gt;")
+        self.assertNotContains(response, 'method="post" action="/admin/points')
+        with patch("web.views._api", side_effect=[(200, self.account), (200, {**page, "account_id": str(uuid.uuid4())})]):
+            self.assertEqual(self.client.get("/admin/points/", {"account": self.target}).status_code, 503)

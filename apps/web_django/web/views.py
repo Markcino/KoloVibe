@@ -11,7 +11,7 @@ from urllib.request import HTTPRedirectHandler, HTTPSHandler, ProxyHandler, Requ
 
 from django.conf import settings
 from django.core import signing
-from django.http import FileResponse, Http404, HttpResponseNotAllowed
+from django.http import FileResponse, Http404, HttpResponseNotAllowed, HttpResponse
 from django.shortcuts import redirect, render
 from django.middleware.csrf import rotate_token
 from django.views.decorators.cache import never_cache
@@ -21,6 +21,7 @@ from django.utils.crypto import salted_hmac
 
 from .api_contracts import valid_id, valid_queue_page, valid_sessions, valid_decision, QUEUE_STATUS, ACTIONS
 from . import staging_session
+from .admin_contracts import STATUSES
 
 
 STATIC_ASSETS = {
@@ -47,7 +48,7 @@ class _NoRedirect(HTTPRedirectHandler):
         return None
 
 
-def _api(path, *, method="GET", data=None, token=None, idempotency_key=None):
+def _api(path, *, method="GET", data=None, token=None, idempotency_key=None, binary=False, response_limit=65536):
     headers = {"Accept": "application/json"}
     if settings.GATEWAY_HOST:
         headers["Host"] = settings.GATEWAY_HOST
@@ -67,13 +68,19 @@ def _api(path, *, method="GET", data=None, token=None, idempotency_key=None):
         handlers = [ProxyHandler({}), _NoRedirect()]
         if context is not None:
             handlers.append(HTTPSHandler(context=context))
-        with build_opener(*handlers).open(request, timeout=5) as response:
-            status, raw = response.status, response.read(65537)
+        with build_opener(*handlers).open(request, timeout=15 if binary else 5) as response:
+            status = response.status
+            limit = 50 * 1024 * 1024 if binary and status == 200 else response_limit
+            raw = response.read(limit + 1)
+            if binary and status == 200:
+                if response.headers.get("Content-Type") != "video/mp4" or not 0 < len(raw) <= limit:
+                    return 503, {}
+                return 200, raw
     except HTTPError as error:
         status, raw = error.code, error.read(65537)
     except (URLError, OSError, TimeoutError):
         return 503, {"detail": "Service unavailable"}
-    if len(raw) > 65536:
+    if len(raw) > response_limit:
         return 503, {"detail": "Service unavailable"}
     try:
         payload = json.loads(raw) if raw else {}
@@ -111,6 +118,7 @@ def error_500(request):
 
 def _clear_credentials(response, request):
     staging_session.clear(request)
+    response["Clear-Site-Data"] = '"cache", "cookies", "storage"'
     # Remove legacy local cookie fixtures when a browser is signed out.
     for name in ("kv_access", "kv_refresh"):
         if name in request.COOKIES:
@@ -165,7 +173,7 @@ def _gateway_error(request, status):
 
 @require_GET
 def root(request):
-    return redirect("dashboard" if request.session.get("authenticated") else "login")
+    return redirect("login")
 
 
 @never_cache
@@ -237,8 +245,23 @@ def login_mfa(request):
 @privileged
 @require_GET
 def dashboard(request):
-    # The existing cursor contracts expose no aggregate totals or audit feed.
-    return _render(request, "dashboard.html")
+    from .admin_contracts import valid_totals, valid_holds
+    status, totals = _api("/moderation/totals", token=request.gateway_token)
+    if status != 200:
+        return _gateway_error(request, status)
+    if not valid_totals(totals):
+        return error_page(request)
+    status, holds = _api("/engagement/fraud-holds", token=request.gateway_token)
+    if status != 200:
+        return _gateway_error(request, status)
+    if not valid_holds(holds):
+        return error_page(request)
+    from .admin_contracts import valid_audit_page
+    audit_status, events = _api("/admin/audit", token=request.gateway_token)
+    if audit_status == 401:
+        return _expired(request)
+    recent = events["items"] if audit_status == 200 and valid_audit_page(events) else None
+    return _render(request, "dashboard.html", {"totals": totals, "holds": holds, "recent_events": recent})
 
 
 def _queue_query(request, kind):
@@ -246,15 +269,21 @@ def _queue_query(request, kind):
             or any(len(request.GET.getlist(key)) != 1 for key in request.GET)):
         return None
     cursor, status = request.GET.get("cursor"), request.GET.get("status", QUEUE_STATUS[kind])
-    if cursor is not None and not valid_id(cursor) or status != QUEUE_STATUS[kind]:
+    from .admin_contracts import STATUSES
+    if cursor is not None and not valid_id(cursor) or status not in STATUSES[kind]:
         return None
     return cursor, status
 
 
-def _queue_page(request, kind, cursor):
-    query = "?" + urlencode({"cursor": cursor}) if cursor else ""
-    status, page = _api("/moderation/" + kind + query, token=request.gateway_token)
-    if status == 200 and not valid_queue_page(page, kind, cursor=cursor):
+def _queue_page(request, kind, cursor, selected_status=None):
+    values = {}
+    if cursor:
+        values["cursor"] = cursor
+    if selected_status and selected_status != QUEUE_STATUS[kind]:
+        values["status"] = selected_status
+    query = "?" + urlencode(values) if values else ""
+    status, page = _api("/moderation/" + kind + query, token=request.gateway_token, response_limit=524288)
+    if status == 200 and not valid_queue_page(page, kind, cursor=cursor, selected_status=selected_status):
         return 503, {}
     return status, page
 
@@ -269,16 +298,15 @@ def moderation_queue(request, kind):
     query = _queue_query(request, kind)
     if query is None:
         return error_page(request, status=400)
-    if request.admin_account["roles"] == ["moderator"]:
-        return _unavailable(request, kind.title(), "Assigned queue access is not available in R1.")
     cursor, selected_status = query
-    status, page = _queue_page(request, kind, cursor)
+    status, page = _queue_page(request, kind, cursor, selected_status)
     if status != 200:
         return _gateway_error(request, status)
     next_query = urlencode({"cursor": page["next_cursor"], "status": selected_status}) if page["next_cursor"] else None
     return _render(request, "moderation_list.html", {
         "title": kind.title(), "kind": kind, "items": page["items"],
         "selected_status": selected_status, "next_query": next_query,
+        "statuses": STATUSES[kind],
         "detail_query": "?" + urlencode({"cursor": cursor}) if cursor else "",
     })
 
@@ -294,10 +322,6 @@ def moderation_detail(request, kind, target_id):
         return HttpResponseNotAllowed(["GET", "POST"])
     if _queue_query(request, kind) is None:
         return error_page(request, status=400)
-    if request.admin_account["roles"] == ["moderator"]:
-        if request.method == "POST":
-            return error_page(request, status=403)
-        return _unavailable(request, kind.title(), "Assigned queue access is not available in R1.")
     if request.method == "POST":
         try:
             intent = signing.loads(request.POST.get("intent", ""), salt="admin-decision", max_age=900)
@@ -318,34 +342,66 @@ def moderation_detail(request, kind, target_id):
         if not valid_decision(result, video_id, action):
             return error_page(request)
         return _render(request, "decision_result.html", {"kind": kind})
-    cursor, _ = _queue_query(request, kind)
-    status, page = _queue_page(request, kind, cursor)
+    status, detail = _api(f"/moderation/{kind}/{target_id}", token=request.gateway_token, response_limit=524288)
     if status != 200:
         return _gateway_error(request, status)
-    item = next((item for item in page["items"] if item["id"] == str(target_id)), None)
-    if item is None:
-        return error_page(request, status=404)
+    from .reviewer_contracts import valid_detail
+    if not valid_detail(detail) or detail["record"]["id"] != str(target_id):
+        return error_page(request)
+    item = detail["record"]
     intent = signing.dumps({**_intent(request, kind, target_id), "key": secrets.token_urlsafe(32),
                             "video": item["id"] if kind == "videos" else item["video_id"]},
                            salt="admin-decision")
     return _render(request, "moderation_detail.html", {
         "title": kind.title() + " review", "kind": kind, "item": item,
-        "actions": sorted(ACTIONS[kind]), "intent": intent,
+        "actions": sorted(ACTIONS[kind]), "intent": intent, "detail": detail,
     })
 
 
 @privileged
 @require_GET
 def points(request):
-    if request.admin_account["roles"] != ["administrator"]:
-        return error_page(request, status=403)
-    return _unavailable(request, "Points", "Administrative balances, adjustment history and reversal review are not available in R1.")
+    from .admin_contracts import valid_points_review
+    if (set(request.GET) - {"account", "cursor", "status", "as_of"}
+            or any(len(request.GET.getlist(key)) != 1 or len(request.GET[key]) > 100 for key in request.GET)):
+        return error_page(request, status=400)
+    values = dict(request.GET.items())
+    account = values.pop("account", None)
+    if (account is not None and not valid_id(account) or "cursor" in values and not valid_id(values["cursor"])
+            or not account and "status" in values):
+        return error_page(request, status=400)
+    endpoint = f"/admin/points/accounts/{account}" if account else "/admin/points/balances"
+    query = "?" + urlencode(values) if values else ""
+    status, page = _api(endpoint + query, token=request.gateway_token)
+    if status != 200:
+        return _gateway_error(request, status)
+    if (not valid_points_review(page) or account and page.get("account_id") != account
+            or page["next_cursor"] is not None and page["next_cursor"] == values.get("cursor")):
+        return error_page(request)
+    params = {**values, "as_of": page["as_of"], **({"account": account} if account else {})}
+    next_query = urlencode({**params, "cursor": page["next_cursor"]}) if page["next_cursor"] else None
+    return _render(request, "points_review.html", {"page": page, "selected_account": account, "next_query": next_query,
+        "statuses": ["all", "awards", "reversals", "adjustments"], "selected_status": values.get("status", "all")})
 
 
 @privileged
 @require_GET
 def audit(request):
-    return _unavailable(request, "Audit", "Authorized audit access with filters is not available in R1.")
+    from .admin_contracts import valid_audit_page
+    if (set(request.GET) - {"cursor", "kind", "producer", "since", "until"}
+            or any(len(request.GET.getlist(key)) != 1 or len(request.GET[key]) > 100 for key in request.GET)):
+        return error_page(request, status=400)
+    values = dict(request.GET.items())
+    if "cursor" in values and not valid_id(values["cursor"]):
+        return error_page(request, status=400)
+    query = "?" + urlencode(values) if values else ""
+    status, page = _api("/admin/audit" + query, token=request.gateway_token)
+    if status != 200:
+        return _gateway_error(request, status)
+    if not valid_audit_page(page) or page["next_cursor"] is not None and page["next_cursor"] == values.get("cursor"):
+        return error_page(request)
+    next_query = urlencode({**values, "cursor": page["next_cursor"]}) if page["next_cursor"] else None
+    return _render(request, "audit.html", {"items": page["items"], "next_query": next_query, "filters": values, "producers": ["identity", "moderation", "creators", "content", "points", "audit"]})
 
 
 @privileged
@@ -418,4 +474,18 @@ def _finish_logout(request):
         "message": "Server session revocation could not be confirmed.",
     }, status=503)
     _clear_credentials(response, request)
+    return response
+
+
+@privileged
+@require_GET
+def reviewer_preview(request, preview_id):
+    if request.GET:
+        return error_page(request, status=400)
+    status, payload = _api(f"/moderation/previews/{preview_id}", token=request.gateway_token, binary=True)
+    if status != 200:
+        return _gateway_error(request, status)
+    response = HttpResponse(payload, content_type="video/mp4")
+    response["Content-Disposition"] = 'inline; filename="review-preview.mp4"'
+    response["Referrer-Policy"] = "no-referrer"
     return response

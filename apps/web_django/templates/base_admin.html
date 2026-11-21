@@ -1,24 +1,20 @@
-{% extends 'base.html' %}
-{% load static %}
+{% extends 'base.html' %}{% load static %}
 {% block shell %}
 <div class="admin-shell">
   <aside class="sidebar">
     <a class="brand" href="{% url 'dashboard' %}"><img src="{% static 'images/landscape_logo_with_name.svg' %}" alt="KoloVibe administration"></a>
-    <nav aria-label="Administration">
-      <a href="{% url 'dashboard' %}">Dashboard</a>
-      <a href="{% url 'moderation-videos' %}">Videos</a>
-      <a href="{% url 'moderation-reports' %}">Reports</a>
-      <a href="{% url 'moderation-appeals' %}">Appeals</a>
-      <a href="{% url 'points' %}">Points</a>
-      <a href="{% url 'audit' %}">Audit</a>
-      <a href="{% url 'account' %}">Account</a>
-    </nav>
-    <p><span class="role-badge">{{ role|title }}</span></p>
-    <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit">Sign out</button></form>
+    <p class="nav-label">Workspace</p>{% include 'admin_nav.html' %}
+    <div class="sidebar-account"><span class="avatar">{{ account.display_name|slice:':1'|upper }}</span><span><strong>{{ account.display_name }}</strong><small>{{ role|title }}</small></span></div>
   </aside>
-  <main id="main" tabindex="-1">
-    <p class="session-notice" role="note">Your session expires 15 minutes after sign-in. When it expires, sign in again to continue.</p>
-    {% block content %}{% endblock %}
-  </main>
+  <div class="admin-workspace">
+    <header class="admin-topbar">
+      <div class="topbar-start"><details class="mobile-navigation"><summary aria-label="Open navigation">{% include 'icon.html' with name='menu' %}</summary><div class="mobile-navigation-panel">{% include 'admin_nav.html' %}</div></details><span class="app-context">Administration</span></div>
+      <div class="topbar-end"><span class="role-badge">{% include 'icon.html' with name='shield' %}{{ role|title }}</span><form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="icon-button" type="submit" aria-label="Sign out" title="Sign out">{% include 'icon.html' with name='logout' %}</button></form></div>
+    </header>
+    <main id="main" class="admin-main" tabindex="-1">
+      <div class="session-notice" role="note">{% include 'icon.html' with name='clock' %}<span>Sessions expire 15 minutes after sign-in. Sign in again when your session ends.</span></div>
+      {% block content %}{% endblock %}
+    </main>
+  </div>
 </div>
 {% endblock %}

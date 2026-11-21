@@ -16,7 +16,7 @@ Identity and the Gateway stay the authority; this module only decides whether a 
 import re
 
 SERVICES = ("gateway", "identity", "creators", "content", "engagement", "points", "moderation", "audit")
-CAPABILITIES = ("account_management", "analytics", "engagement", "media", "moderation", "points", "watch")
+CAPABILITIES = ("account_management", "analytics", "audit_read", "engagement", "media", "moderation", "points", "watch")
 
 # Which capabilities each service may carry. Creator onboarding keeps its own, older flag.
 APPLICABLE = {
@@ -27,11 +27,12 @@ APPLICABLE = {
     "engagement": frozenset({"analytics", "engagement", "points", "watch"}),
     "points": frozenset({"points"}),
     "moderation": frozenset({"moderation"}),
-    "audit": frozenset(),
+    "audit": frozenset({"audit_read"}),
 }
 
 # A capability cannot be on without the ones it needs (checked on the whole set, on every service).
 REQUIRES = {
+    "audit_read": frozenset({"account_management", "moderation"}),
     "analytics": frozenset({"engagement", "media"}),
     "points": frozenset({"engagement"}),
     "watch": frozenset({"media", "points"}),
@@ -39,6 +40,7 @@ REQUIRES = {
 
 # Peers the Gateway must be able to reach for each capability (its trusted-peers file must equal the union).
 GATEWAY_PEERS = {
+    "audit_read": frozenset({"audit", "identity"}),
     "account_management": frozenset({"identity"}),
     "analytics": frozenset({"content", "engagement"}),
     "engagement": frozenset({"engagement"}),
@@ -93,12 +95,18 @@ def _rules():
     add("gateway", "engagement", "POST", rf"/api/v1/videos/{UUID}/shares")
     add("gateway", "points", "GET", r"/api/v1/creators/me/points", r"/api/v1/creators/me/points/entries",
         rf"/api/v1/creators/me/points/entries/{UUID}")
+    add("gateway", "points", "GET", r"/api/v1/admin/points/balances", rf"/api/v1/admin/points/accounts/{UUID}", privileged=True)
     add("gateway", "watch", "POST", rf"/api/v1/videos/{UUID}/watch-sessions", r"/api/v1/engagement/watch-events")
     add("gateway", "moderation", "GET", r"/api/v1/me/standing", r"/api/v1/me/reports", rf"/api/v1/me/reports/{UUID}",
         r"/api/v1/me/appeals", rf"/api/v1/me/appeals/{UUID}", rf"/api/v1/creators/me/videos/{UUID}/notice")
     add("gateway", "moderation", "POST", r"/api/v1/reports", rf"/api/v1/videos/{UUID}/appeals")
     add("gateway", "moderation", "GET", r"/api/v1/moderation/(?:videos|reports|appeals)", privileged=True)
     add("gateway", "moderation", "POST", rf"/api/v1/moderation/(?:videos|reports|appeals)/{UUID}/decisions", privileged=True)
+    add("gateway", "moderation", "GET", rf"/api/v1/moderation/(?:videos|reports|appeals)/{UUID}",
+        rf"/api/v1/moderation/previews/{UUID}", r"/api/v1/moderation/totals", r"/api/v1/engagement/fraud-holds", privileged=True)
+
+    add("gateway", "audit_read", "GET", r"/api/v1/admin/audit", privileged=True)
+    add("audit", "audit_read", "POST", r"/internal/audit/read")
 
     # ---- Identity (internal) ----------------------------------------------------------------------
     add("identity", "account_management", "POST",
@@ -124,11 +132,12 @@ def _rules():
     # ---- Engagement, Points, Moderation (internal) ---------------------------------------------------
     add("engagement", "engagement", "POST", r"/internal/likes", r"/internal/likes/status", r"/internal/follows",
         r"/internal/follows/membership", r"/internal/engagement/shares",
-        r"/internal/engagement/(?:like-counts|play-counts|follower-count|trending)")
+        r"/internal/engagement/(?:like-counts|play-counts|follower-count|trending)", r"/internal/engagement/fraud-holds")
     add("engagement", "analytics", "POST", r"/internal/engagement/analytics/(?:video|creator)")
     add("engagement", "watch", "POST", rf"/internal/engagement/watch/{OP}")
-    add("points", "points", "POST", rf"/internal/points/{OP}")
+    add("points", "points", "POST", rf"/internal/points/{OP}", r"/internal/points/admin/(?:balances|account)")
     add("moderation", "moderation", "POST", rf"/internal/moderation/{OP}")
+    add("moderation", "moderation", "POST", r"/internal/moderation/(?:review_queue|own_reports|own_report|own_appeals|own_appeal|video_decision|report_decision|appeal_decision|video_detail|report_detail|appeal_detail|fraud_scope)")
     return tuple(r)
 
 
@@ -149,6 +158,8 @@ def parse(value):
 
 def check(service, caps, *, accounts, privileged):
     """Refuse a capability set that does not belong on this service or is missing what it depends on."""
+    if service == "gateway" and "audit_read" in caps and (not accounts or not privileged):
+        raise RuntimeError("Audit reads require accounts and MFA")
     if service not in APPLICABLE:
         raise RuntimeError("Unknown staging service")
     if caps - APPLICABLE[service]:

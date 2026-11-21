@@ -5,7 +5,7 @@ Status: structural audit record, not an additional architecture approval. Baseli
 | Approved location | Tracked contents / ownership |
 | --- | --- |
 | `apps/mobile/` | Flutter source, platform projects, design assets and widget tests; production entry `lib/main.dart` |
-| `apps/web_django/` | Deferred Django web client placeholder and shared SVG branding under `static/images/` |
+| `apps/web_django/` | MFA-gated Django administration console for moderators/administrators; bundled SVG branding under `static/images/` |
 | `services/{gateway,identity,creators,content,engagement,points,moderation,audit}/` | Independently owned Django services; each contains `manage.py`, `service/` and `tests/` |
 | `packages/contracts/openapi/` | Shared API contracts, not cross-service writable models |
 | `infra/docker/` | Existing service image definition |
@@ -20,7 +20,7 @@ Status: structural audit record, not an additional architecture approval. Baseli
 ## Corrected historical misplacements
 
 - `apps/mobile_flutter/` contained stray generated local Gradle/Xcode/IDE outputs after the previous directory migration. Those tracked artifacts are removed, not copied. The Gradle wrapper script, Windows script and JAR (required versioned build tooling) are relocated to `apps/mobile/android/` with their original Git blob IDs and executable mode preserved.
-- Three branding SVG files previously under `apps/web/static/images/` now belong to `apps/web_django/static/images/`. This does not activate the deferred web app.
+- Three branding SVG files previously under `apps/web/static/images/` now belong to `apps/web_django/static/images/`. The web app is an administration console with no public, viewer or creator pages; activation still requires the approved gateway, MFA and deployment profile.
 - `scripts/check_structure.py` guards against regressions in these directory paths.
 
 ## Rules

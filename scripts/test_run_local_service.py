@@ -23,8 +23,8 @@ class LocalEnvironmentTests(unittest.TestCase):
         self.assertEqual(environment_for("audit", values)["KOLOVIBE_CALLER_KEYS_FILE"], "/private/audit-callers.json")
         for service in ("gateway", "identity"):
             env = environment_for(service, values)
-            self.assertNotIn("KOLOVIBE_AUDIT_URL", env)
-            self.assertNotIn("KOLOVIBE_CALLER_KEYS_FILE", env)
+            self.assertEqual(env.get("KOLOVIBE_AUDIT_URL"), "https://audit.test" if service == "gateway" else None)
+            self.assertFalse("KOLOVIBE_CALLER_KEYS_FILE" in env)
 
     def test_public_web_origin_is_scoped_to_gateway(self):
         values = {f"KOLOVIBE_{name.upper()}_DJANGO_SECRET_KEY": secrets.token_urlsafe(48) for name in ("gateway", "identity")}

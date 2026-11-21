@@ -16,6 +16,7 @@ urlpatterns = [
     path("login/", views.login, name="login"),
     path("login/mfa/", views.login_mfa, name="login-mfa"),
     path("admin/", views.dashboard, name="dashboard"),
+    path("admin/moderation/previews/<uuid:preview_id>/", views.reviewer_preview, name="reviewer-preview"),
     path("admin/points/", views.points, name="points"),
     path("admin/audit/", views.audit, name="audit"),
     path("admin/account/", views.account, name="account"),

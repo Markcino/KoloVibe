@@ -5,12 +5,19 @@ from ..capabilities import enabled
 
 
 def patterns():
+    audit_routes = []
+    if enabled("audit_read"):
+        from ..admin_reads import audit_log
+        audit_routes.append(path("api/v1/admin/audit", audit_log))
     if not enabled("moderation"):
-        return []
+        return audit_routes
     from ..moderation import moderation_endpoint
     from ..standing import standing
+    from ..admin_reads import fraud_holds
 
-    return [
+    routes = [
+        path("api/v1/moderation/totals", moderation_endpoint, {"operation": "totals"}),
+        path("api/v1/engagement/fraud-holds", fraud_holds),
         path("api/v1/me/standing", standing, name="own-standing"),
         path("api/v1/creators/me/videos/<uuid:target_id>/notice", moderation_endpoint,
              {"operation": "notice"}, name="own-video-notice"),
@@ -36,3 +43,8 @@ def patterns():
         path("api/v1/moderation/appeals/<uuid:target_id>/decisions", moderation_endpoint,
              {"operation": "appeal_decision"}, name="decide-video-appeal"),
     ]
+
+    for kind, operation in (("videos", "video_detail"), ("reports", "report_detail"), ("appeals", "appeal_detail")):
+        routes.append(path(f"api/v1/moderation/{kind}/<uuid:target_id>", moderation_endpoint, {"operation": operation}))
+    routes.append(path("api/v1/moderation/previews/<uuid:target_id>", moderation_endpoint, {"operation": "preview"}))
+    return routes + audit_routes

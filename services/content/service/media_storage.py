@@ -196,3 +196,15 @@ def put_poster(key, path):
                "Cache-Control": "private, no-store", "If-None-Match": "*"}
     with path.open("rb") as body, _request("PUT", key, headers, body):
         pass
+
+
+def read_preview(key):
+    """Bounded private MP4 proxy; storage destinations never reach the browser."""
+    with _request("GET", key) as response:
+        length = _length(response)
+        if length is None or not 0 < length <= MAX_BYTES:
+            raise StorageUnavailable
+        data = response.read(MAX_BYTES + 1)
+        if len(data) != length:
+            raise StorageUnavailable
+        return data

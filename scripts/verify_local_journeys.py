@@ -52,11 +52,18 @@ def serve(service, port):
     if service == "web":
         from django.conf import settings
         settings.DEBUG_PROPAGATE_EXCEPTIONS = True
+        # Session tables belong only to this disposable fixture, never the developer's local DB.
+        settings.DATABASES["default"]["NAME"] = fixture_directory() / "web-fixture.sqlite3"
+        from django.core.management import call_command
+        call_command("migrate", verbosity=0, interactive=False)
     if service == "identity":
         from django.conf import settings
         # Disposable contract fixture only; password-strength/hash work is tested
         # by Identity's own suite. Keep real HTTP journeys within their timeouts.
         settings.PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
+        # Fixture-only opt-in after fixture_directory() proves the disposable PostgreSQL boundary.
+        # Real local and staging application settings remain unchanged.
+        settings.STAGING_PRIVILEGED = True
         settings.EMAIL_BACKEND = "verify_local_journeys.CapturedMail"
         settings.EMAIL_HOST = "test-only.invalid"
         settings.DEFAULT_FROM_EMAIL = "fixture@example.test"
@@ -65,7 +72,7 @@ def serve(service, port):
                                "--noreload"])
 
 
-def request(port, path, *, method="GET", data=None, headers=None, cookies=None, form=None):
+def request(port, path, *, method="GET", data=None, headers=None, cookies=None, form=None, response_headers=None):
     connection = HTTPConnection("127.0.0.1", port, timeout=5)
     try:
         body = None if data is None else json.dumps(data)
@@ -77,6 +84,8 @@ def request(port, path, *, method="GET", data=None, headers=None, cookies=None, 
             fields["Cookie"] = "; ".join(f"{name}={morsel.value}" for name, morsel in cookies.items())
         connection.request(method, path, body=body, headers=fields)
         response = connection.getresponse()
+        if response_headers is not None:
+            response_headers.update(dict(response.getheaders()))
         if cookies is not None:
             for name, value in response.getheaders():
                 if name.lower() == "set-cookie":
@@ -145,13 +154,17 @@ def verify():
     with postgres_fixture() as (base, environments), ExitStack() as stack:
         ports = {}
         reservations = {}
-        services = ("identity", "content", "creators", "gateway", "web")
+        services = ("identity", "content", "creators", "moderation", "engagement", "points", "audit", "gateway", "web")
         for service in services:
             sock = stack.enter_context(socket.socket())
             sock.bind(("127.0.0.1", 0))
             ports[service] = sock.getsockname()[1]
             reservations[service] = sock
-        signing_key = secrets.token_urlsafe(48)
+        peer_keys = {service: secrets.token_urlsafe(48) for service in services if service not in {"gateway", "web"}}
+        moderation_key = secrets.token_urlsafe(48)
+        from cryptography.fernet import Fernet
+        secret_file(base / "mfa-key", Fernet.generate_key().decode())
+        environments["identity"]["KOLOVIBE_MFA_ENCRYPTION_KEY_FILE"] = str(base / "mfa-key")
         creator_id = uuid.uuid4()
         video_ids = [uuid.uuid4() for _ in range(21)]
         seed(environments["creators"], creator_id, video_ids)
@@ -164,11 +177,20 @@ def verify():
             environment = dict(environments[service])
             if service == "gateway":
                 environment["KOLOVIBE_LOCAL_MEDIA_ENABLED"] = "1"
-                environment["KOLOVIBE_GATEWAY_OUTBOUND_KEY"] = signing_key
-                for peer in ("identity", "content", "creators"):
+                for peer, key in peer_keys.items():
                     environment[f"KOLOVIBE_{peer.upper()}_URL"] = f"http://127.0.0.1:{ports[peer]}"
+                    environment[f"KOLOVIBE_GATEWAY_OUTBOUND_KEY_{peer.upper()}"] = key
             elif service != "web":
-                environment["KOLOVIBE_CALLER_GATEWAY_KEY"] = signing_key
+                environment["KOLOVIBE_CALLER_GATEWAY_KEY"] = peer_keys[service]
+            if service in {"gateway", "content", "moderation"}:
+                environment["KOLOVIBE_LOCAL_MODERATION_ENABLED"] = "1"
+            if service in {"gateway", "engagement", "points"}:
+                environment["KOLOVIBE_LOCAL_POINTS_ENABLED"] = "1"
+            if service == "content":
+                environment["KOLOVIBE_CALLER_MODERATION_KEY"] = moderation_key
+            if service == "moderation":
+                environment["KOLOVIBE_MODERATION_OUTBOUND_KEY_CONTENT"] = moderation_key
+                environment["KOLOVIBE_CONTENT_URL"] = f"http://127.0.0.1:{ports['content']}"
             log = stack.enter_context((base / f"{service}.log").open("w"))
             reservations[service].close()
             process = subprocess.Popen(
@@ -194,6 +216,39 @@ def verify():
                                   method="POST" if data is not None else "GET", data=data,
                                   headers={"Authorization": "Bearer " + token} if token else None)
             return status, json.loads(raw) if raw else None
+
+        def fixture_connection(service):
+            import psycopg
+            env = environments[service]
+            return psycopg.connect(dbname=env["KOLOVIBE_DB_NAME"], user=env["KOLOVIBE_DB_USER"],
+                host="127.0.0.1", port=env["KOLOVIBE_DB_PORT"], password=Path(env["KOLOVIBE_DB_PASSWORD_FILE"]).read_text(),
+                sslmode="verify-full", sslrootcert=env["KOLOVIBE_DB_SSLROOTCERT"])
+
+        def privileged_fixture(role):
+            import pyotp
+            body = {"email": "web-" + role + "@example.test", "display_name": "Privileged Fixture",
+                    "password": secrets.token_urlsafe(24)}
+            if api("/auth/register", data=body)[0] != 201 or api("/auth/verify", data={
+                    "email": body["email"], "code": mailed_code(base)})[0] != 200:
+                raise AssertionError("Disposable privileged account setup failed")
+            with fixture_connection("identity") as connection:
+                actor = connection.execute("UPDATE identity.service_account SET role=%s WHERE email=%s RETURNING id",
+                                           (role, body["email"])).fetchone()[0]
+            factor = pyotp.random_base32()
+            secret_file(base / (role + "-factor"), factor)
+            secret_file(base / (role + "-code"), pyotp.TOTP(factor).now())
+            env = dict(environments["identity"], KOLOVIBE_ENROLLMENT_SECRET_FILE=str(base / (role + "-factor")),
+                       KOLOVIBE_ENROLLMENT_CODE_FILE=str(base / (role + "-code")))
+            # Invoke the existing enrollment command, changing only the disposable process's settings.
+            code = ("import os,sys,django;os.environ['DJANGO_SETTINGS_MODULE']='service.settings';django.setup();"
+                    "from django.conf import settings;settings.STAGING_PRIVILEGED=True;"
+                    "from django.core.management import call_command;"
+                    "call_command('enroll_privileged_mfa', account_id=sys.argv[1], recovery_file=sys.argv[2], approval_reference='disposable-WEB-ADM-fixture')")
+            result = subprocess.run([sys.executable, "-c", code, str(actor), str(base / (role + "-recovery"))],
+                cwd=ROOT / "services/identity", env=env, capture_output=True, timeout=20)
+            if result.returncode:
+                raise AssertionError("Disposable privileged enrollment failed")
+            return actor, body, (base / (role + "-recovery")).read_text().splitlines()[0]
 
         class Journeys(unittest.TestCase):
             def test_approved_viewer_role_reconciliation_and_studio(self):
@@ -326,6 +381,99 @@ def verify():
                 for service in ("identity", "content", "creators"):
                     self.assertEqual(request(ports[service], "/internal/probe")[0], 403)
                 self.assertEqual(api("/me")[0], 401)
+
+            def test_WEB_ADM_002_real_privileged_console_and_owning_services(self):
+                """Real HTTP, MFA, scoped reads, decision replay, and immutable audit evidence."""
+                from html.parser import HTMLParser
+                class Intent(HTMLParser):
+                    value = None
+                    def handle_starttag(self, tag, attrs):
+                        values = dict(attrs)
+                        if tag == "input" and values.get("name") == "intent":
+                            self.value = values.get("value")
+
+                for role in ("administrator", "moderator"):
+                    actor, body, recovery = privileged_fixture(role)
+                    if role == "administrator":
+                        with fixture_connection("audit") as connection:
+                            connection.execute("INSERT INTO audit.service_auditreadgrant (administrator_id,producer,active) VALUES (%s,'moderation',true)", (actor,))
+                        with fixture_connection("points") as connection:
+                            connection.execute("INSERT INTO points.points_entries (entry_id,creator_user_id,source_decision_id,delta,entry_type,rule_version,reason_code,created_at) VALUES (%s,%s,%s,1,'AWARD','fixture-v1','QUALIFIED_VIEW',now())", (uuid.uuid4(), actor, uuid.uuid4()))
+                    else:
+                        with fixture_connection("moderation") as connection:
+                            connection.execute("INSERT INTO moderation.service_moderatorassignment (moderator_id,queue_scope,target_id,active) VALUES (%s,'videos',%s,true)", (actor, video_ids[0]))
+                        with fixture_connection("engagement") as connection:
+                            connection.execute("INSERT INTO engagement.service_fraudhold (id,account_id,video_id,reason_code,active,created_at) VALUES (%s,%s,%s,'FIXTURE_REVIEW',true,now())", (uuid.uuid4(), uuid.uuid4(), video_ids[0]))
+                    cookies = SimpleCookie()
+                    self.assertEqual(request(ports["web"], "/login/", cookies=cookies)[0], 200)
+                    def post(path, form):
+                        return request(ports["web"], path, method="POST", cookies=cookies,
+                            form={"csrfmiddlewaretoken": cookies["csrftoken"].value, **form})
+                    self.assertEqual(post("/login/", {"email": body["email"], "password": body["password"]})[0], 302)
+                    self.assertEqual(request(ports["web"], "/admin/", cookies=cookies)[0], 302)
+                    self.assertEqual(post("/login/mfa/", {"code": recovery})[0], 302)
+                    self.assertTrue(cookies["sessionid"]["httponly"])
+                    self.assertNotIn("kv_access", cookies)
+                    self.assertNotIn("kv_refresh", cookies)
+                    headers = {}
+                    status, page = request(ports["web"], "/admin/", cookies=cookies, response_headers=headers)
+                    self.assertEqual(status, 200)
+                    self.assertIn(b"Dashboard", page)
+                    self.assertIn("no-store", headers["Cache-Control"])
+                    self.assertIn("frame-ancestors 'none'", headers["Content-Security-Policy"])
+                    # Validate live owning-service projections against the approved OpenAPI schemas.
+                    status, challenged = api("/auth/login", data={key: body[key] for key in ("email", "password")})
+                    self.assertEqual(status, 202)
+                    second_code = (base / (role + "-recovery")).read_text().splitlines()[1]
+                    status, tokens = api("/auth/mfa/verify", data={"challenge_token": challenged["challenge_token"], "code": second_code})
+                    self.assertEqual(status, 200)
+                    for live_path, schema_path in (("/moderation/totals", "/moderation/totals"),
+                            ("/engagement/fraud-holds", "/engagement/fraud-holds"),
+                            (f"/moderation/videos/{video_ids[0]}", "/moderation/videos/{video_id}"),
+                            ("/admin/audit", "/admin/audit")):
+                        status, payload = api(live_path, token=tokens["access_token"])
+                        self.assertEqual(status, 200)
+                        contract(schema_path, "get", status, payload)
+                    if role == "administrator":
+                        for live_path, schema_path in (("/admin/points/balances", "/admin/points/balances"),
+                                (f"/admin/points/accounts/{actor}", "/admin/points/accounts/{account_id}")):
+                            status, payload = api(live_path, token=tokens["access_token"])
+                            self.assertEqual(status, 200)
+                            contract(schema_path, "get", status, payload)
+                    else:
+                        self.assertEqual(api("/admin/points/balances", token=tokens["access_token"])[0], 403)
+                    self.assertEqual(api("/auth/logout", data={"refresh_token": tokens["refresh_token"]})[0], 204)
+                    status, page = request(ports["web"], "/admin/moderation/videos/?status=published", cookies=cookies)
+                    self.assertEqual(status, 200)
+                    self.assertEqual(request(ports["web"], f"/admin/moderation/videos/{video_ids[0]}/", cookies=cookies)[0], 200)
+                    self.assertEqual(request(ports["web"], "/admin/audit/", cookies=cookies)[0], 200)
+                    self.assertEqual(request(ports["web"], "/admin/points/", cookies=cookies)[0], 200 if role == "administrator" else 403)
+                    if role == "moderator":
+                        self.assertEqual(request(ports["web"], "/admin/moderation/reports/", cookies=cookies)[0], 403)
+                        self.assertEqual(request(ports["web"], f"/admin/moderation/videos/{video_ids[1]}/", cookies=cookies)[0], 403)
+                        with fixture_connection("moderation") as connection:
+                            self.assertGreater(connection.execute("SELECT count(*) FROM moderation.moderation_audit_event WHERE actor_id=%s AND kind='moderation.assignment_denied'", (actor,)).fetchone()[0], 0)
+                    else:
+                        report_id = uuid.uuid4()
+                        with fixture_connection("moderation") as connection:
+                            connection.execute("INSERT INTO moderation.service_report (id,video_id,reporter_id,reason,details,status,created_at) VALUES (%s,%s,%s,'other','<script>fixture</script>','open',now())", (report_id, video_ids[0], uuid.uuid4()))
+                        path = f"/admin/moderation/reports/{report_id}/"
+                        status, page = request(ports["web"], path, cookies=cookies)
+                        self.assertEqual(status, 200)
+                        self.assertIn(b"&lt;script&gt;fixture&lt;/script&gt;", page)
+                        parser = Intent()
+                        parser.feed(page.decode())
+                        self.assertTrue(parser.value)
+                        decision = {"intent": parser.value, "action": "dismiss", "reason": "Reviewed disposable fixture evidence."}
+                        self.assertEqual(request(ports["web"], path, method="POST", cookies=cookies, form=decision)[0], 403)
+                        for _ in range(2):
+                            self.assertEqual(post(path, decision)[0], 200)
+                        with fixture_connection("moderation") as connection:
+                            self.assertEqual(connection.execute("SELECT count(*) FROM moderation.service_moderationaction WHERE report_id=%s", (report_id,)).fetchone()[0], 1)
+                            self.assertEqual(connection.execute("SELECT count(*) FROM moderation.moderation_audit_event WHERE actor_id=%s AND kind='moderation.decision_recorded'", (actor,)).fetchone()[0], 1)
+                    self.assertEqual(post("/admin/logout/", {})[0], 302)
+                    self.assertNotIn("sessionid", cookies)
+                    self.assertEqual(request(ports["web"], "/admin/", cookies=cookies)[0], 302)
 
             def test_web_admin_boundary_and_csrf(self):
                 self.assertEqual(request(ports["web"], "/")[0], 302)

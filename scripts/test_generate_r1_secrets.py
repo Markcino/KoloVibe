@@ -30,6 +30,19 @@ def generated(env=None):
 
 
 class GeneratorTests(unittest.TestCase):
+    def test_audit_read_is_explicit_and_has_a_distinct_peer_key(self):
+        with tempfile.TemporaryDirectory() as parent:
+            directory = Path(parent) / "secrets"
+            files, _ = gen.build(GOOD_R2, audit_read=True)
+            gen.write_all(directory, files)
+            gen.validate(directory, audit_read=True)
+            with self.assertRaises(ValueError):
+                gen.validate(directory)
+            gateway = json.loads(files["kolovibe_gateway_outbound_r1_v1"])
+            callers = json.loads(files["audit_callers_2"])
+            self.assertEqual(callers["gateway"], gateway["audit"])
+            self.assertEqual(len(set(callers.values())), 4)
+
     def test_a_full_set_validates_and_has_every_expected_file(self):
         directory, files, notes = generated()
         self.assertEqual(notes, [])
@@ -80,7 +93,7 @@ class GeneratorTests(unittest.TestCase):
         for name in ("identity_audit_signing", "kolovibe_points_outbound_key_r1_v1"):
             self.assertNotEqual((directory / name).read_text(), (other / name).read_text())
         values = json.loads((directory / "kolovibe_gateway_outbound_r1_v1").read_text())
-        self.assertEqual(len(set(values.values())), 6)
+        self.assertEqual(len(set(values.values())), len(gen.RECEIVERS))
 
     def test_r2_files_are_written_only_for_keys_of_the_shape_cloudflare_issues(self):
         for label, change in (("missing access key id", {"KOLOVIBE_R2_ACCESS_KEY_ID": ""}),

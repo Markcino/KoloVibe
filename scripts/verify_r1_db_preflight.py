@@ -82,8 +82,8 @@ class PreflightTests(unittest.TestCase):
             report = self.check()
             self.assertEqual(report["verdict"], "ok", report["stops"])
             self.assertEqual(report["migrations"]["points"]["pending"], ["0005_audit_evidence"])
-            self.assertEqual(len(report["migrations"]["engagement"]["pending"]), 5)
-            self.assertEqual(report["pending_total"], 6)
+            self.assertEqual(len(report["migrations"]["engagement"]["pending"]), 6)
+            self.assertEqual(report["pending_total"], 7)
         finally:
             with self.admin() as db:  # restore the fixture rows for the other cases (disposable test database)
                 db.execute("""INSERT INTO "engagement".django_migrations (app, name, applied)
@@ -222,7 +222,7 @@ class PureTests(unittest.TestCase):
         self.assertEqual(set(expected), set(preflight.SERVICES))
         self.assertIn("0004_creator_profile_fields", expected["creators"])
         self.assertIn("0008_video_metadata_and_soft_delete", expected["content"])
-        self.assertEqual(len(expected["engagement"]), 5)
+        self.assertEqual(len(expected["engagement"]), 6)
         self.assertEqual(expected["gateway"], [])
 
     def test_only_select_statements_exist_in_the_tool(self):

@@ -8,8 +8,11 @@ def patterns():
     routes = []
     if enabled("points"):
         from ..pilot_points import creator_points
+        from ..admin_reads import points_review
 
         routes += [
+            path("api/v1/admin/points/balances", points_review),
+            path("api/v1/admin/points/accounts/<uuid:account_id>", points_review),
             path("api/v1/creators/me/points", creator_points, {"operation": "balance"}, name="creator-points"),
             path("api/v1/creators/me/points/entries", creator_points, {"operation": "entries"},
                  name="creator-points-entries"),
