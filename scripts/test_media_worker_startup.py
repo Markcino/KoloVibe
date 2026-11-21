@@ -174,7 +174,9 @@ class RemoteControlTests(unittest.TestCase):
         self.assertEqual((options["max_tasks_per_child"], options["max_memory_per_child"]), (20, 262144))
         self.assertIs(options["without_gossip"], True)
         self.assertIs(options["without_mingle"], True)
-        self.assertIs(options["without_heartbeat"], False)
+        # Celery event heartbeats are deliberately disabled; AMQP connection
+        # heartbeats remain enabled by broker_heartbeat in the app config.
+        self.assertIs(options["without_heartbeat"], True)
 
     def test_run_celery_corrects_an_app_that_enables_remote_control(self):
         self.assertIs(child("start", force_remote_control_on=True)["remote_control"], False)
@@ -182,7 +184,8 @@ class RemoteControlTests(unittest.TestCase):
     def test_worker_arguments_are_pinned(self):
         self.assertEqual(roles.celery_argv(QUEUE), [
             "worker", "-Q", QUEUE, "--concurrency=1", "--prefetch-multiplier=1", "--loglevel=WARNING",
-            "--max-tasks-per-child=20", "--max-memory-per-child=262144", "--without-gossip", "--without-mingle"])
+            "--max-tasks-per-child=20", "--max-memory-per-child=262144", "--without-gossip", "--without-mingle",
+            "--without-heartbeat"])
 
     def test_a_started_worker_declares_only_the_approved_queue_and_exchange(self):
         out = child("declare")
