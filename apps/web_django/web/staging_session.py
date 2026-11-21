@@ -13,11 +13,55 @@ from .models import WebCredential
 
 IDLE = timedelta(minutes=30)
 ABSOLUTE = timedelta(hours=8)
+PRIVILEGED_ABSOLUTE = timedelta(minutes=15)
+MFA_CHALLENGE_SECONDS = 300
+MFA_PENDING = "pending_mfa"
 
 
 def ordinary_account(account):
     return (isinstance(account, dict)
             and account.get("roles") in (["viewer"], ["creator"]))
+
+
+def privileged_account(account):
+    return (isinstance(account, dict)
+            and account.get("roles") in (["moderator"], ["administrator"]))
+
+
+def begin_mfa(request, payload, email):
+    """Keep the password-proven challenge encrypted on the server, never in a form or URL."""
+    raw, lifetime = payload.get("challenge_token"), payload.get("expires_in")
+    if (payload.get("mfa_required") is not True or not isinstance(raw, str)
+            or not 32 <= len(raw) <= 128 or type(lifetime) is not int
+            or not 0 < lifetime <= MFA_CHALLENGE_SECONDS
+            or not isinstance(email, str) or not email.strip()):
+        return False
+    clear(request)
+    state = {"challenge_token": raw, "email": email.strip().casefold(),
+             "expires_at": timezone.now().timestamp() + lifetime}
+    request.session[MFA_PENDING] = _cipher().encrypt(json.dumps(state).encode()).decode()
+    request.session.set_expiry(lifetime)
+    return True
+
+
+def pending_mfa(request):
+    raw = request.session.get(MFA_PENDING)
+    if not isinstance(raw, str):
+        return None
+    try:
+        state = json.loads(_cipher().decrypt(raw.encode()))
+        if (not isinstance(state, dict) or set(state) != {"challenge_token", "email", "expires_at"}
+                or not isinstance(state["challenge_token"], str)
+                or not 32 <= len(state["challenge_token"]) <= 128
+                or not isinstance(state["email"], str)
+                or type(state["expires_at"]) not in (int, float)
+                or not timezone.now().timestamp() < state["expires_at"]
+                <= timezone.now().timestamp() + MFA_CHALLENGE_SECONDS):
+            raise ValueError("Invalid challenge state")
+        return state
+    except (InvalidToken, ValueError, TypeError, UnicodeError):
+        request.session.pop(MFA_PENDING, None)
+        return None
 
 
 def _cipher():
@@ -40,8 +84,10 @@ def _unpack(row):
     return tokens
 
 
-def start(request, payload):
-    if not ordinary_account(payload.get("user")):
+def start(request, payload, *, mfa_verified=False):
+    account = payload.get("user")
+    privileged = privileged_account(account)
+    if not ordinary_account(account) and not (privileged and mfa_verified):
         return False
     access, refresh = payload.get("access_token"), payload.get("refresh_token")
     if not isinstance(access, str) or not access or not isinstance(refresh, str) or not refresh:
@@ -53,12 +99,15 @@ def start(request, payload):
     # A second sign-in must invalidate the old browser session and credential row.
     clear(request)
     request.session["authenticated"] = True
+    request.session["authenticated_role"] = account["roles"][0]
+    lifetime = PRIVILEGED_ABSOLUTE if privileged else ABSOLUTE
+    request.session.set_expiry(int(lifetime.total_seconds()))
     request.session.save()
     now = timezone.now()
     WebCredential.objects.create(
         session_key=request.session.session_key, identity_session_id=identity_session_id,
         ciphertext=_pack(access, refresh), created_at=now, last_activity_at=now,
-        absolute_expires_at=now + ABSOLUTE,
+        absolute_expires_at=now + lifetime,
     )
     return True
 
@@ -100,16 +149,20 @@ def authenticated(request, api):
                 row.save(update_fields=["ciphertext"])
                 status, account = api("/me", token=access)
                 tokens = {"access": access, "refresh": refresh}
-            elif status == 401:
+            elif status in (401, 403):
                 row.delete()
                 return 401, {}, None
             else:
                 return status, {}, None
         if status != 200:
-            if status == 401:
+            if status in (401, 403):
                 row.delete()
+                return 401, {}, None
             return status, {}, None
-        if not ordinary_account(account):
+        role = request.session.get("authenticated_role")
+        allowed = (ordinary_account(account) and (role is None or account["roles"] == [role])) or (
+            privileged_account(account) and account["roles"] == [role])
+        if not allowed:
             row.delete()
             return 401, {}, None
         if now - row.last_activity_at >= timedelta(seconds=60):
@@ -124,3 +177,4 @@ def refresh_for_logout(request):
     row = WebCredential.objects.filter(session_key=request.session.session_key).first()
     tokens = _unpack(row) if row else None
     return tokens["refresh"] if tokens else None
+

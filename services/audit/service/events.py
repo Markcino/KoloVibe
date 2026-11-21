@@ -12,6 +12,7 @@ from .models import SecurityEvent
 
 logger = logging.getLogger(__name__)
 KINDS = {
+    "account.administrator_role_granted",
     "account.creator_role_granted",
     "account.registered", "account.verified", "account.verification_resent",
     "account.password_reset_code_failed", "account.password_reset_throttled", "account.verification_code_failed", "account.verification_throttled",
@@ -80,3 +81,4 @@ def ingest(request):
             logger.error("Security event identifier collision")
             return JsonResponse({"detail": "Event conflict"}, status=409)
     return JsonResponse({"status": "ok"}, status=201 if created else 200)
+
