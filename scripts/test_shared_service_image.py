@@ -124,8 +124,8 @@ class ImageSecurityContractTests(unittest.TestCase):
         for forbidden in ("rtsp", "rtp", "http", "tcp", "udp", "tls", "libssh", "libzmq", "libpulse", "alsa",
                           "--enable-network", "--enable-avdevice", "--enable-libx265", "--enable-libvpx"):
             self.assertNotIn(forbidden, configure)
-        self.assertEqual(sorted(re.findall(r"--enable-encoder=(\w+)", configure)), ["aac", "libx264", "mjpeg"])
-        self.assertEqual(re.findall(r"--enable-muxer=(\w+)", configure), ["mp4", "image2"])
+        self.assertEqual(sorted(re.findall(r"--enable-encoder=(\w+)", configure)), ["aac", "libx264", "mjpeg", "pcm_s16le"])
+        self.assertEqual(re.findall(r"--enable-muxer=(\w+)", configure), ["mp4", "image2", "wav"])
         self.assertEqual(re.findall(r"--enable-demuxer=(\w+)", configure), ["mov"])
         # The default build copies an empty directory, so the shared image never builds or contains FFmpeg.
         self.assertIn("ARG FFMPEG_SOURCE=ffmpeg-empty", self.dockerfile)
