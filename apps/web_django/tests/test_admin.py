@@ -102,7 +102,7 @@ class AdminConsoleTests(TestCase):
             self.login(role)
             for path in ("/admin/", "/admin/account/", "/admin/audit/",
                          "/admin/account/profile/", "/admin/account/password/"):
-                with patch("web.views._api", return_value=(200, self.account)):
+                with patch("web.views._api", side_effect=[(200, self.account)] + ([(200, {"videos": dict.fromkeys(["review", "published", "rejected", "removed"], 0), "reports": dict.fromkeys(["open", "resolved", "dismissed"], 0), "appeals": dict.fromkeys(["open", "denied", "restored"], 0)}), (200, {"total": 0, "items": [], "next_cursor": None})] if path == "/admin/" else [])):
                     self.assertEqual(self.client.get(path).status_code, 200)
             for kind in ACTIONS:
                 with patch("web.views._api", side_effect=[(200, self.account), (200, self.page(kind))]):
@@ -220,7 +220,7 @@ class AdminConsoleTests(TestCase):
                 response = self.client.get(reverse(f"moderation-{kind}"), {"cursor": ids[19]})
             self.assertEqual(response.status_code, 200)
             self.assertEqual(api.call_args.args, (f"/moderation/{kind}?cursor={ids[19]}",))
-            for query in ("?cursor=bad", "?cursor=x&cursor=y", "?status=closed", "?actor_id=" + self.target,
+            for query in ("?cursor=bad", "?cursor=x&cursor=y", "?status=unsupported", "?actor_id=" + self.target,
                           "?status=open&status=open"):
                 with patch("web.views._api", return_value=(200, self.account)) as api:
                     self.assertEqual(self.client.get(reverse(f"moderation-{kind}") + query).status_code, 400)
@@ -372,3 +372,19 @@ class AdminConsoleTests(TestCase):
         self.assertIn("no-store", response["Cache-Control"])
         with patch("web.views._api", side_effect=[(200, self.account), (403, {})]):
             self.assertEqual(self.client.get(url).status_code, 403)
+
+
+    def test_dashboard_displays_only_validated_service_counts(self):
+        self.login("moderator")
+        totals = {"videos": dict.fromkeys(["review", "published", "rejected", "removed"], 0),
+                  "reports": {"open": 7, "resolved": 3, "dismissed": 2}, "appeals": {"open": 2, "denied": 1, "restored": 0}}
+        with patch("web.views._api", side_effect=[(200, self.account), (200, totals),
+                (200, {"total": 9, "items": [], "next_cursor": None})]):
+            response = self.client.get("/admin/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["totals"]["reports"]["open"], 7)
+        self.assertEqual(response.context["holds"]["total"], 9)
+        with patch("web.views._api", side_effect=[(200, self.account), (403, {})]):
+            self.assertEqual(self.client.get("/admin/").status_code, 403)
+        with patch("web.views._api", side_effect=[(200, self.account), (200, {**totals, "videos": {"review": True}})]):
+            self.assertEqual(self.client.get("/admin/").status_code, 503)

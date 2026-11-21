@@ -90,7 +90,9 @@ class PolicyDefinitionTests(unittest.TestCase):
         # Reviewer routes are the only privileged ones.
         self.assertEqual({rule.pattern.pattern for rule in policy.RULES if rule.privileged},
                          {r"/api/v1/moderation/(?:videos|reports|appeals)",
-                          rf"/api/v1/moderation/(?:videos|reports|appeals)/{policy.UUID}/decisions"})
+                          rf"/api/v1/moderation/(?:videos|reports|appeals)/{policy.UUID}/decisions",
+                          rf"/api/v1/moderation/(?:videos|reports|appeals)/{policy.UUID}",
+                          rf"/api/v1/moderation/previews/{policy.UUID}", r"/api/v1/moderation/totals", r"/api/v1/engagement/fraud-holds"})
 
 
 class RouteCoverageTests(unittest.TestCase):

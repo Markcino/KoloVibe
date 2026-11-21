@@ -87,3 +87,16 @@ class VideoShare(models.Model):
     class Meta:
         constraints = [models.UniqueConstraint(fields=["account_id", "video_id", "day"], name="unique_daily_video_share")]
         indexes = [models.Index(fields=["creator_id", "day"], name="eng_share_creator_day_idx")]
+
+
+class FraudHold(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    account_id = models.UUIDField()
+    video_id = models.UUIDField(db_index=True)
+    reason_code = models.CharField(max_length=64)
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["active", "video_id", "id"], name="eng_active_hold_scope")]

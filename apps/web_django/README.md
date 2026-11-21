@@ -11,7 +11,7 @@ All gateway paths below have the `/api/v1` prefix. Every `/admin/` route require
 | Web route | Existing gateway contract / R1 behavior |
 | --- | --- |
 | `/login/`, `/login/mfa/` | `POST /auth/login`, `POST /auth/mfa/verify` |
-| `/admin/` | Navigation and labelled unavailable metrics; no aggregate-count, fraud-hold or recent-audit contract exists |
+| `/admin/` | Scoped queue totals and active fraud-hold counts from Moderation/Engagement; recent audit events remain unavailable until W4 |
 | `/admin/moderation/videos/` | `GET /moderation/videos?cursor=…` |
 | `/admin/moderation/reports/` | `GET /moderation/reports?cursor=…` |
 | `/admin/moderation/appeals/` | `GET /moderation/appeals?cursor=…` |
@@ -26,7 +26,7 @@ All gateway paths below have the `/api/v1` prefix. Every `/admin/` route require
 | `/admin/logout/` | `POST /auth/logout`; browser state clears even if server revocation cannot be confirmed |
 | `/health/live`, `/static/<asset>` | Liveness and allowlisted bundled assets |
 
-Queue pages validate bounded records, canonical UUIDs, ordering, duplicates and forward-only cursors before rendering. The existing contracts return only the review-video queue or open reports/appeals. Those status filters are provided; other statuses explicitly say **Not available in R1** and unsupported filter values are rejected. Session lists use the existing bounded, non-paginated contract.
+Queue pages validate bounded records, canonical UUIDs, ordering, duplicates and forward-only cursors before rendering. Supported video statuses are review/published/rejected/removed; reports open/resolved/dismissed; appeals open/denied/restored. Unsupported and repeated filters are rejected. Dashboard counts come from the same scoped owning-service queries, never a partial page. Fraud holds are active and unexpired and scoped to assigned videos or videos attached to assigned reports/appeals. No fraud decision or hold mutation UI exists. Session lists use the existing bounded, non-paginated contract.
 
 There are no reviewer detail-read endpoints. Review pages show only a freshly fetched queue record, with **Full content inspection: Not available in R1**. Links retain the source cursor; a record absent from that page returns 404. Video decisions allow publish/reject/remove, reports allow dismiss/remove, and appeals allow deny/restore. A short-lived signed form intent binds the target, video, account and browser session to a stable gateway `Idempotency-Key`. Repeated submissions reuse that key; decision POSTs re-check identity and roles. Gateway authorization and conflict responses remain authoritative.
 

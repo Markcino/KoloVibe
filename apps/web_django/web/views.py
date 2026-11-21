@@ -21,6 +21,7 @@ from django.utils.crypto import salted_hmac
 
 from .api_contracts import valid_id, valid_queue_page, valid_sessions, valid_decision, QUEUE_STATUS, ACTIONS
 from . import staging_session
+from .admin_contracts import STATUSES
 
 
 STATIC_ASSETS = {
@@ -47,7 +48,7 @@ class _NoRedirect(HTTPRedirectHandler):
         return None
 
 
-def _api(path, *, method="GET", data=None, token=None, idempotency_key=None, binary=False):
+def _api(path, *, method="GET", data=None, token=None, idempotency_key=None, binary=False, response_limit=65536):
     headers = {"Accept": "application/json"}
     if settings.GATEWAY_HOST:
         headers["Host"] = settings.GATEWAY_HOST
@@ -67,9 +68,9 @@ def _api(path, *, method="GET", data=None, token=None, idempotency_key=None, bin
         handlers = [ProxyHandler({}), _NoRedirect()]
         if context is not None:
             handlers.append(HTTPSHandler(context=context))
-        with build_opener(*handlers).open(request, timeout=5) as response:
+        with build_opener(*handlers).open(request, timeout=15 if binary else 5) as response:
             status = response.status
-            limit = 50 * 1024 * 1024 if binary and status == 200 else 65536
+            limit = 50 * 1024 * 1024 if binary and status == 200 else response_limit
             raw = response.read(limit + 1)
             if binary and status == 200:
                 if response.headers.get("Content-Type") != "video/mp4" or not 0 < len(raw) <= limit:
@@ -79,7 +80,7 @@ def _api(path, *, method="GET", data=None, token=None, idempotency_key=None, bin
         status, raw = error.code, error.read(65537)
     except (URLError, OSError, TimeoutError):
         return 503, {"detail": "Service unavailable"}
-    if len(raw) > 65536:
+    if len(raw) > response_limit:
         return 503, {"detail": "Service unavailable"}
     try:
         payload = json.loads(raw) if raw else {}
@@ -243,8 +244,18 @@ def login_mfa(request):
 @privileged
 @require_GET
 def dashboard(request):
-    # The existing cursor contracts expose no aggregate totals or audit feed.
-    return _render(request, "dashboard.html")
+    from .admin_contracts import valid_totals, valid_holds
+    status, totals = _api("/moderation/totals", token=request.gateway_token)
+    if status != 200:
+        return _gateway_error(request, status)
+    if not valid_totals(totals):
+        return error_page(request)
+    status, holds = _api("/engagement/fraud-holds", token=request.gateway_token)
+    if status != 200:
+        return _gateway_error(request, status)
+    if not valid_holds(holds):
+        return error_page(request)
+    return _render(request, "dashboard.html", {"totals": totals, "holds": holds})
 
 
 def _queue_query(request, kind):
@@ -252,15 +263,21 @@ def _queue_query(request, kind):
             or any(len(request.GET.getlist(key)) != 1 for key in request.GET)):
         return None
     cursor, status = request.GET.get("cursor"), request.GET.get("status", QUEUE_STATUS[kind])
-    if cursor is not None and not valid_id(cursor) or status != QUEUE_STATUS[kind]:
+    from .admin_contracts import STATUSES
+    if cursor is not None and not valid_id(cursor) or status not in STATUSES[kind]:
         return None
     return cursor, status
 
 
-def _queue_page(request, kind, cursor):
-    query = "?" + urlencode({"cursor": cursor}) if cursor else ""
-    status, page = _api("/moderation/" + kind + query, token=request.gateway_token)
-    if status == 200 and not valid_queue_page(page, kind, cursor=cursor):
+def _queue_page(request, kind, cursor, selected_status=None):
+    values = {}
+    if cursor:
+        values["cursor"] = cursor
+    if selected_status and selected_status != QUEUE_STATUS[kind]:
+        values["status"] = selected_status
+    query = "?" + urlencode(values) if values else ""
+    status, page = _api("/moderation/" + kind + query, token=request.gateway_token, response_limit=524288)
+    if status == 200 and not valid_queue_page(page, kind, cursor=cursor, selected_status=selected_status):
         return 503, {}
     return status, page
 
@@ -276,13 +293,14 @@ def moderation_queue(request, kind):
     if query is None:
         return error_page(request, status=400)
     cursor, selected_status = query
-    status, page = _queue_page(request, kind, cursor)
+    status, page = _queue_page(request, kind, cursor, selected_status)
     if status != 200:
         return _gateway_error(request, status)
     next_query = urlencode({"cursor": page["next_cursor"], "status": selected_status}) if page["next_cursor"] else None
     return _render(request, "moderation_list.html", {
         "title": kind.title(), "kind": kind, "items": page["items"],
         "selected_status": selected_status, "next_query": next_query,
+        "statuses": STATUSES[kind],
         "detail_query": "?" + urlencode({"cursor": cursor}) if cursor else "",
     })
 
@@ -318,7 +336,7 @@ def moderation_detail(request, kind, target_id):
         if not valid_decision(result, video_id, action):
             return error_page(request)
         return _render(request, "decision_result.html", {"kind": kind})
-    status, detail = _api(f"/moderation/{kind}/{target_id}", token=request.gateway_token)
+    status, detail = _api(f"/moderation/{kind}/{target_id}", token=request.gateway_token, response_limit=524288)
     if status != 200:
         return _gateway_error(request, status)
     from .reviewer_contracts import valid_detail

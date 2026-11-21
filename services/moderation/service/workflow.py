@@ -32,7 +32,7 @@ FIELDS = {
     "own_reports": {"cursor"}, "own_appeals": {"cursor"},
     "own_report": {"target_id"}, "own_appeal": {"target_id"},
     "video_detail": {"target_id"}, "report_detail": {"target_id"}, "appeal_detail": {"target_id"},
-    "preview": {"preview_id"},
+    "preview": {"preview_id"}, "totals": set(), "fraud_scope": set(),
     "notice": {"video_id", "creator_id"}, "standing": {"creator_id"},
     **{operation: {"target_id", "action", "reason", "key"} for operation in DECISIONS},
 }
@@ -170,15 +170,19 @@ def _denied(actor, target=None):
     return _error("Assigned resource required", 403)
 
 
-def _queue(operation, cursor, actor, role):
+def _queue(operation, cursor, actor, role, status=None):
     scope = {"review_queue": "videos", "reports": "reports", "appeals": "appeals"}[operation]
+    statuses = {"videos": {"review", "published", "rejected", "removed"}, "reports": {"open", "resolved", "dismissed"}, "appeals": {"open", "denied", "restored"}}
+    status = status or ("review" if scope == "videos" else "open")
+    if not isinstance(status, str) or status not in statuses[scope]:
+        raise ValueError("Unsupported status")
     ids = _assignment_ids(actor, scope) if role == "moderator" else None
     if ids is not None and not ids.exists():
         return _denied(actor)
     if cursor is not None:
         cursor = str(UUID(cursor))
     if operation == "review_queue":
-        data = {"cursor": cursor}
+        data = {"cursor": cursor, **({"status": status} if status != "review" else {})}
         if ids is not None:
             bounded = list(ids[:1001])
             if len(bounded) > 1000:
@@ -188,8 +192,8 @@ def _queue(operation, cursor, actor, role):
         if page is None:
             raise ContentUnavailable
         return JsonResponse(page)
-    query = (Report.objects.filter(status="open") if operation == "reports"
-             else Appeal.objects.select_related("removal").filter(status="open"))
+    query = (Report.objects.filter(status=status) if operation == "reports"
+             else Appeal.objects.select_related("removal").filter(status=status))
     if ids is not None:
         query = query.filter(pk__in=ids)
     if cursor is not None:
@@ -403,15 +407,18 @@ def moderation_workflow(request, operation):
         actor, role, data = UUID(envelope["actor_id"]), envelope["role"], envelope["data"]
         expected = FIELDS.get(operation)
         if (not isinstance(role, str) or expected is None or not isinstance(data, dict)
-                or not expected <= set(data) or set(data) - expected - ({"reason_code"} if operation in DECISIONS else set())):
+                or not expected <= set(data) or set(data) - expected - ({"reason_code"} if operation in DECISIONS else {"status"} if operation in {"review_queue", "reports", "appeals"} else set())):
             raise ValueError("Invalid moderation operation")
         allowed = ({"creator"} if operation == "notice" else VIEWERS | REVIEWERS if operation == "standing" else VIEWERS if operation in ("appeal", "own_appeals", "own_appeal") else
                    VIEWERS | REVIEWERS if operation in ("report", "own_reports", "own_report") else REVIEWERS)
         if role not in allowed:
             return _error("Forbidden", 403)
-        if operation in DECISIONS or operation in {"review_queue", "reports", "appeals", "video_detail", "report_detail", "appeal_detail", "preview"}:
+        if operation in DECISIONS or operation in {"review_queue", "reports", "appeals", "video_detail", "report_detail", "appeal_detail", "preview", "totals", "fraud_scope"}:
             if envelope.get("mfa_verified") is not True:
                 return _error("MFA-verified reviewer session required", 403)
+        if operation in {"totals", "fraud_scope"}:
+            from .operations import operational_read
+            return operational_read(operation, actor, role, _content)
         if operation in {"video_detail", "report_detail", "appeal_detail", "preview"}:
             from . import reviewer
             if operation == "preview":
@@ -429,7 +436,7 @@ def moderation_workflow(request, operation):
             return _own_records(operation, actor, data)
         if operation in DECISIONS:
             return _decide(operation, actor, data, role=role)
-        return _queue(operation, data["cursor"], actor, role)
+        return _queue(operation, data["cursor"], actor, role, data.get("status"))
     except (ValueError, TypeError, AttributeError, KeyError):
         return _error("Invalid moderation request", 400)
     except IntegrityError:

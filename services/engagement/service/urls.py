@@ -9,6 +9,8 @@ urlpatterns = [
 ]
 
 if settings.ENVIRONMENT == "local" or "engagement" in getattr(settings, "STAGING_CAPABILITIES", ()):
+    from .fraud_holds import read_holds
+    urlpatterns.append(path("internal/engagement/fraud-holds", read_holds))
     from .likes import update_like, read_like
     from .follows import follow_api, followed_creators
     from .analytics import video_engagement, creator_engagement

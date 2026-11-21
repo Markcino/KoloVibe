@@ -30,7 +30,7 @@ def _timestamp(value):
         return False
 
 
-def valid_queue_record(item, kind):
+def valid_queue_record(item, kind, selected_status=None):
     fields = ({"id", "title"} if kind == "videos" else
               {"id", "video_id", "status", "created_at", "reason"} | ({"details"} if kind == "reports" else set()))
     if (not isinstance(item, dict) or set(item) != fields or not valid_id(item["id"])
@@ -38,17 +38,17 @@ def valid_queue_record(item, kind):
         return False
     if kind == "videos":
         return _text(item["title"], 160, 1)
-    return (valid_id(item["video_id"]) and item["status"] == "open" and _timestamp(item["created_at"])
+    return (valid_id(item["video_id"]) and item["status"] == (selected_status or "open") and _timestamp(item["created_at"])
             and (_text(item["reason"], 2000, 10) if kind == "appeals" else
                  item["reason"] in {"spam", "harassment", "copyright", "harmful", "other"}
                  and _text(item["details"], 2000)))
 
 
-def valid_queue_page(page, kind, *, cursor=None):
+def valid_queue_page(page, kind, *, cursor=None, selected_status=None):
     if not isinstance(page, dict) or set(page) != {"items", "next_cursor"}:
         return False
     items = page["items"]
-    if not isinstance(items, list) or len(items) > 20 or not all(valid_queue_record(item, kind) for item in items):
+    if not isinstance(items, list) or len(items) > 20 or not all(valid_queue_record(item, kind, selected_status) for item in items):
         return False
     ids = [item["id"] for item in items]
     if ids != sorted(set(ids)) or cursor is not None and any(item_id <= cursor for item_id in ids):

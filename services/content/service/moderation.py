@@ -71,18 +71,24 @@ def moderation_video(request, operation):
             raise ValueError("Request too large")
         data = json.loads(request.body)
         fields = {"inspect": {"video_id"}, "apply": {"video_id", "action_id", "action", "revision"},
-                  "queue": {"cursor"}, "detail": {"video_id"}, "preview": {"video_id"}}
+                  "queue": {"cursor"}, "detail": {"video_id"}, "preview": {"video_id"}, "totals": {"scope_ids"}}
         if (operation not in fields or not isinstance(data, dict) or not fields[operation] <= set(data)
-                or set(data) - fields[operation] - ({"scope_ids"} if operation == "queue" else set())):
+                or set(data) - fields[operation] - ({"scope_ids", "status"} if operation == "queue" else set())):
             raise ValueError("Invalid moderation request")
-        if operation == "queue":
-            videos = Video.objects.filter(state=Video.State.REVIEW, visibility=Video.Visibility.PRIVATE,
-                                           deleted_at__isnull=True).order_by("id")
-            if "scope_ids" in data:
-                ids = data["scope_ids"]
+        if operation in {"queue", "totals"}:
+            states = {"review", "published", "rejected", "removed"}
+            state = data.get("status", "review")
+            if not isinstance(state, str) or state not in states:
+                raise ValueError("Unsupported status")
+            videos = Video.objects.filter(deleted_at__isnull=True).order_by("id")
+            ids = data.get("scope_ids")
+            if ids is not None:
                 if not isinstance(ids, list) or len(ids) > 1000 or any(not isinstance(item, str) for item in ids):
                     raise ValueError("Invalid assignment scope")
                 videos = videos.filter(id__in=[UUID(item) for item in ids])
+            if operation == "totals":
+                return JsonResponse({status: videos.filter(state=status).count() for status in sorted(states)})
+            videos = videos.filter(state=state)
             if data["cursor"] is not None:
                 videos = videos.filter(id__gt=UUID(data["cursor"]))
             page = list(videos[:21])

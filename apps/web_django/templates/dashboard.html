@@ -4,10 +4,10 @@
 <h1>Dashboard</h1>
 <p>Review content and manage your administrative account.</p>
 <div class="summary-grid">
-  <section class="panel"><h2>Review queue</h2><p>Count: Not available in R1</p><a href="{% url 'moderation-videos' %}">Review videos</a></section>
-  <section class="panel"><h2>Open reports</h2><p>Count: Not available in R1</p><a href="{% url 'moderation-reports' %}">Review reports</a></section>
-  <section class="panel"><h2>Pending appeals</h2><p>Count: Not available in R1</p><a href="{% url 'moderation-appeals' %}">Review appeals</a></section>
-  <section class="panel"><h2>Active fraud holds</h2><p>Not available in R1</p></section>
+  <section class="panel"><h2>Review queue</h2><p>{{ totals.videos.review }}</p><a href="{% url 'moderation-videos' %}">Review videos</a></section>
+  <section class="panel"><h2>Open reports</h2><p>{{ totals.reports.open }}</p><a href="{% url 'moderation-reports' %}">Review reports</a></section>
+  <section class="panel"><h2>Pending appeals</h2><p>{{ totals.appeals.open }}</p><a href="{% url 'moderation-appeals' %}">Review appeals</a></section>
+  <section class="panel"><h2>Active fraud holds</h2><p>{{ holds.total }}</p></section>
 </div>
 <section class="panel"><h2>Recent audit events</h2><p>Not available in R1</p><a href="{% url 'audit' %}">Audit access</a></section>
 {% endblock %}

@@ -2241,6 +2241,11 @@ paths:
       - moderator
       - administrator
       parameters:
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum: [open, resolved, dismissed]
       - name: cursor
         in: query
         schema:
@@ -2371,6 +2376,11 @@ paths:
       - moderator
       - administrator
       parameters:
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum: [review, published, rejected, removed]
       - name: cursor
         in: query
         schema:
@@ -2569,6 +2579,11 @@ paths:
       - moderator
       - administrator
       parameters:
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum: [open, denied, restored]
       - name: cursor
         in: query
         schema:
@@ -3509,6 +3524,169 @@ paths:
           description: Expired, wrong account, assignment revoked or missing MFA
         '503':
           description: Preview unavailable
+
+  /moderation/totals:
+    get:
+      tags:
+      - Administration
+      summary: Read scoped moderation totals
+      operationId: read_scoped_moderation_totals
+      x-implementation: local
+      x-capability: moderation
+      x-required-roles:
+      - moderator
+      - administrator
+      x-mfa-required: true
+      responses:
+        '200':
+          description: Caller-scoped read
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - videos
+                - reports
+                - appeals
+                properties:
+                  videos:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - review
+                    - published
+                    - rejected
+                    - removed
+                    properties:
+                      review:
+                        type: integer
+                        minimum: 0
+                      published:
+                        type: integer
+                        minimum: 0
+                      rejected:
+                        type: integer
+                        minimum: 0
+                      removed:
+                        type: integer
+                        minimum: 0
+                  reports:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - open
+                    - resolved
+                    - dismissed
+                    properties:
+                      open:
+                        type: integer
+                        minimum: 0
+                      resolved:
+                        type: integer
+                        minimum: 0
+                      dismissed:
+                        type: integer
+                        minimum: 0
+                  appeals:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - open
+                    - denied
+                    - restored
+                    properties:
+                      open:
+                        type: integer
+                        minimum: 0
+                      denied:
+                        type: integer
+                        minimum: 0
+                      restored:
+                        type: integer
+                        minimum: 0
+        '400':
+          description: Unsupported filter
+        '401':
+          description: Sign in required
+        '403':
+          description: Scope or MFA denied
+        '503':
+          description: Service unavailable
+  /engagement/fraud-holds:
+    get:
+      tags:
+      - Administration
+      summary: Read active scoped fraud holds
+      operationId: read_active_scoped_fraud_holds
+      x-implementation: local
+      x-capability: moderation
+      x-required-roles:
+      - moderator
+      - administrator
+      x-mfa-required: true
+      responses:
+        '200':
+          description: Caller-scoped read
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - total
+                - items
+                - next_cursor
+                properties:
+                  total:
+                    type: integer
+                    minimum: 0
+                  items:
+                    type: array
+                    maxItems: 20
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - id
+                      - video_id
+                      - reason_code
+                      - created_at
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        video_id:
+                          type: string
+                          format: uuid
+                        reason_code:
+                          type: string
+                          maxLength: 64
+                        created_at:
+                          type: string
+                          format: date-time
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                    format: uuid
+        '400':
+          description: Unsupported filter
+        '401':
+          description: Sign in required
+        '403':
+          description: Scope or MFA denied
+        '503':
+          description: Service unavailable
+      parameters:
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          format: uuid
+      description: Active, unexpired holds only. Moderation supplies the signed caller
+        assignment scope to Engagement. Account identifiers are redacted. Read-only;
+        no fraud policy or hold mutation endpoint is introduced.
 
 components:
   securitySchemes:

@@ -25,6 +25,16 @@ def _error(detail, status):
 
 
 def _valid_result(operation, result):
+    if operation == "totals":
+        from .admin_contracts import valid_totals
+        return valid_totals(result)
+    if operation == "fraud_scope":
+        try:
+            values = result["video_ids"]
+            return set(result) == {"video_ids"} and (values is None or isinstance(values, list) and len(values) <= 1000
+                    and all(str(UUID(item)) == item for item in values))
+        except (KeyError, TypeError, ValueError, AttributeError):
+            return False
     if operation in DETAILS:
         from .reviewer_contracts import valid_detail
         return valid_detail(result)
@@ -98,14 +108,14 @@ def _forward(operation, actor, role, data, *, mfa_verified=False):
 
 @never_cache
 def moderation_endpoint(request, operation, target_id=None):
-    method = "GET" if operation in QUEUES | OWN_LISTS | OWN_DETAILS | DETAILS | {"notice", "preview"} else "POST"
+    method = "GET" if operation in QUEUES | OWN_LISTS | OWN_DETAILS | DETAILS | {"notice", "preview", "totals"} else "POST"
     if request.method != method:
         return HttpResponseNotAllowed([method])
     principal = authenticated_actor(request, require_verified_email=False)
     if isinstance(principal, JsonResponse):
         return principal
     actor, role = principal
-    reviewer = operation in QUEUES | DECISIONS | DETAILS | {"preview"}
+    reviewer = operation in QUEUES | DECISIONS | DETAILS | {"preview", "totals"}
     if reviewer:
         if role not in {"moderator", "administrator"}:
             return _error("Reviewer role required", 403)
@@ -129,12 +139,18 @@ def moderation_endpoint(request, operation, target_id=None):
             return _error("Moderation temporarily unavailable", 503)
         return result
     try:
-        if operation in QUEUES | OWN_LISTS:
-            if request.body or set(request.GET) - {"cursor"} or len(request.GET.getlist("cursor")) > 1:
+        if operation == "totals":
+            if request.body or request.GET:
+                raise ValueError
+            data = {}
+        elif operation in QUEUES | OWN_LISTS:
+            if request.body or set(request.GET) - ({"cursor", "status"} if operation in QUEUES else {"cursor"}) or any(len(request.GET.getlist(key)) > 1 for key in request.GET):
                 raise ValueError("Invalid queue request")
             cursor = request.GET.get("cursor")
             data = {"cursor": str(UUID(cursor)) if cursor is not None else None}
-        elif operation in OWN_DETAILS | DETAILS | {"preview"}:
+            if operation in QUEUES and "status" in request.GET:
+                data["status"] = request.GET["status"]
+        elif operation in OWN_DETAILS | DETAILS | {"preview", "totals"}:
             if request.body or request.GET:
                 raise ValueError("Invalid record request")
             data = {"preview_id" if operation == "preview" else "target_id": str(target_id)}

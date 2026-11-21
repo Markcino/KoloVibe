@@ -95,3 +95,17 @@ class ModerationContentTests(TestCase):
             self.assertNotIn(self.video.provider_asset_id.encode(), response.content)
             if operation == "detail":
                 self.assertEqual(json.loads(response.content)["rights_status"], "not_recorded")
+
+
+    def test_status_counts_match_filtered_records(self):
+        import json
+        for operation, data in (("totals", {"scope_ids": [str(self.video.id)]}),
+                                ("queue", {"cursor": None, "status": "rejected"})):
+            request = self.factory.post("/internal/videos/moderation/" + operation, data, content_type="application/json")
+            request.service_caller = "moderation"
+            result = moderation_video(request, operation)
+            self.assertEqual(result.status_code, 200)
+            if operation == "totals":
+                self.assertEqual(json.loads(result.content), {"review": 1, "published": 0, "rejected": 0, "removed": 0})
+            else:
+                self.assertEqual(json.loads(result.content)["items"], [])

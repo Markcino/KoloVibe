@@ -99,6 +99,8 @@ def _rules():
     add("gateway", "moderation", "POST", r"/api/v1/reports", rf"/api/v1/videos/{UUID}/appeals")
     add("gateway", "moderation", "GET", r"/api/v1/moderation/(?:videos|reports|appeals)", privileged=True)
     add("gateway", "moderation", "POST", rf"/api/v1/moderation/(?:videos|reports|appeals)/{UUID}/decisions", privileged=True)
+    add("gateway", "moderation", "GET", rf"/api/v1/moderation/(?:videos|reports|appeals)/{UUID}",
+        rf"/api/v1/moderation/previews/{UUID}", r"/api/v1/moderation/totals", r"/api/v1/engagement/fraud-holds", privileged=True)
 
     # ---- Identity (internal) ----------------------------------------------------------------------
     add("identity", "account_management", "POST",
@@ -124,11 +126,12 @@ def _rules():
     # ---- Engagement, Points, Moderation (internal) ---------------------------------------------------
     add("engagement", "engagement", "POST", r"/internal/likes", r"/internal/likes/status", r"/internal/follows",
         r"/internal/follows/membership", r"/internal/engagement/shares",
-        r"/internal/engagement/(?:like-counts|play-counts|follower-count|trending)")
+        r"/internal/engagement/(?:like-counts|play-counts|follower-count|trending)", r"/internal/engagement/fraud-holds")
     add("engagement", "analytics", "POST", r"/internal/engagement/analytics/(?:video|creator)")
     add("engagement", "watch", "POST", rf"/internal/engagement/watch/{OP}")
     add("points", "points", "POST", rf"/internal/points/{OP}")
     add("moderation", "moderation", "POST", rf"/internal/moderation/{OP}")
+    add("moderation", "moderation", "POST", r"/internal/moderation/(?:review_queue|own_reports|own_report|own_appeals|own_appeal|video_decision|report_decision|appeal_decision|video_detail|report_detail|appeal_detail|fraud_scope)")
     return tuple(r)
 
 
