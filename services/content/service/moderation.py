@@ -46,9 +46,12 @@ def _apply(video_id, action_id, action, revision):
                 return _error("Processed video asset required", 409)
             now = timezone.now()
             video.moderation_approved_at = now
-            video.published_at = now
+            # Reviewer approval does not make a new video public. Restoration
+            # of a previously public removal is a separate moderated action.
+            if action == "restore":
+                video.published_at = video.published_at or now
         video.state = new_state
-        video.visibility = Video.Visibility.PUBLIC if new_state == Video.State.PUBLISHED else Video.Visibility.PRIVATE
+        video.visibility = Video.Visibility.PUBLIC if action == "restore" else Video.Visibility.PRIVATE
         video.moderation_revision += 1
         video.save(update_fields=[
             "state", "visibility", "moderation_revision", "moderation_approved_at", "published_at",
