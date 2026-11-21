@@ -255,7 +255,12 @@ def dashboard(request):
         return _gateway_error(request, status)
     if not valid_holds(holds):
         return error_page(request)
-    return _render(request, "dashboard.html", {"totals": totals, "holds": holds})
+    from .admin_contracts import valid_audit_page
+    audit_status, events = _api("/admin/audit", token=request.gateway_token)
+    if audit_status == 401:
+        return _expired(request)
+    recent = events["items"] if audit_status == 200 and valid_audit_page(events) else None
+    return _render(request, "dashboard.html", {"totals": totals, "holds": holds, "recent_events": recent})
 
 
 def _queue_query(request, kind):
@@ -363,7 +368,21 @@ def points(request):
 @privileged
 @require_GET
 def audit(request):
-    return _unavailable(request, "Audit", "Authorized audit access with filters is not available in R1.")
+    from .admin_contracts import valid_audit_page
+    if (set(request.GET) - {"cursor", "kind", "producer", "since", "until"}
+            or any(len(request.GET.getlist(key)) != 1 or len(request.GET[key]) > 100 for key in request.GET)):
+        return error_page(request, status=400)
+    values = dict(request.GET.items())
+    if "cursor" in values and not valid_id(values["cursor"]):
+        return error_page(request, status=400)
+    query = "?" + urlencode(values) if values else ""
+    status, page = _api("/admin/audit" + query, token=request.gateway_token)
+    if status != 200:
+        return _gateway_error(request, status)
+    if not valid_audit_page(page) or page["next_cursor"] is not None and page["next_cursor"] == values.get("cursor"):
+        return error_page(request)
+    next_query = urlencode({**values, "cursor": page["next_cursor"]}) if page["next_cursor"] else None
+    return _render(request, "audit.html", {"items": page["items"], "next_query": next_query, "filters": values, "producers": ["identity", "moderation", "creators", "content", "points", "audit"]})
 
 
 @privileged

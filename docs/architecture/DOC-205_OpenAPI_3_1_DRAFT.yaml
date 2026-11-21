@@ -3688,6 +3688,111 @@ paths:
         assignment scope to Engagement. Account identifiers are redacted. Read-only;
         no fraud policy or hold mutation endpoint is introduced.
 
+  /admin/audit:
+    get:
+      tags:
+      - Administration
+      summary: Read redacted role-scoped audit events
+      operationId: get_admin_audit
+      x-implementation: local
+      x-capability: audit_read
+      x-required-roles:
+      - moderator
+      - administrator
+      x-mfa-required: true
+      description: Audit enforces moderators own actions and explicit active administrator
+        producer grants. Newest-first timestamp/UUID cursor pagination. Actor/subject
+        IDs, digests and raw payloads are omitted. Reads and authorization denials create
+        immutable audit evidence. No edit/delete contract. Retention and broader redaction
+        policy remain open owner decisions.
+      parameters:
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: producer
+        in: query
+        schema:
+          type: string
+          maxLength: 64
+      - name: kind
+        in: query
+        schema:
+          type: string
+          maxLength: 64
+      - name: since
+        in: query
+        schema:
+          type: string
+          format: date-time
+      - name: until
+        in: query
+        schema:
+          type: string
+          format: date-time
+      responses:
+        '200':
+          description: Authorized immutable events
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - items
+                - next_cursor
+                properties:
+                  items:
+                    type: array
+                    maxItems: 20
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - id
+                      - kind
+                      - occurred_at
+                      - producer
+                      - subject_type
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        kind:
+                          type: string
+                          maxLength: 64
+                        occurred_at:
+                          type: string
+                          format: date-time
+                        producer:
+                          type: string
+                          enum:
+                          - identity
+                          - moderation
+                          - creators
+                          - content
+                          - points
+                          - audit
+                        subject_type:
+                          type:
+                          - string
+                          - 'null'
+                          maxLength: 32
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                    format: uuid
+        '400':
+          description: Invalid or out-of-scope cursor/filter
+        '401':
+          description: Sign in required
+        '403':
+          description: Role, MFA or grant denied
+        '503':
+          description: Service unavailable
+
 components:
   securitySchemes:
     bearerAuth:

@@ -102,7 +102,7 @@ class AdminConsoleTests(TestCase):
             self.login(role)
             for path in ("/admin/", "/admin/account/", "/admin/audit/",
                          "/admin/account/profile/", "/admin/account/password/"):
-                with patch("web.views._api", side_effect=[(200, self.account)] + ([(200, {"videos": dict.fromkeys(["review", "published", "rejected", "removed"], 0), "reports": dict.fromkeys(["open", "resolved", "dismissed"], 0), "appeals": dict.fromkeys(["open", "denied", "restored"], 0)}), (200, {"total": 0, "items": [], "next_cursor": None})] if path == "/admin/" else [])):
+                with patch("web.views._api", side_effect=[(200, self.account)] + ([(200, {"videos": dict.fromkeys(["review", "published", "rejected", "removed"], 0), "reports": dict.fromkeys(["open", "resolved", "dismissed"], 0), "appeals": dict.fromkeys(["open", "denied", "restored"], 0)}), (200, {"total": 0, "items": [], "next_cursor": None}), (200, {"items": [], "next_cursor": None})] if path == "/admin/" else [(200, {"items": [], "next_cursor": None})] if path == "/admin/audit/" else [])):
                     self.assertEqual(self.client.get(path).status_code, 200)
             for kind in ACTIONS:
                 with patch("web.views._api", side_effect=[(200, self.account), (200, self.page(kind))]):
@@ -379,7 +379,7 @@ class AdminConsoleTests(TestCase):
         totals = {"videos": dict.fromkeys(["review", "published", "rejected", "removed"], 0),
                   "reports": {"open": 7, "resolved": 3, "dismissed": 2}, "appeals": {"open": 2, "denied": 1, "restored": 0}}
         with patch("web.views._api", side_effect=[(200, self.account), (200, totals),
-                (200, {"total": 9, "items": [], "next_cursor": None})]):
+                (200, {"total": 9, "items": [], "next_cursor": None}), (403, {})]):
             response = self.client.get("/admin/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["totals"]["reports"]["open"], 7)
@@ -388,3 +388,20 @@ class AdminConsoleTests(TestCase):
             self.assertEqual(self.client.get("/admin/").status_code, 403)
         with patch("web.views._api", side_effect=[(200, self.account), (200, {**totals, "videos": {"review": True}})]):
             self.assertEqual(self.client.get("/admin/").status_code, 503)
+
+
+    def test_audit_filters_pagination_and_malformed_records(self):
+        self.login("moderator")
+        records = [{"id": str(uuid.uuid4()), "kind": "moderation.reviewer_read", "producer": "moderation",
+                    "subject_type": "video", "occurred_at": f"2026-11-21T10:{minute:02d}:00Z"} for minute in reversed(range(20))]
+        with patch("web.views._api", side_effect=[(200, self.account), (200, {"items": records, "next_cursor": records[-1]["id"]})]) as api:
+            response = self.client.get("/admin/audit/?producer=moderation")
+        self.assertContains(response, "Next page")
+        self.assertIn("producer=moderation", response.context["next_query"])
+        self.assertEqual(api.call_args.args, ("/admin/audit?producer=moderation",))
+        records[0]["actor_id"] = str(uuid.uuid4())
+        with patch("web.views._api", side_effect=[(200, self.account), (200, {"items": records, "next_cursor": None})]):
+            self.assertEqual(self.client.get("/admin/audit/").status_code, 503)
+        with patch("web.views._api", return_value=(200, self.account)) as api:
+            self.assertEqual(self.client.get("/admin/audit/?actor_id=someone").status_code, 400)
+            api.assert_called_once()

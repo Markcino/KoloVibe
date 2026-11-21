@@ -63,3 +63,16 @@ def fraud_holds(request):
         return scope
     return forward("engagement", "/internal/engagement/fraud-holds", *actor,
                    {"video_ids": json.loads(scope.content)["video_ids"], "cursor": cursor}, valid_holds)
+
+
+@never_cache
+@require_GET
+def audit_log(request):
+    from .admin_contracts import valid_audit_page
+    actor = principal(request)
+    if isinstance(actor, JsonResponse):
+        return actor
+    if (request.body or set(request.GET) - {"cursor", "kind", "producer", "since", "until"}
+            or any(len(request.GET.getlist(key)) != 1 or len(request.GET[key]) > 100 for key in request.GET)):
+        return JsonResponse({"detail": "Invalid request"}, status=400)
+    return forward("audit", "/internal/audit/read", *actor, dict(request.GET.items()), valid_audit_page)

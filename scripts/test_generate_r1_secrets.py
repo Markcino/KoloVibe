@@ -80,7 +80,7 @@ class GeneratorTests(unittest.TestCase):
         for name in ("identity_audit_signing", "kolovibe_points_outbound_key_r1_v1"):
             self.assertNotEqual((directory / name).read_text(), (other / name).read_text())
         values = json.loads((directory / "kolovibe_gateway_outbound_r1_v1").read_text())
-        self.assertEqual(len(set(values.values())), 6)
+        self.assertEqual(len(set(values.values())), len(gen.RECEIVERS))
 
     def test_r2_files_are_written_only_for_keys_of_the_shape_cloudflare_issues(self):
         for label, change in (("missing access key id", {"KOLOVIBE_R2_ACCESS_KEY_ID": ""}),

@@ -27,3 +27,25 @@ def valid_holds(value):
         return ids == sorted(set(ids)) and (value["next_cursor"] is None or len(ids) == 20 and value["next_cursor"] == ids[-1])
     except (ValueError, TypeError, AttributeError, KeyError):
         return False
+
+
+def valid_audit_page(value):
+    try:
+        if not isinstance(value, dict) or set(value) != {"items", "next_cursor"} or not isinstance(value["items"], list) or len(value["items"]) > 20:
+            return False
+        order = []
+        for item in value["items"]:
+            if (not isinstance(item, dict) or set(item) != {"id", "kind", "occurred_at", "producer", "subject_type"}
+                    or str(UUID(item["id"])) != item["id"] or not isinstance(item["kind"], str) or not 1 <= len(item["kind"]) <= 64
+                    or item["producer"] not in {"identity", "moderation", "creators", "content", "points", "audit"}
+                    or item["subject_type"] is not None and (not isinstance(item["subject_type"], str) or len(item["subject_type"]) > 32)):
+                return False
+            stamp = datetime.fromisoformat(item["occurred_at"])
+            if stamp.tzinfo is None:
+                return False
+            order.append((stamp, item["id"]))
+        ids = [item["id"] for item in value["items"]]
+        return (len(set(ids)) == len(ids) and order == sorted(order, reverse=True)
+                and (value["next_cursor"] is None or len(ids) == 20 and value["next_cursor"] == ids[-1]))
+    except (ValueError, TypeError, AttributeError, KeyError):
+        return False

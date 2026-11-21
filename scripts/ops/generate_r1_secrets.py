@@ -27,7 +27,7 @@ from staging_runtime import capabilities as policy  # noqa: E402
 
 BROKER_HOST, BROKER_PORT, BROKER_VHOST = "kolovibe-rabbitmq", 5671, "/kolovibe"
 BROKER_ACCOUNTS = {"content": "kolovibe_content", "engagement": "kolovibe_engagement", "points": "kolovibe_points"}
-RECEIVERS = ("identity", "content", "creators", "engagement", "points", "moderation")
+RECEIVERS = ("identity", "content", "creators", "engagement", "points", "moderation", "audit")
 ALL_CAPS = frozenset(policy.CAPABILITIES)
 APPROVAL_REFERENCES = ("identity", "smtp", "credentials", "transport", "mfa", "audit")
 
@@ -66,7 +66,7 @@ def build(env_values):
             callers["moderation"] = moderation_keys["content"]
         files[f"{service}_callers_2"] = json.dumps(callers, indent=1)
     files["audit_callers_2"] = json.dumps(
-        {"identity": identity_key, "moderation": moderation_keys["audit"], "points": points_key}, indent=1)
+        {"identity": identity_key, "moderation": moderation_keys["audit"], "points": points_key, "gateway": gateway_keys["audit"]}, indent=1)
     uri = "amqps://{user}:{password}@%s:%d/%s" % (BROKER_HOST, BROKER_PORT, BROKER_VHOST.replace("/", "%2F"))
     for service, user in BROKER_ACCOUNTS.items():
         files[f"kolovibe_{service}_rabbitmq_url_r1_v1"] = uri.format(user=user, password=token())
@@ -138,7 +138,7 @@ def validate(directory):
     gateway = keymap("kolovibe_gateway_outbound_r1_v1", RECEIVERS)
     peers = json.loads(load("kolovibe_gateway_trusted_peers_r1_v1"))
     if set(peers) != policy.gateway_peers(ALL_CAPS, True) or any(v != origin(k) for k, v in peers.items()):
-        raise ValueError("kolovibe_gateway_trusted_peers_r1_v1: must be exactly the six approved HTTPS origins")
+        raise ValueError("kolovibe_gateway_trusted_peers_r1_v1: must be exactly the capability-required HTTPS origins")
     approvals = json.loads(load("kolovibe_account_approval_r1_v1"))
     if set(approvals) != set(APPROVAL_REFERENCES) or any(not v.strip() for v in approvals.values()):
         raise ValueError("kolovibe_account_approval_r1_v1: needs the six approval references")
@@ -153,7 +153,7 @@ def validate(directory):
         data = json.loads(load(name))
         if set(data) != expected or any(v != origin(k) for k, v in data.items()):
             raise ValueError(f"{name}: must name exactly {sorted(expected)} as HTTPS origins")
-    for service in RECEIVERS:
+    for service in (name for name in RECEIVERS if name != "audit"):
         callers = json.loads(load(f"{service}_callers_2"))
         want = {"gateway": gateway[service]}
         if service == "content":
@@ -161,9 +161,9 @@ def validate(directory):
         if callers != want:
             raise ValueError(f"{service}_callers_2: must carry exactly the key its caller signs with")
     audit = json.loads(load("audit_callers_2"))
-    if audit != {"identity": identity_key, "moderation": moderation["audit"], "points": points_key}:
-        raise ValueError("audit_callers_2: must carry the Identity, Moderation and Points audit keys")
-    if len(set(audit.values())) != 3:
+    if audit != {"identity": identity_key, "moderation": moderation["audit"], "points": points_key, "gateway": gateway["audit"]}:
+        raise ValueError("audit_callers_2: must carry the Identity, Moderation, Points and Gateway audit keys")
+    if len(set(audit.values())) != 4:
         raise ValueError("audit_callers_2: keys must be distinct")
     every = [*gateway.values(), *moderation.values(), identity_key, points_key]
     if len(set(every)) != len(every):

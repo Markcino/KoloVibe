@@ -78,7 +78,7 @@ class ProducerTests(TestCase):
                 return RequestFactory().post(path, b"{}", content_type="application/json",
                     HTTP_X_KOLOVIBE_CALLER=caller, HTTP_X_KOLOVIBE_TIMESTAMP=stamp,
                     HTTP_X_KOLOVIBE_NONCE=nonce, HTTP_X_KOLOVIBE_SIGNATURE=signature)
-            with patch.dict(os.environ, {"KOLOVIBE_CALLER_KEYS_FILE": str(keyfile), "KOLOVIBE_SERVICE_NAME": "audit"}):
+            with patch.dict(os.environ, {"KOLOVIBE_CALLER_KEYS_FILE": str(keyfile), "KOLOVIBE_SERVICE_NAME": "audit", "KOLOVIBE_CALLER_GATEWAY_KEY": ""}):
                 for caller, key in keys.items():
                     self.assertEqual(middleware(signed(caller, key)).status_code, 200)
                     wrong = keys["identity"] if caller != "identity" else keys["moderation"]

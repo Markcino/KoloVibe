@@ -76,7 +76,7 @@ class PolicyDefinitionTests(unittest.TestCase):
         self.assertEqual(policy.gateway_peers(frozenset(), False), {"content", "creators"})
         self.assertEqual(policy.gateway_peers(frozenset(), True), {"content", "creators", "identity"})
         self.assertEqual(policy.gateway_peers(ALL, True), {"content", "creators", "identity", "engagement", "points",
-                                                          "moderation"})
+                                                          "moderation", "audit"})
         self.assertEqual(policy.receiver_peers("moderation", frozenset({"moderation"})), {"audit", "content"})
         self.assertEqual(policy.receiver_peers("points", frozenset({"points"})), {"audit"})
         self.assertEqual(policy.receiver_peers("content", ALL), set())
@@ -92,7 +92,7 @@ class PolicyDefinitionTests(unittest.TestCase):
                          {r"/api/v1/moderation/(?:videos|reports|appeals)",
                           rf"/api/v1/moderation/(?:videos|reports|appeals)/{policy.UUID}/decisions",
                           rf"/api/v1/moderation/(?:videos|reports|appeals)/{policy.UUID}",
-                          rf"/api/v1/moderation/previews/{policy.UUID}", r"/api/v1/moderation/totals", r"/api/v1/engagement/fraud-holds"})
+                          rf"/api/v1/moderation/previews/{policy.UUID}", r"/api/v1/moderation/totals", r"/api/v1/engagement/fraud-holds", r"/api/v1/admin/audit"})
 
 
 class RouteCoverageTests(unittest.TestCase):

@@ -16,7 +16,7 @@ Identity and the Gateway stay the authority; this module only decides whether a 
 import re
 
 SERVICES = ("gateway", "identity", "creators", "content", "engagement", "points", "moderation", "audit")
-CAPABILITIES = ("account_management", "analytics", "engagement", "media", "moderation", "points", "watch")
+CAPABILITIES = ("account_management", "analytics", "audit_read", "engagement", "media", "moderation", "points", "watch")
 
 # Which capabilities each service may carry. Creator onboarding keeps its own, older flag.
 APPLICABLE = {
@@ -27,11 +27,12 @@ APPLICABLE = {
     "engagement": frozenset({"analytics", "engagement", "points", "watch"}),
     "points": frozenset({"points"}),
     "moderation": frozenset({"moderation"}),
-    "audit": frozenset(),
+    "audit": frozenset({"audit_read"}),
 }
 
 # A capability cannot be on without the ones it needs (checked on the whole set, on every service).
 REQUIRES = {
+    "audit_read": frozenset({"account_management", "moderation"}),
     "analytics": frozenset({"engagement", "media"}),
     "points": frozenset({"engagement"}),
     "watch": frozenset({"media", "points"}),
@@ -39,6 +40,7 @@ REQUIRES = {
 
 # Peers the Gateway must be able to reach for each capability (its trusted-peers file must equal the union).
 GATEWAY_PEERS = {
+    "audit_read": frozenset({"audit", "identity"}),
     "account_management": frozenset({"identity"}),
     "analytics": frozenset({"content", "engagement"}),
     "engagement": frozenset({"engagement"}),
@@ -102,6 +104,9 @@ def _rules():
     add("gateway", "moderation", "GET", rf"/api/v1/moderation/(?:videos|reports|appeals)/{UUID}",
         rf"/api/v1/moderation/previews/{UUID}", r"/api/v1/moderation/totals", r"/api/v1/engagement/fraud-holds", privileged=True)
 
+    add("gateway", "audit_read", "GET", r"/api/v1/admin/audit", privileged=True)
+    add("audit", "audit_read", "POST", r"/internal/audit/read")
+
     # ---- Identity (internal) ----------------------------------------------------------------------
     add("identity", "account_management", "POST",
         r"/internal/auth/(?:verification/resend|password/reset-request|password/reset|password/change|profile"
@@ -152,6 +157,8 @@ def parse(value):
 
 def check(service, caps, *, accounts, privileged):
     """Refuse a capability set that does not belong on this service or is missing what it depends on."""
+    if service == "gateway" and "audit_read" in caps and (not accounts or not privileged):
+        raise RuntimeError("Audit reads require accounts and MFA")
     if service not in APPLICABLE:
         raise RuntimeError("Unknown staging service")
     if caps - APPLICABLE[service]:
