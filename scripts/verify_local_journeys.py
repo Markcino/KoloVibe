@@ -180,7 +180,7 @@ def verify():
                 if process.poll() is not None:
                     raise RuntimeError(f"Disposable {service} process exited before readiness")
                 try:
-                    status, _ = request(ports[service], "/" if service == "web" else "/health/live")
+                    status, _ = request(ports[service], "/health/live")
                     if status == 200:
                         break
                 except (OSError, TimeoutError):
@@ -327,37 +327,35 @@ def verify():
                     self.assertEqual(request(ports[service], "/internal/probe")[0], 403)
                 self.assertEqual(api("/me")[0], 401)
 
-            def test_web_reads_real_gateway_and_rejects_unprotected_posts(self):
-                status, page = request(ports["web"], "/")
-                self.assertEqual(status, 200)
-                self.assertIn(b"Next page", page)
+            def test_web_admin_boundary_and_csrf(self):
+                self.assertEqual(request(ports["web"], "/")[0], 302)
+                for path in ("/register/", "/verify/", "/account/", "/creator/", "/points/",
+                             f"/videos/{video_ids[0]}/", f"/creators/{creator_id}/"):
+                    self.assertEqual(request(ports["web"], path)[0], 404)
+                for path in ("/admin/", "/admin/moderation/videos/", "/admin/moderation/reports/",
+                             "/admin/moderation/appeals/", "/admin/points/", "/admin/audit/", "/admin/account/"):
+                    self.assertEqual(request(ports["web"], path)[0], 302)
                 status, _ = request(ports["web"], "/login/", method="POST",
                                     data={"email": "journey@example.test"})
                 self.assertEqual(status, 403)
 
-            def test_web_register_verify_login_account_and_logout(self):
+            def test_web_rejects_real_viewer_login_without_browser_credentials(self):
+                body = {"email": "web-journey@example.test", "display_name": "Web Fixture",
+                        "password": secrets.token_urlsafe(24)}
+                self.assertEqual(api("/auth/register", data=body)[0], 201)
+                self.assertEqual(api("/auth/verify", data={"email": body["email"],
+                                                         "code": mailed_code(base)})[0], 200)
                 cookies = SimpleCookie()
-                self.assertEqual(request(ports["web"], "/register/", cookies=cookies)[0], 200)
-                password = secrets.token_urlsafe(24)
-
-                def post(path, form):
-                    return request(ports["web"], path, method="POST", cookies=cookies,
-                                   form={"csrfmiddlewaretoken": cookies["csrftoken"].value, **form})
-
-                self.assertEqual(post("/register/", {"email": "web-journey@example.test",
-                    "display_name": "Web Fixture", "password": password})[0], 302)
-                code = mailed_code(base)
-                self.assertEqual(post("/verify/", {"email": "web-journey@example.test", "code": code})[0], 302)
-                self.assertEqual(post("/login/", {"email": "web-journey@example.test",
-                                                "password": password})[0], 302)
-                self.assertTrue(cookies["kv_refresh"]["httponly"])
-                status, page = request(ports["web"], "/account/", cookies=cookies)
-                self.assertEqual(status, 200)
-                self.assertIn(b"Web Fixture", page)
-                self.assertNotIn(cookies["kv_refresh"].value.encode(), page)
-                self.assertEqual(post("/logout/", {})[0], 302)
+                self.assertEqual(request(ports["web"], "/login/", cookies=cookies)[0], 200)
+                status, page = request(ports["web"], "/login/", method="POST", cookies=cookies,
+                    form={"csrfmiddlewaretoken": cookies["csrftoken"].value,
+                          "email": body["email"], "password": body["password"]})
+                self.assertEqual(status, 403)
+                self.assertNotIn(body["email"].encode(), page)
+                self.assertNotIn("kv_access", cookies)
                 self.assertNotIn("kv_refresh", cookies)
-                self.assertEqual(request(ports["web"], "/account/", cookies=cookies)[0], 302)
+                self.assertNotIn("sessionid", cookies)
+                self.assertEqual(request(ports["web"], "/admin/", cookies=cookies)[0], 302)
 
         result = unittest.TextTestRunner(verbosity=2).run(
             unittest.defaultTestLoader.loadTestsFromTestCase(Journeys))
