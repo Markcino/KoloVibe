@@ -78,7 +78,7 @@ class AdministratorPromotionTests(TestCase):
         self.assertFalse(SecurityEvent.objects.exists())
 
     def test_missing_or_unusable_mfa_and_unverified_accounts_fail_closed(self):
-        self.factor.encrypted_secret = "unusable"
+        self.factor.encrypted_secret = secrets.token_urlsafe(32)
         self.factor.save(update_fields=["encrypted_secret"])
         with self.assertRaises(CommandError):
             self.promote(apply=True)
