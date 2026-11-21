@@ -1,0 +1,12 @@
+{% extends 'base_admin.html' %}
+{% block title %}{{ title }} · KoloVibe{% endblock %}
+{% block content %}
+<section class="panel form-panel"><h1>{{ title }}</h1><form method="post">{% csrf_token %}
+{% if kind == 'profile' %}
+<label>Display name<input name="display_name" autocomplete="name" minlength="2" maxlength="80" value="{{ account.display_name }}" required></label>
+{% else %}
+<label>Current password<input type="password" name="current_password" autocomplete="current-password" maxlength="128" required></label>
+<label>New password<input type="password" name="new_password" autocomplete="new-password" minlength="12" maxlength="128" required></label>
+{% endif %}
+<button type="submit">Save</button></form></section>
+{% endblock %}

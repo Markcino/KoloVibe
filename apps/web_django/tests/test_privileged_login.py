@@ -62,7 +62,7 @@ class PrivilegedWebLoginTests(TestCase):
         old_csrf = self.client.cookies["csrftoken"].value
         old_session_key = self.client.session.session_key
         response, api = self.finish()
-        self.assertRedirects(response, reverse("account"), fetch_redirect_response=False)
+        self.assertRedirects(response, reverse("dashboard"), fetch_redirect_response=False)
         self.assertEqual(api.call_args.args, ("/auth/mfa/verify",))
         self.assertEqual(api.call_args.kwargs["data"], {
             "challenge_token": self.challenge, "code": "012345"})
@@ -131,7 +131,7 @@ class PrivilegedWebLoginTests(TestCase):
         self.begin()
         self.finish()
         with patch("web.views._api", return_value=(200, {**self.account, "roles": ["viewer"]})):
-            self.assertEqual(self.client.get(reverse("account")).status_code, 302)
+            self.assertEqual(self.client.get(reverse("account")).status_code, 403)
         self.assertFalse(WebCredential.objects.exists())
         self.begin()
         self.finish()
@@ -162,7 +162,7 @@ class PrivilegedWebLoginTests(TestCase):
             self.begin()
             self.finish()
             with patch("web.views._api", side_effect=replies):
-                self.assertRedirects(self.client.get(reverse("account")), reverse("login"),
+                self.assertRedirects(self.client.get(reverse("account")), "/login/?expired=1",
                                      fetch_redirect_response=False)
             self.assertFalse(WebCredential.objects.exists())
             self.assertFalse(self.client.session.get("authenticated"))

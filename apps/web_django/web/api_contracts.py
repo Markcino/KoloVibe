@@ -1,7 +1,11 @@
-"""Validate gateway data before passing it to templates or URL reversal."""
+"""Bounded validation for existing R1 gateway contracts before rendering."""
 
-import re
 import uuid
+from django.utils.dateparse import parse_datetime
+
+QUEUE_STATUS = {"videos": "review", "reports": "open", "appeals": "open"}
+ACTIONS = {"videos": {"publish", "reject", "remove"}, "reports": {"dismiss", "remove"},
+           "appeals": {"deny", "restore"}}
 
 
 def valid_id(value):
@@ -13,68 +17,59 @@ def valid_id(value):
         return False
 
 
-def valid_video(value):
-    return (
-        isinstance(value, dict)
-        and valid_id(value.get("id")) and valid_id(value.get("creator_id"))
-        and value.get("state") == "published"
-        and isinstance(value.get("title"), str) and 1 <= len(value["title"]) <= 160
-        and isinstance(value.get("description"), str) and len(value["description"]) <= 2000
-    )
+def _text(value, maximum, minimum=0):
+    return isinstance(value, str) and minimum <= len(value) <= maximum
 
 
-def valid_page(value, *, cursor=None, creator_id=None):
-    if not isinstance(value, dict) or set(value) != {"items", "next_cursor"}:
+def _timestamp(value):
+    if not _text(value, 64, 1):
         return False
-    items = value["items"]
-    if not isinstance(items, list) or len(items) > 20 or not all(map(valid_video, items)):
+    try:
+        return parse_datetime(value) is not None
+    except ValueError:
         return False
-    if len({item["id"] for item in items}) != len(items):
+
+
+def valid_queue_record(item, kind):
+    fields = ({"id", "title"} if kind == "videos" else
+              {"id", "video_id", "status", "created_at", "reason"} | ({"details"} if kind == "reports" else set()))
+    if (not isinstance(item, dict) or set(item) != fields or not valid_id(item["id"])
+            or not all(isinstance(value, str) for value in item.values())):
         return False
-    if creator_id and any(item["creator_id"] != creator_id for item in items):
+    if kind == "videos":
+        return _text(item["title"], 160, 1)
+    return (valid_id(item["video_id"]) and item["status"] == "open" and _timestamp(item["created_at"])
+            and (_text(item["reason"], 2000, 10) if kind == "appeals" else
+                 item["reason"] in {"spam", "harassment", "copyright", "harmful", "other"}
+                 and _text(item["details"], 2000)))
+
+
+def valid_queue_page(page, kind, *, cursor=None):
+    if not isinstance(page, dict) or set(page) != {"items", "next_cursor"}:
         return False
-    next_cursor = value["next_cursor"]
-    return next_cursor is None or (
-        valid_id(next_cursor) and len(items) == 20
-        and next_cursor == items[-1]["id"] and next_cursor != cursor
-    )
-
-
-def valid_creator(value):
-    return (
-        isinstance(value, dict)
-        and valid_id(value.get("id"))
-        and value.get("status") == "active"
-        and isinstance(value.get("handle"), str)
-        and re.fullmatch(r"[a-zA-Z0-9_-]{1,40}", value["handle"]) is not None
-        and isinstance(value.get("bio"), str) and len(value["bio"]) <= 500
-    )
-
-
-def valid_points_balance(value):
-    return (
-        isinstance(value, dict) and set(value) == {"creator_id", "balance", "currency", "as_of"}
-        and valid_id(value["creator_id"]) and type(value["balance"]) is int
-        and value["currency"] == "POINTS" and isinstance(value["as_of"], str)
-    )
-
-
-def valid_points_page(value, creator_id, cursor=None):
-    if not isinstance(value, dict) or set(value) != {"items", "next_cursor"}:
+    items = page["items"]
+    if not isinstance(items, list) or len(items) > 20 or not all(valid_queue_record(item, kind) for item in items):
         return False
-    items = value["items"]
-    if not isinstance(items, list) or len(items) > 20:
+    ids = [item["id"] for item in items]
+    if ids != sorted(set(ids)) or cursor is not None and any(item_id <= cursor for item_id in ids):
         return False
-    for entry in items:
-        if (not isinstance(entry, dict)
-                or set(entry) != {"id", "creator_id", "amount", "kind", "rule_version", "created_at"}
-                or not valid_id(entry["id"]) or entry["creator_id"] != creator_id
-                or type(entry["amount"]) is not int
-                or entry["kind"] not in {"award", "reversal", "adjustment"}
-                or not isinstance(entry["rule_version"], str)
-                or not isinstance(entry["created_at"], str)):
-            return False
-    next_cursor = value["next_cursor"]
-    return next_cursor is None or (
-        len(items) == 20 and next_cursor == items[-1]["id"] and next_cursor != cursor
-    )
+    next_cursor = page["next_cursor"]
+    return next_cursor is None or (valid_id(next_cursor) and len(items) == 20 and next_cursor == ids[-1])
+
+
+def valid_decision(result, video_id, action):
+    return (isinstance(result, dict) and set(result) == {"id", "video_id", "action", "status"}
+            and valid_id(result["id"]) and valid_id(result["video_id"])
+            and result["video_id"] == video_id
+            and result["action"] == action and result["status"] == "applied")
+
+
+def valid_sessions(payload):
+    if not isinstance(payload, dict) or set(payload) != {"items"}:
+        return False
+    items = payload["items"]
+    return (isinstance(items, list) and len(items) <= 40 and all(
+        isinstance(item, dict) and set(item) == {"id", "created_at", "expires_at", "current"}
+        and valid_id(item["id"]) and type(item["current"]) is bool
+        and _timestamp(item["created_at"]) and _timestamp(item["expires_at"])
+        for item in items) and len({item["id"] for item in items}) == len(items))

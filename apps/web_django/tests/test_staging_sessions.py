@@ -24,19 +24,22 @@ class StagingSessions(TestCase):
         self.access = secrets.token_urlsafe(36)
         self.refresh = str(self.sid) + "." + secrets.token_urlsafe(48)
 
+    def account(self):
+        return {"id": str(self.sid), "email": "administrator@example.test",
+                "display_name": "Administrator", "roles": ["administrator"]}
+
     def login(self):
+        with patch("web.views._api", return_value=(202, {
+                "mfa_required": True, "challenge_token": secrets.token_urlsafe(48), "expires_in": 300})):
+            self.client.post(reverse("login"), {"email": self.account()["email"], "password": secrets.token_urlsafe(30)})
         with patch("web.views._api", return_value=(200, {
-            "access_token": self.access, "refresh_token": self.refresh,
-            "user": {"roles": ["viewer"]},
-        })):
-            return self.client.post(reverse("login"), {
-                "email": "viewer@example.test", "password": secrets.token_urlsafe(30),
-            })
+                "access_token": self.access, "refresh_token": self.refresh, "user": self.account()})):
+            return self.client.post(reverse("login-mfa"), {"code": "012345"})
 
     def test_login_cookie_is_opaque_and_credentials_encrypted_in_database(self):
         response = self.login()
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(list(response.cookies), ["__Host-kolovibe_session"])
+        self.assertIn("__Host-kolovibe_session", response.cookies)
         cookie = response.cookies["__Host-kolovibe_session"]
         self.assertTrue(cookie["secure"])
         self.assertTrue(cookie["httponly"])
@@ -59,9 +62,9 @@ class StagingSessions(TestCase):
 
     def test_authenticated_request_checks_identity_and_revocation(self):
         self.login()
-        account = {"id": str(uuid.uuid4()), "email": "viewer@example.test", "display_name": "Viewer", "roles": ["viewer"]}
+        account = self.account()
         with patch("web.views._api", return_value=(200, account)) as api:
-            self.assertContains(self.client.get(reverse("account")), "Viewer")
+            self.assertContains(self.client.get(reverse("account")), "Administrator")
         self.assertEqual(api.call_args.args, ("/me",))
         with patch("web.views._api", side_effect=[(401, {}), (401, {})]):
             response = self.client.get(reverse("account"))
@@ -73,7 +76,7 @@ class StagingSessions(TestCase):
         self.login()
         rotated = {"access_token": secrets.token_urlsafe(36),
                    "refresh_token": str(self.sid) + "." + secrets.token_urlsafe(48)}
-        account = {"id": str(uuid.uuid4()), "email": "viewer@example.test", "display_name": "Viewer", "roles": ["viewer"]}
+        account = self.account()
         with patch("web.views._api", side_effect=[(401, {}), (200, rotated), (200, account)]) as api:
             self.assertEqual(self.client.get(reverse("account")).status_code, 200)
         self.assertEqual(api.call_count, 3)
@@ -119,12 +122,12 @@ class StagingSessions(TestCase):
                 })
             self.assertEqual(response.status_code, 403)
             self.assertFalse(WebCredential.objects.exists())
-            self.assertNotIn("__Host-kolovibe_session", response.cookies)
+            self.assertFalse(self.client.session.get("authenticated"))
 
         self.login()
-        account = {"id": str(uuid.uuid4()), "roles": ["moderator"]}
+        account = {"id": str(self.sid), "roles": ["viewer"]}
         with patch("web.views._api", return_value=(200, account)):
             response = self.client.get(reverse("account"))
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 403)
         self.assertFalse(WebCredential.objects.exists())
         self.assertEqual(response.cookies["__Host-kolovibe_session"]["max-age"], 0)

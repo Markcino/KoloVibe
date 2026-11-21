@@ -10,21 +10,17 @@ from django.db import transaction
 from django.utils import timezone
 
 from .models import WebCredential
+from .api_contracts import valid_id
 
 IDLE = timedelta(minutes=30)
-ABSOLUTE = timedelta(hours=8)
 PRIVILEGED_ABSOLUTE = timedelta(minutes=15)
 MFA_CHALLENGE_SECONDS = 300
 MFA_PENDING = "pending_mfa"
 
 
-def ordinary_account(account):
-    return (isinstance(account, dict)
-            and account.get("roles") in (["viewer"], ["creator"]))
-
-
 def privileged_account(account):
     return (isinstance(account, dict)
+            and valid_id(account.get("id"))
             and account.get("roles") in (["moderator"], ["administrator"]))
 
 
@@ -87,7 +83,7 @@ def _unpack(row):
 def start(request, payload, *, mfa_verified=False):
     account = payload.get("user")
     privileged = privileged_account(account)
-    if not ordinary_account(account) and not (privileged and mfa_verified):
+    if not (privileged and mfa_verified):
         return False
     access, refresh = payload.get("access_token"), payload.get("refresh_token")
     if not isinstance(access, str) or not access or not isinstance(refresh, str) or not refresh:
@@ -99,8 +95,10 @@ def start(request, payload, *, mfa_verified=False):
     # A second sign-in must invalidate the old browser session and credential row.
     clear(request)
     request.session["authenticated"] = True
+    request.session["mfa_verified"] = True
     request.session["authenticated_role"] = account["roles"][0]
-    lifetime = PRIVILEGED_ABSOLUTE if privileged else ABSOLUTE
+    request.session["authenticated_account"] = account["id"]
+    lifetime = PRIVILEGED_ABSOLUTE
     request.session.set_expiry(int(lifetime.total_seconds()))
     request.session.save()
     now = timezone.now()
@@ -128,7 +126,8 @@ def authenticated(request, api):
         if row is None:
             return 401, {}, None
         now = timezone.now()
-        if now >= row.absolute_expires_at or now - row.last_activity_at >= IDLE:
+        if (now >= row.absolute_expires_at or now - row.created_at >= PRIVILEGED_ABSOLUTE
+                or now - row.last_activity_at >= IDLE):
             row.delete()
             return 401, {}, None
         tokens = _unpack(row)
@@ -160,9 +159,11 @@ def authenticated(request, api):
                 return 401, {}, None
             return status, {}, None
         role = request.session.get("authenticated_role")
-        allowed = (ordinary_account(account) and (role is None or account["roles"] == [role])) or (
-            privileged_account(account) and account["roles"] == [role])
-        if not allowed:
+        if not privileged_account(account):
+            row.delete()
+            return 403, {}, None
+        if (account["roles"] != [role] or request.session.get("mfa_verified") is not True
+                or account["id"] != request.session.get("authenticated_account")):
             row.delete()
             return 401, {}, None
         if now - row.last_activity_at >= timedelta(seconds=60):

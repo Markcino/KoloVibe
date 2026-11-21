@@ -4,27 +4,30 @@ from django.views.decorators.http import require_GET
 
 from . import views
 
+handler400 = views.error_400
+handler403 = views.error_403
+handler404 = views.error_404
+handler500 = views.error_500
+
 urlpatterns = [
     path("health/live", require_GET(lambda request: JsonResponse({"status": "ok"})), name="web-liveness"),
     path("static/<path:asset>", views.static_asset, name="web-static"),
-    path("", views.feed, name="feed"),
-    path("videos/<uuid:video_id>/", views.video, name="video"),
-    path("creators/<uuid:creator_id>/", views.creator_detail, name="creator-detail"),
-    path("register/", views.register, name="register"),
-    path("verify/", views.verify, name="verify"),
-    path("password/reset-request/", views.password_reset_request, name="password-reset-request"),
-    path("password/reset/", views.password_reset, name="password-reset"),
+    path("", views.root, name="root"),
     path("login/", views.login, name="login"),
     path("login/mfa/", views.login_mfa, name="login-mfa"),
-    path("account/", views.account, name="account"),
-    path("account/profile/", views.profile_edit, name="profile-edit"),
-    path("account/password/", views.password_change, name="password-change"),
-    path("account/sessions/", views.sessions, name="sessions"),
-    path("account/sessions/<uuid:session_id>/revoke/", views.revoke_session, name="revoke-session"),
-    path("account/preferences/", views.preferences, name="preferences"),
-    path("account/privacy/", views.privacy_requests, name="privacy-requests"),
-    path("logout/", views.logout, name="logout"),
-    path("creator/", views.gated_creator, name="creator"),
-    path("points/", views.points, name="points"),
+    path("admin/", views.dashboard, name="dashboard"),
+    path("admin/points/", views.points, name="points"),
+    path("admin/audit/", views.audit, name="audit"),
+    path("admin/account/", views.account, name="account"),
+    path("admin/account/profile/", views.profile_edit, name="profile-edit"),
+    path("admin/account/password/", views.password_change, name="password-change"),
+    path("admin/account/sessions/", views.sessions, name="sessions"),
+    path("admin/account/sessions/<uuid:session_id>/revoke/", views.revoke_session, name="revoke-session"),
+    path("admin/logout/", views.logout, name="logout"),
 ]
-
+for kind in ("videos", "reports", "appeals"):
+    urlpatterns += [
+        path(f"admin/moderation/{kind}/", views.moderation_queue, {"kind": kind}, name=f"moderation-{kind}"),
+        path(f"admin/moderation/{kind}/<uuid:target_id>/", views.moderation_detail,
+             {"kind": kind}, name=f"moderation-{kind}-detail"),
+    ]

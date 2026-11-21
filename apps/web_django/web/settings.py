@@ -1,5 +1,7 @@
 """Django template client for local work and the restricted AWS web host."""
 
+import base64
+import hashlib
 import os
 import stat
 from pathlib import Path
@@ -44,6 +46,9 @@ if ENVIRONMENT == "staging":
     GATEWAY_CA = "/run/secrets/web_gateway_ca"
 else:
     SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "")
+    # Local fixture only; staging retains its independently provisioned key.
+    WEB_TOKEN_KEY = base64.urlsafe_b64encode(hashlib.sha256(
+        ("kolovibe-local-web-credentials:" + SECRET_KEY).encode()).digest())
 if len(SECRET_KEY) < 32:
     raise RuntimeError("A private web DJANGO_SECRET_KEY is required")
 GATEWAY_URL = os.environ.get("KOLOVIBE_GATEWAY_URL", "")
@@ -79,7 +84,7 @@ SESSION_COOKIE_SECURE = ENVIRONMENT == "staging"
 SESSION_COOKIE_NAME = "__Host-kolovibe_session" if ENVIRONMENT == "staging" else "sessionid"
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
-SESSION_COOKIE_AGE = 8 * 60 * 60
+SESSION_COOKIE_AGE = 15 * 60
 SESSION_COOKIE_DOMAIN = None
 SESSION_COOKIE_PATH = "/"
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
@@ -103,4 +108,6 @@ if ENVIRONMENT == "staging":
     }}
 else:
     # Local test fixture only. Staging images remove SQLite and cannot select this profile.
-    DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}}
+    DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "web-local.sqlite3"}}
+
+CSRF_FAILURE_VIEW = "web.views.error_403"

@@ -1,24 +1,27 @@
-"""Server-rendered R1 web client. All records come from the public gateway."""
+"""Server-rendered, MFA-gated R1 administration console."""
 
 import json
 import re
+import secrets
 import ssl
+from functools import wraps
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import HTTPRedirectHandler, HTTPSHandler, ProxyHandler, Request, build_opener
 
 from django.conf import settings
+from django.core import signing
 from django.http import FileResponse, Http404, HttpResponseNotAllowed
 from django.shortcuts import redirect, render
 from django.middleware.csrf import rotate_token
+from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.http import require_GET, require_POST
+from django.utils.crypto import salted_hmac
 
-from .api_contracts import valid_creator, valid_id, valid_page, valid_video, valid_points_balance, valid_points_page
+from .api_contracts import valid_id, valid_queue_page, valid_sessions, valid_decision, QUEUE_STATUS, ACTIONS
 from . import staging_session
 
-ACCESS_COOKIE = "kv_access"
-REFRESH_COOKIE = "kv_refresh"
 
 STATIC_ASSETS = {
     "css/site.css": "text/css; charset=utf-8",
@@ -44,10 +47,12 @@ class _NoRedirect(HTTPRedirectHandler):
         return None
 
 
-def _api(path, *, method="GET", data=None, token=None):
+def _api(path, *, method="GET", data=None, token=None, idempotency_key=None):
     headers = {"Accept": "application/json"}
     if settings.GATEWAY_HOST:
         headers["Host"] = settings.GATEWAY_HOST
+    if idempotency_key is not None:
+        headers["Idempotency-Key"] = idempotency_key
     body = None
     if data is not None:
         body = json.dumps(data, separators=(",", ":")).encode()
@@ -79,194 +84,122 @@ def _api(path, *, method="GET", data=None, token=None):
     return status, payload
 
 
-def _set_credentials(response, payload, request=None):
-    if settings.ENVIRONMENT == "staging":
-        return staging_session.start(request, payload)
-    access = payload.get("access_token")
-    refresh = payload.get("refresh_token")
-    if not isinstance(access, str) or not access or not isinstance(refresh, str) or not refresh:
-        return False
-    common = {"httponly": True, "samesite": "Strict", "secure": settings.CSRF_COOKIE_SECURE}
-    response.set_cookie(ACCESS_COOKIE, access, max_age=300, **common)
-    response.set_cookie(REFRESH_COOKIE, refresh, max_age=30 * 24 * 3600, **common)
-    return True
+@never_cache
+def error_page(request, exception=None, status=503):
+    # One non-enumerating message. Never render gateway response bodies.
+    return render(request, "status.html", {
+        "title": "Request unavailable",
+        "message": "This request cannot be completed. Sign in again or return to the dashboard.",
+    }, status=status)
 
 
-def _clear_credentials(response, request=None):
-    if settings.ENVIRONMENT == "staging":
-        staging_session.clear(request)
-        return
-    response.delete_cookie(ACCESS_COOKIE, samesite="Strict")
-    response.delete_cookie(REFRESH_COOKIE, samesite="Strict")
+def error_400(request, exception=None):
+    return error_page(request, status=400)
 
 
-def _own_account(request):
-    if settings.ENVIRONMENT == "staging":
-        status, account, _ = staging_session.authenticated(request, _api)
-        return status, account, None
-    access = request.COOKIES.get(ACCESS_COOKIE)
-    if access:
-        status, payload = _api("/me", token=access)
-        if status == 200:
-            return status, payload, None
-        if status != 401:
-            return status, {}, None
-    refresh = request.COOKIES.get(REFRESH_COOKIE)
-    if not refresh:
-        return 401, {}, None
-    status, rotated = _api("/auth/refresh", method="POST", data={"refresh_token": refresh})
-    if status != 200:
-        return status, {}, None
-    if not all(isinstance(rotated.get(key), str) and rotated[key]
-               for key in ("access_token", "refresh_token")):
-        return 503, {}, None
-    status, account = _api("/me", token=rotated.get("access_token"))
-    return status, account, rotated
+def error_403(request, exception=None, reason=None):
+    return error_page(request, status=403)
+
+
+def error_404(request, exception=None):
+    return error_page(request, status=404)
+
+
+def error_500(request):
+    return error_page(request, status=500)
+
+
+def _clear_credentials(response, request):
+    staging_session.clear(request)
+    # Remove legacy local cookie fixtures when a browser is signed out.
+    for name in ("kv_access", "kv_refresh"):
+        if name in request.COOKIES:
+            response.delete_cookie(name, samesite="Strict")
+
+
+def _expired(request):
+    response = redirect("/login/?expired=1")
+    _clear_credentials(response, request)
+    return response
+
+
+def privileged(view):
+    @never_cache
+    @wraps(view)
+    def guarded(request, *args, **kwargs):
+        if not request.session.get("authenticated"):
+            return redirect("login")
+        status, account, token = staging_session.authenticated(request, _api)
+        if status == 401:
+            return _expired(request)
+        if status != 200:
+            if status == 403:
+                response = error_page(request, status=403)
+                _clear_credentials(response, request)
+                return response
+            if view.__name__ == "logout" and request.method == "POST":
+                return _finish_logout(request)
+            return error_page(request)
+        if not staging_session.privileged_account(account):
+            return error_page(request, status=403)
+        if request.session.get("mfa_verified") is not True:
+            return _expired(request)
+        request.admin_account, request.gateway_token = account, token
+        return view(request, *args, **kwargs)
+    return guarded
+
+
+def _render(request, template, context=None, *, status=200):
+    return render(request, template, {
+        "account": request.admin_account,
+        "role": request.admin_account["roles"][0],
+        **(context or {}),
+    }, status=status)
+
+
+def _gateway_error(request, status):
+    if status == 401:
+        return _expired(request)
+    return error_page(request, status=status if status in (400, 403, 404, 409, 429) else 503)
 
 
 @require_GET
-def feed(request):
-    filters = {key: request.GET[key] for key in request.GET}
-    if (set(filters) - {"cursor", "creator_id"}
-            or any(len(request.GET.getlist(key)) != 1 or not valid_id(value)
-                   for key, value in filters.items())):
-        return render(request, "status.html", {"title": "Invalid video query."}, status=400)
-    status, payload = _api("/videos" + ("?" + urlencode(filters) if filters else ""))
-    if status == 200 and not valid_page(payload, **filters):
-        status = 503
-    if status == 400:
-        return render(request, "status.html", {
-            "title": "This video page is no longer available. Return to Explore to start again.",
-        }, status=400)
-    items = payload.get("items", []) if status == 200 else []
-    next_query = None
-    if status == 200 and payload["next_cursor"]:
-        next_query = urlencode({**filters, "cursor": payload["next_cursor"]})
-    return render(request, "feed.html", {"items": items, "unavailable": status != 200,
-                                       "next_query": next_query},
-                  status=200 if status == 200 else 503)
+def root(request):
+    return redirect("dashboard" if request.session.get("authenticated") else "login")
 
 
-@require_GET
-def video(request, video_id):
-    status, payload = _api("/videos/" + str(video_id))
-    if status == 200 and (not valid_video(payload) or payload["id"] != str(video_id)):
-        status = 503
-    return render(request, "video.html", {"video": payload if status == 200 else None,
-                                          "unavailable": status == 503},
-                  status=status if status in (200, 404, 503) else 503)
-
-
-@require_GET
-def creator_detail(request, creator_id):
-    status, payload = _api("/creators/" + str(creator_id))
-    if status == 200 and (not valid_creator(payload) or payload["id"] != str(creator_id)):
-        status = 503
-    return render(request, "creator.html", {"creator": payload if status == 200 else None,
-                                            "unavailable": status == 503},
-                  status=status if status in (200, 404, 503) else 503)
-
-
-def register(request):
-    if request.method == "GET":
-        return render(request, "form.html", {"title": "Create an account", "kind": "register"})
-    if request.method != "POST":
-        return HttpResponseNotAllowed(["GET", "POST"])
-    status, payload = _api("/auth/register", method="POST", data={
-        "email": request.POST.get("email", ""),
-        "display_name": request.POST.get("display_name", ""),
-        "password": request.POST.get("password", ""),
-    })
-    if status == 201:
-        return redirect("verify")
-    return render(request, "form.html", {"title": "Create an account", "kind": "register",
-                                          "error": payload.get("detail", "Registration unavailable")},
-                  status=400 if status in (400, 409) else 503)
-
-
-def verify(request):
-    if request.method == "GET":
-        return render(request, "form.html", {"title": "Verify your email", "kind": "verify"})
-    if request.method != "POST":
-        return HttpResponseNotAllowed(["GET", "POST"])
-    status, payload = _api("/auth/verify", method="POST", data={
-        "email": request.POST.get("email", ""), "code": request.POST.get("code", "")})
-    if status == 200:
-        return redirect("login")
-    return render(request, "form.html", {"title": "Verify your email", "kind": "verify",
-                                          "error": payload.get("detail", "Verification unavailable")},
-                  status=400 if status == 400 else 503)
-
-
-def password_reset_request(request):
-    if request.method == "GET":
-        return render(request, "form.html", {"title": "Reset your password", "kind": "reset_request"})
-    if request.method != "POST":
-        return HttpResponseNotAllowed(["GET", "POST"])
-    status, payload = _api("/auth/password/reset-request", method="POST",
-                           data={"email": request.POST.get("email", "")})
-    if status == 204:
-        return render(request, "status.html", {
-            "title": "If your account is eligible, check your email for a reset code."
-        })
-    return render(request, "form.html", {"title": "Reset your password", "kind": "reset_request",
-                                          "error": payload.get("detail", "Password reset unavailable")},
-                  status=400 if status == 400 else 503)
-
-
-def password_reset(request):
-    if request.method == "GET":
-        return render(request, "form.html", {"title": "Enter your reset code", "kind": "reset"})
-    if request.method != "POST":
-        return HttpResponseNotAllowed(["GET", "POST"])
-    status, payload = _api("/auth/password/reset", method="POST", data={
-        "email": request.POST.get("email", ""),
-        "code": request.POST.get("code", ""),
-        "new_password": request.POST.get("new_password", ""),
-    })
-    if status == 204:
-        response = redirect("login")
-        _clear_credentials(response, request)
-        return response
-    return render(request, "form.html", {"title": "Enter your reset code", "kind": "reset",
-                                          "error": payload.get("detail", "Password reset unavailable")},
-                  status=400 if status == 400 else 503)
-
-
+@never_cache
 @sensitive_post_parameters("password")
 def login(request):
     if request.method == "GET":
         return render(request, "form.html", {"title": "Sign in", "kind": "login"})
     if request.method != "POST":
         return HttpResponseNotAllowed(["GET", "POST"])
-    if settings.ENVIRONMENT == "staging" and staging_session.MFA_PENDING in request.session:
+    if (staging_session.MFA_PENDING in request.session
+            or request.session.get("authenticated")):
         staging_session.clear(request)
     status, payload = _api("/auth/login", method="POST", data={
         "email": request.POST.get("email", ""), "password": request.POST.get("password", "")})
-    if status == 202 and settings.ENVIRONMENT == "staging":
+    if status == 202:
         if staging_session.begin_mfa(request, payload, request.POST.get("email", "")):
             return redirect("login-mfa")
         status, payload = 503, {"detail": "Sign in unavailable"}
     if status == 200:
-        if settings.ENVIRONMENT == "staging" and not staging_session.ordinary_account(payload.get("user")):
-            return render(request, "status.html", {
-                "title": "Web sign in for this role is unavailable.",
-            }, status=403)
-        response = redirect("account")
-        if _set_credentials(response, payload, request):
-            return response
-        status, payload = 503, {"detail": "Sign in unavailable"}
+        # Password-only sessions never enter the console. Revoke any issued tokens.
+        refresh = payload.get("refresh_token")
+        if isinstance(refresh, str) and refresh:
+            _api("/auth/logout", method="POST", data={"refresh_token": refresh})
+        return error_page(request, status=403)
     return render(request, "form.html", {"title": "Sign in", "kind": "login",
-                                          "error": payload.get("detail", "Sign in unavailable")},
+                                          "error": "Sign in failed. Check your credentials or try again later."},
                   status=status if status in (401, 403, 429) else 503)
 
 
+@never_cache
 @sensitive_post_parameters("code")
 def login_mfa(request):
     if request.method not in ("GET", "POST"):
         return HttpResponseNotAllowed(["GET", "POST"])
-    if settings.ENVIRONMENT != "staging":
-        return redirect("login")
     pending = staging_session.pending_mfa(request)
     if pending is None:
         return redirect("login")
@@ -288,7 +221,7 @@ def login_mfa(request):
                 and account["email"].strip().casefold() == pending["email"]
                 and staging_session.start(request, payload, mfa_verified=True)):
             rotate_token(request)
-            return redirect("account")
+            return redirect("dashboard")
         # Do not keep an issued Identity session after rejecting its response.
         refresh = payload.get("refresh_token")
         if isinstance(refresh, str) and refresh:
@@ -301,265 +234,188 @@ def login_mfa(request):
                   status=status if status in (400, 401, 403, 429) else 503)
 
 
+@privileged
+@require_GET
+def dashboard(request):
+    # The existing cursor contracts expose no aggregate totals or audit feed.
+    return _render(request, "dashboard.html")
+
+
+def _queue_query(request, kind):
+    if (set(request.GET) - {"cursor", "status"}
+            or any(len(request.GET.getlist(key)) != 1 for key in request.GET)):
+        return None
+    cursor, status = request.GET.get("cursor"), request.GET.get("status", QUEUE_STATUS[kind])
+    if cursor is not None and not valid_id(cursor) or status != QUEUE_STATUS[kind]:
+        return None
+    return cursor, status
+
+
+def _queue_page(request, kind, cursor):
+    query = "?" + urlencode({"cursor": cursor}) if cursor else ""
+    status, page = _api("/moderation/" + kind + query, token=request.gateway_token)
+    if status == 200 and not valid_queue_page(page, kind, cursor=cursor):
+        return 503, {}
+    return status, page
+
+
+def _unavailable(request, title, message):
+    return _render(request, "unavailable.html", {"title": title, "message": message})
+
+
+@privileged
+@require_GET
+def moderation_queue(request, kind):
+    query = _queue_query(request, kind)
+    if query is None:
+        return error_page(request, status=400)
+    if request.admin_account["roles"] == ["moderator"]:
+        return _unavailable(request, kind.title(), "Assigned queue access is not available in R1.")
+    cursor, selected_status = query
+    status, page = _queue_page(request, kind, cursor)
+    if status != 200:
+        return _gateway_error(request, status)
+    next_query = urlencode({"cursor": page["next_cursor"], "status": selected_status}) if page["next_cursor"] else None
+    return _render(request, "moderation_list.html", {
+        "title": kind.title(), "kind": kind, "items": page["items"],
+        "selected_status": selected_status, "next_query": next_query,
+        "detail_query": "?" + urlencode({"cursor": cursor}) if cursor else "",
+    })
+
+
+def _intent(request, kind, target_id):
+    return {"kind": kind, "target": str(target_id), "actor": request.admin_account["id"],
+            "session": salted_hmac("admin-decision-session", request.session.session_key).hexdigest()}
+
+
+@privileged
+def moderation_detail(request, kind, target_id):
+    if request.method not in ("GET", "POST"):
+        return HttpResponseNotAllowed(["GET", "POST"])
+    if _queue_query(request, kind) is None:
+        return error_page(request, status=400)
+    if request.admin_account["roles"] == ["moderator"]:
+        if request.method == "POST":
+            return error_page(request, status=403)
+        return _unavailable(request, kind.title(), "Assigned queue access is not available in R1.")
+    if request.method == "POST":
+        try:
+            intent = signing.loads(request.POST.get("intent", ""), salt="admin-decision", max_age=900)
+            key = intent.pop("key")
+            video_id = intent.pop("video")
+            if not valid_id(video_id) or intent != _intent(request, kind, target_id) or not re.fullmatch(r"[A-Za-z0-9_-]{16,128}", key):
+                raise ValueError
+        except (signing.BadSignature, ValueError, TypeError, AttributeError, KeyError):
+            return error_page(request, status=400)
+        action, reason = request.POST.get("action", ""), request.POST.get("reason", "")
+        if action not in ACTIONS[kind] or not 10 <= len(reason.strip()) <= len(reason) <= 2000:
+            return error_page(request, status=400)
+        status, result = _api(f"/moderation/{kind}/{target_id}/decisions", method="POST",
+                              token=request.gateway_token, data={"action": action, "reason": reason.strip()},
+                              idempotency_key=key)
+        if status not in (200, 201):
+            return _gateway_error(request, status)
+        if not valid_decision(result, video_id, action):
+            return error_page(request)
+        return _render(request, "decision_result.html", {"kind": kind})
+    cursor, _ = _queue_query(request, kind)
+    status, page = _queue_page(request, kind, cursor)
+    if status != 200:
+        return _gateway_error(request, status)
+    item = next((item for item in page["items"] if item["id"] == str(target_id)), None)
+    if item is None:
+        return error_page(request, status=404)
+    intent = signing.dumps({**_intent(request, kind, target_id), "key": secrets.token_urlsafe(32),
+                            "video": item["id"] if kind == "videos" else item["video_id"]},
+                           salt="admin-decision")
+    return _render(request, "moderation_detail.html", {
+        "title": kind.title() + " review", "kind": kind, "item": item,
+        "actions": sorted(ACTIONS[kind]), "intent": intent,
+    })
+
+
+@privileged
+@require_GET
+def points(request):
+    if request.admin_account["roles"] != ["administrator"]:
+        return error_page(request, status=403)
+    return _unavailable(request, "Points", "Administrative balances, adjustment history and reversal review are not available in R1.")
+
+
+@privileged
+@require_GET
+def audit(request):
+    return _unavailable(request, "Audit", "Authorized audit access with filters is not available in R1.")
+
+
+@privileged
 @require_GET
 def account(request):
-    status, payload, rotated = _own_account(request)
-    if status != 200:
-        response = redirect("login") if status == 401 else render(request, "status.html",
-                        {"title": "Account unavailable"}, status=503)
-        if status == 401:
-            _clear_credentials(response, request)
-        elif rotated:
-            _set_credentials(response, rotated, request)
-        return response
-    response = render(request, "account.html", {"account": payload})
-    if rotated:
-        _set_credentials(response, rotated, request)
-    return response
+    return _render(request, "account.html")
 
 
-def _account_access(request):
-    if settings.ENVIRONMENT == "staging":
-        status, account_data, token = staging_session.authenticated(request, _api)
-        if status == 200:
-            return account_data, token, None, None
-        response = (redirect("login") if status == 401 else render(
-            request, "status.html", {"title": "Account unavailable"}, status=503))
-        if status == 401:
-            _clear_credentials(response, request)
-        return None, None, None, response
-    status, account_data, rotated = _own_account(request)
-    if status == 200:
-        token = rotated["access_token"] if rotated else request.COOKIES.get(ACCESS_COOKIE)
-        return account_data, token, rotated, None
-    response = redirect("login") if status == 401 else render(
-        request, "status.html", {"title": "Account unavailable"}, status=503)
-    if status == 401:
-        _clear_credentials(response, request)
-    elif rotated:
-        _set_credentials(response, rotated, request)
-    return None, None, None, response
-
-
-def profile_edit(request):
-    if request.method not in ("GET", "POST"):
-        return HttpResponseNotAllowed(["GET", "POST"])
-    account_data, token, rotated, blocked = _account_access(request)
-    if blocked is not None:
-        return blocked
-    if request.method == "GET":
-        response = render(request, "form.html", {
-            "title": "Edit profile", "kind": "profile", "account": account_data,
-        })
-    else:
-        status, payload = _api("/me", method="PATCH", token=token,
-                               data={"display_name": request.POST.get("display_name", "")})
-        if status == 200 and payload.get("id") == account_data.get("id"):
-            response = redirect("account")
-        else:
-            response = render(request, "form.html", {
-                "title": "Edit profile", "kind": "profile", "account": account_data,
-                "error": payload.get("detail", "Profile update unavailable"),
-            }, status=400 if status == 400 else 503)
-    if rotated:
-        _set_credentials(response, rotated, request)
-    return response
-
-
+@privileged
+@sensitive_post_parameters("current_password", "new_password")
 def password_change(request):
-    if request.method not in ("GET", "POST"):
-        return HttpResponseNotAllowed(["GET", "POST"])
-    account_data, token, rotated, blocked = _account_access(request)
-    if blocked is not None:
-        return blocked
     if request.method == "GET":
-        response = render(request, "form.html", {"title": "Change password", "kind": "change_password"})
-    else:
-        status, payload = _api("/me/password", method="PATCH", token=token, data={
-            "current_password": request.POST.get("current_password", ""),
-            "new_password": request.POST.get("new_password", ""),
-        })
-        if status == 204:
-            response = redirect("login")
-            _clear_credentials(response, request)
-            return response
-        response = render(request, "form.html", {
-            "title": "Change password", "kind": "change_password",
-            "error": payload.get("detail", "Password change unavailable"),
-        }, status=400 if status == 400 else 401 if status == 401 else 503)
-    if rotated:
-        _set_credentials(response, rotated, request)
-    return response
+        return _render(request, "account_form.html", {"title": "Change password", "kind": "change_password"})
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["GET", "POST"])
+    status, _ = _api("/me/password", method="PATCH", token=request.gateway_token, data={
+        "current_password": request.POST.get("current_password", ""),
+        "new_password": request.POST.get("new_password", ""),
+    })
+    if status == 204:
+        response = redirect("login")
+        _clear_credentials(response, request)
+        return response
+    return _gateway_error(request, status)
 
 
+@privileged
+def profile_edit(request):
+    if request.method == "GET":
+        return _render(request, "account_form.html", {"title": "Edit profile", "kind": "profile"})
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["GET", "POST"])
+    status, payload = _api("/me", method="PATCH", token=request.gateway_token,
+                           data={"display_name": request.POST.get("display_name", "")})
+    if status == 200 and payload.get("id") == request.admin_account["id"]:
+        return redirect("account")
+    return _gateway_error(request, status)
+
+
+@privileged
 @require_GET
 def sessions(request):
-    account_data, token, rotated, blocked = _account_access(request)
-    if blocked is not None:
-        return blocked
-    status, payload = _api("/me/sessions", token=token)
-    items = payload.get("items")
-    if status == 200 and (not isinstance(items, list) or len(items) > 40 or any(
-            not isinstance(item, dict) or set(item) != {"id", "created_at", "expires_at", "current"}
-            or not valid_id(item["id"]) or not isinstance(item["current"], bool)
-            or not all(isinstance(item[key], str) for key in ("created_at", "expires_at"))
-            for item in items)):
-        status = 503
-    if status == 200:
-        response = render(request, "sessions.html", {"items": items})
-    else:
-        response = render(request, "status.html", {"title": "Sessions unavailable"}, status=503)
-    if rotated:
-        _set_credentials(response, rotated, request)
-    return response
+    status, payload = _api("/me/sessions", token=request.gateway_token)
+    if status == 200 and valid_sessions(payload):
+        return _render(request, "sessions.html", {"items": payload["items"]})
+    return _gateway_error(request, status)
 
 
+@privileged
 @require_POST
 def revoke_session(request, session_id):
-    account_data, token, rotated, blocked = _account_access(request)
-    if blocked is not None:
-        return blocked
-    status, payload = _api("/me/sessions/" + str(session_id), method="DELETE", token=token)
-    if status == 204:
-        response = redirect("sessions")
-    else:
-        response = render(request, "status.html", {
-            "title": payload.get("detail", "Session could not be ended"),
-        }, status=409 if status == 409 else 404 if status == 404 else 503)
-    if rotated:
-        _set_credentials(response, rotated, request)
-    return response
+    status, _ = _api("/me/sessions/" + str(session_id), method="DELETE", token=request.gateway_token)
+    return redirect("sessions") if status == 204 else _gateway_error(request, status)
 
 
-def preferences(request):
-    if request.method not in ("GET", "POST"):
-        return HttpResponseNotAllowed(["GET", "POST"])
-    account_data, token, rotated, blocked = _account_access(request)
-    if blocked is not None:
-        return blocked
-    if request.method == "GET":
-        status, payload = _api("/me/preferences", token=token)
-    else:
-        status, payload = _api("/me/preferences", method="PATCH", token=token, data={
-            "email_notifications": "email_notifications" in request.POST,
-            "push_notifications": "push_notifications" in request.POST,
-        })
-    if status == 200 and (set(payload) != {"email_notifications", "push_notifications"}
-                          or any(type(value) is not bool for value in payload.values())):
-        status = 503
-    if status == 200:
-        response = render(request, "preferences.html", {"preferences": payload})
-    else:
-        response = render(request, "status.html", {"title": "Preferences unavailable"}, status=503)
-    if rotated:
-        _set_credentials(response, rotated, request)
-    return response
-
-
-def _valid_privacy_receipt(item):
-    return (isinstance(item, dict)
-            and set(item) == {"id", "kind", "status", "created_at"}
-            and valid_id(item["id"])
-            and item["kind"] in {"access", "deletion"}
-            and item["status"] == "received"
-            and isinstance(item["created_at"], str)
-            and len(item["created_at"]) <= 64)
-
-
-def privacy_requests(request):
-    if request.method not in ("GET", "POST"):
-        return HttpResponseNotAllowed(["GET", "POST"])
-    account_data, token, rotated, blocked = _account_access(request)
-    if blocked is not None:
-        return blocked
-    if request.method == "POST":
-        kind = request.POST.get("kind", "")
-        if kind not in {"access", "deletion"}:
-            response = render(request, "privacy_requests.html", {
-                "error": "Select a valid request type", "items": [],
-            }, status=400)
-        else:
-            status, payload = _api("/me/privacy-requests", method="POST", token=token, data={
-                "kind": kind, "current_password": request.POST.get("current_password", ""),
-            })
-            if status in (200, 201) and _valid_privacy_receipt(payload):
-                response = render(request, "privacy_requests.html", {
-                    "receipt": payload, "items": [payload],
-                })
-            else:
-                response = render(request, "privacy_requests.html", {
-                    "error": payload.get("detail", "Privacy request unavailable"), "items": [],
-                }, status=401 if status == 401 else 400 if status == 400 else 503)
-    else:
-        status, payload = _api("/me/privacy-requests", token=token)
-        items = payload.get("items")
-        if status == 200 and (not isinstance(items, list) or len(items) > 2
-                              or any(not _valid_privacy_receipt(item) for item in items)):
-            status = 503
-        response = (render(request, "privacy_requests.html", {"items": items}) if status == 200
-                    else render(request, "status.html", {"title": "Privacy requests unavailable"}, status=503))
-    if rotated:
-        _set_credentials(response, rotated, request)
-    return response
-
-
+@privileged
 @require_POST
 def logout(request):
-    refresh = (staging_session.refresh_for_logout(request) if settings.ENVIRONMENT == "staging"
-               else request.COOKIES.get(REFRESH_COOKIE))
-    confirmed = True
+    return _finish_logout(request)
+
+
+def _finish_logout(request):
+    refresh = staging_session.refresh_for_logout(request)
+    confirmed = False
     if refresh:
         status, _ = _api("/auth/logout", method="POST", data={"refresh_token": refresh})
         confirmed = status == 204
-    response = redirect("feed") if confirmed else render(request, "status.html", {
-        "title": "Signed out on this browser. Server session revocation could not be confirmed.",
+    response = redirect("login") if confirmed else render(request, "status.html", {
+        "title": "Signed out on this browser.",
+        "message": "Server session revocation could not be confirmed.",
     }, status=503)
     _clear_credentials(response, request)
     return response
-
-
-@require_GET
-def gated_creator(request):
-    return render(request, "status.html", {"title": "Creator publishing is awaiting provider and eligibility approval."}, status=503)
-
-
-@require_GET
-def points(request):
-    cursor = request.GET.get("cursor")
-    if (set(request.GET) - {"cursor"} or len(request.GET.getlist("cursor")) > 1
-            or cursor is not None and not valid_id(cursor)):
-        return render(request, "status.html", {"title": "Invalid points page."}, status=400)
-    status, account, rotated = _own_account(request)
-    if status != 200:
-        response = redirect("login") if status == 401 else render(
-            request, "status.html", {"title": "Account unavailable"}, status=503)
-        if status == 401:
-            _clear_credentials(response, request)
-        elif rotated:
-            _set_credentials(response, rotated, request)
-        return response
-    token = (staging_session.authenticated(request, _api)[2]
-             if settings.ENVIRONMENT == "staging" else
-             rotated["access_token"] if rotated else request.COOKIES.get(ACCESS_COOKIE))
-    balance_status, balance = _api("/creators/me/points", token=token)
-    query = "?" + urlencode({"cursor": cursor}) if cursor else ""
-    page_status, page = _api("/creators/me/points/entries" + query, token=token)
-    if balance_status == 200 and not valid_points_balance(balance):
-        balance_status = 503
-    if page_status == 200 and (balance_status != 200 or not valid_points_page(
-            page, balance["creator_id"], cursor=cursor)):
-        page_status = 503
-    if balance_status == 200 and page_status == 200:
-        response = render(request, "points.html", {
-            "balance": balance, "items": page["items"],
-            "next_cursor": page["next_cursor"], "account": account,
-        })
-    else:
-        forbidden = 403 in (balance_status, page_status)
-        response = render(request, "status.html", {
-            "title": "Approved creator access is required." if forbidden else "Lone Stars unavailable."
-        }, status=403 if forbidden else 503)
-    if rotated:
-        _set_credentials(response, rotated, request)
-    return response
-

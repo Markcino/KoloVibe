@@ -1,14 +1,13 @@
-{% extends 'base.html' %}
+{% extends 'base_admin.html' %}
 {% block title %}Account · KoloVibe{% endblock %}
 {% block content %}
 <section class="panel"><h1>My account</h1><dl>
 <dt>Name</dt><dd>{{ account.display_name }}</dd>
 <dt>Email</dt><dd>{{ account.email }}</dd>
-</dl><p><a href="{% url 'points' %}">Lone Stars</a></p>
+<dt>Role</dt><dd>{{ role|title }}</dd>
+</dl>
 <p><a href="{% url 'profile-edit' %}">Edit profile</a></p>
 <p><a href="{% url 'password-change' %}">Change password</a></p>
 <p><a href="{% url 'sessions' %}">Active sessions</a></p>
-<p><a href="{% url 'preferences' %}">Notification preferences</a></p>
-<p><a href="{% url 'privacy-requests' %}">Privacy requests</a></p>
-<form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit">Sign out</button></form></section>
+</section>
 {% endblock %}
