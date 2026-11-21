@@ -156,7 +156,7 @@ class ImageSecurityContractTests(unittest.TestCase):
         ]
         self.assertEqual(rules["ignore"][len(ffmpeg_rules):], openssl_rules)
         temporary_expiry = datetime.date.fromisoformat(
-            re.search(r"(?m)^# Expires \\(OpenSSL temporary\\): (\\d{4}-\\d{2}-\\d{2})$", config).group(1))
+            re.search(r"(?m)^# Expires \(OpenSSL temporary\): (\d{4}-\d{2}-\d{2})$", config).group(1))
         self.assertEqual(temporary_expiry, datetime.date(2026, 11, 28))
         self.assertGreater(temporary_expiry, datetime.datetime.now(datetime.timezone.utc).date(),
                            "Temporary OpenSSL exception expired; remove it and remediate images")
