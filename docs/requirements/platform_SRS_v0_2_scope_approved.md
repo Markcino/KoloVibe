@@ -170,6 +170,83 @@ FR-020           Ads integration —         Test ads only before    Should
                  publisher approval
                  checks.
 
+4.1 Administration web console — R1 addendum (pending DEC entry and product-owner approval)
+The Django-rendered web client is an administration console for moderators and administrators
+only. It has no landing page and no public, viewer or creator routes. Each requirement below
+relies on gateway/service contracts; where a contract does not yet exist, the console SHALL show
+"Not available in R1" and SHALL NOT substitute guessed endpoints, partial data or client-side
+authorization.
+
+ID       Requirement                                    Verification                          Priority
+
+FR-021   Console boundary — The web client SHALL       Route matrix test: removed routes     Must
+         serve only /login, MFA, /admin/*, health      return 404; anonymous users reach
+         and static assets. Anonymous access is        only sign-in/MFA.
+         limited to sign-in and MFA challenge.
+
+FR-022   Privileged session — Access SHALL use         Tests for missing/lapsed MFA,         Must
+         password then MFA. Every admin request        changed or revoked role/account,
+         SHALL revalidate identity, role, MFA and      15-minute absolute and 30-minute
+         session state. Sessions SHALL expire at       idle expiry, cookie attributes.
+         15 minutes absolute and 30 minutes idle;
+         credentials stay server-side and encrypted.
+
+FR-023   Moderation queues — Authorized            Pagination, ordering, duplicate and   Must
+         operators SHALL page the video, report        cursor-tamper tests; record absent
+         and appeal queues with bounded, forward-      from page returns 404.
+         only cursors and inspect each record.
+
+FR-024   Moderator assignment — Moderators SHALL       Unassigned moderator receives 403     Must
+         see and decide only assigned queues,          on read and decision; admin
+         enforced by the moderation service.           supervision path tested.
+         Until the service provides assignment
+         authorization, moderator decisions are
+         denied.
+
+FR-025   Moderation decisions — Decisions SHALL       CSRF failure, replay with the same    Must
+         be CSRF-protected POSTs carrying a            key, conflicting decision, missing
+         stable Idempotency-Key and recorded           audit record.
+         rationale. Video: publish/reject/remove;
+         report: dismiss/remove; appeal: deny/
+         restore. Repeats yield one state
+         transition and one audit record.
+
+FR-026   Reviewer content inspection — The            Reviewer detail contract test;        Must
+         moderation service SHALL expose a             unauthorized and out-of-scope reads
+         reviewer detail read (metadata, rights        denied and audited; no raw storage
+         status, report history, prior decisions       URLs exposed.
+         and short-lived authorized preview) for
+         each queue record.
+
+FR-027   Operational visibility — The service         Counts match fixtures; held          Must
+         layer SHALL provide queue totals, status      accounts and statuses are
+         filters beyond open/review, and active        authorization-scoped.
+         fraud holds for the dashboard.
+
+FR-028   Audit read — Administrators and             Role-scoped read tests; filters       Must
+         moderators SHALL read audit events            bounded; no edit/delete path;
+         through a read-only, filtered, paginated      sensitive fields redacted.
+         contract scoped by role (moderators: own
+         actions).
+
+FR-029   Administrative points review — The           Balance recomputes from ledger;       Should
+         console SHALL show read-only balances,        no write endpoint reachable from
+         history and reversal-review state for         the web client; non-administrators
+         administrators. Award and reversal            receive 403.
+         execution remain with the rules engine;
+         no cash value is shown.
+
+FR-030   Own account — Operators SHALL view and        Profile, password change (clears      Must
+         update their profile, change password,        session), session list/revoke and
+         list/revoke their own sessions and log        logout tests; cross-user revoke
+         out.                                          denied.
+
+NFR-015  Web console hardening — Admin pages SHALL     Header, cache and template-escape     Must
+         autoescape content, send no-store and         tests; ASVS 5.0 L2 trace WEB-SEC-*;
+         security headers, use fixed non-              keyboard and 390px layout checks
+         enumerating errors, be responsive and         (NFR-011).
+         keyboard accessible.
+
 
 
 
@@ -302,6 +379,15 @@ FR-016               Ad policy            Pending                ADS-001        
                      boundary
 NFR-001              MASVS                Pending                MOB-SEC-*         Not started
 NFR-002              ASVS 5.0             Pending                WEB-SEC-*         Not started
+FR-021/022/NFR-015   Admin console        Pending                WEB-ADM-*         Partial (PR #127)
+                     boundary, MFA
+                     session
+FR-023/025/030       Queue paging,        Pending                WEB-ADM-*         Partial (PR #127)
+                     decisions, account
+FR-024/026/027       Assignment, detail,  Pending                BE-MOD-WEB-*      Not started
+                     counts (backend)
+FR-028/029           Audit read, points   Pending                BE-AUD-WEB-*,     Not started
+                     review (backend)                            BE-PTS-WEB-*
 
 
 
@@ -313,6 +399,8 @@ NFR-002              ASVS 5.0             Pending                WEB-SEC-*      
      demonstrated.
     Pilot cohort, cost limits, support ownership and incident stop conditions are approved.
     No live cash payout, ticket checkout or business-reward settlement is enabled in R1.
+    The web console excludes a landing page, public/viewer/creator pages, role administration,
+     points award/reversal execution and payouts.
 <PARSED TEXT FOR PAGE: 7 / 7>
 11. Open specification questions
    Define qualified view: watch-time, repeat limits, viewer eligibility, handling offline playback.
@@ -321,6 +409,8 @@ NFR-002              ASVS 5.0             Pending                WEB-SEC-*      
    Choose media upload/streaming provider and signed URL expiration.
    Specify age restrictions, data retention, moderation SLAs and rights evidence.
    Determine pilot scale, Android/iOS scope and actual operating budgets.
+   Define moderator assignment/scope model and moderation SLAs for the web console (FR-024).
+   Define audit-read redaction rules and retention for the web console (FR-028).
 
 
 
