@@ -13,7 +13,7 @@ from django.test import RequestFactory, TestCase
 from django.utils import timezone
 
 from service import media_encoding, media_storage
-from service.media_api import media_api
+from service.media_api import _enqueue, media_api
 from service.media_processing import process
 from service.models import MediaUpload, Video
 
@@ -28,6 +28,17 @@ class R2MediaTests(TestCase):
         request = self.factory.post("/internal/videos/media/" + operation, data, content_type="application/json")
         request.service_caller = "gateway"
         return media_api(request, operation)
+
+    @patch("service.media_tasks.process_video.apply_async")
+    def test_media_dispatch_uses_scoped_rabbitmq_exchange(self, publish):
+        _enqueue(self.video.pk)
+        publish.assert_called_once_with(
+            args=[str(self.video.pk)],
+            queue="kolovibe.content.media",
+            exchange="kolovibe.content.media",
+            routing_key="kolovibe.content.media",
+            retry=False,
+        )
 
     def test_owned_library_and_draft_changes_reject_cross_creator_access(self):
         other = Video.objects.create(creator_id=uuid4(), title="Other original")
