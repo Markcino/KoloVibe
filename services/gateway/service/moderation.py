@@ -5,12 +5,14 @@ import re
 from urllib.error import HTTPError
 from uuid import UUID
 
-from django.http import HttpResponseNotAllowed, JsonResponse
+from django.http import HttpResponseNotAllowed, JsonResponse, HttpResponse
 from django.views.decorators.cache import never_cache
 
 from .creator_onboarding import authenticated_actor, creator_ownership
 from .internal_client import signed_internal_request
 
+
+DETAILS = {"video_detail", "report_detail", "appeal_detail"}
 
 QUEUES = {"review_queue", "reports", "appeals"}
 OWN_LISTS = {"own_reports", "own_appeals"}
@@ -23,6 +25,9 @@ def _error(detail, status):
 
 
 def _valid_result(operation, result):
+    if operation in DETAILS:
+        from .reviewer_contracts import valid_detail
+        return valid_detail(result)
     if operation in {"notice", "standing"}:
         from .standing import valid_notice
         if operation == "notice":
@@ -60,8 +65,15 @@ def _forward(operation, actor, role, data, *, mfa_verified=False):
             payload=json.dumps({"actor_id": actor, "role": role, "data": data}
                                | ({"mfa_verified": True} if mfa_verified else {}), ensure_ascii=False).encode(),
         ) as response:
-            raw = response.read(524289)
-            if len(raw) <= 524288 and response.status in (200, 201):
+            limit = 50 * 1024 * 1024 if operation == "preview" else 524288
+            raw = response.read(limit + 1)
+            if len(raw) <= limit and response.status in (200, 201):
+                if operation == "preview":
+                    if response.status != 200 or response.headers.get("Content-Type") != "video/mp4" or not raw:
+                        raise ValueError
+                    result = HttpResponse(raw, content_type="video/mp4")
+                    result["Cache-Control"] = "private, no-store"
+                    return result
                 result = json.loads(raw)
                 if _valid_result(operation, result):
                     return JsonResponse(result, status=response.status)
@@ -86,14 +98,14 @@ def _forward(operation, actor, role, data, *, mfa_verified=False):
 
 @never_cache
 def moderation_endpoint(request, operation, target_id=None):
-    method = "GET" if operation in QUEUES | OWN_LISTS | OWN_DETAILS | {"notice"} else "POST"
+    method = "GET" if operation in QUEUES | OWN_LISTS | OWN_DETAILS | DETAILS | {"notice", "preview"} else "POST"
     if request.method != method:
         return HttpResponseNotAllowed([method])
     principal = authenticated_actor(request, require_verified_email=False)
     if isinstance(principal, JsonResponse):
         return principal
     actor, role = principal
-    reviewer = operation in QUEUES | DECISIONS
+    reviewer = operation in QUEUES | DECISIONS | DETAILS | {"preview"}
     if reviewer:
         if role not in {"moderator", "administrator"}:
             return _error("Reviewer role required", 403)
@@ -122,10 +134,10 @@ def moderation_endpoint(request, operation, target_id=None):
                 raise ValueError("Invalid queue request")
             cursor = request.GET.get("cursor")
             data = {"cursor": str(UUID(cursor)) if cursor is not None else None}
-        elif operation in OWN_DETAILS:
+        elif operation in OWN_DETAILS | DETAILS | {"preview"}:
             if request.body or request.GET:
                 raise ValueError("Invalid record request")
-            data = {"target_id": str(target_id)}
+            data = {"preview_id" if operation == "preview" else "target_id": str(target_id)}
         else:
             if request.GET or len(request.body) > 32768:
                 raise ValueError("Invalid moderation request")

@@ -4,11 +4,12 @@ import json
 from uuid import UUID
 
 from django.db import DatabaseError, transaction
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .models import ModerationReceipt, Video
+from . import media_storage as storage
 
 
 TRANSITIONS = {
@@ -70,7 +71,7 @@ def moderation_video(request, operation):
             raise ValueError("Request too large")
         data = json.loads(request.body)
         fields = {"inspect": {"video_id"}, "apply": {"video_id", "action_id", "action", "revision"},
-                  "queue": {"cursor"}}
+                  "queue": {"cursor"}, "detail": {"video_id"}, "preview": {"video_id"}}
         if (operation not in fields or not isinstance(data, dict) or not fields[operation] <= set(data)
                 or set(data) - fields[operation] - ({"scope_ids"} if operation == "queue" else set())):
             raise ValueError("Invalid moderation request")
@@ -93,9 +94,22 @@ def moderation_video(request, operation):
         video = Video.objects.filter(pk=video_id, deleted_at__isnull=True).first()
         if video is None:
             return _error("Video not found", 404)
+        if operation == "detail":
+            return JsonResponse({"id": str(video.id), "title": video.title, "description": video.description,
+                "state": video.state, "duration_seconds": video.duration_seconds,
+                "rights_status": "not_recorded", "preview_available": bool(video.provider_asset_id
+                    and video.provider_asset_id.startswith("playback/"))})
+        if operation == "preview":
+            if not video.provider_asset_id or not video.provider_asset_id.startswith("playback/"):
+                return _error("Preview unavailable", 404)
+            response = HttpResponse(storage.read_preview(video.provider_asset_id), content_type="video/mp4")
+            response["Cache-Control"] = "private, no-store"
+            return response
         return JsonResponse({"creator_id": str(video.creator_id), "state": video.state,
                              "visibility": video.visibility, "revision": video.moderation_revision})
     except (ValueError, TypeError, AttributeError):
         return _error("Invalid moderation request", 400)
+    except (storage.StorageUnavailable, storage.ObjectMissing):
+        return _error("Preview unavailable", 503)
     except DatabaseError:
         return _error("Video service unavailable", 503)

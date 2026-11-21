@@ -76,3 +76,22 @@ class ModerationContentTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(json.loads(response.content)["items"], [{"id": str(self.video.id), "title": "Original"}])
         self.assertNotIn(str(other.id).encode(), response.content)
+
+
+    def test_reviewer_detail_and_preview_are_moderation_only(self):
+        import json
+        from unittest.mock import patch
+        self.video.provider_asset_id = f"playback/{uuid4()}/{uuid4()}.mp4"
+        self.video.save(update_fields=["provider_asset_id"])
+        for operation in ("detail", "preview"):
+            request = self.factory.post("/internal/videos/moderation/" + operation,
+                {"video_id": str(self.video.id)}, content_type="application/json")
+            request.service_caller = "gateway"
+            self.assertEqual(moderation_video(request, operation).status_code, 403)
+            request.service_caller = "moderation"
+            with patch("service.moderation.storage.read_preview", return_value=b"mp4"):
+                response = moderation_video(request, operation)
+            self.assertEqual(response.status_code, 200)
+            self.assertNotIn(self.video.provider_asset_id.encode(), response.content)
+            if operation == "detail":
+                self.assertEqual(json.loads(response.content)["rights_status"], "not_recorded")

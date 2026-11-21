@@ -11,7 +11,7 @@ from urllib.request import HTTPRedirectHandler, HTTPSHandler, ProxyHandler, Requ
 
 from django.conf import settings
 from django.core import signing
-from django.http import FileResponse, Http404, HttpResponseNotAllowed
+from django.http import FileResponse, Http404, HttpResponseNotAllowed, HttpResponse
 from django.shortcuts import redirect, render
 from django.middleware.csrf import rotate_token
 from django.views.decorators.cache import never_cache
@@ -47,7 +47,7 @@ class _NoRedirect(HTTPRedirectHandler):
         return None
 
 
-def _api(path, *, method="GET", data=None, token=None, idempotency_key=None):
+def _api(path, *, method="GET", data=None, token=None, idempotency_key=None, binary=False):
     headers = {"Accept": "application/json"}
     if settings.GATEWAY_HOST:
         headers["Host"] = settings.GATEWAY_HOST
@@ -68,7 +68,13 @@ def _api(path, *, method="GET", data=None, token=None, idempotency_key=None):
         if context is not None:
             handlers.append(HTTPSHandler(context=context))
         with build_opener(*handlers).open(request, timeout=5) as response:
-            status, raw = response.status, response.read(65537)
+            status = response.status
+            limit = 50 * 1024 * 1024 if binary and status == 200 else 65536
+            raw = response.read(limit + 1)
+            if binary and status == 200:
+                if response.headers.get("Content-Type") != "video/mp4" or not 0 < len(raw) <= limit:
+                    return 503, {}
+                return 200, raw
     except HTTPError as error:
         status, raw = error.code, error.read(65537)
     except (URLError, OSError, TimeoutError):
@@ -312,19 +318,19 @@ def moderation_detail(request, kind, target_id):
         if not valid_decision(result, video_id, action):
             return error_page(request)
         return _render(request, "decision_result.html", {"kind": kind})
-    cursor, _ = _queue_query(request, kind)
-    status, page = _queue_page(request, kind, cursor)
+    status, detail = _api(f"/moderation/{kind}/{target_id}", token=request.gateway_token)
     if status != 200:
         return _gateway_error(request, status)
-    item = next((item for item in page["items"] if item["id"] == str(target_id)), None)
-    if item is None:
-        return error_page(request, status=404)
+    from .reviewer_contracts import valid_detail
+    if not valid_detail(detail) or detail["record"]["id"] != str(target_id):
+        return error_page(request)
+    item = detail["record"]
     intent = signing.dumps({**_intent(request, kind, target_id), "key": secrets.token_urlsafe(32),
                             "video": item["id"] if kind == "videos" else item["video_id"]},
                            salt="admin-decision")
     return _render(request, "moderation_detail.html", {
         "title": kind.title() + " review", "kind": kind, "item": item,
-        "actions": sorted(ACTIONS[kind]), "intent": intent,
+        "actions": sorted(ACTIONS[kind]), "intent": intent, "detail": detail,
     })
 
 
@@ -412,4 +418,18 @@ def _finish_logout(request):
         "message": "Server session revocation could not be confirmed.",
     }, status=503)
     _clear_credentials(response, request)
+    return response
+
+
+@privileged
+@require_GET
+def reviewer_preview(request, preview_id):
+    if request.GET:
+        return error_page(request, status=400)
+    status, payload = _api(f"/moderation/previews/{preview_id}", token=request.gateway_token, binary=True)
+    if status != 200:
+        return _gateway_error(request, status)
+    response = HttpResponse(payload, content_type="video/mp4")
+    response["Content-Disposition"] = 'inline; filename="review-preview.mp4"'
+    response["Referrer-Policy"] = "no-referrer"
     return response

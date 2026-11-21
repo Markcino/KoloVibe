@@ -51,11 +51,16 @@ class AdminConsoleTests(TestCase):
     def page(self, kind):
         return {"items": [self.record(kind)], "next_cursor": None}
 
+    def detail(self, kind):
+        return {"record": self.record(kind), "video": {"id": self.target, "title": "Review this video",
+                "description": "Video description", "state": "review", "duration_seconds": 30, "rights_status": "not_recorded"},
+                "preview": None, "reports": [], "decisions": [], "history_truncated": {"reports": False, "decisions": False}}
+
     def detail_url(self, kind, target=None):
         return reverse(f"moderation-{kind}-detail", args=[target or self.target])
 
     def intent(self, kind, client=None):
-        with patch("web.views._api", side_effect=[(200, self.account), (200, self.page(kind))]):
+        with patch("web.views._api", side_effect=[(200, self.account), (200, self.detail(kind))]):
             response = (client or self.client).get(self.detail_url(kind))
         self.assertEqual(response.status_code, 200)
         self.assertNotIn(self.client.session.session_key.encode(), response.content)
@@ -258,7 +263,7 @@ class AdminConsoleTests(TestCase):
 
     def test_cross_resource_detail_and_decision_gateway_denials_preserve_status(self):
         self.login()
-        with patch("web.views._api", side_effect=[(200, self.account), (200, self.page("videos"))]):
+        with patch("web.views._api", side_effect=[(200, self.account), (404, {})]):
             self.assertEqual(self.client.get(self.detail_url("videos", str(uuid.uuid4()))).status_code, 404)
         for status in (403, 404):
             intent = self.intent("videos")
@@ -272,7 +277,8 @@ class AdminConsoleTests(TestCase):
         self.login()
         record = {**self.record("videos"), "title": '<script>alert("x")</script>'}
         for url in (reverse("moderation-videos"), self.detail_url("videos")):
-            with patch("web.views._api", side_effect=[(200, self.account), (200, {"items": [record], "next_cursor": None})]) as api:
+            with patch("web.views._api", side_effect=[(200, self.account), (200, ({"items": [record], "next_cursor": None} if url == reverse("moderation-videos") else
+                    {**self.detail("videos"), "record": record}))]) as api:
                 response = self.client.get(url)
             self.assertContains(response, "&lt;script&gt;")
             self.assertNotContains(response, "<script>")
@@ -342,3 +348,27 @@ class AdminConsoleTests(TestCase):
         for result in ({"items": [None]}, {"items": [{"id": self.target}]}, {"items": [], "extra": "private"}):
             with patch("web.views._api", side_effect=[(200, self.account), (200, result)]):
                 self.assertEqual(self.client.get("/admin/account/sessions/").status_code, 503)
+
+
+    def test_reviewer_metadata_and_history_are_escaped_and_storage_url_rejected(self):
+        self.login("moderator")
+        detail = self.detail("videos")
+        detail["video"]["description"] = "<script>private</script>"
+        with patch("web.views._api", side_effect=[(200, self.account), (200, detail)]) as api:
+            response = self.client.get(self.detail_url("videos"))
+        self.assertContains(response, "&lt;script&gt;private&lt;/script&gt;")
+        self.assertEqual(api.call_args.args, (f"/moderation/videos/{self.target}",))
+        detail["preview"] = {"id": self.target, "url": "https://storage.example/secret-key", "expires_at": "2026-11-21T10:00:00Z"}
+        with patch("web.views._api", side_effect=[(200, self.account), (200, detail)]):
+            self.assertEqual(self.client.get(self.detail_url("videos")).status_code, 503)
+
+    def test_preview_uses_server_credentials_and_is_not_cached(self):
+        self.login()
+        url = reverse("reviewer-preview", args=[self.target])
+        with patch("web.views._api", side_effect=[(200, self.account), (200, b"mp4")]) as api:
+            response = self.client.get(url)
+        self.assertEqual(response.content, b"mp4")
+        self.assertEqual(api.call_args.kwargs, {"token": self.access, "binary": True})
+        self.assertIn("no-store", response["Cache-Control"])
+        with patch("web.views._api", side_effect=[(200, self.account), (403, {})]):
+            self.assertEqual(self.client.get(url).status_code, 403)

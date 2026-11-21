@@ -92,3 +92,12 @@ class ModeratorAssignment(models.Model):
                        models.CheckConstraint(condition=Q(queue_scope__in=["videos", "reports", "appeals"]),
                                               name="mod_assignment_scope")]
         indexes = [models.Index(fields=["moderator_id", "queue_scope", "active"], name="mod_assignment_lookup")]
+
+
+class ReviewerPreview(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    actor_id = models.UUIDField()
+    queue_scope = models.CharField(max_length=8)
+    target_id = models.UUIDField()
+    video_id = models.UUIDField()
+    expires_at = models.DateTimeField(db_index=True)

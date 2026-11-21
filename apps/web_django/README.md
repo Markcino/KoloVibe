@@ -59,3 +59,13 @@ Local development uses the same MFA/session implementation, a local SQLite datab
 Real privileged sign-in requires an existing MFA-enabled Identity account and an approved gateway; this client creates neither accounts nor MFA factors. Test suites use synthetic identities and never need live credentials. The CI local-journey fixture checks removed routes, unauthenticated admin access, CSRF and rejection of ordinary viewer tokens against a real gateway; focused web tests cover the privileged MFA and decision contracts.
 
 Staging session cleanup uses the existing `clearsessions` and bounded `purge_expired_web_sessions` commands. Production remains unsupported. This change does not merge, publish or deploy the web app.
+
+Reviewer detail contracts now exist at `GET /moderation/{videos,reports,appeals}/<uuid>`.
+The owning service authorizes explicit assignment, audits each read, and returns metadata,
+rights status (`not_recorded` until verification is recorded by an approved workflow),
+and the most recent 20 authorized report/decision entries with explicit truncation flags.
+Moderators receive assigned reports and their own decision history; administrators supervise globally.
+An optional preview is a 60-second account-bound lease at `/moderation/previews/<uuid>`.
+The web proxies it at `/admin/moderation/previews/<uuid>/`, rechecking the live MFA session;
+Moderation rechecks assignment and expiry and audits the fetch. Content supplies a bounded
+MP4 (maximum 50 MiB). No object-store location or key is returned to the browser.

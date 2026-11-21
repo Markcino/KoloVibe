@@ -31,6 +31,8 @@ FIELDS = {
     "review_queue": {"cursor"}, "reports": {"cursor"}, "appeals": {"cursor"},
     "own_reports": {"cursor"}, "own_appeals": {"cursor"},
     "own_report": {"target_id"}, "own_appeal": {"target_id"},
+    "video_detail": {"target_id"}, "report_detail": {"target_id"}, "appeal_detail": {"target_id"},
+    "preview": {"preview_id"},
     "notice": {"video_id", "creator_id"}, "standing": {"creator_id"},
     **{operation: {"target_id", "action", "reason", "key"} for operation in DECISIONS},
 }
@@ -59,6 +61,13 @@ def _content(operation, payload):
                         or type(data["revision"]) is not int or data["revision"] < 0):
                     raise ValueError("Invalid moderation snapshot")
                 UUID(data["creator_id"])
+            elif operation == "detail":
+                if (set(data) != {"id", "title", "description", "state", "duration_seconds", "rights_status", "preview_available"}
+                        or data["id"] != payload["video_id"] or type(data["preview_available"]) is not bool
+                        or not isinstance(data["title"], str) or not 1 <= len(data["title"]) <= 160
+                        or not isinstance(data["description"], str) or len(data["description"]) > 2000
+                        or data["rights_status"] != "not_recorded"):
+                    raise ValueError("Invalid reviewer metadata")
             elif operation == "apply" and (set(data) != {"applied"} or data["applied"] is not True):
                 raise ValueError("Invalid moderation receipt")
             return data
@@ -400,9 +409,14 @@ def moderation_workflow(request, operation):
                    VIEWERS | REVIEWERS if operation in ("report", "own_reports", "own_report") else REVIEWERS)
         if role not in allowed:
             return _error("Forbidden", 403)
-        if operation in DECISIONS or operation in {"review_queue", "reports", "appeals"}:
+        if operation in DECISIONS or operation in {"review_queue", "reports", "appeals", "video_detail", "report_detail", "appeal_detail", "preview"}:
             if envelope.get("mfa_verified") is not True:
                 return _error("MFA-verified reviewer session required", 403)
+        if operation in {"video_detail", "report_detail", "appeal_detail", "preview"}:
+            from . import reviewer
+            if operation == "preview":
+                return reviewer.preview(actor, role, data)
+            return reviewer.detail(operation, actor, role, data, _content)
         if operation == "notice":
             return _notice(actor, data)
         if operation == "standing":

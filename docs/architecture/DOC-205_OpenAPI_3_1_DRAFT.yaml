@@ -2967,6 +2967,549 @@ paths:
           description: Unapproved or invalid producer signature
         '409':
           description: ID collision with different content or producer
+  /moderation/videos/{video_id}:
+    get:
+      tags:
+      - Moderation
+      summary: Reviewer detail for videos
+      operationId: get_reviewer_videos_detail
+      x-implementation: local
+      x-capability: moderation
+      x-required-roles:
+      - moderator
+      - administrator
+      x-mfa-required: true
+      description: Owning-service assignment authorization; every read and denial audited.
+        Most recent 20 authorized history entries; truncation is explicit. Rights status
+        is not_recorded until a rights verification contract exists. Preview leases
+        expire after 60 seconds and require fresh MFA/role/assignment authorization
+        on every fetch. No storage keys or raw storage URLs.
+      parameters:
+      - name: video_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Authorized reviewer detail
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - record
+                - video
+                - preview
+                - reports
+                - decisions
+                - history_truncated
+                properties:
+                  record:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - id
+                    - title
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      title:
+                        type: string
+                  video:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - id
+                    - title
+                    - description
+                    - state
+                    - duration_seconds
+                    - rights_status
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      title:
+                        type: string
+                        minLength: 1
+                        maxLength: 160
+                      description:
+                        type: string
+                        maxLength: 2000
+                      state:
+                        type: string
+                        enum:
+                        - draft
+                        - uploading
+                        - processing
+                        - failed
+                        - review
+                        - published
+                        - rejected
+                        - removed
+                      duration_seconds:
+                        type:
+                        - integer
+                        - 'null'
+                        minimum: 1
+                        maximum: 300
+                      rights_status:
+                        type: string
+                        enum:
+                        - not_recorded
+                  preview:
+                    oneOf:
+                    - type: 'null'
+                    - type: object
+                      additionalProperties: false
+                      required:
+                      - id
+                      - url
+                      - expires_at
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        url:
+                          type: string
+                          pattern: ^/api/v1/moderation/previews/[0-9a-f-]{36}$
+                        expires_at:
+                          type: string
+                          format: date-time
+                  reports:
+                    type: array
+                    maxItems: 20
+                    items:
+                      $ref: '#/components/schemas/PilotReportQueueItem'
+                  decisions:
+                    type: array
+                    maxItems: 20
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - id
+                      - action
+                      - reason
+                      - status
+                      - created_at
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        action:
+                          type: string
+                          enum:
+                          - publish
+                          - reject
+                          - remove
+                          - restore
+                          - dismiss
+                          - deny
+                        reason:
+                          type: string
+                          maxLength: 2000
+                        status:
+                          type: string
+                          enum:
+                          - pending
+                          - applied
+                          - conflict
+                        created_at:
+                          type: string
+                          format: date-time
+                  history_truncated:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - reports
+                    - decisions
+                    properties:
+                      reports:
+                        type: boolean
+                      decisions:
+                        type: boolean
+        '400':
+          description: Invalid request
+        '401':
+          description: Sign in required
+        '403':
+          description: Scope or MFA denied
+        '404':
+          description: Resource unavailable
+        '503':
+          description: Service unavailable
+  /moderation/reports/{report_id}:
+    get:
+      tags:
+      - Moderation
+      summary: Reviewer detail for reports
+      operationId: get_reviewer_reports_detail
+      x-implementation: local
+      x-capability: moderation
+      x-required-roles:
+      - moderator
+      - administrator
+      x-mfa-required: true
+      description: Owning-service assignment authorization; every read and denial audited.
+        Most recent 20 authorized history entries; truncation is explicit. Rights status
+        is not_recorded until a rights verification contract exists. Preview leases
+        expire after 60 seconds and require fresh MFA/role/assignment authorization
+        on every fetch. No storage keys or raw storage URLs.
+      parameters:
+      - name: report_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Authorized reviewer detail
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - record
+                - video
+                - preview
+                - reports
+                - decisions
+                - history_truncated
+                properties:
+                  record:
+                    $ref: '#/components/schemas/PilotReportQueueItem'
+                  video:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - id
+                    - title
+                    - description
+                    - state
+                    - duration_seconds
+                    - rights_status
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      title:
+                        type: string
+                        minLength: 1
+                        maxLength: 160
+                      description:
+                        type: string
+                        maxLength: 2000
+                      state:
+                        type: string
+                        enum:
+                        - draft
+                        - uploading
+                        - processing
+                        - failed
+                        - review
+                        - published
+                        - rejected
+                        - removed
+                      duration_seconds:
+                        type:
+                        - integer
+                        - 'null'
+                        minimum: 1
+                        maximum: 300
+                      rights_status:
+                        type: string
+                        enum:
+                        - not_recorded
+                  preview:
+                    oneOf:
+                    - type: 'null'
+                    - type: object
+                      additionalProperties: false
+                      required:
+                      - id
+                      - url
+                      - expires_at
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        url:
+                          type: string
+                          pattern: ^/api/v1/moderation/previews/[0-9a-f-]{36}$
+                        expires_at:
+                          type: string
+                          format: date-time
+                  reports:
+                    type: array
+                    maxItems: 20
+                    items:
+                      $ref: '#/components/schemas/PilotReportQueueItem'
+                  decisions:
+                    type: array
+                    maxItems: 20
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - id
+                      - action
+                      - reason
+                      - status
+                      - created_at
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        action:
+                          type: string
+                          enum:
+                          - publish
+                          - reject
+                          - remove
+                          - restore
+                          - dismiss
+                          - deny
+                        reason:
+                          type: string
+                          maxLength: 2000
+                        status:
+                          type: string
+                          enum:
+                          - pending
+                          - applied
+                          - conflict
+                        created_at:
+                          type: string
+                          format: date-time
+                  history_truncated:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - reports
+                    - decisions
+                    properties:
+                      reports:
+                        type: boolean
+                      decisions:
+                        type: boolean
+        '400':
+          description: Invalid request
+        '401':
+          description: Sign in required
+        '403':
+          description: Scope or MFA denied
+        '404':
+          description: Resource unavailable
+        '503':
+          description: Service unavailable
+  /moderation/appeals/{appeal_id}:
+    get:
+      tags:
+      - Moderation
+      summary: Reviewer detail for appeals
+      operationId: get_reviewer_appeals_detail
+      x-implementation: local
+      x-capability: moderation
+      x-required-roles:
+      - moderator
+      - administrator
+      x-mfa-required: true
+      description: Owning-service assignment authorization; every read and denial audited.
+        Most recent 20 authorized history entries; truncation is explicit. Rights status
+        is not_recorded until a rights verification contract exists. Preview leases
+        expire after 60 seconds and require fresh MFA/role/assignment authorization
+        on every fetch. No storage keys or raw storage URLs.
+      parameters:
+      - name: appeal_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Authorized reviewer detail
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - record
+                - video
+                - preview
+                - reports
+                - decisions
+                - history_truncated
+                properties:
+                  record:
+                    $ref: '#/components/schemas/PilotAppealQueueItem'
+                  video:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - id
+                    - title
+                    - description
+                    - state
+                    - duration_seconds
+                    - rights_status
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      title:
+                        type: string
+                        minLength: 1
+                        maxLength: 160
+                      description:
+                        type: string
+                        maxLength: 2000
+                      state:
+                        type: string
+                        enum:
+                        - draft
+                        - uploading
+                        - processing
+                        - failed
+                        - review
+                        - published
+                        - rejected
+                        - removed
+                      duration_seconds:
+                        type:
+                        - integer
+                        - 'null'
+                        minimum: 1
+                        maximum: 300
+                      rights_status:
+                        type: string
+                        enum:
+                        - not_recorded
+                  preview:
+                    oneOf:
+                    - type: 'null'
+                    - type: object
+                      additionalProperties: false
+                      required:
+                      - id
+                      - url
+                      - expires_at
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        url:
+                          type: string
+                          pattern: ^/api/v1/moderation/previews/[0-9a-f-]{36}$
+                        expires_at:
+                          type: string
+                          format: date-time
+                  reports:
+                    type: array
+                    maxItems: 20
+                    items:
+                      $ref: '#/components/schemas/PilotReportQueueItem'
+                  decisions:
+                    type: array
+                    maxItems: 20
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - id
+                      - action
+                      - reason
+                      - status
+                      - created_at
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        action:
+                          type: string
+                          enum:
+                          - publish
+                          - reject
+                          - remove
+                          - restore
+                          - dismiss
+                          - deny
+                        reason:
+                          type: string
+                          maxLength: 2000
+                        status:
+                          type: string
+                          enum:
+                          - pending
+                          - applied
+                          - conflict
+                        created_at:
+                          type: string
+                          format: date-time
+                  history_truncated:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - reports
+                    - decisions
+                    properties:
+                      reports:
+                        type: boolean
+                      decisions:
+                        type: boolean
+        '400':
+          description: Invalid request
+        '401':
+          description: Sign in required
+        '403':
+          description: Scope or MFA denied
+        '404':
+          description: Resource unavailable
+        '503':
+          description: Service unavailable
+  /moderation/previews/{preview_id}:
+    get:
+      tags:
+      - Moderation
+      summary: Fetch an expiring authorized MP4 preview
+      operationId: get_reviewer_preview
+      x-implementation: local
+      x-capability: moderation
+      x-required-roles:
+      - moderator
+      - administrator
+      x-mfa-required: true
+      parameters:
+      - name: preview_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Private no-store MP4, bounded to 50 MiB; gateway proxies bytes
+            without redirecting to storage
+          content:
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+        '401':
+          description: Sign in required
+        '403':
+          description: Expired, wrong account, assignment revoked or missing MFA
+        '503':
+          description: Preview unavailable
+
 components:
   securitySchemes:
     bearerAuth:
