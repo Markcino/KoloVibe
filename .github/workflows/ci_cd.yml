@@ -1,6 +1,6 @@
 name: ci_cd
-# Temporary PR-only vulnerability-scan waiver for R1 creator-role synchronization.
-# All scan findings remain visible. Main-branch scans still block image publication.
+# High/Critical image-scanning gates remain blocking for PR and main; .grype.yaml
+# carries only separately documented, time-limited, exact-package exceptions.
 on:
   push:
     branches: [main]
@@ -245,9 +245,7 @@ jobs:
         uses: anchore/scan-action@1638637db639e0ade3258b51db49a9a137574c3e # v6
         with:
           image: kolovibe/services:ci
-          fail-build: ${{ github.event_name != 'pull_request' }}
-          # PR-only waiver: report vulnerabilities without blocking review.
-          # Pushes to main retain fail-build=true; publishing stays gated.
+          fail-build: true
           severity-cutoff: high
           output-format: table
       - name: Generate verified image SBOM
@@ -443,9 +441,7 @@ jobs:
         uses: anchore/scan-action@1638637db639e0ade3258b51db49a9a137574c3e # v6
         with:
           image: kolovibe/media-worker:ci
-          fail-build: ${{ github.event_name != 'pull_request' }}
-          # PR-only waiver: report vulnerabilities without blocking review.
-          # Pushes to main retain fail-build=true; publishing stays gated.
+          fail-build: true
           severity-cutoff: high
           output-format: table
       - name: Generate verified media image SBOM
@@ -593,9 +589,7 @@ jobs:
         uses: anchore/scan-action@1638637db639e0ade3258b51db49a9a137574c3e # v6
         with:
           image: kolovibe/web:ci
-          fail-build: ${{ github.event_name != 'pull_request' }}
-          # PR-only waiver: report vulnerabilities without blocking review.
-          # Pushes to main retain fail-build=true; publishing stays gated.
+          fail-build: true
           severity-cutoff: high
           output-format: table
       - name: Generate verified web image SBOM
