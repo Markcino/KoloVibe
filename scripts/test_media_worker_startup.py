@@ -182,7 +182,8 @@ class RemoteControlTests(unittest.TestCase):
     def test_worker_arguments_are_pinned(self):
         self.assertEqual(roles.celery_argv(QUEUE), [
             "worker", "-Q", QUEUE, "--concurrency=1", "--prefetch-multiplier=1", "--loglevel=WARNING",
-            "--max-tasks-per-child=20", "--max-memory-per-child=262144", "--without-gossip", "--without-mingle"])
+            "--max-tasks-per-child=20", "--max-memory-per-child=262144", "--without-gossip", "--without-mingle",
+            "--without-heartbeat"])
 
     def test_a_started_worker_declares_only_the_approved_queue_and_exchange(self):
         out = child("declare")
