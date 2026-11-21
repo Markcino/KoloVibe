@@ -18,15 +18,20 @@ The updater's `base_gateway` accepts only the historical baseline image, the tar
 
 ## Scope of this proposed change
 
-- Add exactly one immutable services digest (the observed v0.290.1 image) to `AWS_STAGING.reviewed_releases`.
-- Add regression coverage proving that this earlier digest is accepted for read-only forward planning while unknown digests, tags, other repositories and environment drift remain rejected.
+- **One-time bootstrap:** add the single observed v0.290.1 immutable services digest to `AWS_STAGING.reviewed_releases`. That release was deployed outside the cluster tool and has no trusted cluster-tool marker.
+- **Automatic subsequent releases:** the guarded updater now writes a `kolovibe.cluster-launcher=1` service label in addition to the exact source revision and approved update/rollback parameters. Future `update-plan` operations recognize a prior image **automatically** when its live Gateway spec has that marker, a valid immutable project-owned digest, a 40-hex revision label and matching guarded update and rollback settings. No additional source-code digest entry is needed for normal sequential managed upgrades.
+- Add regression coverage for the one-time adoption, the automatic next release, incomplete/fabricated markers, unknown unmarked digests, tags, other repositories and environment drift.
 - Keep unchanged the Gateway identity, database host/login, capability states, non-root/read-only mode, secret ownership, encrypted overlays, placement and private port restrictions.
 - Leave the Oracle profile and all running AWS services untouched. This is not a waiver of any other guard.
 
 ## Required review and execution gates
 
-1. CI passes on this PR; reviewer confirms the previous image digest and its published-image evidence before merge.
+1. CI passes on this PR; reviewer confirms the one-time previous image digest, the published-image evidence, and the new automatic managed-release guard before merge.
 2. On VM1, use the reviewed `kolovibe_cluster.py` from **this** PR's merged commit (not the older v0.295.1 script). Verify the Git blob SHA before use.
 3. Generate **new** worker evidence on VM2; securely transfer it to VM1, and run `update-plan` within five minutes. Do not synthesize worker evidence.
 4. Inspect the entire plan for permitted image-only changes, expected flags/secret mounts, no `BLOCKED` and correct service order. A fresh failure requires diagnosis, not a bypass.
 5. Only then run an explicitly confirmed update under the existing approved restricted R1 staging operating rules, verify each service and prepare independent rollback. Do not roll web public or scale the second media worker.
+
+## Trust boundary
+
+This managed-release recognition protects against accidental drift, unexpected image repositories, missing revision metadata and non-standard update/rollback settings. It is **not** cryptographic supply-chain attestation: a Swarm manager administrator able to rewrite every service label/spec can also impersonate the marker. The target image still requires the existing approved CI release evidence and an explicit confirmation. A future deployment pipeline should verify signed OCI/SLSA attestations and automatically retrieve target evidence before deploying; never treat the GHCR repository prefix alone as proof of publication by CI.
