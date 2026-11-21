@@ -84,6 +84,7 @@ class AuditEvent(models.Model):
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     kind = models.CharField(max_length=64)
+    actor_id = models.UUIDField(null=True)
     occurred_at = models.DateTimeField(default=timezone.now)
     subject_type = models.CharField(max_length=32, default="points_entry")
     subject_id = models.UUIDField()

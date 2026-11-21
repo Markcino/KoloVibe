@@ -49,3 +49,38 @@ def valid_audit_page(value):
                 and (value["next_cursor"] is None or len(ids) == 20 and value["next_cursor"] == ids[-1]))
     except (ValueError, TypeError, AttributeError, KeyError):
         return False
+
+
+def valid_points_review(value):
+    try:
+        account = "account_id" in value
+        fields = {"items", "next_cursor", "as_of"} | ({"account_id", "balance", "currency"} if account else set())
+        if not isinstance(value, dict) or set(value) != fields or datetime.fromisoformat(value["as_of"]).tzinfo is None:
+            return False
+        if account and (str(UUID(value["account_id"])) != value["account_id"] or type(value["balance"]) is not int or value["currency"] != "POINTS"):
+            return False
+        rows = value["items"]
+        if not isinstance(rows, list) or len(rows) > 20:
+            return False
+        ids = []
+        for item in rows:
+            if not isinstance(item, dict):
+                return False
+            if account:
+                if (set(item) != {"id", "amount", "kind", "rule_version", "reason_code", "created_at", "reversal_review_state"}
+                        or str(UUID(item["id"])) != item["id"] or type(item["amount"]) is not int or item["amount"] == 0
+                        or item["kind"] not in {"award", "reversal", "adjustment"}
+                        or not isinstance(item["rule_version"], str) or not 1 <= len(item["rule_version"]) <= 32
+                        or not isinstance(item["reason_code"], str) or not 1 <= len(item["reason_code"]) <= 64
+                        or datetime.fromisoformat(item["created_at"]).tzinfo is None
+                        or item["reversal_review_state"] not in {"reversed", "not_reversed", "reversal", "not_applicable"}):
+                    return False
+                ids.append(item["id"])
+            else:
+                if (set(item) != {"account_id", "balance", "currency"} or str(UUID(item["account_id"])) != item["account_id"]
+                        or type(item["balance"]) is not int or item["currency"] != "POINTS"):
+                    return False
+                ids.append(item["account_id"])
+        return ids == sorted(set(ids)) and (value["next_cursor"] is None or len(ids) == 20 and value["next_cursor"] == ids[-1])
+    except (ValueError, TypeError, KeyError, AttributeError):
+        return False

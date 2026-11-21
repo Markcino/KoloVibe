@@ -360,9 +360,27 @@ def moderation_detail(request, kind, target_id):
 @privileged
 @require_GET
 def points(request):
-    if request.admin_account["roles"] != ["administrator"]:
-        return error_page(request, status=403)
-    return _unavailable(request, "Points", "Administrative balances, adjustment history and reversal review are not available in R1.")
+    from .admin_contracts import valid_points_review
+    if (set(request.GET) - {"account", "cursor", "status", "as_of"}
+            or any(len(request.GET.getlist(key)) != 1 or len(request.GET[key]) > 100 for key in request.GET)):
+        return error_page(request, status=400)
+    values = dict(request.GET.items())
+    account = values.pop("account", None)
+    if (account is not None and not valid_id(account) or "cursor" in values and not valid_id(values["cursor"])
+            or not account and "status" in values):
+        return error_page(request, status=400)
+    endpoint = f"/admin/points/accounts/{account}" if account else "/admin/points/balances"
+    query = "?" + urlencode(values) if values else ""
+    status, page = _api(endpoint + query, token=request.gateway_token)
+    if status != 200:
+        return _gateway_error(request, status)
+    if (not valid_points_review(page) or account and page.get("account_id") != account
+            or page["next_cursor"] is not None and page["next_cursor"] == values.get("cursor")):
+        return error_page(request)
+    params = {**values, "as_of": page["as_of"], **({"account": account} if account else {})}
+    next_query = urlencode({**params, "cursor": page["next_cursor"]}) if page["next_cursor"] else None
+    return _render(request, "points_review.html", {"page": page, "selected_account": account, "next_query": next_query,
+        "statuses": ["all", "awards", "reversals", "adjustments"], "selected_status": values.get("status", "all")})
 
 
 @privileged

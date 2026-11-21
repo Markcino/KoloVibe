@@ -76,3 +76,21 @@ def audit_log(request):
             or any(len(request.GET.getlist(key)) != 1 or len(request.GET[key]) > 100 for key in request.GET)):
         return JsonResponse({"detail": "Invalid request"}, status=400)
     return forward("audit", "/internal/audit/read", *actor, dict(request.GET.items()), valid_audit_page)
+
+
+@never_cache
+@require_GET
+def points_review(request, account_id=None):
+    from .admin_contracts import valid_points_review
+    actor = principal(request)
+    if isinstance(actor, JsonResponse):
+        return actor
+    allowed = {"cursor", "as_of"} | ({"status"} if account_id else set())
+    if (request.body or set(request.GET) - allowed
+            or any(len(request.GET.getlist(key)) != 1 or len(request.GET[key]) > 100 for key in request.GET)):
+        return JsonResponse({"detail": "Invalid request"}, status=400)
+    data = dict(request.GET.items())
+    if account_id:
+        data["account_id"] = str(account_id)
+    return forward("points", "/internal/points/admin/" + ("account" if account_id else "balances"), *actor, data,
+        lambda value: valid_points_review(value) and (account_id is None or value.get("account_id") == str(account_id)))

@@ -34,7 +34,7 @@ PRODUCER_KINDS = {
     "content": {"video.created", "video.updated", "video.upload_intent_created", "video.upload_completed",
                 "video.processing_succeeded", "video.processing_failed", "video.deleted", "video.published",
                 "video.unpublished", "video.moderated"},
-    "points": {"points.awarded", "points.withheld", "points.reversed", "points.adjusted"},
+    "points": {"points.awarded", "points.withheld", "points.reversed", "points.adjusted", "points.review_read", "points.review_denied"},
 }
 SUBJECT_TYPES = {"account", "creator", "video", "report", "appeal", "moderation_action", "points_entry"}
 

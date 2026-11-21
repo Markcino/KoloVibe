@@ -95,6 +95,7 @@ def _rules():
     add("gateway", "engagement", "POST", rf"/api/v1/videos/{UUID}/shares")
     add("gateway", "points", "GET", r"/api/v1/creators/me/points", r"/api/v1/creators/me/points/entries",
         rf"/api/v1/creators/me/points/entries/{UUID}")
+    add("gateway", "points", "GET", r"/api/v1/admin/points/balances", rf"/api/v1/admin/points/accounts/{UUID}", privileged=True)
     add("gateway", "watch", "POST", rf"/api/v1/videos/{UUID}/watch-sessions", r"/api/v1/engagement/watch-events")
     add("gateway", "moderation", "GET", r"/api/v1/me/standing", r"/api/v1/me/reports", rf"/api/v1/me/reports/{UUID}",
         r"/api/v1/me/appeals", rf"/api/v1/me/appeals/{UUID}", rf"/api/v1/creators/me/videos/{UUID}/notice")
@@ -134,7 +135,7 @@ def _rules():
         r"/internal/engagement/(?:like-counts|play-counts|follower-count|trending)", r"/internal/engagement/fraud-holds")
     add("engagement", "analytics", "POST", r"/internal/engagement/analytics/(?:video|creator)")
     add("engagement", "watch", "POST", rf"/internal/engagement/watch/{OP}")
-    add("points", "points", "POST", rf"/internal/points/{OP}")
+    add("points", "points", "POST", rf"/internal/points/{OP}", r"/internal/points/admin/(?:balances|account)")
     add("moderation", "moderation", "POST", rf"/internal/moderation/{OP}")
     add("moderation", "moderation", "POST", r"/internal/moderation/(?:review_queue|own_reports|own_report|own_appeals|own_appeal|video_decision|report_decision|appeal_decision|video_detail|report_detail|appeal_detail|fraud_scope)")
     return tuple(r)

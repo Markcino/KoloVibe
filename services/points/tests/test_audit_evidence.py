@@ -73,7 +73,8 @@ class LedgerEvidenceTests(Fixture, TestCase):
     def test_evidence_carries_no_account_or_creator_identifier(self):
         apply(uuid4(), self.account)
         fields = {field.name for field in AuditEvent._meta.fields}
-        self.assertEqual(fields, {"id", "kind", "occurred_at", "subject_type", "subject_id"})
+        self.assertEqual(fields, {"id", "kind", "actor_id", "occurred_at", "subject_type", "subject_id"})
+        self.assertIsNone(AuditEvent.objects.get().actor_id)
         self.assertNotIn(str(self.account), str(AuditEvent.objects.values().get()))
 
     def test_audit_rows_are_append_only(self):
@@ -112,7 +113,7 @@ class RecorderContractTests(SimpleTestCase):
 
     def test_emitted_kinds_are_within_the_audit_points_allow_list(self):
         self.assertTrue(security_audit.KINDS <= {"points.awarded", "points.withheld",
-                                                 "points.reversed", "points.adjusted"})
+                                                 "points.reversed", "points.adjusted", "points.review_read", "points.review_denied"})
 
 
 class Response:

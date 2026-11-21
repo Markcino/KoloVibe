@@ -108,7 +108,7 @@ class AdminConsoleTests(TestCase):
                 with patch("web.views._api", side_effect=[(200, self.account), (200, self.page(kind))]):
                     response = self.client.get(reverse(f"moderation-{kind}"))
                 self.assertEqual(response.status_code, 200)
-            with patch("web.views._api", return_value=(200, self.account)):
+            with patch("web.views._api", side_effect=[(200, self.account), (200, {"items": [], "next_cursor": None, "as_of": "2026-11-21T10:00:00Z"}) if role == "administrator" else (403, {})]):
                 self.assertEqual(self.client.get("/admin/points/").status_code, 200 if role == "administrator" else 403)
 
     def test_mfa_cannot_be_bypassed_by_password_response_or_browser_cookie(self):
@@ -405,3 +405,21 @@ class AdminConsoleTests(TestCase):
         with patch("web.views._api", return_value=(200, self.account)) as api:
             self.assertEqual(self.client.get("/admin/audit/?actor_id=someone").status_code, 400)
             api.assert_called_once()
+
+
+    def test_points_review_renders_ledger_and_follows_service_authorization(self):
+        self.login("moderator")
+        with patch("web.views._api", side_effect=[(200, self.account), (403, {})]) as api:
+            self.assertEqual(self.client.get("/admin/points/").status_code, 403)
+        self.assertEqual(api.call_args.args, ("/admin/points/balances",))
+        self.login()
+        page = {"account_id": self.target, "balance": 7, "currency": "POINTS", "as_of": "2026-11-21T10:00:00Z",
+                "items": [{"id": str(uuid.uuid4()), "amount": 7, "kind": "award", "rule_version": "v1",
+                    "reason_code": "<script>unsafe</script>", "created_at": "2026-11-21T10:00:00Z", "reversal_review_state": "not_reversed"}], "next_cursor": None}
+        with patch("web.views._api", side_effect=[(200, self.account), (200, page)]):
+            response = self.client.get("/admin/points/", {"account": self.target})
+        self.assertContains(response, "Balance 7 POINTS")
+        self.assertContains(response, "&lt;script&gt;unsafe&lt;/script&gt;")
+        self.assertNotContains(response, 'method="post" action="/admin/points')
+        with patch("web.views._api", side_effect=[(200, self.account), (200, {**page, "account_id": str(uuid.uuid4())})]):
+            self.assertEqual(self.client.get("/admin/points/", {"account": self.target}).status_code, 503)

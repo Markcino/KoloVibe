@@ -33,7 +33,7 @@ class Command(BaseCommand):
                     if delivery.delivered_at is not None or delivery.next_attempt_at > timezone.now():
                         continue
                     event = delivery.event
-                    payload = {"id": str(event.id), "actor_id": None, "kind": event.kind,
+                    payload = {"id": str(event.id), "actor_id": str(event.actor_id) if event.actor_id else None, "kind": event.kind,
                                "occurred_at": event.occurred_at.isoformat(), "subject_type": event.subject_type,
                                "subject_id": str(event.subject_id)}
                     delivery.attempts += 1

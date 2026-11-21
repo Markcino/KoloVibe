@@ -92,7 +92,7 @@ class PolicyDefinitionTests(unittest.TestCase):
                          {r"/api/v1/moderation/(?:videos|reports|appeals)",
                           rf"/api/v1/moderation/(?:videos|reports|appeals)/{policy.UUID}/decisions",
                           rf"/api/v1/moderation/(?:videos|reports|appeals)/{policy.UUID}",
-                          rf"/api/v1/moderation/previews/{policy.UUID}", r"/api/v1/moderation/totals", r"/api/v1/engagement/fraud-holds", r"/api/v1/admin/audit"})
+                          rf"/api/v1/moderation/previews/{policy.UUID}", r"/api/v1/moderation/totals", r"/api/v1/engagement/fraud-holds", r"/api/v1/admin/audit", r"/api/v1/admin/points/balances", rf"/api/v1/admin/points/accounts/{policy.UUID}"})
 
 
 class RouteCoverageTests(unittest.TestCase):

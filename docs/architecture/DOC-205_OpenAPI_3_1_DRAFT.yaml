@@ -3793,6 +3793,214 @@ paths:
         '503':
           description: Service unavailable
 
+  /admin/points/balances:
+    get:
+      tags:
+      - Administration
+      summary: Read administrative non-cash points balances
+      operationId: get_admin_points_balances
+      x-implementation: local
+      x-capability: points
+      x-required-roles:
+      - administrator
+      x-mfa-required: true
+      parameters:
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: as_of
+        in: query
+        schema:
+          type: string
+          format: date-time
+      description: Points enforces administrator role and live MFA attested by Gateway.
+        Read-only immutable ledger projection with attributed audit evidence; no award/adjust/reverse/payout
+        path. Balance is SUM(delta) at the returned as_of snapshot, shared across pages.
+        Reversal review state describes retained ledger relationships, not an approval
+        or eligibility decision. No cash value.
+      responses:
+        '200':
+          description: Authorized points review
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - items
+                - next_cursor
+                - as_of
+                properties:
+                  items:
+                    type: array
+                    maxItems: 20
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - account_id
+                      - balance
+                      - currency
+                      properties:
+                        account_id:
+                          type: string
+                          format: uuid
+                        balance:
+                          type: integer
+                        currency:
+                          type: string
+                          enum:
+                          - POINTS
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                    format: uuid
+                  as_of:
+                    type: string
+                    format: date-time
+        '400':
+          description: Invalid query or cross-account cursor
+        '401':
+          description: Sign in required
+        '403':
+          description: Administrator or MFA required
+        '404':
+          description: No ledger for resource
+        '503':
+          description: Service unavailable
+  /admin/points/accounts/{account_id}:
+    get:
+      tags:
+      - Administration
+      summary: Read administrative non-cash points history
+      operationId: get_admin_points_account
+      x-implementation: local
+      x-capability: points
+      x-required-roles:
+      - administrator
+      x-mfa-required: true
+      parameters:
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: as_of
+        in: query
+        schema:
+          type: string
+          format: date-time
+      - name: account_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - all
+          - awards
+          - reversals
+          - adjustments
+      description: Points enforces administrator role and live MFA attested by Gateway.
+        Read-only immutable ledger projection with attributed audit evidence; no award/adjust/reverse/payout
+        path. Balance is SUM(delta) at the returned as_of snapshot, shared across pages.
+        Reversal review state describes retained ledger relationships, not an approval
+        or eligibility decision. No cash value.
+      responses:
+        '200':
+          description: Authorized points review
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - items
+                - next_cursor
+                - as_of
+                - account_id
+                - balance
+                - currency
+                properties:
+                  items:
+                    type: array
+                    maxItems: 20
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - id
+                      - amount
+                      - kind
+                      - rule_version
+                      - reason_code
+                      - created_at
+                      - reversal_review_state
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        amount:
+                          type: integer
+                          not:
+                            const: 0
+                        kind:
+                          type: string
+                          enum:
+                          - award
+                          - reversal
+                          - adjustment
+                        rule_version:
+                          type: string
+                          maxLength: 32
+                        reason_code:
+                          type: string
+                          maxLength: 64
+                        created_at:
+                          type: string
+                          format: date-time
+                        reversal_review_state:
+                          type: string
+                          enum:
+                          - reversed
+                          - not_reversed
+                          - reversal
+                          - not_applicable
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                    format: uuid
+                  as_of:
+                    type: string
+                    format: date-time
+                  account_id:
+                    type: string
+                    format: uuid
+                  balance:
+                    type: integer
+                  currency:
+                    type: string
+                    enum:
+                    - POINTS
+        '400':
+          description: Invalid query or cross-account cursor
+        '401':
+          description: Sign in required
+        '403':
+          description: Administrator or MFA required
+        '404':
+          description: No ledger for resource
+        '503':
+          description: Service unavailable
+
 components:
   securitySchemes:
     bearerAuth:
