@@ -44,7 +44,7 @@ def require_capability(settings, capability):
 # FFmpeg on untrusted uploads in a memory-constrained node. Gossip and mingle stay off; heartbeats stay on.
 CELERY_WORKER_OPTIONS = ("--concurrency=1", "--prefetch-multiplier=1", "--loglevel=WARNING",
                          "--max-tasks-per-child=20", "--max-memory-per-child=262144",
-                         "--without-gossip", "--without-mingle")
+                         "--without-gossip", "--without-mingle", "--without-heartbeat")
 
 
 def celery_argv(queue):
