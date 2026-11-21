@@ -13,7 +13,8 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .internal_client import signed_internal_request
-from .models import Appeal, ModerationAction, Report, ModeratorAssignment
+from .models import (Appeal, ModerationAction, Report, ModeratorAssignment, CopyrightNotice,
+                     CopyrightStrike, CounterNotice)
 from .security_audit import record as audit_record
 
 
@@ -27,6 +28,9 @@ DECISIONS = {
     "appeal_decision": {"deny", "restore"},
 }
 FIELDS = {
+    "copyright_report": {"video_id", "work_reference", "details", "authority_attested", "key"},
+    "counter_notice": {"video_id", "creator_id", "reason", "accuracy_attested", "key"},
+    "copyright_status": {"creator_id"},
     "report": {"video_id", "reason", "details", "key"},
     "appeal": {"video_id", "creator_id", "reason"},
     "review_queue": {"cursor"}, "reports": {"cursor"}, "appeals": {"cursor"},
@@ -67,9 +71,9 @@ def _content(operation, payload):
                         or data["id"] != payload["video_id"] or type(data["preview_available"]) is not bool
                         or not isinstance(data["title"], str) or not 1 <= len(data["title"]) <= 160
                         or not isinstance(data["description"], str) or len(data["description"]) > 2000
-                        or data["rights_status"] not in RIGHTS_STATUSES):
+                        or data["rights_status"] not in {"attested", "flagged", "claimed", "removed", "restored"}):
                     raise ValueError("Invalid reviewer metadata")
-            elif operation == "apply" and (set(data) != {"applied"} or data["applied"] is not True):
+            elif operation in {"apply", "rights"} and (set(data) != {"applied"} or data["applied"] is not True):
                 raise ValueError("Invalid moderation receipt")
             return data
     except HTTPError as error:
@@ -129,6 +133,8 @@ def _report(actor, data):
                 })
                 if created:
                     audit_record("moderation.report_created", actor, "report", report.id)
+                    if data.get("work_reference"):
+                        CopyrightNotice.objects.create(report=report, work_reference=data["work_reference"])
         except IntegrityError:
             if Report.objects.filter(video_id=video_id, reporter_id=actor, status="open").exists():
                 return JsonResponse({"detail": "An open report already exists", "code": "already_reported"}, status=409)
@@ -137,10 +143,21 @@ def _report(actor, data):
         created = False
     if (report.video_id, report.reason, report.details) != (video_id, reason, details):
         return _error("Idempotency key already used", 409)
+    if data.get("work_reference"):
+        notice = CopyrightNotice.objects.filter(report=report).first()
+        if notice is None or notice.work_reference != data["work_reference"]:
+            return _error("Idempotency key already used", 409)
+    if reason == "copyright":
+        # Durable report precedes remote delivery; a lost response is recoverable with the same key.
+        applied = _content("rights", {"video_id": str(video_id), "command_id": str(report.id),
+            "report_id": str(report.id), "event": "claim", "actor_id": str(actor),
+            "reason": details or "Copyright allegation submitted for review"})
+        if applied is None:
+            raise ContentUnavailable
     return JsonResponse(_report_data(report), status=201 if created else 200)
 
 
-def _appeal(actor, data):
+def _appeal(actor, data, *, copyright_only=False):
     video_id, creator_id, reason = UUID(data["video_id"]), UUID(data["creator_id"]), _text(data["reason"])
     snapshot = _content("inspect", {"video_id": str(video_id)})
     if snapshot is None or UUID(snapshot["creator_id"]) != creator_id:
@@ -152,6 +169,8 @@ def _appeal(actor, data):
     ).first()
     if removal is None:
         return _error("Video has no current removal to appeal", 409)
+    if copyright_only and not removal.copyright:
+        return _error("No copyright takedown to contest", 409)
     with transaction.atomic():
         appeal, created = Appeal.objects.get_or_create(removal=removal, defaults={"appellant_id": actor, "reason": reason})
         if created:
@@ -278,6 +297,8 @@ def _reserve(operation, actor, data, role):
             "video_id": video_id, "reviewer_id": actor, "action": action, "reason": reason,
             "revision": revision, "report": report, "appeal": appeal,
             "creator_id": creator_id, "reason_code": reason_code, "owner_lookup_completed": creator_id is not None,
+            "copyright": bool(report and report.reason == "copyright" or appeal and appeal.removal.copyright
+                              or reason_code == "COPYRIGHT_TAKEDOWN"),
         })
         if not created and ((record.video_id, record.action, record.reason, record.report_id, record.appeal_id) != (
             video_id, action, reason, report.id if report else None, appeal.id if appeal else None,
@@ -303,10 +324,15 @@ def _decide(operation, actor, data, role):
 def _complete(record, actor):
     if record.status == "pending":
         applied = record.action in ("dismiss", "deny")
-        if not applied:
+        if record.action == "dismiss" and record.copyright:
+            applied = _content("rights", {"video_id": str(record.video_id), "command_id": str(record.id),
+                "report_id": str(record.report_id), "event": "dismiss", "actor_id": str(actor), "reason": record.reason}) is not None
+        if not applied and record.action not in {"dismiss", "deny"}:
             applied = _content("apply", {
                 "video_id": str(record.video_id), "action_id": str(record.id),
                 "action": record.action, "revision": record.revision,
+                **({"copyright": True, "actor_id": str(actor), "reason": record.reason,
+                    "report_id": str(record.report_id or record.appeal.removal.report_id) if record.report_id or record.appeal_id and record.appeal.removal.report_id else None} if record.copyright else {}),
             }) is not None
         with transaction.atomic():
             record = ModerationAction.objects.select_for_update().get(pk=record.id)
@@ -324,6 +350,10 @@ def _complete(record, actor):
                     Appeal.objects.filter(pk=record.appeal_id).update(
                         status="denied" if record.action == "deny" else "restored",
                     )
+                if applied and record.copyright and record.action == "remove":
+                    CopyrightStrike.objects.get_or_create(removal=record, defaults={"creator_id": record.creator_id})
+                if applied and record.copyright and record.action == "restore" and record.appeal_id:
+                    CopyrightStrike.objects.filter(removal_id=record.appeal.removal_id, reversed_by__isnull=True).update(reversed_by=record)
     if record.status != "applied":
         return _error("Video state changed before decision was applied", 409)
     return JsonResponse({"id": str(record.id), "video_id": str(record.video_id),
@@ -410,8 +440,8 @@ def moderation_workflow(request, operation):
         if (not isinstance(role, str) or expected is None or not isinstance(data, dict)
                 or not expected <= set(data) or set(data) - expected - ({"reason_code"} if operation in DECISIONS else {"status"} if operation in {"review_queue", "reports", "appeals"} else set())):
             raise ValueError("Invalid moderation operation")
-        allowed = ({"creator"} if operation == "notice" else VIEWERS | REVIEWERS if operation == "standing" else VIEWERS if operation in ("appeal", "own_appeals", "own_appeal") else
-                   VIEWERS | REVIEWERS if operation in ("report", "own_reports", "own_report") else REVIEWERS)
+        allowed = ({"creator"} if operation in {"notice", "copyright_status", "counter_notice"} else VIEWERS | REVIEWERS if operation == "standing" else VIEWERS if operation in ("appeal", "own_appeals", "own_appeal") else
+                   VIEWERS | REVIEWERS if operation in ("report", "copyright_report", "own_reports", "own_report") else REVIEWERS)
         if role not in allowed:
             return _error("Forbidden", 403)
         if operation in DECISIONS or operation in {"review_queue", "reports", "appeals", "video_detail", "report_detail", "appeal_detail", "preview", "totals", "fraud_scope"}:
@@ -431,6 +461,9 @@ def moderation_workflow(request, operation):
             return _standing(actor, data)
         if operation == "report":
             return _report(actor, data)
+        if operation in {"copyright_report", "counter_notice", "copyright_status"}:
+            from .copyright import dispatch
+            return dispatch(operation, actor, data)
         if operation == "appeal":
             return _appeal(actor, data)
         if operation.startswith("own_"):

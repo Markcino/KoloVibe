@@ -94,7 +94,7 @@ class ModerationContentTests(TestCase):
             self.assertEqual(response.status_code, 200)
             self.assertNotIn(self.video.provider_asset_id.encode(), response.content)
             if operation == "detail":
-                self.assertEqual(json.loads(response.content)["rights_status"], "not_recorded")
+                self.assertEqual(json.loads(response.content)["rights_status"], "flagged")
 
 
     def test_status_counts_match_filtered_records(self):

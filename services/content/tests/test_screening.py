@@ -54,7 +54,7 @@ class DecisionTests(TestCase):
     def test_duplicates_and_explicit_content_are_hidden_for_human_review(self):
         for finding in (Finding("pdq", DUPLICATE, 0.9), Finding("nsfw", NSFW, 0.95)):
             decision = self.decide(finding)
-            self.assertEqual((decision.action, decision.rights_status), (screening.HIDE, "hidden"))
+            self.assertEqual((decision.action, decision.rights_status), (screening.HIDE, "flagged"))
 
     def test_uncertain_scores_and_provider_errors_fail_closed(self):
         for finding in (Finding("nsfw", NSFW, 0.6), Finding("pdq", DUPLICATE, 0.6),
@@ -65,7 +65,7 @@ class DecisionTests(TestCase):
     def test_music_matches_mute_merged_segments_unless_they_dominate(self):
         decision = self.decide(Finding("chromaprint", MUSIC, 0.9, segments=((1000, 5000), (4000, 9000))),
                                Finding("music_id", MUSIC, 1.0, segments=((20_000, 25_000),)))
-        self.assertEqual((decision.action, decision.rights_status), (screening.MUTE, "muted"))
+        self.assertEqual((decision.action, decision.rights_status), (screening.MUTE, "flagged"))
         self.assertEqual(decision.mute_segments, ((1000, 9000), (20_000, 25_000)))
         self.assertEqual(self.decide(Finding("music_id", MUSIC, 1.0, segments=((0, 55_000),))).action, screening.HIDE)
 
@@ -96,11 +96,23 @@ class DecisionTests(TestCase):
 @patch("service.media_storage.download_upload")
 class WorkerScreeningTests(TestCase):
     def setUp(self):
+        self.analysis = self.enterContext(patch("service.copyright.analyze", return_value={"sha256": "a"*64, "fingerprint": "", "audio": "clear"}))
+        self.review_policy = {"trusted": True, "sample_percent": 0, "policy_version": "fixture-approved-v1"}
         self.video = Video.objects.create(creator_id=uuid4(), title="Original", state=Video.State.PROCESSING)
         MediaUpload.objects.create(id=uuid4(), video=self.video, expected_bytes=10,
                                    expires_at=timezone.now(), source_etag='"object"')
 
+    def prepare_reservation(self):
+        from datetime import timedelta
+        from service.models import OriginalityAttestation
+        upload_id = uuid4()
+        MediaUpload.objects.filter(video=self.video).update(id=upload_id, lease_until=None,
+            expires_at=timezone.now() + timedelta(minutes=5))
+        OriginalityAttestation.objects.create(upload_id=upload_id, video=self.video, account_id=uuid4(),
+            version="R1-originality-v1", review_policy=self.review_policy)
+
     def run_worker(self, *screeners):
+        self.prepare_reservation()
         with patch("service.screening.providers", return_value=list(screeners)):
             process(self.video.id)
         self.video.refresh_from_db()
@@ -111,7 +123,7 @@ class WorkerScreeningTests(TestCase):
                          ("published", "private", "automated"))
         self.assertEqual(self.video.rights_status, "attested")
         self.assertIsNotNone(self.video.moderation_approved_at)
-        self.assertEqual(list(ScreeningRecord.objects.values_list("provider", "action")), [("decision", "publish")])
+        self.assertEqual(list(ScreeningRecord.objects.values_list("provider", "action")), [("decision", "publish"), ("copyright_gate", "publish")])
         self.assertEqual(Fingerprint.objects.filter(video=self.video, blocked=False).count(), 1)
 
     def test_music_match_is_muted_before_the_playback_is_stored(self, download, encode, put, poster, render):
@@ -120,7 +132,7 @@ class WorkerScreeningTests(TestCase):
             self.run_worker(Fake("chromaprint", finding))
         self.assertEqual(mute.call_args.args[2:], (((2000, 6000),), 20_000))
         self.assertEqual(put.call_args.args[1].name, "muted.mp4")
-        self.assertEqual((self.video.state, self.video.rights_status), ("published", "muted"))
+        self.assertEqual((self.video.state, self.video.rights_status), ("review", "flagged"))
         record = ScreeningRecord.objects.get(provider="chromaprint")
         self.assertEqual((record.score, record.segments), (0.9, [[2000, 6000]]))
 
@@ -134,7 +146,7 @@ class WorkerScreeningTests(TestCase):
 
     def test_matches_provider_failures_and_bad_configuration_never_auto_publish(self, download, encode, put, poster, render):
         self.run_worker(Fake("nsfw", Finding("nsfw", NSFW, 0.99)))
-        self.assertEqual((self.video.state, self.video.rights_status), ("review", "hidden"))
+        self.assertEqual((self.video.state, self.video.rights_status), ("review", "flagged"))
         for screeners in ((Fake("pdq", error=True),), ()):
             Video.objects.filter(pk=self.video.pk).update(state="processing")
             MediaUpload.objects.filter(video=self.video).update(lease_until=None)
@@ -142,6 +154,7 @@ class WorkerScreeningTests(TestCase):
             self.assertEqual((self.video.state, self.video.rights_status), ("review", "flagged"))
         Video.objects.filter(pk=self.video.pk).update(state="processing")
         MediaUpload.objects.filter(video=self.video).update(lease_until=None)
+        self.prepare_reservation()
         with patch.dict(os.environ, {"KOLOVIBE_SCREEN_MUSIC_MUTE": "bad"}):
             process(self.video.id)
         self.video.refresh_from_db()
@@ -149,10 +162,11 @@ class WorkerScreeningTests(TestCase):
         self.assertEqual(ScreeningRecord.objects.filter(reason="no_screeners").count(), 2)
 
     def test_screening_is_off_by_default_and_keeps_human_review(self, download, encode, put, poster, render):
+        self.review_policy = {"trusted": False, "sample_percent": 100, "policy_version": None}
         with patch.dict(os.environ, {"KOLOVIBE_AUTO_SCREENING": "0"}):
             self.run_worker(Fake("pdq"))
-        self.assertEqual((self.video.state, self.video.rights_status), ("review", "not_recorded"))
-        self.assertFalse(ScreeningRecord.objects.exists())
+        self.assertEqual((self.video.state, self.video.rights_status), ("review", "attested"))
+        self.assertEqual(list(ScreeningRecord.objects.values_list("provider", "action")), [("copyright_gate", "review")])
 
 
 class ProviderTests(TestCase):

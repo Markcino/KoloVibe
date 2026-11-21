@@ -136,13 +136,13 @@ def decide(findings, duration_ms, config, rng=random.SystemRandom()):
     if sum(end - start for start, end in muted) > config.max_mute_ratio * duration_ms:
         hide = hide or "music_dominant"
     if hide:
-        return Decision(HIDE, "hidden", hide)
+        return Decision(HIDE, "flagged", hide)
     if review:
         return Decision(REVIEW, "flagged", review, muted)
     if config.sample_rate and rng.random() < config.sample_rate:
-        return Decision(REVIEW, "muted" if muted else "attested", "sampled", muted)
+        return Decision(REVIEW, "flagged" if muted else "attested", "sampled", muted)
     if muted:
-        return Decision(MUTE, "muted", "music_match", muted)
+        return Decision(MUTE, "flagged", "music_match", muted)
     return Decision(PUBLISH, "attested", "clean")
 
 

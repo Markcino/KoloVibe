@@ -186,7 +186,13 @@ void main() {
       }
       if (request.url.path.endsWith('/upload-intents')) {
         expect(request.headers['Idempotency-Key'], key);
-        expect(jsonDecode(request.body), {'size_bytes': 12});
+        expect(jsonDecode(request.body), {
+          'size_bytes': 12,
+          'originality_attestation': {
+            'version': 'R1-originality-v1',
+            'accepted': true
+          }
+        });
         return http.Response(
             jsonEncode({
               'video_id': videoId,
@@ -232,7 +238,8 @@ void main() {
         category: 'culture',
         tags: [' #Monrovia', 'ART', 'art'],
         idempotencyKey: key);
-    final intent = await repository.reserveUpload(draft, 12, key);
+    final intent = await repository.reserveUpload(draft, 12, key,
+        originalityAccepted: true);
     await repository.uploadToProvider(intent,
         Stream.value([0, 0, 0, 12, 0x66, 0x74, 0x79, 0x70, 0, 0, 0, 0]), 12);
     expect((await repository.completeUpload(draft.id)).state, 'processing');

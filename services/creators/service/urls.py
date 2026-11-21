@@ -20,3 +20,4 @@ elif "media" in getattr(settings, "STAGING_CAPABILITIES", frozenset()):
     # (never taken from the URL), so no other onboarding operation is reachable without the onboarding flag.
     urlpatterns.append(path("internal/creators/onboarding/eligibility", eligibility, name="internal-eligibility"))
     urlpatterns.append(path("internal/creators/onboarding/ownership", ownership, name="internal-ownership"))
+    urlpatterns.append(path("internal/creators/onboarding/review_policy", lambda request: onboarding(request, "review_policy")))

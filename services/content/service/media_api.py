@@ -13,7 +13,8 @@ from django.views.decorators.http import require_POST
 from kombu.exceptions import KombuError
 
 from . import media_storage as storage
-from .models import MediaUpload, Video
+from .models import MediaUpload, Video, OriginalityAttestation
+from .copyright import ATTESTATION_VERSION, audit
 from .video_metadata import FIELDS, item, metadata
 
 
@@ -33,6 +34,16 @@ def _draft(creator_id, data):
 
 def _intent(video_id, creator_id, data):
     size, key = data["size_bytes"], data["idempotency_key"]
+    actor = UUID(data["account_id"])
+    attestation, policy = data["originality_attestation"], data["review_policy"]
+    if (attestation != {"version": ATTESTATION_VERSION, "accepted": True}
+            or not isinstance(attestation, dict) or attestation.get("accepted") is not True
+            or not isinstance(policy, dict) or set(policy) != {"trusted", "sample_percent", "policy_version"}
+            or type(policy["trusted"]) is not bool or type(policy["sample_percent"]) is not int
+            or not 0 <= policy["sample_percent"] <= 100
+            or (policy["trusted"] and (not isinstance(policy["policy_version"], str) or not 1 <= len(policy["policy_version"]) <= 32))
+            or (not policy["trusted"] and (policy["sample_percent"] != 100 or policy["policy_version"] is not None))):
+        raise ValueError("Originality attestation and verified policy required")
     if (type(size) is not int or not 0 < size <= storage.MAX_BYTES
             or not isinstance(key, str) or not re.fullmatch(r"[A-Za-z0-9_-]{16,128}", key)):
         raise ValueError("Invalid upload intent")
@@ -61,11 +72,19 @@ def _intent(video_id, creator_id, data):
                 id=upload_id, video=video, expected_bytes=size, expires_at=timezone.now() + UPLOAD_LIFETIME,
             )
         video.state = Video.State.UPLOADING
+        evidence, created = OriginalityAttestation.objects.get_or_create(upload_id=upload_id, defaults={
+            "video": video, "account_id": actor, "version": ATTESTATION_VERSION, "review_policy": policy})
+        if (evidence.video_id, evidence.account_id, evidence.version) != (video.id, actor, ATTESTATION_VERSION):
+            return _error("Attestation conflicts with reservation", 409)
+        if created:
+            audit(video, "originality_attested", "Creator accepted originality and permission attestation",
+                  actor=actor, payload={"version": ATTESTATION_VERSION, "upload_id": str(upload_id)})
+        video.rights_status = Video.RightsStatus.ATTESTED
         video.failure_reason = None
         video.provider_asset_id = video.poster_asset_id = None
         video.duration_ms = video.duration_seconds = None
         video.save(update_fields=["state", "failure_reason", "provider_asset_id", "poster_asset_id",
-                                  "duration_ms", "duration_seconds"])
+                                  "duration_ms", "duration_seconds", "rights_status"])
     seconds = int((upload.expires_at - timezone.now()).total_seconds())
     if seconds <= 0:
         return _error("Upload reservation expired", 409)
@@ -242,7 +261,7 @@ def media_api(request, operation):
             "edit": {"creator_id", "video_id"},
             "delete": {"creator_id", "video_id"},
             "publish": {"creator_id", "video_id"}, "unpublish": {"creator_id", "video_id"},
-            "intent": {"creator_id", "video_id", "idempotency_key", "size_bytes"},
+            "intent": {"creator_id", "video_id", "idempotency_key", "size_bytes", "account_id", "originality_attestation", "review_policy"},
             "complete": {"creator_id", "video_id"}, "status": {"creator_id", "video_id"},
             "playback": {"video_id"}, "watch": {"video_id"}, "watch-check": {"video_id"},
         }

@@ -51,3 +51,17 @@ class CreatorApplication(models.Model):
 
     class Meta:
         indexes = [models.Index(fields=["status", "account_id"], name="creator_app_queue_idx")]
+
+
+class CopyrightReviewPolicy(models.Model):
+    """Explicit trust grant; invitation/creator eligibility alone never confers trust."""
+    creator = models.OneToOneField(CreatorProfile, primary_key=True, on_delete=models.PROTECT)
+    active = models.BooleanField(default=False)
+    sample_percent = models.PositiveSmallIntegerField(default=100)
+    version = models.CharField(max_length=32)
+    approved_by = models.UUIDField()
+    approved_at = models.DateTimeField()
+    reason = models.TextField(max_length=2000)
+
+    class Meta:
+        constraints = [models.CheckConstraint(condition=Q(sample_percent__lte=100), name="copyright_sample_percent")]

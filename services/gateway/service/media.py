@@ -11,7 +11,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
 
 from .accounts import current_account
-from .creator_onboarding import authenticated_actor, creator_eligibility, creator_ownership
+from .creator_onboarding import authenticated_actor, creator_eligibility, creator_ownership, _forward as creator_forward
 from .internal_client import signed_internal_request
 from .videos import list_videos, video_detail
 from .video_validation import (FAILURES, LIBRARY_STATES, checked_metadata, safe_url as _safe_url,
@@ -244,16 +244,27 @@ def issue_video_upload(request, video_id):
         return error
     key = request.headers.get("Idempotency-Key", "")
     try:
-        if request.GET or len(request.body) > 128 or not re.fullmatch(r"[A-Za-z0-9_-]{16,128}", key):
+        if request.GET or len(request.body) > 512 or not re.fullmatch(r"[A-Za-z0-9_-]{16,128}", key):
             raise ValueError("Invalid upload intent")
         data = json.loads(request.body)
-        if (not isinstance(data, dict) or set(data) != {"size_bytes"}
+        if (not isinstance(data, dict) or set(data) != {"size_bytes", "originality_attestation"}
+                or data["originality_attestation"] != {"version": "R1-originality-v1", "accepted": True}
+                or data["originality_attestation"].get("accepted") is not True
                 or type(data["size_bytes"]) is not int or not 0 < data["size_bytes"] <= 50 * 1024 * 1024):
             raise ValueError("Invalid upload size")
     except (ValueError, TypeError):
         return _error("Valid upload size and Idempotency-Key required", 400)
-    return forward_media("intent", {"creator_id": creator_id, "video_id": str(video_id),
-                               "idempotency_key": key, "size_bytes": data["size_bytes"]}, (200,))
+    actor = authenticated_actor(request, require_verified_email=True)
+    if isinstance(actor, JsonResponse):
+        return actor
+    response = creator_forward("review_policy", *actor, {})
+    if response.status_code != 200:
+        return response
+    policy = json.loads(response.content)
+    if policy["account_id"] != actor[0] or policy["creator_id"] != creator_id:
+        return _error("Creator policy unavailable", 503)
+    return forward_media("intent", {"creator_id": creator_id, "video_id": str(video_id), "account_id": actor[0],
+        "idempotency_key": key, **data, "review_policy": {name: policy[name] for name in ("trusted", "sample_percent", "policy_version")}}, (200,))
 
 
 @never_cache

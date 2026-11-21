@@ -31,6 +31,7 @@ class ModerationAction(models.Model):
     action = models.CharField(max_length=16)
     reason = models.TextField(max_length=2000)
     reason_code = models.CharField(max_length=64, null=True)
+    copyright = models.BooleanField(default=False, db_default=False)
     creator_id = models.UUIDField(null=True, db_index=True)
     owner_lookup_completed = models.BooleanField(default=False)
     revision = models.PositiveIntegerField(null=True)
@@ -101,3 +102,24 @@ class ReviewerPreview(models.Model):
     target_id = models.UUIDField()
     video_id = models.UUIDField()
     expires_at = models.DateTimeField(db_index=True)
+
+
+class CopyrightNotice(models.Model):
+    report = models.OneToOneField(Report, primary_key=True, on_delete=models.PROTECT)
+    work_reference = models.CharField(max_length=500)
+    version = models.CharField(max_length=32, default="R1-copyright-intake-v1")
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
+
+class CounterNotice(models.Model):
+    appeal = models.OneToOneField(Appeal, primary_key=True, on_delete=models.PROTECT)
+    request_id = models.UUIDField(unique=True)
+    account_id = models.UUIDField()
+    version = models.CharField(max_length=32, default="R1-counter-notice-v1")
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
+
+class CopyrightStrike(models.Model):
+    removal = models.OneToOneField(ModerationAction, primary_key=True, on_delete=models.PROTECT)
+    creator_id = models.UUIDField(db_index=True)
+    reversed_by = models.OneToOneField(ModerationAction, null=True, on_delete=models.PROTECT, related_name="reversed_copyright_strike")

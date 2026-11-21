@@ -74,7 +74,11 @@ class FakeContent extends LiveContentRepository {
 
   @override
   Future<UploadIntent> reserveUpload(
-      OwnedVideo video, int sizeBytes, String idempotencyKey) async {
+      OwnedVideo video, int sizeBytes, String idempotencyKey,
+      {required bool originalityAccepted}) async {
+    if (!originalityAccepted) {
+      throw const FormatException("Attestation required");
+    }
     events.add('reserve');
     uploadKeys.add(idempotencyKey);
     if (reserveError != null) {

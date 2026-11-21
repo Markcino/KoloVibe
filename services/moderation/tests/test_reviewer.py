@@ -13,7 +13,7 @@ class ReviewerTests(TestCase):
         self.actor, self.other, self.video = uuid4(), uuid4(), uuid4()
         self.grant = ModeratorAssignment.objects.create(moderator_id=self.actor, queue_scope="videos", target_id=self.video)
         self.metadata = {"id": str(self.video), "title": "<script>title</script>", "description": "Private description",
-                         "state": "review", "duration_seconds": 20, "rights_status": "not_recorded", "preview_available": True}
+                         "state": "review", "duration_seconds": 20, "rights_status": "flagged", "preview_available": True}
 
     def call(self, operation, data, actor=None, role="moderator", mfa=True):
         request = RequestFactory().post("/internal/moderation/" + operation, {
@@ -29,7 +29,7 @@ class ReviewerTests(TestCase):
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content)
         self.assertEqual(data["reports"], [])
-        self.assertEqual(data["video"]["rights_status"], "not_recorded")
+        self.assertEqual(data["video"]["rights_status"], "flagged")
         self.assertEqual(data["preview"]["url"], "/api/v1/moderation/previews/" + data["preview"]["id"])
         self.assertNotIn(b"playback/", response.content)
         self.assertTrue(AuditEvent.objects.filter(kind="moderation.reviewer_read", actor_id=self.actor).exists())

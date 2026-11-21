@@ -4,9 +4,17 @@ import uuid
 
 from django.db import models
 from django.db.models import Q
+from django.utils import timezone
 
 
 class Video(models.Model):
+    class RightsStatus(models.TextChoices):
+        ATTESTED = "attested", "Attested"
+        FLAGGED = "flagged", "Flagged"
+        CLAIMED = "claimed", "Claimed"
+        REMOVED = "removed", "Removed"
+        RESTORED = "restored", "Restored"
+
     class Category(models.TextChoices):
         HIPCO = "hipco", "Hipco"
         AFROBEATS = "afrobeats", "Afrobeats"
@@ -26,15 +34,6 @@ class Video(models.Model):
         REJECTED = "rejected", "Rejected"
         REMOVED = "removed", "Removed"
 
-    class RightsStatus(models.TextChoices):
-        NOT_RECORDED = "not_recorded", "Not recorded"
-        ATTESTED = "attested", "Attested and screened"
-        FLAGGED = "flagged", "Flagged for review"
-        MUTED = "muted", "Audio muted"
-        HIDDEN = "hidden", "Hidden pending review"
-        REMOVED = "removed", "Removed"
-        RESTORED = "restored", "Restored"
-
     class Visibility(models.TextChoices):
         PRIVATE = "private", "Private"
         PUBLIC = "public", "Public"
@@ -42,6 +41,8 @@ class Video(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     creator_id = models.UUIDField()
+    # Legacy records have no per-upload attestation; never invent one in a backfill.
+    rights_status = models.CharField(max_length=16, choices=RightsStatus.choices, default=RightsStatus.FLAGGED, db_default=RightsStatus.FLAGGED)
     title = models.CharField(max_length=160)
     description = models.TextField(blank=True, max_length=2000)
     category = models.CharField(max_length=16, choices=Category.choices, null=True, blank=True)
@@ -56,8 +57,6 @@ class Video(models.Model):
     moderation_revision = models.PositiveIntegerField(default=0, db_default=0)
     moderation_approved_at = models.DateTimeField(null=True, blank=True)
     approval_source = models.CharField(max_length=16, default="human", db_default="human")
-    rights_status = models.CharField(max_length=16, choices=RightsStatus.choices,
-                                     default="not_recorded", db_default="not_recorded")
     duration_seconds = models.PositiveIntegerField(null=True, blank=True)
     duration_ms = models.PositiveIntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -66,6 +65,7 @@ class Video(models.Model):
     class Meta:
         indexes = [models.Index(fields=["-created_at", "-id"])]
         constraints = [
+            models.CheckConstraint(condition=Q(rights_status__in=["attested", "flagged", "claimed", "removed", "restored"]), name="video_rights_state"),
             models.CheckConstraint(
                 condition=Q(cover_time_ms__isnull=True) | Q(duration_ms__isnull=True)
                 | Q(cover_time_ms__lte=models.F("duration_ms")), name="cover_within_video_duration"),
@@ -102,6 +102,47 @@ class MediaUpload(models.Model):
     @property
     def source_key(self):
         return f"originals/{self.id}.mp4"
+
+
+class OriginalityAttestation(models.Model):
+    upload_id = models.UUIDField(primary_key=True)
+    video = models.ForeignKey(Video, on_delete=models.PROTECT)
+    account_id = models.UUIDField()
+    version = models.CharField(max_length=32)
+    accepted_at = models.DateTimeField(default=timezone.now)
+    review_policy = models.JSONField(default=dict)
+
+
+class SourceDigest(models.Model):
+    sha256 = models.CharField(max_length=64, primary_key=True)
+    first_video_id = models.UUIDField()
+
+
+class PrescreenResult(models.Model):
+    upload_id = models.UUIDField(primary_key=True)
+    video = models.ForeignKey(Video, on_delete=models.PROTECT)
+    source_sha256 = models.CharField(max_length=64)
+    fingerprint_sha256 = models.CharField(max_length=64, blank=True)
+    reasons = models.JSONField(default=list)
+    disposition = models.CharField(max_length=24)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class CopyrightClaimState(models.Model):
+    report_id = models.UUIDField(primary_key=True)
+    video = models.ForeignKey(Video, on_delete=models.PROTECT)
+    active = models.BooleanField(default=True)
+
+
+class RightsEvent(models.Model):
+    """Append-only local evidence; reasons stay private and never enter audit read projections."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    video_id = models.UUIDField()
+    actor_id = models.UUIDField(null=True)
+    event = models.CharField(max_length=32)
+    reason = models.TextField(max_length=2000)
+    occurred_at = models.DateTimeField(auto_now_add=True)
+    payload = models.JSONField(default=dict)
 
 
 class Fingerprint(models.Model):

@@ -107,7 +107,9 @@ class R2MediaTests(TestCase):
     @patch("service.media_storage.sign_upload", return_value="https://example.invalid/upload")
     def test_upload_confirmation_retries_same_reservation(self, sign, inspect, enqueue):
         payload = {"video_id": str(self.video.id), "creator_id": str(self.creator)}
-        intent = payload | {"size_bytes": 1234, "idempotency_key": "local-test-media-001"}
+        intent = payload | {"size_bytes": 1234, "idempotency_key": "local-test-media-001",
+            "account_id": str(uuid4()), "originality_attestation": {"version": "R1-originality-v1", "accepted": True},
+            "review_policy": {"trusted": False, "sample_percent": 100, "policy_version": None}}
         first = self.call("intent", intent)
         second = self.call("intent", intent)
         self.assertEqual(first.status_code, 200)
@@ -139,6 +141,7 @@ class R2MediaTests(TestCase):
         self.video.save(update_fields=["state"])
         reservation = MediaUpload.objects.create(id=uuid4(), video=self.video, expected_bytes=10,
                                                  expires_at=timezone.now(), source_etag='"object"')
+        download.side_effect = lambda key, etag, size, destination: destination.write_bytes(b"synthetic media")
         encode.return_value = 1900
         process(self.video.id)
         process(self.video.id)
@@ -167,6 +170,7 @@ class R2MediaTests(TestCase):
     @patch("service.media_encoding.encode", side_effect=media_encoding.InvalidMedia)
     @patch("service.media_storage.download_upload")
     def test_invalid_media_is_failed_without_a_playback_key(self, download, encode):
+        download.side_effect = lambda key, etag, size, destination: destination.write_bytes(b"invalid media")
         self.video.state = Video.State.PROCESSING
         self.video.save(update_fields=["state"])
         MediaUpload.objects.create(id=uuid4(), video=self.video, expected_bytes=10,

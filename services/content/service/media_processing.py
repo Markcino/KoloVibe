@@ -9,7 +9,7 @@ from django.db import DatabaseError, transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from . import media_encoding, media_storage, screening
+from . import media_encoding, media_storage, screening, copyright
 from .models import Fingerprint, MediaUpload, ScreeningRecord, Video
 
 
@@ -54,7 +54,7 @@ def _record(video, outcome):
                                      for kind, value in outcome.fingerprints])
 
 
-def _finish(upload, token, state, *, key=None, duration=None, poster=None, failure=None, outcome=None):
+def _finish(upload, token, state, *, key=None, duration=None, poster=None, failure=None, outcome=None, screening_result=None):
     with transaction.atomic():
         video = Video.objects.select_for_update().filter(pk=upload.video_id, deleted_at__isnull=True).first()
         reservation = MediaUpload.objects.select_for_update().filter(pk=upload.pk).first()
@@ -69,16 +69,24 @@ def _finish(upload, token, state, *, key=None, duration=None, poster=None, failu
             video.poster_asset_id = poster
             fields = ["state", "provider_asset_id", "duration_seconds", "duration_ms", "poster_asset_id"]
             if outcome is not None:
-                video.rights_status = outcome.decision.rights_status
-                fields.append("rights_status")
-                if state == Video.State.PUBLISHED:
+                _record(video, outcome)
+            if screening_result is not None:
+                screening_result["safety_hold"] = outcome is not None and outcome.decision.action != screening.PUBLISH
+                automatic = copyright.route(video, reservation, screening_result)
+                if automatic:
+                    video.state = Video.State.PUBLISHED
+                    video.visibility = Video.Visibility.PRIVATE
                     video.moderation_approved_at = timezone.now()
                     video.approval_source = "automated"
-                    fields += ["moderation_approved_at", "approval_source"]
-                _record(video, outcome)
+                    copyright.audit(video, "automatically_approved", "Clean unsampled upload under explicit trusted creator policy")
+                else:
+                    video.state = Video.State.REVIEW
+                fields += ["state", "visibility", "moderation_approved_at", "approval_source", "rights_status"]
             video.save(update_fields=fields)
         video.failure_reason = failure
         video.save(update_fields=["failure_reason"])
+        if failure:
+            copyright.audit(video, "processing_failed", failure)
         reservation.lease_id = reservation.lease_until = None
         reservation.save(update_fields=["lease_id", "lease_until"])
 
@@ -118,6 +126,8 @@ def process(video_id):
             except media_encoding.InvalidMedia:
                 _finish(upload, token, Video.State.FAILED, failure="poster_failed")
                 return
+            media = screening.Media(upload.video_id, upload.video.creator_id, source, destination, duration, Path(directory))
+            screening_result = copyright.analyze(source, media=media)
             outcome = _screen(upload, source, destination, duration, directory)
             if outcome is not None and outcome.decision.mute_segments:
                 muted = Path(directory) / "muted.mp4"
@@ -138,6 +148,5 @@ def process(video_id):
         _finish(upload, token, None, failure="processing_unavailable")
         raise
     else:
-        approved = outcome is not None and outcome.decision.action in (screening.PUBLISH, screening.MUTE)
-        _finish(upload, token, Video.State.PUBLISHED if approved else Video.State.REVIEW,
-                key=key, duration=duration, poster=poster_key, outcome=outcome)
+        _finish(upload, token, Video.State.REVIEW,
+                key=key, duration=duration, poster=poster_key, outcome=outcome, screening_result=screening_result)

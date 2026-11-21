@@ -211,10 +211,10 @@ def verify():
                     raise RuntimeError(f"Disposable {service} readiness timed out")
                 time.sleep(0.1)
 
-        def api(path, *, data=None, token=None):
+        def api(path, *, data=None, token=None, key=None):
             status, raw = request(ports["gateway"], "/api/v1" + path,
                                   method="POST" if data is not None else "GET", data=data,
-                                  headers={"Authorization": "Bearer " + token} if token else None)
+                                  headers=({"Authorization": "Bearer " + token} if token else {}) | ({"Idempotency-Key": key} if key else {}))
             return status, json.loads(raw) if raw else None
 
         def fixture_connection(service):
@@ -224,9 +224,10 @@ def verify():
                 host="127.0.0.1", port=env["KOLOVIBE_DB_PORT"], password=Path(env["KOLOVIBE_DB_PASSWORD_FILE"]).read_text(),
                 sslmode="verify-full", sslrootcert=env["KOLOVIBE_DB_SSLROOTCERT"])
 
-        def privileged_fixture(role):
+        def privileged_fixture(role, suffix=""):
+            label = role + suffix
             import pyotp
-            body = {"email": "web-" + role + "@example.test", "display_name": "Privileged Fixture",
+            body = {"email": "web-" + label + "@example.test", "display_name": "Privileged Fixture",
                     "password": secrets.token_urlsafe(24)}
             if api("/auth/register", data=body)[0] != 201 or api("/auth/verify", data={
                     "email": body["email"], "code": mailed_code(base)})[0] != 200:
@@ -235,20 +236,20 @@ def verify():
                 actor = connection.execute("UPDATE identity.service_account SET role=%s WHERE email=%s RETURNING id",
                                            (role, body["email"])).fetchone()[0]
             factor = pyotp.random_base32()
-            secret_file(base / (role + "-factor"), factor)
-            secret_file(base / (role + "-code"), pyotp.TOTP(factor).now())
-            env = dict(environments["identity"], KOLOVIBE_ENROLLMENT_SECRET_FILE=str(base / (role + "-factor")),
-                       KOLOVIBE_ENROLLMENT_CODE_FILE=str(base / (role + "-code")))
+            secret_file(base / (label + "-factor"), factor)
+            secret_file(base / (label + "-code"), pyotp.TOTP(factor).now())
+            env = dict(environments["identity"], KOLOVIBE_ENROLLMENT_SECRET_FILE=str(base / (label + "-factor")),
+                       KOLOVIBE_ENROLLMENT_CODE_FILE=str(base / (label + "-code")))
             # Invoke the existing enrollment command, changing only the disposable process's settings.
             code = ("import os,sys,django;os.environ['DJANGO_SETTINGS_MODULE']='service.settings';django.setup();"
                     "from django.conf import settings;settings.STAGING_PRIVILEGED=True;"
                     "from django.core.management import call_command;"
                     "call_command('enroll_privileged_mfa', account_id=sys.argv[1], recovery_file=sys.argv[2], approval_reference='disposable-WEB-ADM-fixture')")
-            result = subprocess.run([sys.executable, "-c", code, str(actor), str(base / (role + "-recovery"))],
+            result = subprocess.run([sys.executable, "-c", code, str(actor), str(base / (label + "-recovery"))],
                 cwd=ROOT / "services/identity", env=env, capture_output=True, timeout=20)
             if result.returncode:
                 raise AssertionError("Disposable privileged enrollment failed")
-            return actor, body, (base / (role + "-recovery")).read_text().splitlines()[0]
+            return actor, body, (base / (label + "-recovery")).read_text().splitlines()[0]
 
         class Journeys(unittest.TestCase):
             def test_approved_viewer_role_reconciliation_and_studio(self):
@@ -300,6 +301,69 @@ def verify():
                 self.assertEqual(api("/creators/me", token=fresh["access_token"])[0], 403)
                 self.assertEqual(api("/creators/me/upload-eligibility", token=fresh["access_token"]),
                                  (200, {"upload_eligible": False, "creator_id": None}))
+
+            def test_copyright_intake_takedown_counter_notice_and_strike_reversal(self):
+                password = secrets.token_urlsafe(24)
+                email = "copyright-creator@example.test"
+                self.assertEqual(api("/auth/register", data={"email": email, "password": password, "display_name": "Copyright Fixture"})[0], 201)
+                self.assertEqual(api("/auth/verify", data={"email": email, "code": mailed_code(base)})[0], 200)
+                with fixture_connection("identity") as connection:
+                    owner = connection.execute("UPDATE identity.service_account SET role='creator' WHERE email=%s RETURNING id", (email,)).fetchone()[0]
+                creator, video = uuid.uuid4(), uuid.uuid4()
+                with fixture_connection("creators") as connection:
+                    connection.execute("INSERT INTO creators.service_creatorprofile (id,user_id,handle,bio,status,reviewed_at,created_at,display_name,location) VALUES (%s,%s,'copyright_fixture','','active',now(),now(),'Copyright Fixture','')", (creator, owner))
+                with fixture_connection("content") as connection:
+                    connection.execute("INSERT INTO content.service_video (id,creator_id,title,description,state,visibility,provider_asset_id,moderation_approved_at,published_at,created_at,tags) VALUES (%s,%s,'Rights fixture','','published','public','playback/copyright-fixture.mp4',now(),now(),now(),'[]'::jsonb)", (video, creator))
+                status, owned = api("/auth/login", data={"email": email, "password": password})
+                self.assertEqual(status, 200)
+                token = owned["access_token"]
+
+                def operator(role):
+                    actor, body, recovery = privileged_fixture(role, "-copyright")
+                    status, challenge = api("/auth/login", data={name: body[name] for name in ("email", "password")})
+                    self.assertEqual(status, 202)
+                    status, session = api("/auth/mfa/verify", data={"challenge_token": challenge["challenge_token"], "code": recovery})
+                    self.assertEqual(status, 200)
+                    return actor, session["access_token"]
+
+                moderator, mod_token = operator("moderator")
+                administrator, admin_token = operator("administrator")
+                intake = {"video_id": str(video), "work_reference": "Synthetic original work", "details": "Rights concern with identified original work.", "authority_attested": True}
+                status, report = api("/copyright/reports", data=intake, token=token, key="http-copyright-report-001")
+                self.assertEqual(status, 201, report)
+                contract("/copyright/reports", "post", status, report)
+                self.assertEqual(api("/copyright/reports", data=intake, token=token, key="http-copyright-report-001")[0], 200)
+                with fixture_connection("content") as connection:
+                    self.assertEqual(connection.execute("SELECT rights_status FROM content.service_video WHERE id=%s", (video,)).fetchone()[0], "claimed")
+                path = "/moderation/reports/" + report["id"] + "/decisions"
+                decision = {"action": "remove", "reason": "Copyright takedown confirmed after evidence review."}
+                self.assertEqual(api(path, data=decision, token=mod_token, key="http-copyright-remove-001")[0], 403)
+                with fixture_connection("moderation") as connection:
+                    connection.execute("INSERT INTO moderation.service_moderatorassignment (moderator_id,queue_scope,target_id,active) VALUES (%s,'reports',%s,true)", (moderator, report["id"]))
+                for _ in range(2):
+                    self.assertEqual(api(path, data=decision, token=mod_token, key="http-copyright-remove-001")[0], 200)
+                status, count = api("/creators/me/copyright", token=token)
+                self.assertEqual((status, count), (200, {"strike_count": 1}))
+                contract("/creators/me/copyright", "get", status, count)
+                counter = {"reason": "I contest the takedown and supply my rights evidence.", "accuracy_attested": True}
+                self.assertEqual(api(f"/videos/{video_ids[1]}/counter-notices", data=counter, token=token, key="http-counter-foreign-001")[0], 404)
+                status, appeal = api(f"/videos/{video}/counter-notices", data=counter, token=token, key="http-copyright-counter-001")
+                self.assertEqual(status, 201, appeal)
+                contract("/videos/{video_id}/counter-notices", "post", status, appeal)
+                self.assertEqual(api(f"/videos/{video}/counter-notices", data=counter, token=token, key="http-copyright-counter-001")[0], 200)
+                with fixture_connection("moderation") as connection:
+                    connection.execute("INSERT INTO moderation.service_moderatorassignment (moderator_id,queue_scope,target_id,active) VALUES (%s,'appeals',%s,true)", (moderator, appeal["id"]))
+                restore_path = "/moderation/appeals/" + appeal["id"] + "/decisions"
+                restore = {"action": "restore", "reason": "Independent reviewer accepted the supplied rights evidence."}
+                self.assertEqual(api(restore_path, data=restore, token=mod_token, key="http-copyright-restore-001")[0], 403)
+                for _ in range(2):
+                    self.assertEqual(api(restore_path, data=restore, token=admin_token, key="http-copyright-restore-001")[0], 200)
+                self.assertEqual(api("/creators/me/copyright", token=token), (200, {"strike_count": 0}))
+                with fixture_connection("content") as connection:
+                    self.assertEqual(connection.execute("SELECT rights_status FROM content.service_video WHERE id=%s", (video,)).fetchone()[0], "restored")
+                    self.assertEqual(connection.execute("SELECT count(*) FROM content.service_rightsevent WHERE video_id=%s", (video,)).fetchone()[0], 3)
+                    # This case owns its seeded video; keep later discovery fixtures isolated.
+                    connection.execute("UPDATE content.service_video SET deleted_at=now(), visibility='private' WHERE id=%s", (video,))
 
             def test_account_contract_and_revocation(self):
                 password = secrets.token_urlsafe(24)

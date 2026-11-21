@@ -30,6 +30,9 @@ class CreatorContentTests(TestCase):
         return request
 
     def call(self, operation, fields=None):
+        if operation == "intent":
+            fields = {"account_id": str(self.creator), "originality_attestation": {"version": "R1-originality-v1", "accepted": True},
+                      "review_policy": {"trusted": False, "sample_percent": 100, "policy_version": None}, **(fields or {})}
         return media_api(self.request("/internal/videos/media/" + operation, self.owner | (fields or {})), operation)
 
     def publish(self):
@@ -232,6 +235,7 @@ class CreatorContentTests(TestCase):
     @patch("service.media_storage.put_playback")
     @patch("service.media_storage.put_poster")
     def test_short_clip_default_cover_and_out_of_range_failure(self, put_poster, put, render, encode, download):
+        download.side_effect = lambda key, etag, size, destination: destination.write_bytes(b"short clip fixture")
         Video.objects.filter(pk=self.video.pk).update(state="processing")
         MediaUpload.objects.create(id=uuid4(), video=self.video, expected_bytes=10, expires_at=timezone.now(), source_etag='"object"')
         process(self.video.id)

@@ -61,11 +61,16 @@ class MediaGatewayTests(SimpleTestCase):
         self.assertEqual(manage_own_video(request, video_id).status_code, 401)
         content.assert_not_called()
 
+    @patch("service.media.creator_forward")
+    @patch("service.media.authenticated_actor")
     @patch("service.media.signed_internal_request")
     @patch("service.media.creator_eligibility")
-    def test_upload_is_bound_to_the_approved_creator(self, eligibility, content):
+    def test_upload_is_bound_to_the_approved_creator(self, eligibility, content, actor, policy):
         video_id, creator_id = uuid4(), uuid4()
-        request = RequestFactory().post("/upload", {"size_bytes": 1234}, content_type="application/json",
+        actor.return_value = (str(uuid4()), "creator")
+        policy.return_value = JsonResponse({"account_id": actor.return_value[0], "creator_id": str(creator_id),
+            "trusted": False, "sample_percent": 100, "policy_version": None})
+        request = RequestFactory().post("/upload", {"size_bytes": 1234, "originality_attestation": {"version": "R1-originality-v1", "accepted": True}}, content_type="application/json",
                                         HTTP_IDEMPOTENCY_KEY="local-test-media-001")
         eligibility.return_value = JsonResponse({"upload_eligible": False, "creator_id": None})
         self.assertEqual(issue_video_upload(request, video_id).status_code, 403)

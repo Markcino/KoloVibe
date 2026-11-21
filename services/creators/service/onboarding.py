@@ -9,7 +9,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from .models import CreatorApplication as Application, CreatorProfile
+from .models import CreatorApplication as Application, CreatorProfile, CopyrightReviewPolicy
 
 
 POLICY_VERSION = "DEC-004-pilot-v1"
@@ -110,6 +110,14 @@ def _pending(cursor):
 
 
 def _status(actor, operation):
+    if operation == "review_policy":
+        eligibility = json.loads(_status(actor, "eligibility").content)
+        policy = CopyrightReviewPolicy.objects.filter(creator_id=eligibility["creator_id"], active=True).first() if eligibility["upload_eligible"] else None
+        trusted = bool(policy and policy.approved_by != actor and policy.approved_at <= timezone.now()
+                       and policy.version.strip() and policy.reason.strip())
+        return JsonResponse({"account_id": str(actor), "creator_id": eligibility["creator_id"],
+            "trusted": trusted, "sample_percent": policy.sample_percent if trusted else 100,
+            "policy_version": policy.version if trusted else None})
     if operation == "standing":
         profile = CreatorProfile.objects.filter(user_id=actor).first()
         eligible = (profile is not None and profile.status == CreatorProfile.Status.ACTIVE
@@ -155,7 +163,7 @@ def onboarding(request, operation):
             raise ValueError("Invalid envelope")
         required = {
             "invite": {"account_id"}, "pending": {"cursor"}, "review": {"account_id", "decision"},
-            "submit": {"handle", "adult_attested", "rights_attested"}, "status": set(), "eligibility": set(), "ownership": set(), "standing": set(),
+            "submit": {"handle", "adult_attested", "rights_attested"}, "status": set(), "eligibility": set(), "ownership": set(), "standing": set(), "review_policy": set(),
         }
         if operation not in required or set(data) != required[operation]:
             raise ValueError("Invalid creator operation")

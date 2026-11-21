@@ -82,6 +82,10 @@ void main() {
   }
 
   Future<void> submit(WidgetTester tester) async {
+    final consent = find.byType(CheckboxListTile);
+    await show(tester, consent, settle: true);
+    await tester.tap(consent);
+    await tester.pump();
     final button = find.text('Create and upload');
     await show(tester, button, settle: true);
     await tester.tap(button);
