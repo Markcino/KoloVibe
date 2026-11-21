@@ -96,3 +96,79 @@ def render_poster(source, destination, cover_time_ms, duration_ms):
     with destination.open("rb") as image:
         if image.read(2) != b"\xff\xd8":
             raise InvalidMedia
+
+
+MAX_MUTE_SEGMENTS = 20
+AUDIO_TIMEOUT = 30
+FRAME_TIMEOUT = 30
+
+
+def has_audio(source):
+    response = _run([
+        "ffprobe", "-v", "error", "-protocol_whitelist", "file,pipe", "-select_streams", "a:0",
+        "-show_entries", "stream=codec_type", "-of", "csv=p=0", str(source),
+    ], PROBE_TIMEOUT, output=True)
+    return response.stdout.strip() == b"audio"
+
+
+def extract_audio(source, destination, start_ms=0, length_ms=None):
+    """Write mono 16-bit PCM WAV (the format fingerprinters expect); the caller must check `has_audio` first."""
+    if type(start_ms) is not int or start_ms < 0 or (length_ms is not None and (type(length_ms) is not int or length_ms <= 0)):
+        raise InvalidMedia
+    args = ["ffmpeg", "-v", "error", "-nostdin", "-max_alloc", "67108864", "-protocol_whitelist", "file,pipe",
+            "-threads", "1", "-ss", f"{start_ms / 1000:.3f}"]
+    if length_ms is not None:
+        args += ["-t", f"{length_ms / 1000:.3f}"]
+    args += ["-i", str(source), "-map", "0:a:0", "-vn", "-ac", "1", "-ar", "11025", "-c:a", "pcm_s16le",
+             "-f", "wav", str(destination)]
+    _run(args, AUDIO_TIMEOUT)
+    if not destination.is_file() or destination.stat().st_size <= 44:
+        raise InvalidMedia
+
+
+def extract_frames(source, directory, duration_ms, count=5):
+    """Evenly spaced JPEG frames; never reads past the validated duration."""
+    if type(count) is not int or not 0 < count <= 10 or not 0 < duration_ms <= MAX_DURATION * 1000:
+        raise InvalidMedia
+    frames = []
+    for index in range(count):
+        at = min(duration_ms * (2 * index + 1) // (2 * count), max(0, duration_ms - 100))
+        frame = directory / f"frame-{index}.jpg"
+        _run([
+            "ffmpeg", "-v", "error", "-nostdin", "-max_alloc", "67108864", "-protocol_whitelist", "file,pipe",
+            "-threads", "1", "-ss", f"{at / 1000:.3f}", "-i", str(source), "-map", "0:v:0", "-frames:v", "1",
+            "-an", "-vf", r"scale=w=min(512\,iw):h=min(512\,ih):force_original_aspect_ratio=decrease",
+            "-c:v", "mjpeg", "-q:v", "3", "-f", "image2", str(frame),
+        ], FRAME_TIMEOUT)
+        if frame.is_file() and frame.stat().st_size > 0:
+            frames.append(frame)
+    if not frames:
+        raise InvalidMedia
+    return frames
+
+
+def mute_segments(source, destination, segments, duration_ms):
+    """Silence the given [start_ms, end_ms) spans while copying the video stream untouched."""
+    if (not isinstance(segments, (list, tuple)) or not 0 < len(segments) <= MAX_MUTE_SEGMENTS
+            or type(duration_ms) is not int or duration_ms <= 0):
+        raise InvalidMedia
+    clauses = []
+    for segment in segments:
+        try:
+            start, end = segment
+        except (TypeError, ValueError):
+            raise InvalidMedia from None
+        if type(start) is not int or type(end) is not int or not 0 <= start < end <= duration_ms:
+            raise InvalidMedia
+        clauses.append(f"volume=enable='between(t,{start / 1000:.3f},{end / 1000:.3f})':volume=0")
+    _run([
+        "ffmpeg", "-v", "error", "-nostdin", "-max_alloc", "67108864", "-protocol_whitelist", "file,pipe",
+        "-f", "mp4", "-threads", "1", "-i", str(source), "-map", "0:v:0", "-map", "0:a:0",
+        "-map_metadata", "-1", "-map_chapters", "-1", "-c:v", "copy", "-af", ",".join(clauses),
+        "-c:a", "aac", "-ac", "2", "-movflags", "+faststart", "-fs", str(MAX_BYTES), "-f", "mp4",
+        str(destination),
+    ], ENCODE_TIMEOUT)
+    if not destination.is_file() or not 0 < destination.stat().st_size <= MAX_BYTES:
+        raise InvalidMedia
+    if abs(_probe(destination) - duration_ms / 1000) > 1:
+        raise InvalidMedia

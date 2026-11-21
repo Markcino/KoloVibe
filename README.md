@@ -86,5 +86,6 @@ Code changes are reviewed through pull requests and automated checks. Production
 - [Mobile UI implementation and verification](docs/mobile-ui-implementation.md)
 - [108-screen design coverage](docs/mobile-design-coverage.md)
 - [API test deployment roadmap](docs/engineering/API_Test_Deployment_Roadmap.md)
+- [Automated copyright and safety screening](docs/engineering/Automated_Copyright_Screening.md)
 
 Lone Stars are non-cash recognition points. Paid tickets, withdrawals and other deferred services are not included in the current release.
