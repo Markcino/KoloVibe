@@ -1,6 +1,7 @@
 """Server-rendered R1 web client. All records come from the public gateway."""
 
 import json
+import re
 import ssl
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -9,6 +10,8 @@ from urllib.request import HTTPRedirectHandler, HTTPSHandler, ProxyHandler, Requ
 from django.conf import settings
 from django.http import FileResponse, Http404, HttpResponseNotAllowed
 from django.shortcuts import redirect, render
+from django.middleware.csrf import rotate_token
+from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.http import require_GET, require_POST
 
 from .api_contracts import valid_creator, valid_id, valid_page, valid_video, valid_points_balance, valid_points_page
@@ -230,13 +233,20 @@ def password_reset(request):
                   status=400 if status == 400 else 503)
 
 
+@sensitive_post_parameters("password")
 def login(request):
     if request.method == "GET":
         return render(request, "form.html", {"title": "Sign in", "kind": "login"})
     if request.method != "POST":
         return HttpResponseNotAllowed(["GET", "POST"])
+    if settings.ENVIRONMENT == "staging" and staging_session.MFA_PENDING in request.session:
+        staging_session.clear(request)
     status, payload = _api("/auth/login", method="POST", data={
         "email": request.POST.get("email", ""), "password": request.POST.get("password", "")})
+    if status == 202 and settings.ENVIRONMENT == "staging":
+        if staging_session.begin_mfa(request, payload, request.POST.get("email", "")):
+            return redirect("login-mfa")
+        status, payload = 503, {"detail": "Sign in unavailable"}
     if status == 200:
         if settings.ENVIRONMENT == "staging" and not staging_session.ordinary_account(payload.get("user")):
             return render(request, "status.html", {
@@ -249,6 +259,46 @@ def login(request):
     return render(request, "form.html", {"title": "Sign in", "kind": "login",
                                           "error": payload.get("detail", "Sign in unavailable")},
                   status=status if status in (401, 403, 429) else 503)
+
+
+@sensitive_post_parameters("code")
+def login_mfa(request):
+    if request.method not in ("GET", "POST"):
+        return HttpResponseNotAllowed(["GET", "POST"])
+    if settings.ENVIRONMENT != "staging":
+        return redirect("login")
+    pending = staging_session.pending_mfa(request)
+    if pending is None:
+        return redirect("login")
+    if request.method == "GET":
+        return render(request, "form.html", {"title": "Verify your sign-in", "kind": "mfa"})
+    code = request.POST.get("code", "")
+    if re.fullmatch(r"(?:[0-9]{6}|[A-Za-z0-9_-]{32,128})", code) is None:
+        return render(request, "form.html", {"title": "Verify your sign-in", "kind": "mfa",
+                      "error": "Enter an authenticator code or recovery code."}, status=400)
+    status, payload = _api("/auth/mfa/verify", method="POST", data={
+        "challenge_token": pending["challenge_token"], "code": code})
+    if status == 200:
+        # Flush before validating the response: Django does not save session
+        # mutations on 5xx responses, so pop() alone would leave a stale challenge.
+        staging_session.clear(request)
+        account = payload.get("user")
+        if (staging_session.privileged_account(account)
+                and isinstance(account.get("email"), str)
+                and account["email"].strip().casefold() == pending["email"]
+                and staging_session.start(request, payload, mfa_verified=True)):
+            rotate_token(request)
+            return redirect("account")
+        # Do not keep an issued Identity session after rejecting its response.
+        refresh = payload.get("refresh_token")
+        if isinstance(refresh, str) and refresh:
+            _api("/auth/logout", method="POST", data={"refresh_token": refresh})
+        return render(request, "status.html", {"title": "Sign in unavailable"}, status=503)
+    if status == 429:
+        request.session.pop(staging_session.MFA_PENDING, None)
+    return render(request, "form.html", {"title": "Verify your sign-in", "kind": "mfa",
+                  "error": "Verification failed. Try again or restart sign in."},
+                  status=status if status in (400, 401, 403, 429) else 503)
 
 
 @require_GET
@@ -512,3 +562,4 @@ def points(request):
     if rotated:
         _set_credentials(response, rotated, request)
     return response
+

@@ -11,6 +11,10 @@
 {% elif kind == 'login' %}
   <label>Email<input type="email" name="email" autocomplete="email" required></label>
   <label>Password<input type="password" name="password" autocomplete="current-password" required></label>
+{% elif kind == 'mfa' %}
+  <p>Enter the code from your authenticator app, or one unused recovery code.</p>
+  <label>Verification code<input name="code" autocomplete="one-time-code" minlength="6" maxlength="128" pattern="([0-9]{6}|[A-Za-z0-9_-]{32,128})" required></label>
+  <p><a href="{% url 'login' %}">Restart sign in</a></p>
 {% elif kind == 'reset_request' %}
   <label>Email<input type="email" name="email" autocomplete="email" maxlength="254" required></label>
 {% elif kind == 'reset' %}
@@ -32,3 +36,4 @@
 {% if kind == 'reset_request' %}<p><a href="{% url 'password-reset' %}">I have a reset code</a></p>{% endif %}
 </section>
 {% endblock %}
+
