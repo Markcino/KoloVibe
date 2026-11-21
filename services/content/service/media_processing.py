@@ -9,8 +9,8 @@ from django.db import DatabaseError, transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from . import media_encoding, media_storage
-from .models import MediaUpload, Video
+from . import media_encoding, media_storage, screening
+from .models import Fingerprint, MediaUpload, ScreeningRecord, Video
 
 
 LEASE = timedelta(minutes=10)
@@ -39,7 +39,22 @@ def _claim(video_id):
     return upload, token
 
 
-def _finish(upload, token, state, *, key=None, duration=None, poster=None, failure=None):
+def _record(video, outcome):
+    """Append the audit trail for every automated finding and the final decision, and keep prints for later matching."""
+    decision = outcome.decision
+    rows = [ScreeningRecord(video=video, provider=item.provider, kind=item.kind, score=item.score,
+                            reason=item.reason, segments=[list(span) for span in item.segments])
+            for item in outcome.findings]
+    rows.append(ScreeningRecord(video=video, provider="decision", kind="decision", action=decision.action,
+                                score=max((item.score for item in outcome.findings), default=0.0),
+                                reason=decision.reason, segments=[list(span) for span in decision.mute_segments]))
+    ScreeningRecord.objects.bulk_create(rows)
+    Fingerprint.objects.filter(video=video, blocked=False).delete()
+    Fingerprint.objects.bulk_create([Fingerprint(video=video, kind=kind, value=value)
+                                     for kind, value in outcome.fingerprints])
+
+
+def _finish(upload, token, state, *, key=None, duration=None, poster=None, failure=None, outcome=None):
     with transaction.atomic():
         video = Video.objects.select_for_update().filter(pk=upload.video_id, deleted_at__isnull=True).first()
         reservation = MediaUpload.objects.select_for_update().filter(pk=upload.pk).first()
@@ -52,11 +67,31 @@ def _finish(upload, token, state, *, key=None, duration=None, poster=None, failu
             video.duration_ms = duration
             video.duration_seconds = (duration + 999) // 1000 if duration is not None else None
             video.poster_asset_id = poster
-            video.save(update_fields=["state", "provider_asset_id", "duration_seconds", "duration_ms", "poster_asset_id"])
+            fields = ["state", "provider_asset_id", "duration_seconds", "duration_ms", "poster_asset_id"]
+            if outcome is not None:
+                video.rights_status = outcome.decision.rights_status
+                fields.append("rights_status")
+                if state == Video.State.PUBLISHED:
+                    video.moderation_approved_at = timezone.now()
+                    video.approval_source = "automated"
+                    fields += ["moderation_approved_at", "approval_source"]
+                _record(video, outcome)
+            video.save(update_fields=fields)
         video.failure_reason = failure
         video.save(update_fields=["failure_reason"])
         reservation.lease_id = reservation.lease_until = None
         reservation.save(update_fields=["lease_id", "lease_until"])
+
+
+def _screen(upload, source, playback, duration, directory):
+    try:
+        config = screening.load_config()
+    except ValueError:
+        config = screening.Config(enabled=True)  # a broken configuration must hold the video, not skip screening
+    if not config.enabled:
+        return None
+    media = screening.Media(upload.video_id, upload.video.creator_id, source, playback, duration, Path(directory))
+    return screening.evaluate(media, config)
 
 
 def process(video_id):
@@ -83,6 +118,14 @@ def process(video_id):
             except media_encoding.InvalidMedia:
                 _finish(upload, token, Video.State.FAILED, failure="poster_failed")
                 return
+            outcome = _screen(upload, source, destination, duration, directory)
+            if outcome is not None and outcome.decision.mute_segments:
+                muted = Path(directory) / "muted.mp4"
+                try:
+                    media_encoding.mute_segments(destination, muted, outcome.decision.mute_segments, duration)
+                    destination = muted
+                except media_encoding.InvalidMedia:
+                    outcome = outcome.hold("mute_failed")
             media_storage.put_playback(key, destination)
             media_storage.put_poster(poster_key, poster)
     except media_encoding.InvalidMedia:
@@ -95,4 +138,6 @@ def process(video_id):
         _finish(upload, token, None, failure="processing_unavailable")
         raise
     else:
-        _finish(upload, token, Video.State.REVIEW, key=key, duration=duration, poster=poster_key)
+        approved = outcome is not None and outcome.decision.action in (screening.PUBLISH, screening.MUTE)
+        _finish(upload, token, Video.State.PUBLISHED if approved else Video.State.REVIEW,
+                key=key, duration=duration, poster=poster_key, outcome=outcome)

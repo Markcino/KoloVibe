@@ -20,6 +20,7 @@ from .security_audit import record as audit_record
 REVIEWERS = {"moderator", "administrator"}
 VIEWERS = {"viewer", "creator"}
 REPORT_REASONS = {"spam", "harassment", "copyright", "harmful", "other"}
+RIGHTS_STATUSES = {"not_recorded", "attested", "flagged", "muted", "hidden", "removed", "restored"}
 DECISIONS = {
     "video_decision": {"publish", "reject", "remove"},
     "report_decision": {"dismiss", "remove"},
@@ -66,7 +67,7 @@ def _content(operation, payload):
                         or data["id"] != payload["video_id"] or type(data["preview_available"]) is not bool
                         or not isinstance(data["title"], str) or not 1 <= len(data["title"]) <= 160
                         or not isinstance(data["description"], str) or len(data["description"]) > 2000
-                        or data["rights_status"] != "not_recorded"):
+                        or data["rights_status"] not in RIGHTS_STATUSES):
                     raise ValueError("Invalid reviewer metadata")
             elif operation == "apply" and (set(data) != {"applied"} or data["applied"] is not True):
                 raise ValueError("Invalid moderation receipt")

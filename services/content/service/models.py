@@ -26,6 +26,15 @@ class Video(models.Model):
         REJECTED = "rejected", "Rejected"
         REMOVED = "removed", "Removed"
 
+    class RightsStatus(models.TextChoices):
+        NOT_RECORDED = "not_recorded", "Not recorded"
+        ATTESTED = "attested", "Attested and screened"
+        FLAGGED = "flagged", "Flagged for review"
+        MUTED = "muted", "Audio muted"
+        HIDDEN = "hidden", "Hidden pending review"
+        REMOVED = "removed", "Removed"
+        RESTORED = "restored", "Restored"
+
     class Visibility(models.TextChoices):
         PRIVATE = "private", "Private"
         PUBLIC = "public", "Public"
@@ -46,6 +55,9 @@ class Video(models.Model):
     provider_asset_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
     moderation_revision = models.PositiveIntegerField(default=0, db_default=0)
     moderation_approved_at = models.DateTimeField(null=True, blank=True)
+    approval_source = models.CharField(max_length=16, default="human", db_default="human")
+    rights_status = models.CharField(max_length=16, choices=RightsStatus.choices,
+                                     default="not_recorded", db_default="not_recorded")
     duration_seconds = models.PositiveIntegerField(null=True, blank=True)
     duration_ms = models.PositiveIntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -90,3 +102,37 @@ class MediaUpload(models.Model):
     @property
     def source_key(self):
         return f"originals/{self.id}.mp4"
+
+
+class Fingerprint(models.Model):
+    """Perceptual/audio fingerprints used for duplicate checks; `blocked` entries come from confirmed takedowns."""
+    class Kind(models.TextChoices):
+        SHA256 = "sha256", "Exact file hash"
+        PDQ = "pdq", "PDQ frame hash"
+        CHROMAPRINT = "chromaprint", "Chromaprint audio fingerprint"
+
+    video = models.ForeignKey(Video, null=True, blank=True, on_delete=models.CASCADE, related_name="fingerprints")
+    kind = models.CharField(max_length=12, choices=Kind.choices)
+    value = models.TextField()
+    blocked = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["kind", "blocked"], name="fingerprint_kind_blocked_idx"),
+                   models.Index(fields=["kind", "value"], name="fingerprint_kind_value_idx", condition=Q(kind="sha256"))]
+
+
+class ScreeningRecord(models.Model):
+    """Append-only audit of each automated screening finding and decision. Never stores media or raw payloads."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    video = models.ForeignKey(Video, on_delete=models.CASCADE, related_name="screening_records")
+    provider = models.CharField(max_length=32)
+    kind = models.CharField(max_length=16)
+    score = models.FloatField()
+    action = models.CharField(max_length=16, blank=True)
+    reason = models.CharField(max_length=64)
+    segments = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["video", "created_at"], name="screening_video_time_idx")]

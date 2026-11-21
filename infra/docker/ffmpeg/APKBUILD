@@ -3,8 +3,8 @@
 # Alpine's own APKBUILD records for this tarball) and abuild refuses a mismatch. Everything the pipeline does not use
 # is compiled out: no network protocols (so no RTSP), no devices, no libavdevice, no other codecs, muxers, filters or
 # optional libraries. What stays is what services/content/service/media_encoding.py runs: MP4/MOV in, H.264/HEVC/AAC
-# (and MP3/ALAC/PCM) decoded, scaled with swscale, H.264 (libx264) and AAC out in MP4, a JPEG poster, `file` and
-# `pipe` protocols. The `color` and `anullsrc` source filters exist only for the repository's own end-to-end media test.
+# (and MP3/ALAC/PCM) decoded, scaled with swscale, H.264 (libx264) and AAC out in MP4, a JPEG poster, the `volume` filter and WAV
+# output for copyright muting and fingerprinting, `file` and `pipe` protocols. The `color` and `anullsrc` source filters exist only for the repository's own end-to-end media test.
 pkgname=ffmpeg
 pkgver=9.0.2
 pkgrel=0
@@ -25,15 +25,15 @@ build() {
 	  --disable-ffplay --disable-avdevice --disable-shared --enable-static --enable-pic \
 	  --enable-gpl --enable-libx264 --enable-zlib --enable-ffmpeg --enable-ffprobe \
 	  --enable-protocol=file --enable-protocol=pipe \
-	  --enable-demuxer=mov --enable-muxer=mp4 --enable-muxer=image2 \
+	  --enable-demuxer=mov --enable-muxer=mp4 --enable-muxer=image2 --enable-muxer=wav \
 	  --enable-decoder=h264 --enable-decoder=hevc --enable-decoder=aac --enable-decoder=mp3float \
 	  --enable-decoder=alac --enable-decoder=pcm_s16le --enable-decoder=pcm_s16be --enable-decoder=pcm_s24le \
-	  --enable-encoder=libx264 --enable-encoder=aac --enable-encoder=mjpeg \
+	  --enable-encoder=libx264 --enable-encoder=aac --enable-encoder=mjpeg --enable-encoder=pcm_s16le \
 	  --enable-parser=h264 --enable-parser=hevc --enable-parser=aac --enable-parser=mpegaudio \
 	  --enable-bsf=null --enable-bsf=aac_adtstoasc \
 	  --enable-filter=scale --enable-filter=format --enable-filter=aformat --enable-filter=aresample \
 	  --enable-filter=null --enable-filter=anull --enable-filter=buffer --enable-filter=buffersink \
-	  --enable-filter=abuffer --enable-filter=abuffersink --enable-filter=color --enable-filter=anullsrc \
+	  --enable-filter=abuffer --enable-filter=abuffersink --enable-filter=color --enable-filter=anullsrc --enable-filter=volume \
 	  --extra-cflags='-O2 -fstack-protector-strong -fPIE' --extra-ldflags='-Wl,-z,relro -Wl,-z,now' \
 	  --extra-ldexeflags='-pie'
 	make -j"$(nproc)" ffmpeg ffprobe

@@ -2996,7 +2996,7 @@ paths:
       x-mfa-required: true
       description: Owning-service assignment authorization; every read and denial audited.
         Most recent 20 authorized history entries; truncation is explicit. Rights status
-        is not_recorded until a rights verification contract exists. Preview leases
+        is not_recorded until automated screening or a moderation action records it. Preview leases
         expire after 60 seconds and require fresh MFA/role/assignment authorization
         on every fetch. No storage keys or raw storage URLs.
       parameters:
@@ -3076,6 +3076,12 @@ paths:
                         type: string
                         enum:
                         - not_recorded
+                        - attested
+                        - flagged
+                        - muted
+                        - hidden
+                        - removed
+                        - restored
                   preview:
                     oneOf:
                     - type: 'null'
@@ -3172,7 +3178,7 @@ paths:
       x-mfa-required: true
       description: Owning-service assignment authorization; every read and denial audited.
         Most recent 20 authorized history entries; truncation is explicit. Rights status
-        is not_recorded until a rights verification contract exists. Preview leases
+        is not_recorded until automated screening or a moderation action records it. Preview leases
         expire after 60 seconds and require fresh MFA/role/assignment authorization
         on every fetch. No storage keys or raw storage URLs.
       parameters:
@@ -3242,6 +3248,12 @@ paths:
                         type: string
                         enum:
                         - not_recorded
+                        - attested
+                        - flagged
+                        - muted
+                        - hidden
+                        - removed
+                        - restored
                   preview:
                     oneOf:
                     - type: 'null'
@@ -3338,7 +3350,7 @@ paths:
       x-mfa-required: true
       description: Owning-service assignment authorization; every read and denial audited.
         Most recent 20 authorized history entries; truncation is explicit. Rights status
-        is not_recorded until a rights verification contract exists. Preview leases
+        is not_recorded until automated screening or a moderation action records it. Preview leases
         expire after 60 seconds and require fresh MFA/role/assignment authorization
         on every fetch. No storage keys or raw storage URLs.
       parameters:
@@ -3408,6 +3420,12 @@ paths:
                         type: string
                         enum:
                         - not_recorded
+                        - attested
+                        - flagged
+                        - muted
+                        - hidden
+                        - removed
+                        - restored
                   preview:
                     oneOf:
                     - type: 'null'

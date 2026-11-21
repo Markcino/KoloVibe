@@ -54,8 +54,10 @@ def _apply(video_id, action_id, action, revision):
         video.state = new_state
         video.visibility = Video.Visibility.PUBLIC if action == "restore" else Video.Visibility.PRIVATE
         video.moderation_revision += 1
+        if action in ("remove", "restore"):
+            video.rights_status = Video.RightsStatus.REMOVED if action == "remove" else Video.RightsStatus.RESTORED
         video.save(update_fields=[
-            "state", "visibility", "moderation_revision", "moderation_approved_at", "published_at",
+            "state", "visibility", "moderation_revision", "moderation_approved_at", "published_at", "rights_status",
         ])
         ModerationReceipt.objects.create(action_id=action_id, video_id=video_id,
                                          action=action, previous_revision=revision)
@@ -103,7 +105,7 @@ def moderation_video(request, operation):
         if operation == "detail":
             return JsonResponse({"id": str(video.id), "title": video.title, "description": video.description,
                 "state": video.state, "duration_seconds": video.duration_seconds,
-                "rights_status": "not_recorded", "preview_available": bool(video.provider_asset_id
+                "rights_status": video.rights_status, "preview_available": bool(video.provider_asset_id
                     and video.provider_asset_id.startswith("playback/"))})
         if operation == "preview":
             if not video.provider_asset_id or not video.provider_asset_id.startswith("playback/"):

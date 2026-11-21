@@ -1,6 +1,8 @@
 from datetime import datetime
 from uuid import UUID
 
+RIGHTS_STATUSES = {"not_recorded", "attested", "flagged", "muted", "hidden", "removed", "restored"}
+
 
 def valid_detail(value):
     try:
@@ -8,7 +10,7 @@ def valid_detail(value):
             return False
         video = value["video"]
         if (set(video) != {"id", "title", "description", "state", "duration_seconds", "rights_status"}
-                or str(UUID(video["id"])) != video["id"] or video["rights_status"] != "not_recorded"
+                or str(UUID(video["id"])) != video["id"] or video["rights_status"] not in RIGHTS_STATUSES
                 or not isinstance(video["title"], str) or not 1 <= len(video["title"]) <= 160
                 or not isinstance(video["description"], str) or len(video["description"]) > 2000
                 or video["state"] not in {"draft", "uploading", "processing", "failed", "review", "published", "rejected", "removed"}
