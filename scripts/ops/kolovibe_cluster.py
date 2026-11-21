@@ -294,6 +294,10 @@ AWS_STAGING = Profile(
         # v0.271.1: previously verified on all eight AWS APIs on 20 November 2026.
         # Required for a guarded update to the published v0.273.1 audit row-lock repair.
         REPOSITORY + '@sha256:7c4942e329a62bef6b4c56a9744421722839cb5349eedae6773c052183036e72',
+        # v0.290.1: operator-confirmed on all eight AWS APIs on 21 November 2026;
+        # source commit 1be1236624623c223e944bb8c281ce8cee5e4fe7,
+        # successful main CI run 44888581033 with publication artifact.
+        REPOSITORY + '@sha256:03dcdb201d4c2e0e2891dc20b4bdc6836f765ba70a671dcf8af4c17153762333',
     ),
     opa_waiver=OPA_WAIVER, r1_flags=r1_flag_table(), r1_rollout=r1_rollout_table(),
     # Read-only service inspection of 14 November 2026: every AWS service mounts the database CA from the
