@@ -5,7 +5,9 @@ from pathlib import Path
 import secrets
 from tempfile import TemporaryDirectory
 from unittest import skipUnless
-from unittest.mock import patch
+from unittest.mock import Mock, patch
+import sys
+from types import ModuleType
 from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
 
@@ -29,10 +31,16 @@ class R2MediaTests(TestCase):
         request.service_caller = "gateway"
         return media_api(request, operation)
 
-    @patch("service.media_tasks.process_video.apply_async")
-    def test_media_dispatch_uses_scoped_rabbitmq_exchange(self, publish):
-        _enqueue(self.video.pk)
-        publish.assert_called_once_with(
+    def test_media_dispatch_uses_scoped_rabbitmq_exchange(self):
+        # CI intentionally disables media processing. Importing the real Celery
+        # app here would fail at import time before its publish call is mocked.
+        # Supply only the task module dependency used by _enqueue().
+        task = Mock()
+        fake_media_tasks = ModuleType("service.media_tasks")
+        fake_media_tasks.process_video = task
+        with patch.dict(sys.modules, {"service.media_tasks": fake_media_tasks}):
+            _enqueue(self.video.pk)
+        task.apply_async.assert_called_once_with(
             args=[str(self.video.pk)],
             queue="kolovibe.content.media",
             exchange="kolovibe.content.media",
