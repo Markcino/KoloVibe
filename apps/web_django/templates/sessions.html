@@ -1,14 +1,13 @@
-{% extends 'base.html' %}
+{% extends 'base_admin.html' %}
 {% block title %}Active sessions · KoloVibe{% endblock %}
 {% block content %}
 <section class="panel"><h1>Active sessions</h1>
-{% if error %}<div class="notice error" role="alert">{{ error }}</div>{% endif %}
-{% if items %}<ul>
-{% for session in items %}<li>
-  <p>{% if session.current %}Current session{% else %}Signed-in session{% endif %} · Started {{ session.created_at }}</p>
-  {% if not session.current %}<form method="post" action="{% url 'revoke-session' session.id %}">{% csrf_token %}<button type="submit">End session</button></form>{% endif %}
-</li>{% endfor %}
-</ul>{% else %}<p>No active sessions.</p>{% endif %}
-<p><a href="{% url 'account' %}">Back to account</a></p>
+<div class="table-scroll" role="region" aria-label="Active sessions" tabindex="0"><table><caption>Your active sessions</caption>
+<thead><tr><th scope="col">Session</th><th scope="col">Started</th><th scope="col">Expires</th><th scope="col">Action</th></tr></thead>
+<tbody>{% for session in items %}<tr>
+<td>{% if session.current %}Current session{% else %}Other session{% endif %}</td><td>{{ session.created_at }}</td><td>{{ session.expires_at }}</td>
+<td>{% if not session.current %}<form method="post" action="{% url 'revoke-session' session.id %}">{% csrf_token %}<button type="submit">End session</button></form>{% endif %}</td>
+</tr>{% empty %}<tr><td colspan="4">No active sessions.</td></tr>{% endfor %}</tbody>
+</table></div><p><a href="{% url 'account' %}">Back to account</a></p>
 </section>
 {% endblock %}

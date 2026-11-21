@@ -2,38 +2,19 @@
 {% block title %}{{ title }} · KoloVibe{% endblock %}
 {% block content %}
 <section class="panel form-panel"><h1>{{ title }}</h1>
-{% if error %}<div class="notice error" role="alert">{{ error }}</div>{% endif %}
+<p>Authorized moderators and administrators only.</p>
+{% if request.GET.expired %}<p class="notice" role="status">Your session has expired or is unavailable. Sign in again to continue.</p>{% endif %}
+{% if error %}<p class="notice error" role="alert">{{ error }}</p>{% endif %}
 <form method="post">{% csrf_token %}
-{% if kind == 'register' %}
-  <label>Display name<input name="display_name" autocomplete="name" minlength="2" maxlength="80" required></label>
-  <label>Email<input type="email" name="email" autocomplete="email" maxlength="254" required></label>
-  <label>Password<input type="password" name="password" autocomplete="new-password" minlength="12" maxlength="128" required></label>
-{% elif kind == 'login' %}
-  <label>Email<input type="email" name="email" autocomplete="email" required></label>
-  <label>Password<input type="password" name="password" autocomplete="current-password" required></label>
+{% if kind == 'login' %}
+  <label>Email<input type="email" name="email" autocomplete="username" maxlength="254" required></label>
+  <label>Password<input type="password" name="password" autocomplete="current-password" maxlength="128" required></label>
 {% elif kind == 'mfa' %}
   <p>Enter the code from your authenticator app, or one unused recovery code.</p>
   <label>Verification code<input name="code" autocomplete="one-time-code" minlength="6" maxlength="128" pattern="([0-9]{6}|[A-Za-z0-9_-]{32,128})" required></label>
   <p><a href="{% url 'login' %}">Restart sign in</a></p>
-{% elif kind == 'reset_request' %}
-  <label>Email<input type="email" name="email" autocomplete="email" maxlength="254" required></label>
-{% elif kind == 'reset' %}
-  <label>Email<input type="email" name="email" autocomplete="email" maxlength="254" required></label>
-  <label>Reset code<input name="code" inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code" minlength="6" maxlength="6" required></label>
-  <label>New password<input type="password" name="new_password" autocomplete="new-password" minlength="12" maxlength="128" required></label>
-{% elif kind == 'profile' %}
-  <label>Display name<input name="display_name" autocomplete="name" minlength="2" maxlength="80" value="{{ account.display_name }}" required></label>
-{% elif kind == 'change_password' %}
-  <label>Current password<input type="password" name="current_password" autocomplete="current-password" required></label>
-  <label>New password<input type="password" name="new_password" autocomplete="new-password" minlength="12" maxlength="128" required></label>
-{% else %}
-  <label>Email<input type="email" name="email" autocomplete="email" maxlength="254" required></label>
-  <label>Verification code<input name="code" inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code" minlength="6" maxlength="6" required></label>
 {% endif %}
   <button type="submit">Continue</button>
 </form>
-{% if kind == 'login' %}<p><a href="{% url 'register' %}">Create an account</a> · <a href="{% url 'password-reset-request' %}">Forgot password?</a></p>{% endif %}
-{% if kind == 'reset_request' %}<p><a href="{% url 'password-reset' %}">I have a reset code</a></p>{% endif %}
 </section>
 {% endblock %}
-

@@ -1,0 +1,14 @@
+{% extends 'base_admin.html' %}
+{% block title %}{{ title }} · KoloVibe{% endblock %}
+{% block content %}
+<section class="panel"><h1>{{ title }}</h1>
+<dl><dt>Record</dt><dd>{{ item.id }}</dd>
+{% if kind == 'videos' %}<dt>Title</dt><dd>{{ item.title }}</dd>{% else %}<dt>Video</dt><dd>{{ item.video_id }}</dd><dt>Status</dt><dd>{{ item.status }}</dd><dt>Created</dt><dd>{{ item.created_at }}</dd><dt>Reason</dt><dd>{{ item.reason }}</dd>{% if kind == 'reports' %}<dt>Details</dt><dd>{{ item.details }}</dd>{% endif %}{% endif %}</dl>
+<p class="notice">Full content inspection: Not available in R1. This view contains the queue record only. Submit a decision only when you have sufficient evidence.</p>
+<form method="post">{% csrf_token %}<input type="hidden" name="intent" value="{{ intent }}">
+  <label>Decision<select name="action" required><option value="">Select a decision</option>{% for action in actions %}<option value="{{ action }}">{{ action|title }}</option>{% endfor %}</select></label>
+  <label>Reason<textarea name="reason" minlength="10" maxlength="2000" rows="5" required aria-describedby="reason-help"></textarea></label>
+  <p id="reason-help">Give a reason of 10 to 2,000 characters. This decision is recorded.</p>
+  <button type="submit">Submit decision</button>
+</form></section>
+{% endblock %}
