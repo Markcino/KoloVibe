@@ -18,6 +18,7 @@ V0_187_2 = cluster.REPOSITORY + '@sha256:0b3bba46d1de2c988fe06099944a9a1a9be37df
 V0_200_1 = cluster.REPOSITORY + '@sha256:c681a909334f6196c1144dfe6569876b4df0920c1d7acab46a3ad0ad348f9a4b'
 V0_205_1 = AWS.reviewed_releases[2]
 V0_271_1 = AWS.reviewed_releases[3]
+V0_290_1 = cluster.REPOSITORY + '@sha256:03dcdb201d4c2e0e2891dc20b4bdc6836f765ba70a671dcf8af4c17153762333'
 UNLISTED = cluster.REPOSITORY + '@sha256:' + 'b' * 64
 OTHER_REPOSITORY = 'ghcr.io/someone-else/services@sha256:' + 'c' * 64
 ORDER = ['audit', 'identity', 'creators', 'content', 'engagement', 'points', 'moderation', 'gateway']
@@ -36,13 +37,15 @@ def plan(swarm, services=ORDER):
 
 class ReviewedReleaseTableTests(unittest.TestCase):
     def test_the_aws_profile_lists_the_deployed_earlier_digests(self):
-        self.assertEqual(AWS.reviewed_releases, (V0_187_2, V0_200_1, V0_205_1, V0_271_1))
+        self.assertEqual(AWS.reviewed_releases, (V0_187_2, V0_200_1, V0_205_1, V0_271_1, V0_290_1))
         self.assertTrue(V0_205_1.startswith(cluster.REPOSITORY + '@sha256:a43d0cfb'))
         self.assertTrue(V0_205_1.endswith('c5ba8d66' + '4ee509c5'))
         self.assertEqual(len(V0_205_1), len(cluster.REPOSITORY) + len('@sha256:') + 64)
         self.assertTrue(V0_271_1.startswith(cluster.REPOSITORY + '@sha256:7c4942e3'))
         self.assertTrue(V0_271_1.endswith('183036e72'))
         self.assertEqual(len(V0_271_1), len(cluster.REPOSITORY) + len('@sha256:') + 64)
+        self.assertTrue(V0_290_1.startswith(cluster.REPOSITORY + '@sha256:03dcdb20'))
+        self.assertEqual(len(V0_290_1), len(cluster.REPOSITORY) + len('@sha256:') + 64)
         self.assertNotEqual(V0_187_2, cluster.BASELINE_IMAGE)
         cluster.check_flag_table(AWS)
 
@@ -74,7 +77,7 @@ class GatewayGuardTests(unittest.TestCase):
         self.assertEqual(next(e for e in plan(swarm)['entries'] if e['service'] == 'gateway')['action'], 'unchanged')
 
     def test_the_whole_fleet_on_the_listed_earlier_release_can_be_planned_forward(self):
-        for earlier in (V0_187_2, V0_200_1, V0_205_1, V0_271_1):
+        for earlier in (V0_187_2, V0_200_1, V0_205_1, V0_271_1, V0_290_1):
             with self.subTest(earlier=earlier):
                 report = plan(on_image(AwsSwarm(), earlier))
                 self.assertEqual([e['service'] for e in report['entries']], ORDER)
