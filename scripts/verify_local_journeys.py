@@ -54,6 +54,9 @@ def serve(service, port):
         settings.DEBUG_PROPAGATE_EXCEPTIONS = True
     if service == "identity":
         from django.conf import settings
+        # Disposable contract fixture only; password-strength/hash work is tested
+        # by Identity's own suite. Keep real HTTP journeys within their timeouts.
+        settings.PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
         settings.EMAIL_BACKEND = "verify_local_journeys.CapturedMail"
         settings.EMAIL_HOST = "test-only.invalid"
         settings.DEFAULT_FROM_EMAIL = "fixture@example.test"
@@ -160,6 +163,7 @@ def verify():
         for service in services:
             environment = dict(environments[service])
             if service == "gateway":
+                environment["KOLOVIBE_LOCAL_MEDIA_ENABLED"] = "1"
                 environment["KOLOVIBE_GATEWAY_OUTBOUND_KEY"] = signing_key
                 for peer in ("identity", "content", "creators"):
                     environment[f"KOLOVIBE_{peer.upper()}_URL"] = f"http://127.0.0.1:{ports[peer]}"
@@ -192,6 +196,56 @@ def verify():
             return status, json.loads(raw) if raw else None
 
         class Journeys(unittest.TestCase):
+            def test_approved_viewer_role_reconciliation_and_studio(self):
+                """Reproduce historical drift only inside the disposable fixture."""
+                import psycopg
+                password = secrets.token_urlsafe(24)
+                email = "approved-creator@example.test"
+                self.assertEqual(api("/auth/register", data={"email": email,
+                    "display_name": "Approved Creator", "password": password})[0], 201)
+                self.assertEqual(api("/auth/verify", data={"email": email, "code": mailed_code(base)})[0], 200)
+                status, stale = api("/auth/login", data={"email": email, "password": password})
+                self.assertEqual(status, 200)
+                actor = stale["user"]["id"]
+                self.assertEqual(stale["user"]["roles"], ["viewer"])
+                self.assertEqual(api("/creators/me", token=stale["access_token"])[0], 403)
+                profile_id, reviewer = uuid.uuid4(), uuid.uuid4()
+                env = environments["creators"]
+                with psycopg.connect(dbname=env["KOLOVIBE_DB_NAME"], user=env["KOLOVIBE_DB_USER"],
+                        host="127.0.0.1", port=env["KOLOVIBE_DB_PORT"],
+                        password=Path(env["KOLOVIBE_DB_PASSWORD_FILE"]).read_text(),
+                        sslmode="verify-full", sslrootcert=env["KOLOVIBE_DB_SSLROOTCERT"]) as connection:
+                    connection.execute("INSERT INTO creators.service_creatorprofile "
+                        "(id,user_id,handle,bio,status,reviewed_at,created_at,display_name,location) "
+                        "VALUES (%s,%s,'approved_fixture','','active',now(),now(),'Approved Creator','')",
+                        (profile_id, actor))
+                    connection.execute("INSERT INTO creators.service_creatorapplication "
+                        "(account_id,invited_by,invited_at,status,profile_id,attestation_version,"
+                        "submitted_at,reviewed_by,reviewed_at) "
+                        "VALUES (%s,%s,now(),'approved',%s,'DEC-004-pilot-v1',now(),%s,now())",
+                        (actor, reviewer, profile_id, reviewer))
+                status, body = api("/creators/me", token=stale["access_token"])
+                self.assertEqual(status, 401, body)
+                self.assertEqual(api("/auth/refresh", data={"refresh_token": stale["refresh_token"]})[0], 401)
+                status, fresh = api("/auth/login", data={"email": email, "password": password})
+                self.assertEqual(status, 200)
+                self.assertEqual(fresh["user"]["roles"], ["creator"])
+                status, profile = api("/creators/me", token=fresh["access_token"])
+                self.assertEqual(status, 200, profile)
+                self.assertEqual(profile["user_id"], actor)
+                self.assertEqual(profile["id"], str(profile_id))
+                self.assertEqual(api("/creators/me/upload-eligibility", token=fresh["access_token"]),
+                                 (200, {"upload_eligible": True, "creator_id": str(profile_id)}))
+                with psycopg.connect(dbname=env["KOLOVIBE_DB_NAME"], user=env["KOLOVIBE_DB_USER"],
+                        host="127.0.0.1", port=env["KOLOVIBE_DB_PORT"],
+                        password=Path(env["KOLOVIBE_DB_PASSWORD_FILE"]).read_text(),
+                        sslmode="verify-full", sslrootcert=env["KOLOVIBE_DB_SSLROOTCERT"]) as connection:
+                    connection.execute("UPDATE creators.service_creatorprofile SET status='restricted', "
+                                       "restricted_at=now() WHERE id=%s", (profile_id,))
+                self.assertEqual(api("/creators/me", token=fresh["access_token"])[0], 403)
+                self.assertEqual(api("/creators/me/upload-eligibility", token=fresh["access_token"]),
+                                 (200, {"upload_eligible": False, "creator_id": None}))
+
             def test_account_contract_and_revocation(self):
                 password = secrets.token_urlsafe(24)
                 body = {"email": "journey@example.test", "display_name": "Fixture Viewer",

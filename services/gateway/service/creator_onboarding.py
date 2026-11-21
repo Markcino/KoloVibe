@@ -95,10 +95,58 @@ def creator_ownership(actor, role):
     return _forward("ownership", actor, role, {})
 
 
+def synchronize_creator_role(account_id, *, expected_creator_id=None):
+    """Only attest live, account-bound eligibility from the signed Creator peer.
+
+    Repeatable after a partial review failure; Identity makes the grant idempotent.
+    No public request fields are forwarded as an eligibility attestation.
+    """
+    eligibility = _forward("eligibility", account_id, "viewer", {})
+    if eligibility.status_code != 200:
+        return eligibility
+    evidence = json.loads(eligibility.content)
+    if not evidence["upload_eligible"]:
+        return _error("Approved creator eligibility required", 403)
+    if expected_creator_id is not None and evidence["creator_id"] != expected_creator_id:
+        return _error("Creator service unavailable", 503)
+    try:
+        payload = {"account_id": account_id, **evidence}
+        with signed_internal_request("identity", "/internal/auth/creator-role", method="POST",
+                                     payload=json.dumps(payload).encode()) as response:
+            raw = response.read(1025)
+            if response.status != 200 or len(raw) > 1024:
+                raise ValueError
+        result = json.loads(raw)
+        if (not isinstance(result, dict) or set(result) != {"account_id", "role", "changed"}
+                or result["account_id"] != account_id or result["role"] != "creator"
+                or type(result["changed"]) is not bool):
+            raise ValueError
+        return JsonResponse(result)
+    except HTTPError as error:
+        error.close()
+    except (OSError, ValueError, TypeError, AttributeError, RuntimeError):
+        pass
+    return _error("Creator access synchronization unavailable. Try again.", 503)
+
+
+def reconcile_creator_access(actor):
+    result = synchronize_creator_role(actor[0])
+    if result.status_code != 200:
+        return result
+    # A concurrent reconciliation may have already revoked this request's session.
+    # Always require a fresh sign-in when the authenticated role was viewer.
+    return _error("Creator access updated. Sign in again.", 401)
+
+
 def creator_eligibility(request):
     actor = authenticated_actor(request, require_verified_email=True)
     if isinstance(actor, JsonResponse):
         return actor
+    if actor[1] == "viewer":
+        eligibility = _forward("eligibility", *actor, {})
+        if eligibility.status_code != 200 or not json.loads(eligibility.content)["upload_eligible"]:
+            return eligibility
+        return reconcile_creator_access(actor)
     return _forward("eligibility", *actor, {})
 
 
@@ -138,4 +186,12 @@ def creator_onboarding(request, operation, account_id=None):
             operation = "submit" if request.method == "POST" else "status"
     except (ValueError, TypeError, AttributeError):
         return _error("Invalid creator request", 400)
-    return _forward(operation, *actor, data)
+    result = _forward(operation, *actor, data)
+    if operation == "review" and result.status_code == 200:
+        application = json.loads(result.content)
+        if application["status"] == "approved":
+            sync = synchronize_creator_role(application["account_id"],
+                                            expected_creator_id=application["creator_id"])
+            if sync.status_code != 200:
+                return sync
+    return result

@@ -661,6 +661,10 @@ paths:
       tags: [Creators]
       summary: Approve or reject a pending application
       operationId: post_creator_application_decision
+      description: >-
+        Approval confirms live account-bound Creator eligibility and synchronizes the
+        Identity creator role. A role change revokes existing sessions. If synchronization
+        fails after approval commits, return 503; retrying the same review is safe.
       x-implementation: staging-gated
       x-required-roles: [moderator, administrator]
       requestBody:
@@ -752,6 +756,10 @@ paths:
       tags: [Creators]
       summary: Read own pilot upload eligibility
       operationId: get_own_creator_upload_eligibility
+      description: >-
+        An eligible account whose Identity role is still viewer is synchronized through
+        the signed internal workflow. Its old sessions are revoked and this request returns
+        401; sign in again before opening Studio. Ineligible viewers remain unchanged.
       x-implementation: staging-gated
       x-required-roles: [viewer, creator]
       responses:
@@ -940,6 +948,10 @@ paths:
       - Creators
       summary: Read own active creator profile
       operationId: getMyCreatorProfile
+      description: >-
+        An approved eligible viewer can trigger role reconciliation, followed by 401
+        requiring a fresh sign-in. Profile reads still require the creator role and
+        the Creator service's ownership and restriction checks.
       x-implementation: local
       x-capability: media
       x-required-roles:

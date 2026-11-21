@@ -11,7 +11,7 @@ from django.views.decorators.http import require_http_methods
 from django.views.decorators.cache import never_cache
 
 from .internal_client import signed_internal_request
-from .creator_onboarding import authenticated_actor
+from .creator_onboarding import authenticated_actor, reconcile_creator_access
 from . import content_client, engagement_client
 
 
@@ -90,6 +90,8 @@ def own_creator(request):
     if isinstance(actor, JsonResponse):
         return actor
     if actor[1] != "creator":
+        if actor[1] == "viewer" and request.method == "GET" and not request.GET and not request.body:
+            return reconcile_creator_access(actor)
         return JsonResponse({"detail": "Creator role required"}, status=403)
     try:
         if request.GET or len(request.body) > 8192 or request.method == "GET" and request.body:

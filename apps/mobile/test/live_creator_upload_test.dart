@@ -110,6 +110,53 @@ void main() {
         'pending');
   });
 
+  test('approved eligibility refreshes me before offering Studio', () async {
+    for (final role in ['viewer', 'creator']) {
+      final paths = <String>[];
+      final account = LiveAccountRepository(
+          ApiClient('https://api.example.test/api/v1',
+              client: MockClient((request) async {
+            paths.add(request.url.path);
+            if (request.url.path.endsWith('/auth/refresh')) {
+              return http.Response(
+                  jsonEncode({
+                    'access_token': 'access',
+                    'refresh_token': 'rotated',
+                  }),
+                  200);
+            }
+            if (request.url.path.endsWith('/upload-eligibility')) {
+              return http.Response(
+                  jsonEncode({
+                    'upload_eligible': true,
+                    'creator_id': creatorId,
+                  }),
+                  200);
+            }
+            expect(request.url.path, '/api/v1/me');
+            return http.Response(
+                jsonEncode({
+                  'id': accountId,
+                  'email': 'creator@example.test',
+                  'display_name': 'Creator',
+                  'roles': [role],
+                }),
+                200);
+          })),
+          _Credentials());
+      final repository = LiveCreatorOnboardingRepository(account);
+      if (role == 'creator') {
+        expect((await repository.eligibility()).eligible, isTrue);
+      } else {
+        await expectLater(
+            repository.eligibility(),
+            throwsA(isA<ApiFailure>()
+                .having((failure) => failure.status, 'status', 503)));
+      }
+      expect(paths.last, '/api/v1/me');
+    }
+  });
+
   test('draft, signed upload, and completion use validated grants', () async {
     final gateway = MockClient((request) async {
       if (request.url.path.endsWith('/auth/refresh')) {

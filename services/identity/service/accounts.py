@@ -771,3 +771,40 @@ def standing_context(request):
     return JsonResponse({"account_id": str(session.account_id), "account_status": "active",
                          "mfa_verified": session.mfa_verified_at is not None,
                          "email_verified": session.account.email_verified_at is not None})
+
+
+@require_POST
+def sync_creator_role(request):
+    """Accept the gateway's live Creator eligibility attestation, never a public role.
+
+    The gateway must bind account_id to a reviewed application or authenticated
+    actor and confirm eligibility over its signed Creator connection immediately
+    before calling. No other role transition is supported by this operation.
+    """
+    if getattr(request, "service_caller", None) != "gateway":
+        return _error("Forbidden", 403)
+    try:
+        data = _body(request, {"account_id", "creator_id", "upload_eligible"})
+        if request.GET or set(data) != {"account_id", "creator_id", "upload_eligible"}:
+            raise ValueError
+        account_id = uuid.UUID(data["account_id"])
+        uuid.UUID(data["creator_id"])
+        if data["upload_eligible"] is not True:
+            return _error("Approved creator eligibility required", 403)
+    except (ValueError, KeyError, TypeError, AttributeError):
+        return _error("Invalid creator transition")
+    with transaction.atomic():
+        account = Account.objects.select_for_update().filter(pk=account_id).first()
+        if (account is None or not account.is_active or account.email_verified_at is None
+                or account.is_staff or account.is_superuser
+                or account.role not in {Account.Role.VIEWER, Account.Role.CREATOR}):
+            return _error("Creator transition forbidden", 403)
+        changed = account.role == Account.Role.VIEWER
+        if changed:
+            account.role = Account.Role.CREATOR
+            account.save(update_fields=["role"])
+            now = timezone.now()
+            LoginSession.objects.filter(account=account, revoked_at__isnull=True).update(revoked_at=now)
+            ReauthenticationToken.objects.filter(account=account, used_at__isnull=True).update(used_at=now)
+            record("account.creator_role_granted", account.id)
+    return JsonResponse({"account_id": str(account.id), "role": "creator", "changed": changed})
