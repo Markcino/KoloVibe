@@ -2282,7 +2282,7 @@ paths:
           description: Moderation temporarily unavailable
       x-capability: moderation
       x-mfa-required: true
-      description: ' Requires moderator/administrator role AND a live MFA-verified identity session. The gateway verifies
+      description: ' Requires moderator/administrator role AND a live MFA-verified identity session. Moderator queue reads and decisions require an active explicit resource assignment enforced by Moderation; denials are audited. Administrators retain global supervision. The gateway verifies
         and binds session identity before signing its moderation envelope; password-only and expired/revoked sessions
         are rejected. Decisions retain reviewer ID, reason text and reason_code with immutable transactional audit
         evidence.'
@@ -2356,7 +2356,7 @@ paths:
           description: Moderation temporarily unavailable
       x-capability: moderation
       x-mfa-required: true
-      description: ' Requires moderator/administrator role AND a live MFA-verified identity session. The gateway verifies
+      description: ' Requires moderator/administrator role AND a live MFA-verified identity session. Moderator queue reads and decisions require an active explicit resource assignment enforced by Moderation; denials are audited. Administrators retain global supervision. The gateway verifies
         and binds session identity before signing its moderation envelope; password-only and expired/revoked sessions
         are rejected. Decisions retain reviewer ID, reason text and reason_code with immutable transactional audit
         evidence.'
@@ -2422,7 +2422,7 @@ paths:
           description: Moderation temporarily unavailable
       x-capability: moderation
       x-mfa-required: true
-      description: ' Requires moderator/administrator role AND a live MFA-verified identity session. The gateway verifies
+      description: ' Requires moderator/administrator role AND a live MFA-verified identity session. Moderator queue reads and decisions require an active explicit resource assignment enforced by Moderation; denials are audited. Administrators retain global supervision. The gateway verifies
         and binds session identity before signing its moderation envelope; password-only and expired/revoked sessions
         are rejected. Decisions retain reviewer ID, reason text and reason_code with immutable transactional audit
         evidence.'
@@ -2497,7 +2497,7 @@ paths:
           description: Moderation temporarily unavailable
       x-capability: moderation
       x-mfa-required: true
-      description: ' Requires moderator/administrator role AND a live MFA-verified identity session. The gateway verifies
+      description: ' Requires moderator/administrator role AND a live MFA-verified identity session. Moderator queue reads and decisions require an active explicit resource assignment enforced by Moderation; denials are audited. Administrators retain global supervision. The gateway verifies
         and binds session identity before signing its moderation envelope; password-only and expired/revoked sessions
         are rejected. Decisions retain reviewer ID, reason text and reason_code with immutable transactional audit
         evidence.'
@@ -2610,7 +2610,7 @@ paths:
           description: Moderation temporarily unavailable
       x-capability: moderation
       x-mfa-required: true
-      description: ' Requires moderator/administrator role AND a live MFA-verified identity session. The gateway verifies
+      description: ' Requires moderator/administrator role AND a live MFA-verified identity session. Moderator queue reads and decisions require an active explicit resource assignment enforced by Moderation; denials are audited. Administrators retain global supervision. The gateway verifies
         and binds session identity before signing its moderation envelope; password-only and expired/revoked sessions
         are rejected. Decisions retain reviewer ID, reason text and reason_code with immutable transactional audit
         evidence.'
@@ -2684,7 +2684,7 @@ paths:
           description: Moderation temporarily unavailable
       x-capability: moderation
       x-mfa-required: true
-      description: ' Requires moderator/administrator role AND a live MFA-verified identity session. The gateway verifies
+      description: ' Requires moderator/administrator role AND a live MFA-verified identity session. Moderator queue reads and decisions require an active explicit resource assignment enforced by Moderation; denials are audited. Administrators retain global supervision. The gateway verifies
         and binds session identity before signing its moderation envelope; password-only and expired/revoked sessions
         are rejected. Decisions retain reviewer ID, reason text and reason_code with immutable transactional audit
         evidence.'

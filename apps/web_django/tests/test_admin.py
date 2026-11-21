@@ -92,7 +92,7 @@ class AdminConsoleTests(TestCase):
                     self.assertEqual(api.call_count, 1)
                 self.assertFalse(WebCredential.objects.exists())
 
-    def test_roles_succeed_on_allowed_pages_and_moderators_never_read_global_queues(self):
+    def test_roles_use_gateway_authorized_queues(self):
         for role in ("moderator", "administrator"):
             self.login(role)
             for path in ("/admin/", "/admin/account/", "/admin/audit/",
@@ -100,16 +100,9 @@ class AdminConsoleTests(TestCase):
                 with patch("web.views._api", return_value=(200, self.account)):
                     self.assertEqual(self.client.get(path).status_code, 200)
             for kind in ACTIONS:
-                replies = [(200, self.account)] + ([(200, self.page(kind))] if role == "administrator" else [])
-                with patch("web.views._api", side_effect=replies) as api:
+                with patch("web.views._api", side_effect=[(200, self.account), (200, self.page(kind))]):
                     response = self.client.get(reverse(f"moderation-{kind}"))
                 self.assertEqual(response.status_code, 200)
-                if role == "moderator":
-                    self.assertContains(response, "Not available in R1")
-                    self.assertEqual(api.call_count, 1)
-                    with patch("web.views._api", return_value=(200, self.account)) as api:
-                        self.assertEqual(self.client.post(self.detail_url(kind), {}).status_code, 403)
-                        self.assertEqual(api.call_count, 1)
             with patch("web.views._api", return_value=(200, self.account)):
                 self.assertEqual(self.client.get("/admin/points/").status_code, 200 if role == "administrator" else 403)
 

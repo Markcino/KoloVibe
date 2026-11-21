@@ -13,7 +13,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .internal_client import signed_internal_request
-from .models import Appeal, ModerationAction, Report
+from .models import Appeal, ModerationAction, Report, ModeratorAssignment
 from .security_audit import record as audit_record
 
 
@@ -151,16 +151,38 @@ def _appeal(actor, data):
     return JsonResponse(_appeal_data(appeal), status=201 if created else 200)
 
 
-def _queue(operation, cursor):
+def _assignment_ids(actor, scope):
+    return ModeratorAssignment.objects.filter(moderator_id=actor, queue_scope=scope, active=True).values_list("target_id", flat=True)
+
+
+def _denied(actor, target=None):
+    with transaction.atomic():
+        audit_record("moderation.assignment_denied", actor, "account", target or actor)
+    return _error("Assigned resource required", 403)
+
+
+def _queue(operation, cursor, actor, role):
+    scope = {"review_queue": "videos", "reports": "reports", "appeals": "appeals"}[operation]
+    ids = _assignment_ids(actor, scope) if role == "moderator" else None
+    if ids is not None and not ids.exists():
+        return _denied(actor)
     if cursor is not None:
         cursor = str(UUID(cursor))
     if operation == "review_queue":
-        page = _content("queue", {"cursor": cursor})
+        data = {"cursor": cursor}
+        if ids is not None:
+            bounded = list(ids[:1001])
+            if len(bounded) > 1000:
+                raise ContentUnavailable
+            data["scope_ids"] = [str(item) for item in bounded]
+        page = _content("queue", data)
         if page is None:
             raise ContentUnavailable
         return JsonResponse(page)
     query = (Report.objects.filter(status="open") if operation == "reports"
              else Appeal.objects.select_related("removal").filter(status="open"))
+    if ids is not None:
+        query = query.filter(pk__in=ids)
     if cursor is not None:
         query = query.filter(id__gt=cursor)
     rows = list(query.order_by("id")[:21])
@@ -185,7 +207,13 @@ def _own_records(operation, actor, data):
     return JsonResponse({"items": items, "next_cursor": items[-1]["id"] if len(rows) > 20 else None})
 
 
-def _reserve(operation, actor, data):
+def _grant(actor, operation, target):
+    scope = {"video_decision": "videos", "report_decision": "reports", "appeal_decision": "appeals"}[operation]
+    return ModeratorAssignment.objects.select_for_update().filter(
+        moderator_id=actor, queue_scope=scope, target_id=target, active=True).first()
+
+
+def _reserve(operation, actor, data, role):
     target, action, reason = UUID(data["target_id"]), data["action"], _text(data["reason"])
     if not isinstance(action, str) or action not in DECISIONS[operation]:
         raise ValueError("Invalid decision action")
@@ -194,6 +222,8 @@ def _reserve(operation, actor, data):
         raise ValueError("Invalid reason code")
     action_id = uuid5(actor, "decision:" + _key(data["key"]))
     with transaction.atomic():
+        if role == "moderator" and _grant(actor, operation, target) is None:
+            return _denied(actor)
         existing = ModerationAction.objects.select_for_update().filter(pk=action_id).first()
         if existing:
             recorded_target = existing.report_id or existing.appeal_id or existing.video_id
@@ -244,10 +274,19 @@ def _reserve(operation, actor, data):
     return record
 
 
-def _decide(operation, actor, data):
-    record = _reserve(operation, actor, data)
+def _decide(operation, actor, data, role):
+    record = _reserve(operation, actor, data, role)
     if isinstance(record, JsonResponse):
         return record
+    if role == "moderator":
+        with transaction.atomic():
+            if _grant(actor, operation, UUID(data["target_id"])) is None:
+                return _denied(actor)
+            return _complete(record, actor)
+    return _complete(record, actor)
+
+
+def _complete(record, actor):
     if record.status == "pending":
         applied = record.action in ("dismiss", "deny")
         if not applied:
@@ -375,8 +414,8 @@ def moderation_workflow(request, operation):
         if operation.startswith("own_"):
             return _own_records(operation, actor, data)
         if operation in DECISIONS:
-            return _decide(operation, actor, data)
-        return _queue(operation, data["cursor"])
+            return _decide(operation, actor, data, role=role)
+        return _queue(operation, data["cursor"], actor, role)
     except (ValueError, TypeError, AttributeError, KeyError):
         return _error("Invalid moderation request", 400)
     except IntegrityError:

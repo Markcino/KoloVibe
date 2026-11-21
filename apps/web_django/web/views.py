@@ -269,8 +269,6 @@ def moderation_queue(request, kind):
     query = _queue_query(request, kind)
     if query is None:
         return error_page(request, status=400)
-    if request.admin_account["roles"] == ["moderator"]:
-        return _unavailable(request, kind.title(), "Assigned queue access is not available in R1.")
     cursor, selected_status = query
     status, page = _queue_page(request, kind, cursor)
     if status != 200:
@@ -294,10 +292,6 @@ def moderation_detail(request, kind, target_id):
         return HttpResponseNotAllowed(["GET", "POST"])
     if _queue_query(request, kind) is None:
         return error_page(request, status=400)
-    if request.admin_account["roles"] == ["moderator"]:
-        if request.method == "POST":
-            return error_page(request, status=403)
-        return _unavailable(request, kind.title(), "Assigned queue access is not available in R1.")
     if request.method == "POST":
         try:
             intent = signing.loads(request.POST.get("intent", ""), salt="admin-decision", max_age=900)

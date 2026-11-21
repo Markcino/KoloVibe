@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from django.test import RequestFactory, TestCase
 
-from service.models import Appeal, AuditDelivery, AuditEvent, ModerationAction, Report
+from service.models import ModeratorAssignment, Appeal, AuditDelivery, AuditEvent, ModerationAction, Report
 from service.workflow import ContentUnavailable, moderation_workflow
 
 
@@ -16,6 +16,7 @@ class PilotModerationTests(TestCase):
         self.viewer = uuid4()
         self.reviewer = uuid4()
         self.independent = uuid4()
+        ModeratorAssignment.objects.create(moderator_id=self.reviewer, queue_scope="videos", target_id=self.video)
 
     def call(self, operation, actor, role, data, caller="gateway"):
         request = self.factory.post("/internal/moderation/" + operation, {
@@ -38,6 +39,7 @@ class PilotModerationTests(TestCase):
         decision = {"target_id": json.loads(first.content)["id"], "action": "remove",
                     "reason": "Recorded rights concern.", "key": "test-remove-key-001"}
         self.assertEqual(self.call("report_decision", self.viewer, "viewer", decision).status_code, 403)
+        ModeratorAssignment.objects.create(moderator_id=self.reviewer, queue_scope="reports", target_id=decision["target_id"])
         self.assertEqual(self.call("report_decision", self.reviewer, "moderator", decision).status_code, 200)
         self.assertEqual(Report.objects.get().status, "resolved")
         snapshot.update(state="removed", visibility="private", revision=2)

@@ -35,12 +35,12 @@ There are no reviewer detail-read endpoints. Review pages show only a freshly fe
 | Operation | Moderator | Administrator | Other roles |
 | --- | --- | --- | --- |
 | Dashboard and own profile/password/sessions | Allowed with MFA | Allowed with MFA | 403 |
-| Moderation queues and decisions | Assigned queues required; unavailable until assignment contract exists; POST denied | Supervise existing global queues and submit decisions | 403 |
+| Moderation queues and decisions | Active explicit resource assignment required; enforced by Moderation | Supervise existing global queues and submit decisions | 403 |
 | Points | 403 | Review-only unavailable state | 403 |
 | Audit | Own-actions subset required; unavailable | Authorized subset required; unavailable | 403 |
 | Role changes or monetary payouts | No UI | No UI | No UI |
 
-DOC-004 requires moderators to work on assigned queues. The current moderation backend exposes global queues and no assignment proof, so the web app does not call these endpoints for moderators. This is a backend authorization gap, not a UI-hidden permission. No backend or infrastructure changes are included.
+DOC-004 requires moderators to work on assigned queues. Moderation now enforces active per-resource assignments for queue reads and decisions, including idempotent replay. The web forwards both reviewer roles to this owning-service authorization. No assignment or role-administration UI is exposed. The broader assignment model/routing policy and SLAs remain open owner decisions. The video scope forwarding is bounded to 1,000 assignments per moderator and fails closed above that limit.
 
 Other missing contracts are global queue totals, active fraud holds, recent/filtered audit reads with role-scoped access, full reviewer content inspection, administrative points balances/history/reversal review, and queue statuses beyond the current open/review queues. These are explicitly unavailable rather than replaced with guessed endpoints, partial totals, creator-owned points, or unrestricted logs. Points reversal is not offered: DOC-004 grants administrators review only and reserves award/reverse execution for the rules engine.
 

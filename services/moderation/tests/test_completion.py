@@ -9,7 +9,7 @@ from django.db import DatabaseError, connection, transaction
 from django.test import RequestFactory, TestCase
 from django.utils import timezone
 
-from service.models import Appeal, AuditDelivery, AuditEvent, ModerationAction, Report
+from service.models import ModeratorAssignment, Appeal, AuditDelivery, AuditEvent, ModerationAction, Report
 from service.security_audit import record
 from service.workflow import moderation_workflow
 
@@ -24,6 +24,7 @@ class Response:
 class ModerationCompletionTests(TestCase):
     def setUp(self):
         self.actor, self.reviewer, self.video, self.creator = (uuid4() for _ in range(4))
+        ModeratorAssignment.objects.create(moderator_id=self.reviewer, queue_scope="videos", target_id=self.video)
         self.snapshot = {"creator_id": str(self.creator), "state": "review", "visibility": "private", "revision": 1}
         self.content = self.enterContext(patch("service.workflow._content", side_effect=lambda op, data:
                                self.snapshot if op == "inspect" else {"applied": True}))

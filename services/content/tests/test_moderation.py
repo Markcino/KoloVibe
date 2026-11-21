@@ -65,3 +65,14 @@ class ModerationContentTests(TestCase):
         self.video.save(update_fields=["state"])
         self.assertEqual(self.apply("publish", 0, uuid4()).status_code, 409)
         self.assertFalse(ModerationReceipt.objects.exists())
+
+    def test_queue_filters_explicit_assignment_scope_before_pagination(self):
+        import json
+        other = Video.objects.create(creator_id=uuid4(), title="Other", state=Video.State.REVIEW)
+        request = self.factory.post("/internal/videos/moderation/queue", {
+            "cursor": None, "scope_ids": [str(self.video.id)]}, content_type="application/json")
+        request.service_caller = "moderation"
+        response = moderation_video(request, "queue")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(json.loads(response.content)["items"], [{"id": str(self.video.id), "title": "Original"}])
+        self.assertNotIn(str(other.id).encode(), response.content)

@@ -66,16 +66,22 @@ def moderation_video(request, operation):
     if getattr(request, "service_caller", None) != "moderation":
         return _error("Forbidden", 403)
     try:
-        if len(request.body) > 512:
+        if len(request.body) > 48000:
             raise ValueError("Request too large")
         data = json.loads(request.body)
         fields = {"inspect": {"video_id"}, "apply": {"video_id", "action_id", "action", "revision"},
                   "queue": {"cursor"}}
-        if operation not in fields or not isinstance(data, dict) or set(data) != fields[operation]:
+        if (operation not in fields or not isinstance(data, dict) or not fields[operation] <= set(data)
+                or set(data) - fields[operation] - ({"scope_ids"} if operation == "queue" else set())):
             raise ValueError("Invalid moderation request")
         if operation == "queue":
             videos = Video.objects.filter(state=Video.State.REVIEW, visibility=Video.Visibility.PRIVATE,
                                            deleted_at__isnull=True).order_by("id")
+            if "scope_ids" in data:
+                ids = data["scope_ids"]
+                if not isinstance(ids, list) or len(ids) > 1000 or any(not isinstance(item, str) for item in ids):
+                    raise ValueError("Invalid assignment scope")
+                videos = videos.filter(id__in=[UUID(item) for item in ids])
             if data["cursor"] is not None:
                 videos = videos.filter(id__gt=UUID(data["cursor"]))
             page = list(videos[:21])

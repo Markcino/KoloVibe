@@ -77,3 +77,18 @@ class AuditDelivery(models.Model):
     attempts = models.PositiveIntegerField(default=0)
     delivered_at = models.DateTimeField(null=True)
     next_attempt_at = models.DateTimeField(default=timezone.now)
+
+
+class ModeratorAssignment(models.Model):
+    """Explicit resource grant; routing policy and SLAs remain an owner decision."""
+    moderator_id = models.UUIDField()
+    queue_scope = models.CharField(max_length=8, choices=[(kind, kind) for kind in ("videos", "reports", "appeals")])
+    target_id = models.UUIDField()
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["moderator_id", "queue_scope", "target_id"],
+                                               name="mod_unique_assignment"),
+                       models.CheckConstraint(condition=Q(queue_scope__in=["videos", "reports", "appeals"]),
+                                              name="mod_assignment_scope")]
+        indexes = [models.Index(fields=["moderator_id", "queue_scope", "active"], name="mod_assignment_lookup")]

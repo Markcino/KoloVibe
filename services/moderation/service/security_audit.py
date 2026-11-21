@@ -3,7 +3,7 @@ from django.db import connection
 from .models import AuditDelivery, AuditEvent
 
 KINDS = {"moderation.report_created", "moderation.appeal_created", "moderation.decision_recorded",
-         "moderation.decision_applied", "moderation.decision_conflicted"}
+         "moderation.decision_applied", "moderation.decision_conflicted", "moderation.assignment_denied"}
 
 
 def record(kind, actor_id, subject_type, subject_id):
