@@ -44,7 +44,19 @@ class EvidenceMatchesTheScannerConfigTests(unittest.TestCase):
         rules = GRYPE["ignore"]
         expected = [{"vulnerability": APPROVED_FIRST, "package": PACKAGE}] + [
             {"vulnerability": row["cve"], "package": PACKAGE} for row in EVIDENCE["rows"]]
-        self.assertEqual(rules, expected)
+        self.assertEqual(rules[:len(expected)], expected)
+        openssl_cves = ("CVE-2026-124709", "CVE-2026-107494", "CVE-2026-121482",
+                        "CVE-2026-84786", "CVE-2026-107493")
+        openssl = [
+            {"vulnerability": cve,
+             "package": {"name": name, "version": "3.5.9-r1", "type": "apk"}}
+            for cve in openssl_cves for name in ("libssl3", "libcrypto3")
+        ]
+        self.assertEqual(rules[len(expected):], openssl)
+        expiry = datetime.date.fromisoformat(
+            re.search(r"(?m)^# Expires \(OpenSSL temporary\): (\d{4}-\d{2}-\d{2})$", GRYPE_TEXT).group(1))
+        self.assertEqual(expiry, datetime.date(2026, 11, 28))
+        self.assertGreater(expiry, datetime.datetime.now(datetime.timezone.utc).date())
         cves = [row["cve"] for row in EVIDENCE["rows"]]
         self.assertEqual(len(cves), len(set(cves)))
         self.assertNotIn(APPROVED_FIRST, cves)
@@ -53,7 +65,7 @@ class EvidenceMatchesTheScannerConfigTests(unittest.TestCase):
 
     def test_the_rules_are_scoped_to_one_package_at_one_exact_version(self):
         self.assertEqual(EVIDENCE["package"], PACKAGE)
-        for rule in GRYPE["ignore"]:
+        for rule in GRYPE["ignore"][:1 + len(EVIDENCE["rows"])]:
             self.assertEqual(set(rule), {"vulnerability", "package"})  # no wildcard, fix-state or path rule
             self.assertEqual(rule["package"], PACKAGE)
 

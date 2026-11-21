@@ -35,6 +35,9 @@ def route_allowed(service, method, path, *, accounts=False, privileged=False, on
     allowed |= service == "gateway" and method == "GET" and bool(PUBLIC.fullmatch(path))
     allowed |= path in INTERNAL.get(service, set()) and method == "POST"
     allowed |= accounts and path in ACCOUNTS.get(service, set())
+    # Gateway owns the onboarding switch and attests eligibility over signed peers.
+    # Identity owns this account mutation; it needs no new caller or peer credential.
+    allowed |= accounts and service == "identity" and method == "POST" and path == "/internal/auth/creator-role"
     # R1 capabilities: explicit (service, capability, method, path) rules; closed unless named.
     allowed |= capabilities.allowed(service, capability_set, method, path, privileged=privileged)
     allowed |= privileged and path in {

@@ -1,4 +1,6 @@
 name: ci_cd
+# High/Critical image-scanning gates remain blocking for PR and main; .grype.yaml
+# carries only separately documented, time-limited, exact-package exceptions.
 on:
   push:
     branches: [main]

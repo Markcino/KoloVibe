@@ -59,8 +59,22 @@ class LiveCreatorOnboardingRepository {
     }
   }
 
-  Future<UploadEligibility> eligibility() async => UploadEligibility.fromJson(
-      await account.authenticatedRequest('/creators/me/upload-eligibility'));
+  Future<UploadEligibility> eligibility() async {
+    final result = UploadEligibility.fromJson(
+        await account.authenticatedRequest('/creators/me/upload-eligibility'));
+    if (result.eligible) {
+      // Approval changes Identity's role and invalidates earlier sessions.
+      // Read live /me before presenting Studio access; never infer a local role.
+      final profile = await account.currentAccount();
+      if (profile == null) {
+        throw const ApiFailure(401, 'Sign in again to open Creator Studio.');
+      }
+      if (!profile.roles.contains('creator')) {
+        throw const ApiFailure(503, 'Creator access is updating. Check again.');
+      }
+    }
+    return result;
+  }
 
   Future<CreatorApplication> submit(
       {required String handle,

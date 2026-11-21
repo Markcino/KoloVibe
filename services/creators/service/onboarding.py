@@ -129,6 +129,7 @@ def _status(actor, operation):
         eligible = (
             application is not None and application.status == Application.Status.APPROVED
             and application.attestation_version == POLICY_VERSION and application.profile is not None
+            and application.profile.user_id == actor
             and application.profile.status == CreatorProfile.Status.ACTIVE
             and application.profile.reviewed_at is not None and application.profile.restricted_at is None
         )

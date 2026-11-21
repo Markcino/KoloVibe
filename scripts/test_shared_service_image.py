@@ -144,8 +144,22 @@ class ImageSecurityContractTests(unittest.TestCase):
         # files are identical and that CI checks each premise against the built binary). Nothing else may be ignored.
         evidence = json.loads((ROOT / "infra/docker/ffmpeg/scan-exceptions.json").read_text())
         self.assertEqual(rules["ignore"][0], {"vulnerability": "CVE-2026-107696", "package": package})
-        self.assertEqual([r["vulnerability"] for r in rules["ignore"][1:]], [r["cve"] for r in evidence["rows"]])
-        self.assertTrue(all(r == {"vulnerability": r["vulnerability"], "package": package} for r in rules["ignore"]))
+        ffmpeg_rules = rules["ignore"][:1 + len(evidence["rows"])]
+        self.assertEqual([r["vulnerability"] for r in ffmpeg_rules[1:]], [r["cve"] for r in evidence["rows"]])
+        self.assertTrue(all(r == {"vulnerability": r["vulnerability"], "package": package} for r in ffmpeg_rules))
+        openssl_cves = ("CVE-2026-124709", "CVE-2026-107494", "CVE-2026-121482",
+                        "CVE-2026-84786", "CVE-2026-107493")
+        openssl_rules = [
+            {"vulnerability": cve,
+             "package": {"name": name, "version": "3.5.9-r1", "type": "apk"}}
+            for cve in openssl_cves for name in ("libssl3", "libcrypto3")
+        ]
+        self.assertEqual(rules["ignore"][len(ffmpeg_rules):], openssl_rules)
+        temporary_expiry = datetime.date.fromisoformat(
+            re.search(r"(?m)^# Expires \(OpenSSL temporary\): (\d{4}-\d{2}-\d{2})$", config).group(1))
+        self.assertEqual(temporary_expiry, datetime.date(2026, 11, 28))
+        self.assertGreater(temporary_expiry, datetime.datetime.now(datetime.timezone.utc).date(),
+                           "Temporary OpenSSL exception expired; remove it and remediate images")
         self.assertIn("scripts/check_ffmpeg_scan_exceptions.py", self.workflow)  # the CI step that checks the premises
         # The exception is justified by the build having no network protocols, which CI verifies on every build.
         media_job = self.workflow[self.workflow.index("  media-image-build:"):self.workflow.index("  build-and-verify:")]

@@ -81,3 +81,18 @@ class CreatorOnboardingTests(TestCase):
         self.assertEqual(self.invite().status_code, 201)
         self.assertEqual(self.submit().status_code, 201)
         self.assertEqual(CreatorProfile.objects.count(), 1)
+
+    def test_restrictions_attestation_and_profile_ownership_prevent_eligibility(self):
+        self.invite()
+        self.submit()
+        self.call("review", self.reviewer, "moderator", {"account_id": str(self.applicant), "decision": "approved"})
+        profile = CreatorProfile.objects.get()
+        from django.utils import timezone
+        for fields in ({"status": "restricted", "restricted_at": timezone.now()},
+                       {"status": "pending", "reviewed_at": None}, {"user_id": uuid4()}):
+            CreatorProfile.objects.filter(pk=profile.pk).update(**fields)
+            self.assertFalse(self.eligibility()["upload_eligible"])
+            CreatorProfile.objects.filter(pk=profile.pk).update(restricted_at=None,
+                reviewed_at=timezone.now(), user_id=self.applicant, status="active")
+        CreatorApplication.objects.update(attestation_version="obsolete")
+        self.assertFalse(self.eligibility()["upload_eligible"])

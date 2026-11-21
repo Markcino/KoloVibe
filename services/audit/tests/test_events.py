@@ -11,7 +11,7 @@ from service.models import SecurityEvent
 
 class SecurityEventTests(TestCase):
     def test_identity_settings_security_kinds_are_accepted_idempotently(self):
-        for kind in ("account.preferences_updated", "account.privacy_request_received",
+        for kind in ("account.creator_role_granted", "account.preferences_updated", "account.privacy_request_received",
                      "account.reauthenticated", "account.reauthentication_failed",
                      "account.reauthentication_throttled", "session.listed"):
             payload = {**self.payload, "id": str(uuid.uuid4()), "kind": kind}

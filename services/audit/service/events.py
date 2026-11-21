@@ -12,6 +12,7 @@ from .models import SecurityEvent
 
 logger = logging.getLogger(__name__)
 KINDS = {
+    "account.creator_role_granted",
     "account.registered", "account.verified", "account.verification_resent",
     "account.password_reset_code_failed", "account.password_reset_throttled", "account.verification_code_failed", "account.verification_throttled",
     "account.password_reset_requested", "account.password_reset", "account.password_changed",
