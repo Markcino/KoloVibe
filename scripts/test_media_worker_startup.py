@@ -174,7 +174,9 @@ class RemoteControlTests(unittest.TestCase):
         self.assertEqual((options["max_tasks_per_child"], options["max_memory_per_child"]), (20, 262144))
         self.assertIs(options["without_gossip"], True)
         self.assertIs(options["without_mingle"], True)
-        self.assertIs(options["without_heartbeat"], False)
+        # Celery event heartbeats are deliberately disabled; AMQP connection
+        # heartbeats remain enabled by broker_heartbeat in the app config.
+        self.assertIs(options["without_heartbeat"], True)
 
     def test_run_celery_corrects_an_app_that_enables_remote_control(self):
         self.assertIs(child("start", force_remote_control_on=True)["remote_control"], False)
