@@ -667,7 +667,13 @@ def resolve_release(image=None, revision=None, release_dir=None):
 def pinned(spec, image, revision):
     spec = copy.deepcopy(spec)
     spec['TaskTemplate']['ContainerSpec']['Image'] = image
-    spec.setdefault('Labels', {})['kolovibe.source-revision'] = revision
+    labels = spec.setdefault('Labels', {})
+    labels['kolovibe.source-revision'] = revision
+    # A reviewed image update makes the release self-describing for later
+    # upgrades. The next plan can recognize this managed release without
+    # editing a digest allowlist, while the first import of an older manually
+    # installed release remains an explicit, reviewed adoption.
+    labels[LABEL] = '1'
     return spec
 
 
@@ -707,10 +713,21 @@ def base_gateway(api, image=BASELINE_IMAGE):
     off = flag_mismatch('gateway', env)
     if off:
         fail('Gateway staging capability flags differ from the ' + PROFILE.name + ' profile: ' + ', '.join(off))
-    # The Gateway is on the working baseline, on the exact target (a re-run), or on an earlier release that the profile
-    # lists by digest. Any other image, including an unlisted digest of this repository, stops every plan.
+    # The first adoption of a Gateway updated outside this tool needs an exact
+    # reviewed prior image. After a successful guarded update, pinned() records
+    # the tool marker plus source revision and the update guards. Those jointly
+    # identify a tool-managed prior release without an ever-growing code allowlist.
+    labels = spec.get('Labels') or {}
+    managed_prior = (
+        bool(IMAGE_RE.fullmatch(c.get('Image', '')))
+        and labels.get(LABEL) == '1'
+        and bool(REVISION_RE.fullmatch(labels.get('kolovibe.source-revision', '')))
+        and canonical(spec.get('UpdateConfig') or {}) == canonical(UPDATE_CONFIG)
+        and canonical(spec.get('RollbackConfig') or {}) == canonical(ROLLBACK_CONFIG)
+    )
+    known_image = c.get('Image') in (BASELINE_IMAGE, image, *PROFILE.reviewed_releases) or managed_prior
     if (any(env.get(k) != v for k, v in required.items()) or not db_host_ok(env.get('KOLOVIBE_DB_HOST', ''))
-            or c.get('Image') not in (BASELINE_IMAGE, image, *PROFILE.reviewed_releases)):
+            or not known_image):
         fail('Gateway differs from the working pinned baseline')
     if not c.get('ReadOnly') or c.get('User') != '10001:10001':
         fail('Gateway runtime hardening differs')
