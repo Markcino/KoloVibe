@@ -67,6 +67,7 @@ allow { input.Method == "GET" }
 allow { input.Method == "HEAD" }
 '''
 LABEL = 'kolovibe.cluster-launcher'
+PIN_PROOF_LABEL = 'kolovibe.release-pin-sha256'
 MIB = 1024 * 1024
 # Swarm object names/filename suffixes only; the secret values are never loaded here.
 COMMON = {'django_key': '_django', 'db_password': '_db', 'tls_cert': '_tls_cert',  # pragma: allowlist secret
@@ -674,6 +675,9 @@ def pinned(spec, image, revision):
     # editing a digest allowlist, while the first import of an older manually
     # installed release remains an explicit, reviewed adoption.
     labels[LABEL] = '1'
+    labels[PIN_PROOF_LABEL] = hashlib.sha256(
+        (image + '\\0' + revision).encode()
+    ).hexdigest()
     return spec
 
 
@@ -722,6 +726,11 @@ def base_gateway(api, image=BASELINE_IMAGE):
         bool(IMAGE_RE.fullmatch(c.get('Image', '')))
         and labels.get(LABEL) == '1'
         and bool(REVISION_RE.fullmatch(labels.get('kolovibe.source-revision', '')))
+        # Detect accidental image swaps that preserve the old service labels:
+        # the release marker is bound to the precise image and revision.
+        and labels.get(PIN_PROOF_LABEL) == hashlib.sha256(
+            (c['Image'] + '\\0' + labels['kolovibe.source-revision']).encode()
+        ).hexdigest()
         and canonical(spec.get('UpdateConfig') or {}) == canonical(UPDATE_CONFIG)
         and canonical(spec.get('RollbackConfig') or {}) == canonical(ROLLBACK_CONFIG)
     )
