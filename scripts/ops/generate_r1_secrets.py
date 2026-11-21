@@ -27,8 +27,8 @@ from staging_runtime import capabilities as policy  # noqa: E402
 
 BROKER_HOST, BROKER_PORT, BROKER_VHOST = "kolovibe-rabbitmq", 5671, "/kolovibe"
 BROKER_ACCOUNTS = {"content": "kolovibe_content", "engagement": "kolovibe_engagement", "points": "kolovibe_points"}
-RECEIVERS = ("identity", "content", "creators", "engagement", "points", "moderation", "audit")
-ALL_CAPS = frozenset(policy.CAPABILITIES)
+RECEIVERS = ("identity", "content", "creators", "engagement", "points", "moderation")
+ALL_CAPS = frozenset(policy.CAPABILITIES) - {"audit_read"}
 APPROVAL_REFERENCES = ("identity", "smtp", "credentials", "transport", "mfa", "audit")
 
 
@@ -40,15 +40,16 @@ def token():
     return secrets.token_urlsafe(48)
 
 
-def build(env_values):
+def build(env_values, *, audit_read=False):
     """{secret name: text} for every generated file, plus a list of notes about what was not generated."""
     from cryptography.fernet import Fernet
 
     notes, files = [], {}
-    gateway_keys = {service: token() for service in RECEIVERS}
+    receivers = RECEIVERS + (("audit",) if audit_read else ())
+    gateway_keys = {service: token() for service in receivers}
     moderation_keys = {"audit": token(), "content": token()}
     points_key, identity_key = token(), token()
-    peers = sorted(policy.gateway_peers(ALL_CAPS, True))
+    peers = sorted(policy.gateway_peers(ALL_CAPS | ({"audit_read"} if audit_read else set()), True))
     files["kolovibe_gateway_trusted_peers_r1_v1"] = json.dumps({s: origin(s) for s in peers}, indent=1)
     files["kolovibe_gateway_outbound_r1_v1"] = json.dumps(gateway_keys, indent=1)
     files["kolovibe_account_approval_r1_v1"] = json.dumps(
@@ -66,7 +67,7 @@ def build(env_values):
             callers["moderation"] = moderation_keys["content"]
         files[f"{service}_callers_2"] = json.dumps(callers, indent=1)
     files["audit_callers_2"] = json.dumps(
-        {"identity": identity_key, "moderation": moderation_keys["audit"], "points": points_key, "gateway": gateway_keys["audit"]}, indent=1)
+        {"identity": identity_key, "moderation": moderation_keys["audit"], "points": points_key} | ({"gateway": gateway_keys["audit"]} if audit_read else {}), indent=1)
     uri = "amqps://{user}:{password}@%s:%d/%s" % (BROKER_HOST, BROKER_PORT, BROKER_VHOST.replace("/", "%2F"))
     for service, user in BROKER_ACCOUNTS.items():
         files[f"kolovibe_{service}_rabbitmq_url_r1_v1"] = uri.format(user=user, password=token())
@@ -109,7 +110,7 @@ def read_env(path):
     return values
 
 
-def validate(directory):
+def validate(directory, *, audit_read=False):
     """Names and pass/fail only. Raises ValueError on the first problem."""
     from cryptography.fernet import Fernet
 
@@ -135,9 +136,9 @@ def validate(directory):
         return data
 
     checked = []
-    gateway = keymap("kolovibe_gateway_outbound_r1_v1", RECEIVERS)
+    gateway = keymap("kolovibe_gateway_outbound_r1_v1", RECEIVERS + (("audit",) if audit_read else ()))
     peers = json.loads(load("kolovibe_gateway_trusted_peers_r1_v1"))
-    if set(peers) != policy.gateway_peers(ALL_CAPS, True) or any(v != origin(k) for k, v in peers.items()):
+    if set(peers) != policy.gateway_peers(ALL_CAPS | ({"audit_read"} if audit_read else set()), True) or any(v != origin(k) for k, v in peers.items()):
         raise ValueError("kolovibe_gateway_trusted_peers_r1_v1: must be exactly the capability-required HTTPS origins")
     approvals = json.loads(load("kolovibe_account_approval_r1_v1"))
     if set(approvals) != set(APPROVAL_REFERENCES) or any(not v.strip() for v in approvals.values()):
@@ -161,9 +162,9 @@ def validate(directory):
         if callers != want:
             raise ValueError(f"{service}_callers_2: must carry exactly the key its caller signs with")
     audit = json.loads(load("audit_callers_2"))
-    if audit != {"identity": identity_key, "moderation": moderation["audit"], "points": points_key, "gateway": gateway["audit"]}:
+    if audit != ({"identity": identity_key, "moderation": moderation["audit"], "points": points_key} | ({"gateway": gateway["audit"]} if audit_read else {})):
         raise ValueError("audit_callers_2: must carry the Identity, Moderation, Points and Gateway audit keys")
-    if len(set(audit.values())) != 4:
+    if len(set(audit.values())) != (4 if audit_read else 3):
         raise ValueError("audit_callers_2: keys must be distinct")
     every = [*gateway.values(), *moderation.values(), identity_key, points_key]
     if len(set(every)) != len(every):
@@ -203,6 +204,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--out", default="~/kolovibe-r1-secrets")
     parser.add_argument("--env", default=str(ROOT / ".env"))
+    parser.add_argument("--audit-read", action="store_true", help="Prepare credentials for a separately approved audit_read profile; does not activate it")
     parser.add_argument("--validate-only", action="store_true")
     args = parser.parse_args(argv)
     directory = Path(args.out).expanduser()
@@ -211,7 +213,7 @@ def main(argv=None):
             raise SystemExit("Refusing to write into a non-empty directory: " + str(directory))
         if str(directory.resolve()).startswith(str(ROOT)):
             raise SystemExit("Choose a directory outside the repository")
-        files, notes = build(read_env(args.env))
+        files, notes = build(read_env(args.env), audit_read=args.audit_read)
         write_all(directory, files)
         create, broker = scripts_text(directory, sorted(files))
         for name, text in (("create-secrets.sh", create), ("broker-setup.sh", broker)):
@@ -219,7 +221,7 @@ def main(argv=None):
             (directory.parent / (directory.name + "-scripts") / name).chmod(0o700)
         for note in notes:
             print("NOTE:", note)
-    names = validate(directory)
+    names = validate(directory, audit_read=args.audit_read)
     print(f"PASS: {len(names)} secret files in {directory} (owner-only; values not shown):")
     for name in names:
         print("  ", name)

@@ -20,6 +20,8 @@ def valid_detail(value):
         if set(record) not in ({"id", "title"}, {"id", "video_id", "status", "created_at", "reason"},
                                {"id", "video_id", "status", "created_at", "reason", "details"}):
             return False
+        if set(record) == {"id", "title"} and (record["id"] != video["id"] or record["title"] != video["title"]):
+            return False
         if not all(isinstance(item, str) and len(item) <= 2000 for item in record.values()):
             return False
         if "video_id" in record and record["video_id"] != video["id"]:

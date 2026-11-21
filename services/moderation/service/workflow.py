@@ -173,7 +173,7 @@ def _denied(actor, target=None):
 def _queue(operation, cursor, actor, role, status=None):
     scope = {"review_queue": "videos", "reports": "reports", "appeals": "appeals"}[operation]
     statuses = {"videos": {"review", "published", "rejected", "removed"}, "reports": {"open", "resolved", "dismissed"}, "appeals": {"open", "denied", "restored"}}
-    status = status or ("review" if scope == "videos" else "open")
+    status = ("review" if scope == "videos" else "open") if status is None else status
     if not isinstance(status, str) or status not in statuses[scope]:
         raise ValueError("Unsupported status")
     ids = _assignment_ids(actor, scope) if role == "moderator" else None

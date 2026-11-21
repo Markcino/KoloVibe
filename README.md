@@ -21,7 +21,7 @@ The [approved mobile design](https://www.figma.com/design/ANaV0jnwjZ0LEcByTc98HP
 | Directory | Responsibility |
 | --- | --- |
 | `apps/mobile` | Flutter application for Android and iOS |
-| `apps/web_django` | Local Django template client for R1 testing |
+| `apps/web_django` | Django administration console for moderators/administrators only |
 | `services` | Django services for identity, creators, content, engagement, points, moderation, audit and gateway |
 | `packages/contracts` | API interface definitions |
 | `infra` | Infrastructure and deployment configuration |
@@ -68,7 +68,7 @@ python scripts/run_local_service.py gateway runserver 127.0.0.1:8000
 
 The local launcher reads only the selected service's generated secret from `.env`. It requires owner-only file permissions and never prints secret values. Containers and CI continue to inject secrets through their own controls. Identity has internal account/session operations, and the gateway contains forwarding routes for registration, verification, login, refresh, logout and `/me`. AWS staging has recorded account and public API UAT. Production use requires implementation and verification against the approved ADR-013 design, including transport and end-to-end acceptance. Content exposes read-only approved-public video metadata; the creators service exposes reviewed-active profiles through the signed gateway path. No fixture content is seeded. All eight APIs and the media worker are reported deployed to restricted staging on v0.187.2; full business-journey and production acceptance remain open.
 
-The local Django web client can be checked with `python scripts/run_local_web.py test tests`. Its sign-in and discovery routes use the gateway; staging/production web settings are not enabled.
+The Django web client is an administration console with no landing page or public/viewer/creator pages. It uses existing MFA and encrypted server-side credentials, owning-service assignment authorization, audited reviewer detail/previews, scoped operational counts, redacted audit reads and read-only points review. Run `.venv/bin/python scripts/run_local_web.py test tests`; see [routes, roles and activation requirements](apps/web_django/README.md) and [security evidence](tests/security/README.md). Staging activation requires explicit capabilities/credentials and owner review; production remains gated.
 
 ## Delivery status
 

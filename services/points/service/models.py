@@ -78,9 +78,9 @@ class QualificationReceipt(models.Model):
 class AuditEvent(models.Model):
     """Immutable evidence of a ledger decision, written in the deciding transaction.
 
-    The actor is null: awards and cap withholdings are server decisions, not user
-    actions. The subject is the qualification event id, which is also the ledger
-    entry id for posted awards.
+    Automated awards and cap withholdings retain a null actor and a qualification
+    event subject. Privileged read/denial evidence attributes the requesting
+    reviewer and uses an account subject without changing the ledger.
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     kind = models.CharField(max_length=64)

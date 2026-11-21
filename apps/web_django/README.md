@@ -1,71 +1,70 @@
 # Django R1 administration console
 
-This server-rendered client is exclusively for moderators and administrators. `/` redirects to `/admin/` when a browser session is present and to `/login/` otherwise; the admin guard validates that session before rendering. Sign-in and its pending MFA challenge are the only anonymous application flow. Health and bundled static assets remain accessible. Former public, viewer and creator routes return 404.
+This server-rendered web client serves moderators and administrators only. Its interface uses Material 3 color roles, tonal navigation, rounded surfaces, native accessible controls and responsive layouts without a JavaScript framework or CDN assets. `/` always redirects directly to the headerless `/login/` page. Successful MFA opens `/admin/`; every protected view revalidates Identity before rendering. Sign-in and its pending MFA challenge are the only anonymous application flow. Health and bundled static assets remain accessible. Former public, viewer and creator routes return 404.
 
-The console reuses `_api()` and the existing Identity password → MFA → logout flow. Each protected request checks `/api/v1/me`, verifies the role and account against the encrypted server session, and rejects changed or revoked identities. Password-only tokens never enter the console and are revoked when returned. No role-management, payout or creator-publishing UI is included.
+The console reuses `_api()`, Identity's password → MFA → logout flow, encrypted server-side credentials and the existing staging session model. Every protected request checks Identity, account, role, MFA state and session deadlines. Authorization for resource scope, audit subsets and points access is enforced in the owning service; the web never supplies client-selected permissions or guesses endpoints. Unsupported contracts are labelled **Not available in R1**.
 
 ## Routes and contracts
 
-All gateway paths below have the `/api/v1` prefix. Every `/admin/` route requires a privileged MFA session, including account forms and logout. All browser mutations require CSRF-protected POSTs.
+All gateway paths below use the `/api/v1` prefix. Every `/admin/` route requires an MFA-authenticated privileged session. All browser mutations are CSRF-protected POSTs; audit and points have only GET routes.
 
-| Web route | Existing gateway contract / R1 behavior |
+| Web route | Gateway contract / behavior |
 | --- | --- |
 | `/login/`, `/login/mfa/` | `POST /auth/login`, `POST /auth/mfa/verify` |
-| `/admin/` | Scoped queue totals and active fraud-hold counts from Moderation/Engagement; recent audit events remain unavailable until W4 |
-| `/admin/moderation/videos/` | `GET /moderation/videos?cursor=…` |
-| `/admin/moderation/reports/` | `GET /moderation/reports?cursor=…` |
-| `/admin/moderation/appeals/` | `GET /moderation/appeals?cursor=…` |
-| `/admin/moderation/{videos,reports,appeals}/<uuid>/` | GET re-fetches the originating queue page and selects the record; POST calls the corresponding `/moderation/<kind>/<uuid>/decisions` |
-| `/admin/points/` | **Not available in R1**: administrative balances, history and reversal-review contracts are absent |
-| `/admin/audit/` | **Not available in R1**: no authorized, filtered audit-read contract |
+| `/admin/` | `GET /moderation/totals`, `/engagement/fraud-holds`, `/admin/audit`; audit denial leaves an explicit unavailable card |
+| `/admin/moderation/{videos,reports,appeals}/` | Matching `GET /moderation/<kind>?cursor=…&status=…` |
+| `/admin/moderation/{videos,reports,appeals}/<uuid>/` | Matching reviewer detail GET; decision POST calls `/moderation/<kind>/<uuid>/decisions` |
+| `/admin/moderation/previews/<uuid>/` | Authenticated proxy for `/moderation/previews/<uuid>`; no storage redirect |
+| `/admin/points/` | `GET /admin/points/balances`; `?account=<uuid>` reads `/admin/points/accounts/<uuid>` |
+| `/admin/audit/` | `GET /admin/audit` with cursor, kind, producer, since and until filters |
 | `/admin/account/` | Own identity from `GET /me` |
 | `/admin/account/profile/` | `PATCH /me` |
-| `/admin/account/password/` | `PATCH /me/password`; success clears the browser session |
+| `/admin/account/password/` | `PATCH /me/password`; success clears browser state |
 | `/admin/account/sessions/` | `GET /me/sessions` |
-| `/admin/account/sessions/<uuid>/revoke/` | `DELETE /me/sessions/<uuid>`; gateway ownership denials are preserved |
-| `/admin/logout/` | `POST /auth/logout`; browser state clears even if server revocation cannot be confirmed |
+| `/admin/account/sessions/<uuid>/revoke/` | `DELETE /me/sessions/<uuid>`; gateway ownership denials preserved |
+| `/admin/logout/` | `POST /auth/logout`; browser state clears even if server revocation fails |
 | `/health/live`, `/static/<asset>` | Liveness and allowlisted bundled assets |
 
-Queue pages validate bounded records, canonical UUIDs, ordering, duplicates and forward-only cursors before rendering. Supported video statuses are review/published/rejected/removed; reports open/resolved/dismissed; appeals open/denied/restored. Unsupported and repeated filters are rejected. Dashboard counts come from the same scoped owning-service queries, never a partial page. Fraud holds are active and unexpired and scoped to assigned videos or videos attached to assigned reports/appeals. No fraud decision or hold mutation UI exists. Session lists use the existing bounded, non-paginated contract.
-
-There are no reviewer detail-read endpoints. Review pages show only a freshly fetched queue record, with **Full content inspection: Not available in R1**. Links retain the source cursor; a record absent from that page returns 404. Video decisions allow publish/reject/remove, reports allow dismiss/remove, and appeals allow deny/restore. A short-lived signed form intent binds the target, video, account and browser session to a stable gateway `Idempotency-Key`. Repeated submissions reuse that key; decision POSTs re-check identity and roles. Gateway authorization and conflict responses remain authoritative.
-
-## Role matrix and contract gaps
+## Roles and data scope
 
 | Operation | Moderator | Administrator | Other roles |
 | --- | --- | --- | --- |
-| Dashboard and own profile/password/sessions | Allowed with MFA | Allowed with MFA | 403 |
-| Moderation queues and decisions | Active explicit resource assignment required; enforced by Moderation | Supervise existing global queues and submit decisions | 403 |
-| Points | 403 | Review-only unavailable state | 403 |
-| Audit | Own-actions subset required; unavailable | Authorized subset required; unavailable | 403 |
-| Role changes or monetary payouts | No UI | No UI | No UI |
+| Own account/profile/password/sessions | Own, with MFA | Own, with MFA | 403 |
+| Queues, detail and decisions | Active resource assignment, enforced by Moderation | Global supervision | 403 |
+| Dashboard totals | Assigned resources; no assignments → audited 403 | Global supervision | 403 |
+| Active fraud holds | Videos in active video/report/appeal assignments | Global active holds | 403 |
+| Audit | Own actions | Explicit active producer grants in Audit | 403 |
+| Points | Audited 403 | Audited, read-only ledger review | 403 |
+| Role administration, award/reversal execution, cash payouts | No routes/UI | No routes/UI | No routes/UI |
 
-DOC-004 requires moderators to work on assigned queues. Moderation now enforces active per-resource assignments for queue reads and decisions, including idempotent replay. The web forwards both reviewer roles to this owning-service authorization. No assignment or role-administration UI is exposed. The broader assignment model/routing policy and SLAs remain open owner decisions. The video scope forwarding is bounded to 1,000 assignments per moderator and fails closed above that limit.
+`ModeratorAssignment` records explicit moderator, queue kind, target UUID and active state. There are no wildcard or implicit grants. Assignment checks cover reads, decisions, replay, inactive/revoked grants and delivery retries. Existing independent-appeal rules remain authoritative. **Open owner question:** broader assignment/routing model and moderation SLAs. This implementation does not choose automatic routing, workload or SLA policy and has no assignment/role-administration UI.
 
-Other missing contracts are global queue totals, active fraud holds, recent/filtered audit reads with role-scoped access, full reviewer content inspection, administrative points balances/history/reversal review, and queue statuses beyond the current open/review queues. These are explicitly unavailable rather than replaced with guessed endpoints, partial totals, creator-owned points, or unrestricted logs. Points reversal is not offered: DOC-004 grants administrators review only and reserves award/reverse execution for the rules engine.
+Video statuses are review/published/rejected/removed; reports open/resolved/dismissed; appeals open/denied/restored. Unsupported/repeated filters are rejected. Pages are bounded to 20 records and reject malformed data, duplicates and invalid cursors. Totals use the same owning-service filters, never a partial page count. Video scope forwarding is bounded to 1,000 assignments and fails closed above that limit. Fraud-hold reads describe active, unexpired inventory; no fraud policy or hold execution is added.
 
-## Sessions and security
+Reviewer detail contains metadata, rights status, and the latest 20 authorized report/decision records with explicit truncation flags. Moderators receive assigned report history and their own decisions. Rights verification is **not recorded** by the current approved model; no verification is fabricated. A 60-second account-bound preview lease rechecks MFA, role, assignment and expiry on every fetch and audits access. Content, Moderation and Gateway proxy a bounded MP4 (maximum 50 MiB); object-store keys and raw storage URLs never reach the browser. R2 preview bytes require a real processed asset and approved R2 credentials. The current proxy buffers this bounded object and does not support byte-range streaming.
 
-Staging retains PostgreSQL database sessions, encrypted credential rows, the independent signing and credential-encryption secret files, the `__Host-kolovibe_session` cookie and existing TLS/security headers. Tokens and MFA challenges never appear in forms, URLs or browser storage. All privileged sessions have a **15-minute absolute** limit and a **30-minute idle** limit; activity and refresh never extend the absolute deadline. Pages use Django autoescaping and fixed, non-enumerating error messages. Admin responses are not cached.
+Audit returns a newest-first, cursor-paginated projection and omits actor/subject IDs, payload digests and payloads. Administrators without `AuditReadGrant` records receive 403. Reads and denials create immutable evidence. **Open owner questions:** broader audit redaction policy and retention; the conservative projection does not decide retention.
 
-Local development uses the same MFA/session implementation, a local SQLite database and a local-only encryption key derived from the private web signing secret. Staging still requires its independently provisioned encryption key and never selects SQLite. From the repository root, after initializing the existing private `.env`:
+Points balance is `SUM(delta)` at the returned `as_of` snapshot, retained across pagination. History filters are all/awards/reversals/adjustments. Reversal-review state describes ledger relationships (reversed/not_reversed/reversal/not_applicable); it is not an approval or eligibility decision. There is no web-reachable write path or cash value. Automated award evidence retains a null actor; privileged review evidence identifies the reviewer.
+
+## Sessions, security and activation
+
+Staging preserves PostgreSQL sessions, separately encrypted credential rows and encryption/signing secrets, verified TLS, the `__Host-kolovibe_session` cookie, and security headers. Privileged sessions have a **15-minute absolute** and **30-minute idle** limit; activity/refresh never extend the absolute deadline. Password-only responses cannot enter the console. Credentials and MFA challenges never appear in URLs, HTML or browser storage. CSRF, stable gateway idempotency keys, account/session-bound decision intents, immutable audit evidence and role revalidation remain enforced.
+
+HTML uses Django autoescaping. Documents, redirects, errors and preview bytes use private/no-store cache controls. CSP permits only bundled styles/images and same-origin media, forbids scripts/objects/framing/base URLs, and restricts form actions. Logout/expiry clears client caches/cookies/storage. The existing restricted-staging HSTS configuration is retained; full ASVS L2 acceptance is not claimed. See [security evidence](../../tests/security/README.md).
+
+Audit reads introduce the explicit `audit_read` staging capability, requiring account management, moderation and MFA on Gateway. It needs a distinct Gateway → Audit credential and explicit HTTPS peer entry, plus Audit's capability and producer grants. Existing deployments do not gain this capability automatically. `generate_r1_secrets.py --audit-read` explicitly prepares the expanded peer set; its default preserves the reviewed six-peer rollout. The currently reviewed cluster profile keeps audit reads off and needs separate owner approval before activation. Credential generation never activates or deploys it. No current secret, Swarm configuration, role grant, merge or deployment is changed by this branch. New models require migrations; production remains unsupported.
+
+## Tests and local checks
+
+After initializing the existing private `.env`, from the repository root:
 
 ```sh
 .venv/bin/python scripts/run_local_web.py migrate
-.venv/bin/python scripts/run_local_web.py runserver 127.0.0.1:8010
 .venv/bin/python scripts/run_local_web.py test tests
+PATH="$(pg_config --bindir):$PATH" .venv/bin/python scripts/verify_local_journeys.py
 ```
 
-Real privileged sign-in requires an existing MFA-enabled Identity account and an approved gateway; this client creates neither accounts nor MFA factors. Test suites use synthetic identities and never need live credentials. The CI local-journey fixture checks removed routes, unauthenticated admin access, CSRF and rejection of ordinary viewer tokens against a real gateway; focused web tests cover the privileged MFA and decision contracts.
+The real-service fixture uses disposable TLS PostgreSQL, distinct per-peer keys and task-owned local web sessions. It exercises existing MFA enrollment/verification, both privileged roles, scoped queues/detail/totals/holds/audit/points, CSRF, decision replay, escaping, OpenAPI response validation and logout. Its Identity MFA opt-in is isolated to fixture processes; real local/staging settings are unchanged. Unit tests cover expiry, cookies, IDOR, invalid records, preview ownership/expiry, audit redaction and immutable ledger balances. Browser evidence covers keyboard navigation and 390px layout with synthetic records. Real staged R2 delivery, independent ASVS review and owner acceptance remain release work.
 
-Staging session cleanup uses the existing `clearsessions` and bounded `purge_expired_web_sessions` commands. Production remains unsupported. This change does not merge, publish or deploy the web app.
-
-Reviewer detail contracts now exist at `GET /moderation/{videos,reports,appeals}/<uuid>`.
-The owning service authorizes explicit assignment, audits each read, and returns metadata,
-rights status (`not_recorded` until verification is recorded by an approved workflow),
-and the most recent 20 authorized report/decision entries with explicit truncation flags.
-Moderators receive assigned reports and their own decision history; administrators supervise globally.
-An optional preview is a 60-second account-bound lease at `/moderation/previews/<uuid>`.
-The web proxies it at `/admin/moderation/previews/<uuid>/`, rechecking the live MFA session;
-Moderation rechecks assignment and expiry and audits the fetch. Content supplies a bounded
-MP4 (maximum 50 MiB). No object-store location or key is returned to the browser.
+Local `runserver` is for isolated fixture work; real privileged use requires an approved MFA-enabled Identity/Gateway profile. Session cleanup retains `clearsessions` and bounded `purge_expired_web_sessions`; expired preview leases are purged in bounded batches during issuance.

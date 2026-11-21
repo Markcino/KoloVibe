@@ -1,13 +1,25 @@
-{% extends 'base_admin.html' %}
+{% extends 'base_admin.html' %}{% load admin_display %}
 {% block title %}Dashboard · KoloVibe{% endblock %}
 {% block content %}
-<h1>Dashboard</h1>
-<p>Review content and manage your administrative account.</p>
-<div class="summary-grid">
-  <section class="panel"><h2>Review queue</h2><p>{{ totals.videos.review }}</p><a href="{% url 'moderation-videos' %}">Review videos</a></section>
-  <section class="panel"><h2>Open reports</h2><p>{{ totals.reports.open }}</p><a href="{% url 'moderation-reports' %}">Review reports</a></section>
-  <section class="panel"><h2>Pending appeals</h2><p>{{ totals.appeals.open }}</p><a href="{% url 'moderation-appeals' %}">Review appeals</a></section>
-  <section class="panel"><h2>Active fraud holds</h2><p>{{ holds.total }}</p></section>
+<div class="page-heading"><div><p class="eyebrow">Workspace overview</p><h1>Dashboard</h1><p class="supporting-text">Keep reviews moving and your community protected.</p></div><a class="button button-outline" href="{% url 'dashboard' %}">{% include 'icon.html' with name='refresh' %}Refresh</a></div>
+<div class="metric-grid" aria-label="Current operational counts">
+  <article class="metric-card"><div class="metric-heading"><span class="metric-icon tone-purple">{% include 'icon.html' with name='videos' %}</span><h2>Review queue</h2></div><p class="metric-value">{{ totals.videos.review }}</p><div class="metric-footer"><span>Videos awaiting review</span><a href="{% url 'moderation-videos' %}" aria-label="Open video review queue">{% include 'icon.html' with name='arrow' %}</a></div></article>
+  <article class="metric-card"><div class="metric-heading"><span class="metric-icon tone-amber">{% include 'icon.html' with name='reports' %}</span><h2>Open reports</h2></div><p class="metric-value">{{ totals.reports.open }}</p><div class="metric-footer"><span>Reports to assess</span><a href="{% url 'moderation-reports' %}" aria-label="Open reports queue">{% include 'icon.html' with name='arrow' %}</a></div></article>
+  <article class="metric-card"><div class="metric-heading"><span class="metric-icon tone-teal">{% include 'icon.html' with name='appeals' %}</span><h2>Pending appeals</h2></div><p class="metric-value">{{ totals.appeals.open }}</p><div class="metric-footer"><span>Appeals awaiting a decision</span><a href="{% url 'moderation-appeals' %}" aria-label="Open appeals queue">{% include 'icon.html' with name='arrow' %}</a></div></article>
+  <article class="metric-card"><div class="metric-heading"><span class="metric-icon tone-neutral">{% include 'icon.html' with name='shield' %}</span><h2>Active fraud holds</h2></div><p class="metric-value">{{ holds.total }}</p><div class="metric-footer"><span>Within your authorized scope</span></div></article>
 </div>
-<section class="panel"><h2>Recent audit events</h2>{% if recent_events == None %}<p>Audit access is unavailable for your current authorization.</p>{% else %}<ul>{% for event in recent_events %}<li>{{ event.occurred_at }} · {{ event.kind }}</li>{% empty %}<li>No recent events in your authorized scope.</li>{% endfor %}</ul>{% endif %}<a href="{% url 'audit' %}">Audit access</a></section>
+<div class="dashboard-grid">
+  <section class="panel workspace-panel"><div class="section-heading"><div><p class="eyebrow">Take action</p><h2>Review workspace</h2></div><span class="status-chip">MFA protected</span></div>
+    <a class="workspace-row" href="{% url 'moderation-videos' %}"><span class="row-icon tone-purple">{% include 'icon.html' with name='videos' %}</span><span class="row-copy"><strong>Video reviews</strong><small>Processed content awaiting a decision</small></span><span class="count-badge">{{ totals.videos.review }}</span>{% include 'icon.html' with name='arrow' %}</a>
+    <a class="workspace-row" href="{% url 'moderation-reports' %}"><span class="row-icon tone-amber">{% include 'icon.html' with name='reports' %}</span><span class="row-copy"><strong>Content reports</strong><small>Review community reports and evidence</small></span><span class="count-badge">{{ totals.reports.open }}</span>{% include 'icon.html' with name='arrow' %}</a>
+    <a class="workspace-row" href="{% url 'moderation-appeals' %}"><span class="row-icon tone-teal">{% include 'icon.html' with name='appeals' %}</span><span class="row-copy"><strong>Creator appeals</strong><small>Consider appeals with an independent review</small></span><span class="count-badge">{{ totals.appeals.open }}</span>{% include 'icon.html' with name='arrow' %}</a>
+    <p class="panel-footnote">Counts and records reflect your authorized scope.</p>
+  </section>
+  <section class="panel activity-panel"><div class="section-heading"><div><p class="eyebrow">Accountability</p><h2>Recent audit events</h2></div><a class="text-button" href="{% url 'audit' %}">View log</a></div>
+    {% if recent_events == None %}<div class="empty-state">{% include 'icon.html' with name='shield' %}<h3>Audit access unavailable</h3><p>This account does not currently have access to an audit view.</p></div>{% else %}<ul class="activity-list">{% for event in recent_events %}<li><span class="activity-icon">{% include 'icon.html' with name='audit' %}</span><div><strong>{{ event.kind|human_label }}</strong><time datetime="{{ event.occurred_at }}">{{ event.occurred_at|slice:':10' }} · {{ event.occurred_at|slice:'11:16' }} UTC</time></div></li>{% empty %}<li class="empty-state"><div><h3>No audit events yet</h3><p>Events in your authorized scope will appear here.</p></div></li>{% endfor %}</ul>{% endif %}
+  </section>
+</div>
+<section class="panel hold-panel"><div class="section-heading"><div><p class="eyebrow">Integrity</p><h2>Active hold records</h2></div><span class="status-chip">{{ holds.total }} active</span></div>
+{% if holds.items %}<div class="hold-list">{% for hold in holds.items|slice:':5' %}<div class="hold-row"><span class="row-icon tone-neutral">{% include 'icon.html' with name='shield' %}</span><div class="row-copy"><strong>{{ hold.reason_code|human_label }}</strong><small>Video {{ hold.video_id|slice:':8' }} · {{ hold.created_at|slice:':10' }}</small></div><span class="status-chip">Active</span></div>{% endfor %}</div>{% else %}<p class="supporting-text">No active fraud holds in your current scope.</p>{% endif %}
+</section>
 {% endblock %}

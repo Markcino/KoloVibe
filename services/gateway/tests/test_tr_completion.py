@@ -47,12 +47,13 @@ class PointsCompletionGatewayTests(SimpleTestCase):
     def test_all_points_routes_reject_client_awards_and_adjustments(self):
         with patch("service.routes.points.enabled", side_effect=lambda capability: capability == "points"):
             patterns = points_routes.patterns()
-        self.assertEqual(len(patterns), 3)
+        self.assertEqual(len(patterns), 5)
         for pattern in patterns:
             for method in ("post", "put", "patch", "delete"):
                 request = getattr(self.factory, method)("/points", {"amount": 1000}, content_type="application/json")
                 kwargs = dict(pattern.default_args)
-                if kwargs["operation"] == "entry": kwargs["entry_id"] = self.ident
+                if kwargs.get("operation") == "entry": kwargs["entry_id"] = self.ident
+                if "account_id" in pattern.pattern.converters: kwargs["account_id"] = self.account
                 self.assertEqual(pattern.callback(request, **kwargs).status_code, 405)
         self.actor.assert_not_called()
         self.peer.assert_not_called()

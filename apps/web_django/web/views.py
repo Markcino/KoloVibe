@@ -118,6 +118,7 @@ def error_500(request):
 
 def _clear_credentials(response, request):
     staging_session.clear(request)
+    response["Clear-Site-Data"] = '"cache", "cookies", "storage"'
     # Remove legacy local cookie fixtures when a browser is signed out.
     for name in ("kv_access", "kv_refresh"):
         if name in request.COOKIES:
@@ -172,7 +173,7 @@ def _gateway_error(request, status):
 
 @require_GET
 def root(request):
-    return redirect("dashboard" if request.session.get("authenticated") else "login")
+    return redirect("login")
 
 
 @never_cache

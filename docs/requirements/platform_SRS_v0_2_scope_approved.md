@@ -378,19 +378,21 @@ FR-011               Ledger integrity     Pending                LEDGER-001     
 FR-016               Ad policy            Pending                ADS-001           Not started
                      boundary
 NFR-001              MASVS                Pending                MOB-SEC-*         Not started
-NFR-002              ASVS 5.0             Pending                WEB-SEC-*         Not started
-FR-021/022/NFR-015   Admin console        Pending                WEB-ADM-*         Partial (PR #127)
+NFR-002              ASVS 5.0             Pending                WEB-SEC-*         Partial: scoped automated evidence; independent review pending
+FR-021/022/NFR-015   Admin console        Pending                WEB-ADM-*         Implemented; automated evidence, owner acceptance pending
                      boundary, MFA
                      session
-FR-023/025/030       Queue paging,        Pending                WEB-ADM-*         Partial (PR #127)
+FR-023/025/030       Queue paging,        Pending                WEB-ADM-*         Implemented; automated evidence, owner acceptance pending
                      decisions, account
-FR-024/026/027       Assignment, detail,  Pending                BE-MOD-WEB-*      Not started
+FR-024/026/027       Assignment, detail,  Pending                BE-MOD-WEB-*      Implemented; service/HTTP evidence, owner acceptance pending
                      counts (backend)
-FR-028/029           Audit read, points   Pending                BE-AUD-WEB-*,     Not started
+FR-028/029           Audit read, points   Pending                BE-AUD-WEB-*,     Implemented; service/HTTP evidence, owner acceptance pending
                      review (backend)                            BE-PTS-WEB-*
 
 
-
+Web evidence mapping and execution records: `tests/security/README.md`. Browser keyboard/390px evidence
+addresses NFR-011 for the administration console only. Full ASVS L2 acceptance, real staged R2 preview,
+audit retention/redaction policy, and assignment model/SLAs remain open; no owner sign-off is implied.
 
 10. Release criteria and exclusions
     Every Must requirement is tested and accepted by the product owner.

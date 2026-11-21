@@ -35,7 +35,8 @@ class OperationTests(TestCase):
         self.assertEqual(page["items"], [])
         global_page = json.loads(self.call("reports", {"cursor": None, "status": "resolved"}, role="administrator").content)
         self.assertEqual([item["id"] for item in global_page["items"]], [str(self.other.id)])
-        self.assertEqual(self.call("reports", {"cursor": None, "status": "unsupported"}).status_code, 400)
+        for invalid in ("unsupported", "", False, []):
+            self.assertEqual(self.call("reports", {"cursor": None, "status": invalid}).status_code, 400)
 
     def test_fraud_scope_contains_only_videos_of_active_assignments(self):
         ModeratorAssignment.objects.create(moderator_id=self.actor, queue_scope="reports", target_id=self.mine.id)

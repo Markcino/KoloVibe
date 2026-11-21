@@ -8,13 +8,13 @@
 </form>
 
 <div class="table-scroll" role="region" aria-label="{{ title }} queue" tabindex="0">
-<table><caption>{{ title }} awaiting review</caption>
+<table><caption>{{ title }} · {{ selected_status|title }}</caption>
 <thead><tr><th scope="col">Record</th><th scope="col">{% if kind == 'videos' %}Title{% else %}Reason{% endif %}</th><th scope="col">Status</th><th scope="col">Review</th></tr></thead>
 <tbody>{% for item in items %}<tr>
 <td>{{ item.id }}</td><td>{% if kind == 'videos' %}{{ item.title }}{% else %}{{ item.reason }}{% endif %}</td>
 <td>{% if kind == 'videos' %}{{ selected_status|title }}{% else %}{{ item.status|title }}{% endif %}</td>
-<td>{% if kind == 'videos' %}<a href="{% url 'moderation-videos-detail' item.id %}{{ detail_query }}">Review {{ item.id }}</a>{% elif kind == 'reports' %}<a href="{% url 'moderation-reports-detail' item.id %}{{ detail_query }}">Review {{ item.id }}</a>{% else %}<a href="{% url 'moderation-appeals-detail' item.id %}{{ detail_query }}">Review {{ item.id }}</a>{% endif %}</td>
-</tr>{% empty %}<tr><td colspan="4">No records awaiting review.</td></tr>{% endfor %}</tbody>
+<td>{% if kind == 'videos' %}<a href="{% url 'moderation-videos-detail' item.id %}{{ detail_query }}" aria-label="Review {{ item.id }}">Review</a>{% elif kind == 'reports' %}<a href="{% url 'moderation-reports-detail' item.id %}{{ detail_query }}" aria-label="Review {{ item.id }}">Review</a>{% else %}<a href="{% url 'moderation-appeals-detail' item.id %}{{ detail_query }}" aria-label="Review {{ item.id }}">Review</a>{% endif %}</td>
+</tr>{% empty %}<tr><td colspan="4">No records match this status.</td></tr>{% endfor %}</tbody>
 </table></div>
 <nav class="pagination" aria-label="Queue pages">{% if request.GET.cursor %}<a href="?status={{ selected_status|urlencode }}">First page</a>{% endif %}{% if next_query %}<a rel="next" href="?{{ next_query }}">Next page</a>{% endif %}</nav>
 {% endblock %}

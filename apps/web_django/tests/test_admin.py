@@ -78,7 +78,7 @@ class AdminConsoleTests(TestCase):
                     api.assert_not_called()
         self.assertRedirects(self.client.get("/"), "/login/", fetch_redirect_response=False)
         self.login()
-        self.assertRedirects(self.client.get("/"), "/admin/", fetch_redirect_response=False)
+        self.assertRedirects(self.client.get("/"), "/login/", fetch_redirect_response=False)
 
     def test_all_admin_routes_require_login_even_posts(self):
         for path in self.paths():
@@ -248,7 +248,7 @@ class AdminConsoleTests(TestCase):
         self.login()
         for kind in ACTIONS:
             with patch("web.views._api", side_effect=[(200, self.account), (200, {"items": [], "next_cursor": None})]):
-                self.assertContains(self.client.get(reverse(f"moderation-{kind}")), "No records awaiting review")
+                self.assertContains(self.client.get(reverse(f"moderation-{kind}")), "No records match this status")
         for status in (403, 404, 500, 502, 503):
             with patch("web.views._api", side_effect=[(200, self.account), (status, {
                     "detail": "private-token internal-host person@example.test"})]):
@@ -278,7 +278,7 @@ class AdminConsoleTests(TestCase):
         record = {**self.record("videos"), "title": '<script>alert("x")</script>'}
         for url in (reverse("moderation-videos"), self.detail_url("videos")):
             with patch("web.views._api", side_effect=[(200, self.account), (200, ({"items": [record], "next_cursor": None} if url == reverse("moderation-videos") else
-                    {**self.detail("videos"), "record": record}))]) as api:
+                    {**self.detail("videos"), "record": record, "video": {**self.detail("videos")["video"], "title": record["title"]}}))]) as api:
                 response = self.client.get(url)
             self.assertContains(response, "&lt;script&gt;")
             self.assertNotContains(response, "<script>")
