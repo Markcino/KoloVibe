@@ -54,7 +54,7 @@ class EvidenceMatchesTheScannerConfigTests(unittest.TestCase):
         ]
         self.assertEqual(rules[len(expected):], openssl)
         expiry = datetime.date.fromisoformat(
-            re.search(r"(?m)^# Expires \\(OpenSSL temporary\\): (\\d{4}-\\d{2}-\\d{2})$", GRYPE_TEXT).group(1))
+            re.search(r"(?m)^# Expires \(OpenSSL temporary\): (\d{4}-\d{2}-\d{2})$", GRYPE_TEXT).group(1))
         self.assertEqual(expiry, datetime.date(2026, 11, 28))
         self.assertGreater(expiry, datetime.datetime.now(datetime.timezone.utc).date())
         cves = [row["cve"] for row in EVIDENCE["rows"]]
