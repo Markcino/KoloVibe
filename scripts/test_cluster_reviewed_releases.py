@@ -89,6 +89,66 @@ class GatewayGuardTests(unittest.TestCase):
                         self.assertIsNone(entry['r1_changes'])      # an image move changes nothing else
                         self.assertFalse(entry['secret_changes'])
 
+    def test_tool_managed_gateway_is_automatically_recognized_on_next_release(self):
+        # The starting v0.290.1 legacy Gateway needs its reviewed bootstrap
+        # entry once. The guarded update writes a marker, revision and pinned
+        # update/rollback guards so future versions need no history edits.
+        swarm = on_image(AwsSwarm(), V0_290_1)
+        with aws(swarm), tempfile.TemporaryDirectory() as directory, patch('sys.stderr'):
+            cluster.update('e.json', 'operator', NEW_IMAGE, TARGET_REVISION,
+                           ['gateway'], 'WAIVED-R1-STAGING-20261114', NEW_IMAGE,
+                           str(Path(directory) / 'r.json'), True)
+        spec = swarm.services['kolovibe-gateway']['Spec']
+        self.assertEqual(spec['Labels'][cluster.LABEL], '1')
+        self.assertEqual(spec['Labels']['kolovibe.source-revision'], TARGET_REVISION)
+
+        next_target = cluster.REPOSITORY + '@sha256:' + 'd' * 64
+        self.assertNotIn(NEW_IMAGE, AWS.reviewed_releases)
+        with aws(swarm):
+            forward = cluster.update_plan(EVIDENCE, next_target, 'a' * 40, ['gateway'])
+        entry = forward['entries'][0]
+        self.assertEqual(entry['current_image'], NEW_IMAGE)
+        self.assertEqual(entry['target_image'], next_target)
+        self.assertEqual(entry['action'], 'update')
+
+    def test_auto_recognition_does_not_trust_an_unmanaged_or_partial_marker(self):
+        for changes in (
+                {'Labels': {cluster.LABEL: '1', 'kolovibe.source-revision': TARGET_REVISION}},
+                {'Labels': {cluster.LABEL: '1', 'kolovibe.source-revision': 'not-a-commit'},
+                 'UpdateConfig': dict(cluster.UPDATE_CONFIG),
+                 'RollbackConfig': dict(cluster.ROLLBACK_CONFIG)},
+                {'Labels': {cluster.LABEL: '1', 'kolovibe.source-revision': TARGET_REVISION},
+                 'UpdateConfig': dict(cluster.UPDATE_CONFIG)},
+        ):
+            swarm = on_image(AwsSwarm(), UNLISTED, ['gateway'])
+            swarm.services['kolovibe-gateway']['Spec'].update(changes)
+            with aws(swarm), self.assertRaisesRegex(RuntimeError, 'differs from the working pinned baseline'):
+                cluster.base_gateway('1.52', NEW_IMAGE)
+
+    def test_managed_gateway_still_rejects_environment_and_repository_drift(self):
+        swarm = on_image(AwsSwarm(), V0_290_1)
+        with aws(swarm):
+            old = swarm.services['kolovibe-gateway']['Spec']
+            managed = cluster.update_spec(old, UNLISTED, TARGET_REVISION, service='gateway')
+        gateway = swarm.services['kolovibe-gateway']
+        gateway['Spec'] = managed
+        with aws(swarm):
+            self.assertEqual(cluster.live_image(cluster.base_gateway('1.52', NEW_IMAGE)['Spec']), UNLISTED)
+
+        gateway['Spec']['TaskTemplate']['ContainerSpec']['Env'] = [
+            line.replace('KOLOVIBE_ENV=staging', 'KOLOVIBE_ENV=local')
+            for line in gateway['Spec']['TaskTemplate']['ContainerSpec']['Env']
+        ]
+        with aws(swarm), self.assertRaisesRegex(RuntimeError, 'differs from the working pinned baseline'):
+            cluster.base_gateway('1.52', NEW_IMAGE)
+        gateway['Spec']['TaskTemplate']['ContainerSpec']['Env'] = [
+            line.replace('KOLOVIBE_ENV=local', 'KOLOVIBE_ENV=staging')
+            for line in gateway['Spec']['TaskTemplate']['ContainerSpec']['Env']
+        ]
+        gateway['Spec']['TaskTemplate']['ContainerSpec']['Image'] = OTHER_REPOSITORY
+        with aws(swarm), self.assertRaisesRegex(RuntimeError, 'differs from the working pinned baseline'):
+            cluster.base_gateway('1.52', NEW_IMAGE)
+
     def test_an_unlisted_digest_of_this_repository_still_stops_every_plan(self):
         for services in (['audit'], ORDER):
             with self.subTest(services=services), self.assertRaisesRegex(RuntimeError, 'differs from the working pinned baseline'):
