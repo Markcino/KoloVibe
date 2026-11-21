@@ -67,6 +67,7 @@ allow { input.Method == "GET" }
 allow { input.Method == "HEAD" }
 '''
 LABEL = 'kolovibe.cluster-launcher'
+PIN_PROOF_LABEL = 'kolovibe.release-pin-sha256'
 MIB = 1024 * 1024
 # Swarm object names/filename suffixes only; the secret values are never loaded here.
 COMMON = {'django_key': '_django', 'db_password': '_db', 'tls_cert': '_tls_cert',  # pragma: allowlist secret
@@ -294,6 +295,10 @@ AWS_STAGING = Profile(
         # v0.271.1: previously verified on all eight AWS APIs on 20 November 2026.
         # Required for a guarded update to the published v0.273.1 audit row-lock repair.
         REPOSITORY + '@sha256:7c4942e329a62bef6b4c56a9744421722839cb5349eedae6773c052183036e72',
+        # v0.290.1: operator-confirmed on all eight AWS APIs on 21 November 2026;
+        # source commit 1be1236624623c223e944bb8c281ce8cee5e4fe7,
+        # successful main CI run 44888581033 with publication artifact.
+        REPOSITORY + '@sha256:03dcdb201d4c2e0e2891dc20b4bdc6836f765ba70a671dcf8af4c17153762333',
     ),
     opa_waiver=OPA_WAIVER, r1_flags=r1_flag_table(), r1_rollout=r1_rollout_table(),
     # Read-only service inspection of 14 November 2026: every AWS service mounts the database CA from the
@@ -663,7 +668,16 @@ def resolve_release(image=None, revision=None, release_dir=None):
 def pinned(spec, image, revision):
     spec = copy.deepcopy(spec)
     spec['TaskTemplate']['ContainerSpec']['Image'] = image
-    spec.setdefault('Labels', {})['kolovibe.source-revision'] = revision
+    labels = spec.setdefault('Labels', {})
+    labels['kolovibe.source-revision'] = revision
+    # A reviewed image update makes the release self-describing for later
+    # upgrades. The next plan can recognize this managed release without
+    # editing a digest allowlist, while the first import of an older manually
+    # installed release remains an explicit, reviewed adoption.
+    labels[LABEL] = '1'
+    labels[PIN_PROOF_LABEL] = hashlib.sha256(
+        (image + '\\0' + revision).encode()
+    ).hexdigest()
     return spec
 
 
@@ -703,10 +717,26 @@ def base_gateway(api, image=BASELINE_IMAGE):
     off = flag_mismatch('gateway', env)
     if off:
         fail('Gateway staging capability flags differ from the ' + PROFILE.name + ' profile: ' + ', '.join(off))
-    # The Gateway is on the working baseline, on the exact target (a re-run), or on an earlier release that the profile
-    # lists by digest. Any other image, including an unlisted digest of this repository, stops every plan.
+    # The first adoption of a Gateway updated outside this tool needs an exact
+    # reviewed prior image. After a successful guarded update, pinned() records
+    # the tool marker plus source revision and the update guards. Those jointly
+    # identify a tool-managed prior release without an ever-growing code allowlist.
+    labels = spec.get('Labels') or {}
+    managed_prior = (
+        bool(IMAGE_RE.fullmatch(c.get('Image', '')))
+        and labels.get(LABEL) == '1'
+        and bool(REVISION_RE.fullmatch(labels.get('kolovibe.source-revision', '')))
+        # Detect accidental image swaps that preserve the old service labels:
+        # the release marker is bound to the precise image and revision.
+        and labels.get(PIN_PROOF_LABEL) == hashlib.sha256(
+            (c['Image'] + '\\0' + labels['kolovibe.source-revision']).encode()
+        ).hexdigest()
+        and canonical(spec.get('UpdateConfig') or {}) == canonical(UPDATE_CONFIG)
+        and canonical(spec.get('RollbackConfig') or {}) == canonical(ROLLBACK_CONFIG)
+    )
+    known_image = c.get('Image') in (BASELINE_IMAGE, image, *PROFILE.reviewed_releases) or managed_prior
     if (any(env.get(k) != v for k, v in required.items()) or not db_host_ok(env.get('KOLOVIBE_DB_HOST', ''))
-            or c.get('Image') not in (BASELINE_IMAGE, image, *PROFILE.reviewed_releases)):
+            or not known_image):
         fail('Gateway differs from the working pinned baseline')
     if not c.get('ReadOnly') or c.get('User') != '10001:10001':
         fail('Gateway runtime hardening differs')
