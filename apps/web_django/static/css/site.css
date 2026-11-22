@@ -163,7 +163,8 @@ dd { margin: 6px 0 20px; overflow-wrap: anywhere; white-space: pre-wrap; }
   .workspace-row .row-icon { width: 34px; height: 34px; flex-basis: 34px; }
   .section-heading .status-chip { font-size: 11px; }
   .filters { padding: 16px; }
-  .filters label { max-width: none; }
+  .filters label { flex-basis: 100%; max-width: none; }
+  .filters button { width: 100%; margin-bottom: 0; }
   .auth-card { padding: 28px; }
   .role-badge { padding: 7px 10px; font-size: 11px; }
   .app-context { font-size: 12px; }

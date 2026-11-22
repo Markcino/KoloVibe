@@ -14,7 +14,7 @@
       <label>Password<input type="password" name="password" autocomplete="current-password" maxlength="128" required></label>
       {% elif kind == 'mfa' %}
       <p class="supporting-text">Enter the code from your authenticator app, or one unused recovery code.</p>
-      <label>Verification code<input class="verification-input" name="code" autocomplete="one-time-code" minlength="6" maxlength="128" pattern="([0-9]{6}|[A-Za-z0-9_-]{32,128})" required autofocus></label>
+      <label>Verification code<input class="verification-input" name="code" autocomplete="one-time-code" minlength="6" maxlength="128" pattern="([0-9]{6}|[A-Za-z0-9_\-]{32,128})" required autofocus></label>
       {% endif %}
       <button class="auth-submit" type="submit">{% if kind == 'mfa' %}Verify and continue{% else %}Sign in{% endif %}{% include 'icon.html' with name='arrow' %}</button>
     </form>

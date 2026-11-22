@@ -16,7 +16,7 @@ All gateway paths below use the `/api/v1` prefix. Every `/admin/` route requires
 | `/admin/moderation/{videos,reports,appeals}/<uuid>/` | Matching reviewer detail GET; decision POST calls `/moderation/<kind>/<uuid>/decisions` |
 | `/admin/moderation/previews/<uuid>/` | Authenticated proxy for `/moderation/previews/<uuid>`; no storage redirect |
 | `/admin/points/` | `GET /admin/points/balances`; `?account=<uuid>` reads `/admin/points/accounts/<uuid>` |
-| `/admin/audit/` | `GET /admin/audit` with cursor, kind, producer, since and until filters |
+| `/admin/audit/` | `GET /admin/audit` with cursor, kind, producer, since and until filters; since/until are UTC `datetime-local` inputs sent to the gateway as ISO 8601 `Z` values |
 | `/admin/account/` | Own identity from `GET /me` |
 | `/admin/account/profile/` | `PATCH /me` |
 | `/admin/account/password/` | `PATCH /me/password`; success clears browser state |
@@ -51,7 +51,7 @@ Points balance is `SUM(delta)` at the returned `as_of` snapshot, retained across
 
 Staging preserves PostgreSQL sessions, separately encrypted credential rows and encryption/signing secrets, verified TLS, the `__Host-kolovibe_session` cookie, and security headers. Privileged sessions have a **15-minute absolute** and **30-minute idle** limit; activity/refresh never extend the absolute deadline. Password-only responses cannot enter the console. Credentials and MFA challenges never appear in URLs, HTML or browser storage. CSRF, stable gateway idempotency keys, account/session-bound decision intents, immutable audit evidence and role revalidation remain enforced.
 
-HTML uses Django autoescaping. Documents, redirects, errors and preview bytes use private/no-store cache controls. CSP permits only bundled styles/images and same-origin media, forbids scripts/objects/framing/base URLs, and restricts form actions. Logout/expiry clears client caches/cookies/storage. The existing restricted-staging HSTS configuration is retained; full ASVS L2 acceptance is not claimed. See [security evidence](../../tests/security/README.md).
+HTML uses Django autoescaping. Documents, redirects, errors and preview bytes use private/no-store cache controls. CSP permits only bundled styles/images and same-origin media, forbids scripts/objects/framing/base URLs, and restricts form actions. Logout/expiry clears client caches/cookies/storage. The restricted-staging HSTS profile is 30 days without includeSubDomains or preload, because the apex hosts other sites; full ASVS L2 acceptance is not claimed. See [security evidence](../../tests/security/README.md).
 
 Audit reads introduce the explicit `audit_read` staging capability, requiring account management, moderation and MFA on Gateway. It needs a distinct Gateway → Audit credential and explicit HTTPS peer entry, plus Audit's capability and producer grants. Existing deployments do not gain this capability automatically. `generate_r1_secrets.py --audit-read` explicitly prepares the expanded peer set; its default preserves the reviewed six-peer rollout. The currently reviewed cluster profile keeps audit reads off and needs separate owner approval before activation. Credential generation never activates or deploys it. No current secret, Swarm configuration, role grant, merge or deployment is changed by this branch. New models require migrations; production remains unsupported.
 

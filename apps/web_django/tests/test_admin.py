@@ -407,6 +407,24 @@ class AdminConsoleTests(TestCase):
             api.assert_called_once()
 
 
+    def test_audit_datetime_local_filters_are_sent_as_utc_and_redisplayed(self):
+        self.login("moderator")
+        record = {"id": str(uuid.uuid4()), "kind": "mfa.failed", "producer": "identity",
+                  "subject_type": None, "occurred_at": "2026-11-21T10:05:09.123456+00:00"}
+        with patch("web.views._api", side_effect=[(200, self.account), (200, {"items": [record], "next_cursor": None})]) as api:
+            response = self.client.get("/admin/audit/?since=2026-11-21T09:30&until=2026-11-21T11:00:00%2B01:00")
+        self.assertEqual(api.call_args.args, ("/admin/audit?since=2026-11-21T09%3A30%3A00Z&until=2026-11-21T10%3A00%3A00Z",))
+        self.assertContains(response, 'type="datetime-local" name="since" value="2026-11-21T09:30"')
+        self.assertContains(response, "2026-11-21 · 10:05:09 UTC")
+        self.assertContains(response, "Mfa / failed")
+
+    def test_audit_filter_with_invalid_bound_is_forwarded_for_gateway_rejection(self):
+        self.login("moderator")
+        with patch("web.views._api", side_effect=[(200, self.account), (400, {})]) as api:
+            self.client.get("/admin/audit/?since=not-a-date")
+        self.assertEqual(api.call_args.args, ("/admin/audit?since=not-a-date",))
+
+
     def test_points_review_renders_ledger_and_follows_service_authorization(self):
         self.login("moderator")
         with patch("web.views._api", side_effect=[(200, self.account), (403, {})]) as api:
