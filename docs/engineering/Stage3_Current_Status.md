@@ -16,7 +16,7 @@ independent public API checks returned HTTP 503. Other services, RabbitMQ,
 ingress and full acceptance remain pending. The new Cloud Shell runner has
 passed offline tests but has not yet executed against the VMs.
 
-On 10 November GitHub reported `protected: false` for `main`. The rulesets endpoint returned HTTP 403 with a plan restriction. FND-01 remains owner-declared complete, with server-side enforcement pending.
+On 10 November GitHub reported `protected: false` for `main`. As of 22 November, `main` reports `protected: true` under the active "KoloVibe Rules" ruleset, which blocks only deletion and non-fast-forward updates; it requires no status checks or pull request review. FND-01 remains owner-declared complete, with enforcement of required checks tracked in [#142](https://github.com/Markcino/KoloVibe/issues/142).
 
 ## Evidence-based task assessment
 
@@ -87,7 +87,7 @@ The proposed main policy requires pull requests, all 12 CI checks, up-to-date br
 
 Mark records self-review in the PR checklist. CODEOWNERS identifies Mark's responsibility and does not require another person to approve his PR. This is an explicit solo-development workflow, not independent review evidence.
 
-Mark directed that FND-01 remain complete on 1 November 2026. The 10 November readback still shows an unprotected main branch and a ruleset plan restriction.
+Mark directed that FND-01 remain complete on 1 November 2026. The 10 November readback showed an unprotected main branch; the 22 November readback shows a ruleset without required checks (see above).
 
 See [activation and acceptance](FND-01_repository_governance.md).
 

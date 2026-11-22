@@ -11,6 +11,7 @@ Use the controlled source documents below. Link to them instead of copying requi
 
 ## Delivery and engineering
 
+- [Go-live readiness by stage](planning/go_live_readiness.md) — Stages 1–6 open work, linked to the GitHub tracker, milestones and labels. Production remains NO-GO.
 - [Current Stage 3 status](engineering/Stage3_Current_Status.md) and [implementation tracker](engineering/Stage3_Implementation_Tracker.csv) — update together from verified evidence.
 - [17 November staging reconciliation](operations/R1_AWS_Staging_Reconciliation_2026-11-17.md) — current release status, evidence limits and remaining acceptance; supersedes older deployment-not-started summaries.
 - [R1 application tracker](engineering/R1_Application_Tracker.md) and [API test deployment roadmap](engineering/API_Test_Deployment_Roadmap.md) — Stage 4 implementation, Stage 5 verification and environment-specific evidence.

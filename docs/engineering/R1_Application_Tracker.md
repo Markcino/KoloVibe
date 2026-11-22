@@ -6,6 +6,8 @@
 
 The [17 November reconciliation](../operations/R1_AWS_Staging_Reconciliation_2026-11-17.md) is the current release checkpoint: **v0.187.2 published; all eight APIs and the media worker deployed by operator report; 26 passed / 0 failed / 19 pending**. POST authentication routing is verified for the submitted invalid-input probes. Successful authenticated login/profile and refresh on this release remain pending evidence.
 
+The [21 November record](../operations/R1_AWS_Gateway_Prior_Release_v0.290.1_2026-11-21.md) reports all eight APIs, including the Gateway, running a later operator-observed digest (source commit `1be1236`). No integrated acceptance assessment has been recorded for it, so the 26/0/19 totals above are not transferred to that release. Open work toward go-live is indexed in [go-live readiness](../planning/go_live_readiness.md) and tracked in [#169](https://github.com/Markcino/KoloVibe/issues/169).
+
 This checkpoint supersedes the deployment/worker-provisioning status in the earlier area table and local-candidate notes below. Preserve their implementation and older UAT evidence under their original dates; do not transfer a prior release's pass to v0.187.2. Current remaining work is listed in the linked reconciliation.
 
 ## Earlier implementation and acceptance record
