@@ -214,6 +214,11 @@ paths:
       tags:
       - Identity
       summary: Complete a password-bound privileged MFA challenge
+      description: >-
+        TOTP accepts only the current server-aligned 30-second period, once.
+        Previous and future periods are rejected without clock-skew tolerance.
+        A code received at the next period boundary is expired. Devices and
+        servers require synchronized clocks. One-use recovery codes remain supported.
       operationId: post__auth_mfa_verify
       x-implementation: staging-gated
       security: []
@@ -4421,7 +4426,7 @@ components:
           maxLength: 128
         code:
           type: string
-          description: Six-digit TOTP or one-use recovery code; never logged
+          description: Six-digit TOTP for the current server-aligned 30-second period only, or one-use recovery code; never logged
           pattern: '^(?:[0-9]{6}|[a-zA-Z0-9_-]{32,128})$'
     TokenResponse:
       type: object
