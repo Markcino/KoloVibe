@@ -566,9 +566,28 @@ def verify():
                     "password": password}, invitee)[0], 302)
                 status, page = request(ports["web"], "/moderator-invitation/", cookies=invitee)
                 self.assertEqual(status, 200)
-                secret = re.search(rb'<code class="invitation-secret">([A-Z2-7]{32})</code>', page).group(1).decode()
+                # The web no longer exposes the authenticator seed in HTML.
+                # Exercise its session-protected QR endpoint over real HTTP.
+                self.assertIn(b'/moderator-invitation/qr/', page)
+                self.assertNotIn(b'class="invitation-secret"', page)
+                self.assertEqual(request(ports["web"], "/moderator-invitation/qr/")[0], 404)
+                qr_headers = {}
+                status, qr = request(ports["web"], "/moderator-invitation/qr/",
+                                     cookies=invitee, response_headers=qr_headers)
+                self.assertEqual(status, 200)
+                self.assertTrue(qr.startswith(b"\x89PNG\r\n\x1a\n"))
+                self.assertEqual(qr_headers["Content-Type"], "image/png")
+                self.assertIn("no-store", qr_headers["Cache-Control"])
+                # Read the disposable Identity fixture's encrypted pending seed
+                # only inside this test; real clients must scan the QR code.
+                from cryptography.fernet import Fernet
                 with fixture_connection("identity") as connection:
                     self.assertIsNone(connection.execute("SELECT id FROM identity.service_account WHERE email=%s", (email,)).fetchone())
+                    encrypted = connection.execute(
+                        "SELECT encrypted_secret FROM identity.service_moderatorinvitation WHERE email=%s AND closed=false",
+                        (email,)).fetchone()[0]
+                secret = Fernet((base / "mfa-key").read_bytes().strip()).decrypt(encrypted.encode()).decode()
+                self.assertRegex(secret, r"^[A-Z2-7]{32}$")
                 # Keep enough of the current period for a real HTTP round trip.
                 if time.time() % 30 > 25:
                     time.sleep(30 - time.time() % 30 + 0.1)
