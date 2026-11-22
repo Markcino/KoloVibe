@@ -108,6 +108,7 @@ class Profile(NamedTuple):
     r1_rollout: dict = None    # service -> reviewed env, secret mounts and networks the R1 rollout adds
     ca_secret_names: dict = None  # shared-CA mount target -> the Swarm secret name this environment uses for it
     db_user_format: str = 'kv_{service}_run'  # runtime database login of each service, from the live specs
+    audit_read_flags: dict = None  # exact AWS read-back row; recognized for image-only updates, never activated by r1
 
 
 NETWORKS = frozenset({'kolovibe_services', 'kolovibe_data', 'kolovibe_db_host_access'})
@@ -146,6 +147,15 @@ def r1_flag_table():
         'moderation': row('0', '0', '0', 'moderation'),
         'audit': row('0', '0', '0', ''),
     }
+
+
+def audit_read_flag_table(table):
+    """The 22 November AWS read-back: R1 plus audit_read on Gateway and Audit only."""
+    result = copy.deepcopy(table)
+    caps = result['gateway'][FLAG_CAPABILITIES].split(',')
+    result['gateway'][FLAG_CAPABILITIES] = ','.join(sorted(caps + ['audit_read']))
+    result['audit'][FLAG_CAPABILITIES] = 'audit_read'
+    return result
 
 
 # Services that carry the single `media` capability in the intermediate "media stage" (read back from the live AWS
@@ -249,6 +259,10 @@ def _aws_allowed_secrets():
     allowed['gateway'] |= {'kolovibe_gateway_trusted_peers' + R1_SECRET_SUFFIX, 'kolovibe_gateway_outbound' + R1_SECRET_SUFFIX,
                            'kolovibe_account_approval' + R1_SECRET_SUFFIX}
     allowed['identity'] |= {'kolovibe_account_approval' + R1_SECRET_SUFFIX}
+    # Exact existing names read back on AWS, 22 November 2026; never created/rotated by this tool.
+    allowed['gateway'] |= {'kolovibe_gateway_audit_outbound_20261122_v1',
+                           'kolovibe_gateway_audit_peers_20261122_v1'}
+    allowed['audit'] = {'kolovibe_audit_callers_auditread_20261122_v1'}
     for service, rollout in r1_rollout_table().items():
         allowed.setdefault(service, set()).update(rollout['mounts'].values())
     # Read-only inspection of the eight live services on 19 November 2026: the Content service already mounts the
@@ -299,6 +313,10 @@ AWS_STAGING = Profile(
         # source commit 1be1236624623c223e944bb8c281ce8cee5e4fe7,
         # successful main CI run 44888581033 with publication artifact.
         REPOSITORY + '@sha256:03dcdb201d4c2e0e2891dc20b4bdc6836f765ba70a671dcf8af4c17153762333',
+        # v0.341.1: exact live prior release read back on 22 November 2026; verified against
+        # main publication run 45021877435, source 92497e77d59a735c17720e0ef517a2d4f0804a66.
+        # Its manually recorded pin marker does not match this tool's proof; retain exact adoption.
+        REPOSITORY + '@sha256:42ac22a9dd94649e190db48aa16068bc39af20468fac0222a6daf5dd82c91c6a',
     ),
     opa_waiver=OPA_WAIVER, r1_flags=r1_flag_table(), r1_rollout=r1_rollout_table(),
     # Read-only service inspection of 14 November 2026: every AWS service mounts the database CA from the
@@ -306,7 +324,7 @@ AWS_STAGING = Profile(
     ca_secret_names={'db_ca': 'kolovibe_pg_ca_v1'},
     # Read-only service inspection of 14 November 2026: logins are `kolovibe_<service>_app` and the database host
     # is the Swarm service name `kolovibe-postgres` (the 13 November note of a 172.31.x address is superseded).
-    db_user_format='kolovibe_{service}_app')
+    db_user_format='kolovibe_{service}_app', audit_read_flags=audit_read_flag_table(r1_flag_table()))
 PROFILES = {p.name: p for p in (ORACLE_STAGING, AWS_STAGING)}
 
 
@@ -331,6 +349,10 @@ def check_flag_table(profile):
         check_r1_table(profile)
     if profile.media_flags is not None:
         check_media_table(profile)
+    if profile.audit_read_flags is not None:
+        if (profile.name != 'aws-staging' or profile.r1_flags is None
+                or profile.audit_read_flags != audit_read_flag_table(profile.r1_flags)):
+            raise ValueError(profile.name + ': audit-read row must equal the exact AWS read-back')
     check_reviewed_releases(profile)
 
 
@@ -423,7 +445,7 @@ def _differs(row, env):
 
 def flag_state(service, env):
     """'baseline' (the 14 November read-back), 'media' (the reviewed intermediate row), 'r1' (the reviewed R1
-    row) or None; exact matches only. Any other combination, including a partial or wider capability set, is None."""
+    row), the exact AWS 'audit-read' read-back, or None. Any other combination is rejected."""
     baseline = dict(PROFILE.service_flags[service])
     # The baseline predates the capability variables: they must be absent, never merely ignored.
     baseline.update({FLAG_ONBOARDING: '', FLAG_CAPABILITIES: ''})
@@ -433,6 +455,8 @@ def flag_state(service, env):
         return 'media'
     if PROFILE.r1_flags is not None and not _differs(PROFILE.r1_flags[service], env):
         return 'r1'
+    if PROFILE.audit_read_flags is not None and not _differs(PROFILE.audit_read_flags[service], env):
+        return 'audit-read'
     return None
 
 
@@ -1091,6 +1115,8 @@ def update_plan(evidence, image, revision, services, restore_ref=None, secret_ov
         if off:
             fail('Staging capability flags of ' + name + ' differ from the ' + PROFILE.name
                  + ' profile: ' + ', '.join(off))
+        if r1 and flag_state(service, env_dict(spec['TaskTemplate']['ContainerSpec'])) == 'audit-read':
+            fail('Legacy R1 activation would remove active audit reads; use an image-only update')
         require_secrets_belong(service, spec)
         changes = secret_changes(service, spec, overrides.get(service, {}), known)
         delta = r1_delta(service, spec, known, networks, operator_env.get(service, {})) if r1 else None
