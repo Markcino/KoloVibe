@@ -92,7 +92,7 @@ class ModeratorInvitationWebTests(TestCase):
             qr = self.client.get("/moderator-invitation/qr/")
         self.assertEqual(qr.status_code, 200)
         self.assertEqual(qr["Content-Type"], "image/png")
-        self.assertTrue(qr.content.startswith(b"\\x89PNG\\r\\n\\x1a\\n"))
+        self.assertTrue(qr.content.startswith(b"\x89PNG\r\n\x1a\n"))
         self.assertIn("no-store", qr.headers["Cache-Control"])
         uri = urlsplit(make_qr.call_args.args[0])
         self.assertEqual((uri.scheme, uri.netloc), ("otpauth", "totp"))
