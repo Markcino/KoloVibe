@@ -1,5 +1,7 @@
 > Source: DOC-007_Traceability_and_Signoff_DRAFT.docx (text export; original formatting, formulas and embedded images are not included). Original review status is retained.
 
+> Approval interpretation: the export's “approved baselines” wording covers [DEC-001 scope only](platform_documentation_register_and_DEC001.md#approval-interpretation). Detailed approval is pending; the source remains Draft.
+
 <PARSED TEXT FOR PAGE: 1 / 2>
 Requirements Traceability and Stage 1 Sign-
 Off
@@ -101,9 +103,11 @@ Stage 1 exit checklist
 Approval record
 Item                              Decision                           Date / owner
 DEC-001 MVP scope                 Approved by user                   Previously confirmed
-DEC-002 PRD and SRS v0.2          Approved by user                   Previously confirmed
+PRD/SRS detailed baselines        Pending owner decision (#133)      —
 DOC-004 RBAC                      Pending                            —
 DOC-005 Journeys                  Pending                            —
 DOC-006 Business rules            Pending                            —
 DOC-007 Traceability              Pending                            —
 Stage 1 formal closure            Pending                            —
+
+Document-control correction (#133): the original export row said “DEC-002 PRD and SRS v0.2 / Approved by user / Previously confirmed.” That historical assertion is retained here, but it is not usable detail-approval evidence. The authoritative register leaves DEC-002 open for product name/legal entity and limits DEC-001 to scope. FR/NFR verification states and formal Stage 1 sign-off remain unchanged for #134.

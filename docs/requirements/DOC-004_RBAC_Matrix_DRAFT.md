@@ -1,5 +1,7 @@
 > Source: DOC-004_RBAC_Matrix_DRAFT.docx (text export; original formatting, formulas and embedded images are not included). Original review status is retained.
 
+> Approval interpretation: the export's “approved baselines” wording covers [DEC-001 scope only](platform_documentation_register_and_DEC001.md#approval-interpretation). Detailed approval is pending; the source remains Draft.
+
 <PARSED TEXT FOR PAGE: 1 / 2>
 Role-Based Access Control Matrix
 DOC-004 | Authorization model for MVP and future modules

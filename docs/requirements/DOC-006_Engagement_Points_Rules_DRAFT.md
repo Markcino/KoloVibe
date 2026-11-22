@@ -1,5 +1,7 @@
 > Source: DOC-006_Engagement_Points_Rules_DRAFT.docx (text export; original formatting, formulas and embedded images are not included). Original review status is retained.
 
+> Approval interpretation: the export's “approved baselines” wording covers [DEC-001 scope only](platform_documentation_register_and_DEC001.md#approval-interpretation). Detailed approval is pending; the source remains Draft.
+
 <PARSED TEXT FOR PAGE: 1 / 2>
 Engagement, Points and Revenue Business
 Rules
