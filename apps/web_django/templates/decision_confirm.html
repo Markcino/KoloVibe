@@ -1,0 +1,9 @@
+{% extends 'base_admin.html' %}{% load admin_display %}
+{% block title %}Confirm decision · KoloVibe{% endblock %}
+{% block content %}
+<section class="panel form-panel"><p class="eyebrow">Confirm before recording</p><h1>{{ action|title }} this {{ kind|slice:":-1" }}?</h1>
+<div class="callout callout-attention" role="note">{% include 'icon.html' with name='warning' %}<span>This decision is recorded under your name and affects the creator. It cannot be changed here once applied.</span></div>
+<dl class="meta-grid"><div><dt>Record</dt><dd class="mono">{{ item_id }}</dd></div><div><dt>Decision</dt><dd>{{ action|title }}</dd></div><div class="meta-wide"><dt>Reason</dt><dd>{{ reason }}</dd></div></dl>
+<form method="post" class="confirm-actions">{% csrf_token %}<input type="hidden" name="intent" value="{{ intent }}"><input type="hidden" name="action" value="{{ action }}"><input type="hidden" name="reason" value="{{ reason }}"><input type="hidden" name="confirm" value="1">
+  <button type="submit" class="button-danger">Confirm {{ action }}</button><a class="button button-outline" href="{{ back_url }}">Go back and edit</a></form></section>
+{% endblock %}

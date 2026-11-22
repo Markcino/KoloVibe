@@ -32,3 +32,8 @@ for kind in ("videos", "reports", "appeals"):
         path(f"admin/moderation/{kind}/<uuid:target_id>/", views.moderation_detail,
              {"kind": kind}, name=f"moderation-{kind}-detail"),
     ]
+# Only routes that exist redirect, so the redirect cannot be steered to another location.
+urlpatterns += [path(str(route.pattern)[:-1], views.add_trailing_slash)
+                for route in list(urlpatterns)
+                if str(route.pattern).startswith("admin/") and str(route.pattern).endswith("/")
+                and route.callback is not views.logout]

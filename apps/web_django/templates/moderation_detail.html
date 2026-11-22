@@ -1,18 +1,30 @@
-{% extends 'base_admin.html' %}
+{% extends 'base_admin.html' %}{% load admin_display %}
 {% block title %}{{ title }} · KoloVibe{% endblock %}
 {% block content %}
-<section class="panel"><h1>{{ title }}</h1>
-<dl><dt>Record</dt><dd>{{ item.id }}</dd>
-{% if kind == 'videos' %}<dt>Title</dt><dd>{{ item.title }}</dd>{% else %}<dt>Video</dt><dd>{{ item.video_id }}</dd><dt>Status</dt><dd>{{ item.status }}</dd><dt>Created</dt><dd>{{ item.created_at }}</dd><dt>Reason</dt><dd>{{ item.reason }}</dd>{% if kind == 'reports' %}<dt>Details</dt><dd>{{ item.details }}</dd>{% endif %}{% endif %}</dl>
-<h2>Content metadata</h2><dl><dt>Description</dt><dd>{{ detail.video.description }}</dd><dt>State</dt><dd>{{ detail.video.state }}</dd><dt>Rights status</dt><dd>{{ detail.video.rights_status }}</dd><dt>Duration (seconds)</dt><dd>{{ detail.video.duration_seconds|default_if_none:"Unknown" }}</dd></dl>
-{% if detail.preview %}<p><a href="{% url 'reviewer-preview' detail.preview.id %}" referrerpolicy="no-referrer">Open authorized preview</a> · Expires {{ detail.preview.expires_at }}</p>{% else %}<p>Preview is unavailable for this content.</p>{% endif %}
-<h2>Report history</h2><ul>{% for report in detail.reports %}<li>{{ report.created_at }} · {{ report.status }} · {{ report.reason }} · {{ report.details }}</li>{% empty %}<li>No reports in your authorized scope.</li>{% endfor %}</ul>
-<h2>Decision history</h2><ul>{% for decision in detail.decisions %}<li>{{ decision.created_at }} · {{ decision.action }} · {{ decision.status }} · {{ decision.reason }}</li>{% empty %}<li>No decisions in your authorized scope.</li>{% endfor %}</ul>
-{% if detail.history_truncated.reports or detail.history_truncated.decisions %}<p>Showing the most recent 20 entries in each history.</p>{% endif %}
+<div class="page-heading"><div><p class="eyebrow">Moderation review</p><h1>{{ title }}</h1></div></div>
+<div class="review-grid">
+<div class="review-main">
+<section class="panel"><div class="section-heading"><h2>{% if kind == 'videos' %}{{ item.title }}{% else %}Case summary{% endif %}</h2>{% if kind != 'videos' %}{% include 'chip.html' with value=item.status %}{% endif %}</div>
+<dl class="meta-grid"><div><dt>Record ID</dt><dd class="mono">{{ item.id }}</dd></div>
+{% if kind != 'videos' %}<div><dt>Video ID</dt><dd class="mono">{{ item.video_id }}</dd></div><div><dt>Created</dt><dd><time datetime="{{ item.created_at }}">{{ item.created_at|utc_stamp }}</time> · {{ item.created_at|age }}</dd></div><div><dt>Reason</dt><dd>{% if kind == 'reports' %}{{ item.reason|title }}{% else %}{{ item.reason }}{% endif %}</dd></div>{% if kind == 'reports' %}<div class="meta-wide"><dt>Details</dt><dd>{{ item.details }}</dd></div>{% endif %}{% endif %}</dl></section>
+<section class="panel"><div class="section-heading"><h2>Content metadata</h2><span class="chip chip-neutral">{% include 'icon.html' with name='info' %}{{ detail.video.state|default:"Unknown"|title }}</span></div>
+<dl class="meta-grid"><div class="meta-wide"><dt>Description</dt><dd>{{ detail.video.description }}</dd></div><div><dt>Rights status</dt><dd>{{ detail.video.rights_status|title }}</dd></div><div><dt>Duration (seconds)</dt><dd>{{ detail.video.duration_seconds|default_if_none:"Unknown" }}</dd></div></dl>
+{% if detail.preview %}<p><a class="button button-outline" href="{% url 'reviewer-preview' detail.preview.id %}" referrerpolicy="no-referrer">{% include 'icon.html' with name='videos' %}Open authorized preview</a> <span class="supporting-text">Link expires <time datetime="{{ detail.preview.expires_at }}">{{ detail.preview.expires_at|utc_stamp }}</time></span></p>{% else %}<p class="supporting-text">Preview is unavailable for this content.</p>{% endif %}</section>
+<section class="panel"><h2>History</h2>
+<ol class="timeline" aria-label="Reports and decisions">
+{% for report in detail.reports %}<li><span class="timeline-dot tone-amber">{% include 'icon.html' with name='reports' %}</span><div><strong>Report · {{ report.reason|title }}</strong> {% include 'chip.html' with value=report.status %}<time datetime="{{ report.created_at }}">{{ report.created_at|utc_stamp }}</time><p>{{ report.details }}</p></div></li>{% endfor %}
+{% for decision in detail.decisions %}<li><span class="timeline-dot tone-purple">{% include 'icon.html' with name='shield' %}</span><div><strong>Decision · {{ decision.action|title }}</strong> {% include 'chip.html' with value=decision.status %}<time datetime="{{ decision.created_at }}">{{ decision.created_at|utc_stamp }}</time><p>{{ decision.reason }}</p></div></li>{% endfor %}
+{% if not detail.reports and not detail.decisions %}<li class="timeline-empty">No reports or decisions in your authorized scope.</li>{% endif %}
+</ol>
+{% if detail.history_truncated.reports or detail.history_truncated.decisions %}<p class="supporting-text">Showing the most recent 20 entries in each history.</p>{% endif %}</section>
+</div>
+<aside class="review-side"><section class="panel decision-panel"><h2>Your decision</h2>
+<p class="supporting-text">Every decision is recorded with your name. Reject, remove and deny ask you to confirm first.</p>
 <form method="post">{% csrf_token %}<input type="hidden" name="intent" value="{{ intent }}">
   <label>Decision<select name="action" required><option value="">Select a decision</option>{% for action in actions %}<option value="{{ action }}">{{ action|title }}</option>{% endfor %}</select></label>
   <label>Reason<textarea name="reason" minlength="10" maxlength="2000" rows="5" required aria-describedby="reason-help"></textarea></label>
-  <p id="reason-help">Give a reason of 10 to 2,000 characters. This decision is recorded.</p>
+  <p id="reason-help" class="supporting-text">Give a reason of 10 to 2,000 characters.</p>
   <button type="submit">Submit decision</button>
-</form></section>
+</form></section></aside>
+</div>
 {% endblock %}

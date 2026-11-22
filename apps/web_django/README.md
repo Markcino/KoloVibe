@@ -6,14 +6,14 @@ The console reuses `_api()`, Identity's password → MFA → logout flow, encryp
 
 ## Routes and contracts
 
-All gateway paths below use the `/api/v1` prefix. Every `/admin/` route requires an MFA-authenticated privileged session. All browser mutations are CSRF-protected POSTs; audit and points have only GET routes.
+All gateway paths below use the `/api/v1` prefix. Every `/admin/` route requires an MFA-authenticated privileged session. All browser mutations are CSRF-protected POSTs; audit and points have only GET routes. Slash-less `/admin…` GET URLs for existing routes redirect to their canonical trailing-slash form. Navigation follows the signed-in role (Points is shown to administrators only; moderators see their own activity under "My activity"), but hiding a link is presentation only: the owning services remain the authority for every access decision.
 
 | Web route | Gateway contract / behavior |
 | --- | --- |
 | `/login/`, `/login/mfa/` | `POST /auth/login`, `POST /auth/mfa/verify` |
 | `/admin/` | `GET /moderation/totals`, `/engagement/fraud-holds`, `/admin/audit`; audit denial leaves an explicit unavailable card |
 | `/admin/moderation/{videos,reports,appeals}/` | Matching `GET /moderation/<kind>?cursor=…&status=…` |
-| `/admin/moderation/{videos,reports,appeals}/<uuid>/` | Matching reviewer detail GET; decision POST calls `/moderation/<kind>/<uuid>/decisions` |
+| `/admin/moderation/{videos,reports,appeals}/<uuid>/` | Matching reviewer detail GET; decision POST calls `/moderation/<kind>/<uuid>/decisions`. Reject, remove and deny first render a confirmation page (server-side, no JavaScript); only the confirmed POST reaches the gateway |
 | `/admin/moderation/previews/<uuid>/` | Authenticated proxy for `/moderation/previews/<uuid>`; no storage redirect |
 | `/admin/points/` | `GET /admin/points/balances`; `?account=<uuid>` reads `/admin/points/accounts/<uuid>` |
 | `/admin/audit/` | `GET /admin/audit` with cursor, kind, producer, since and until filters; since/until are UTC `datetime-local` inputs sent to the gateway as ISO 8601 `Z` values |

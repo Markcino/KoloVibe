@@ -14,6 +14,7 @@ from django.conf import settings
 from django.core import signing
 from django.http import FileResponse, Http404, HttpResponseNotAllowed, HttpResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.middleware.csrf import rotate_token
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
@@ -158,10 +159,36 @@ def privileged(view):
     return guarded
 
 
+def _crumbs(request):
+    match = request.resolver_match
+    name = match.url_name if match else ""
+    home = ("Dashboard", reverse("dashboard"))
+    kind = (match.kwargs if match else {}).get("kind")
+    if kind and name.endswith("-detail"):
+        return [home, (kind.title(), reverse(f"moderation-{kind}")), ("Review", None)]
+    if kind:
+        return [home, (kind.title(), None)]
+    if name in ("points", "audit", "account"):
+        return [home, (name.title(), None)]
+    sub = {"profile-edit": "Edit profile", "password-change": "Change password", "sessions": "Active sessions"}
+    if name in sub:
+        return [home, ("Account", reverse("account")), (sub[name], None)]
+    return []
+
+
+def _flash(request, text, level="success"):
+    request.session["flash"] = [level, text]
+
+
 def _render(request, template, context=None, *, status=200):
+    roles = request.admin_account["roles"]
+    flash = request.session.pop("flash", None)
     return render(request, template, {
         "account": request.admin_account,
-        "role": request.admin_account["roles"][0],
+        "role": roles[0],
+        "can_review_points": "administrator" in roles,
+        "crumbs": _crumbs(request),
+        "flash": [flash[0], flash[1], "check" if flash[0] == "success" else "warning"] if flash else None,
         **(context or {}),
     }, status=status)
 
@@ -243,6 +270,12 @@ def login_mfa(request):
                   status=status if status in (400, 401, 403, 429) else 503)
 
 
+@require_GET
+def add_trailing_slash(request):
+    query = request.META.get("QUERY_STRING", "")
+    return redirect("/" + request.path.lstrip("/") + "/" + ("?" + query if query else ""))
+
+
 @privileged
 @require_GET
 def dashboard(request):
@@ -262,7 +295,8 @@ def dashboard(request):
     if audit_status == 401:
         return _expired(request)
     recent = events["items"] if audit_status == 200 and valid_audit_page(events) else None
-    return _render(request, "dashboard.html", {"totals": totals, "holds": holds, "recent_events": recent})
+    attention = totals["videos"]["review"] + totals["reports"]["open"] + totals["appeals"]["open"]
+    return _render(request, "dashboard.html", {"totals": totals, "holds": holds, "recent_events": recent, "attention": attention})
 
 
 def _queue_query(request, kind):
@@ -308,8 +342,13 @@ def moderation_queue(request, kind):
         "title": kind.title(), "kind": kind, "items": page["items"],
         "selected_status": selected_status, "next_query": next_query,
         "statuses": STATUSES[kind],
+        "default_status": QUEUE_STATUS[kind],
+        "count": len(page["items"]), "has_more": bool(page["next_cursor"]),
         "detail_query": "?" + urlencode({"cursor": cursor}) if cursor else "",
     })
+
+
+DESTRUCTIVE_ACTIONS = {"reject", "remove", "deny"}
 
 
 def _intent(request, kind, target_id):
@@ -335,6 +374,11 @@ def moderation_detail(request, kind, target_id):
         action, reason = request.POST.get("action", ""), request.POST.get("reason", "")
         if action not in ACTIONS[kind] or not 10 <= len(reason.strip()) <= len(reason) <= 2000:
             return error_page(request, status=400)
+        if action in DESTRUCTIVE_ACTIONS and request.POST.get("confirm") != "1":
+            return _render(request, "decision_confirm.html", {
+                "title": "Confirm decision", "kind": kind, "action": action, "reason": reason.strip(),
+                "intent": request.POST["intent"], "item_id": str(target_id),
+                "back_url": reverse(f"moderation-{kind}-detail", args=[target_id])})
         status, result = _api(f"/moderation/{kind}/{target_id}/decisions", method="POST",
                               token=request.gateway_token, data={"action": action, "reason": reason.strip()},
                               idempotency_key=key)
@@ -342,7 +386,8 @@ def moderation_detail(request, kind, target_id):
             return _gateway_error(request, status)
         if not valid_decision(result, video_id, action):
             return error_page(request)
-        return _render(request, "decision_result.html", {"kind": kind})
+        return _render(request, "decision_result.html", {"kind": kind, "action": action, "item_id": str(target_id),
+                                                          "queue_url": reverse(f"moderation-{kind}")})
     status, detail = _api(f"/moderation/{kind}/{target_id}", token=request.gateway_token, response_limit=524288)
     if status != 200:
         return _gateway_error(request, status)
@@ -454,6 +499,7 @@ def profile_edit(request):
     status, payload = _api("/me", method="PATCH", token=request.gateway_token,
                            data={"display_name": request.POST.get("display_name", "")})
     if status == 200 and payload.get("id") == request.admin_account["id"]:
+        _flash(request, "Profile updated.")
         return redirect("account")
     return _gateway_error(request, status)
 
@@ -471,7 +517,10 @@ def sessions(request):
 @require_POST
 def revoke_session(request, session_id):
     status, _ = _api("/me/sessions/" + str(session_id), method="DELETE", token=request.gateway_token)
-    return redirect("sessions") if status == 204 else _gateway_error(request, status)
+    if status == 204:
+        _flash(request, "Session ended.")
+        return redirect("sessions")
+    return _gateway_error(request, status)
 
 
 @privileged

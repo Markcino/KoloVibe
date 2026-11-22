@@ -1,13 +1,15 @@
 {% extends 'base_admin.html' %}
 {% block title %}Account · KoloVibe{% endblock %}
 {% block content %}
-<section class="panel"><h1>My account</h1><dl>
-<dt>Name</dt><dd>{{ account.display_name }}</dd>
-<dt>Email</dt><dd>{{ account.email }}</dd>
-<dt>Role</dt><dd>{{ role|title }}</dd>
-</dl>
-<p><a href="{% url 'profile-edit' %}">Edit profile</a></p>
-<p><a href="{% url 'password-change' %}">Change password</a></p>
-<p><a href="{% url 'sessions' %}">Active sessions</a></p>
-</section>
+<div class="page-heading"><div><p class="eyebrow">Your profile</p><h1>My account</h1></div></div>
+<div class="dashboard-grid">
+<section class="panel"><div class="section-heading"><h2>Profile</h2><a class="text-button" href="{% url 'profile-edit' %}">Edit profile</a></div>
+<div class="profile-row"><span class="avatar avatar-large">{{ account.display_name|slice:':1'|upper }}</span><div><strong>{{ account.display_name }}</strong><p class="supporting-text">{{ account.email }}</p></div></div>
+<dl class="meta-grid"><div><dt>Role</dt><dd>{{ role|title }}</dd></div><div><dt>Access</dt><dd>{% if can_review_points %}Global moderation supervision, audit by explicit grant and read-only points review{% else %}Assigned moderation queues and your own audit activity{% endif %}</dd></div></dl></section>
+<section class="panel"><div class="section-heading"><h2>Security</h2><span class="status-chip">MFA protected</span></div>
+<ul class="action-list">
+<li><a class="workspace-row" href="{% url 'password-change' %}"><span class="row-copy"><strong>Change password</strong><small>You will be signed out on every device</small></span>{% include 'icon.html' with name='arrow' %}</a></li>
+<li><a class="workspace-row" href="{% url 'sessions' %}"><span class="row-copy"><strong>Active sessions</strong><small>Review and end sessions on other devices</small></span>{% include 'icon.html' with name='arrow' %}</a></li>
+</ul></section>
+</div>
 {% endblock %}

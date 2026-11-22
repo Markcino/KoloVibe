@@ -136,7 +136,7 @@ class AdminConsoleTests(TestCase):
         for kind, actions in ACTIONS.items():
             for action in actions:
                 intent = self.intent(kind)
-                submitted = {"intent": intent, "action": action, "reason": "Reviewed against the content policy."}
+                submitted = {"intent": intent, "action": action, "reason": "Reviewed against the content policy.", "confirm": "1"}
                 result = {"id": str(uuid.uuid4()), "video_id": self.target, "action": action, "status": "applied"}
                 keys = []
                 for _ in range(2):
@@ -389,6 +389,54 @@ class AdminConsoleTests(TestCase):
         with patch("web.views._api", side_effect=[(200, self.account), (200, {**totals, "videos": {"review": True}})]):
             self.assertEqual(self.client.get("/admin/").status_code, 503)
 
+
+    def test_destructive_decisions_require_a_confirmation_step_before_any_mutation(self):
+        self.login()
+        for kind, action in (("videos", "reject"), ("videos", "remove"), ("reports", "remove"), ("appeals", "deny")):
+            submitted = {"intent": self.intent(kind), "action": action, "reason": "Violates <b>policy</b> clearly."}
+            with patch("web.views._api", return_value=(200, self.account)) as api:
+                response = self.client.post(self.detail_url(kind), submitted)
+            self.assertContains(response, "Confirm before recording")
+            self.assertContains(response, "Violates &lt;b&gt;policy&lt;/b&gt; clearly.")
+            self.assertContains(response, 'name="confirm" value="1"')
+            api.assert_called_once()
+        for kind, action in (("videos", "publish"), ("reports", "dismiss"), ("appeals", "restore")):
+            result = {"id": str(uuid.uuid4()), "video_id": self.target, "action": action, "status": "applied"}
+            with patch("web.views._api", side_effect=[(200, self.account), (200, result)]):
+                response = self.client.post(self.detail_url(kind), {
+                    "intent": self.intent(kind), "action": action, "reason": "Reviewed against the content policy."})
+            self.assertContains(response, "Decision recorded")
+
+    def test_slashless_admin_urls_redirect_without_open_redirect_or_post_support(self):
+        for path in ("/admin", "/admin/audit", "/admin/points", "/admin/moderation/videos"):
+            response = self.client.get(path + "?status=published")
+            self.assertEqual((response.status_code, response["Location"]), (302, path + "/?status=published"))
+        self.assertEqual(self.client.get("/x/admin").status_code, 404)
+        self.assertEqual(self.client.post("/admin/audit").status_code, 405)
+        self.assertEqual(self.client.get("/admin/logout").status_code, 404)
+
+    def test_navigation_and_labels_follow_the_signed_in_role(self):
+        for role, points in (("administrator", True), ("moderator", False)):
+            self.client = Client()
+            self.login(role)
+            with patch("web.views._api", side_effect=[(200, {**self.account, "roles": [role]}), (200, {"items": [], "next_cursor": None})]):
+                page = self.client.get("/admin/audit/")
+            self.assertEqual('href="/admin/points/"' in page.content.decode(), points)
+            self.assertContains(page, "<h1>Audit</h1>" if points else "<h1>My activity</h1>")
+
+    def test_queue_uses_status_chips_short_ids_and_flash_messages_are_shown_once(self):
+        self.login()
+        with patch("web.views._api", side_effect=[(200, self.account), (200, self.page("reports"))]):
+            response = self.client.get("/admin/moderation/reports/")
+        self.assertContains(response, 'class="chip chip-pending"')
+        self.assertContains(response, 'aria-current="true"')
+        self.assertContains(response, "Breadcrumb")
+        session = self.client.session
+        session["flash"] = ["success", "Profile updated."]
+        session.save()
+        with patch("web.views._api", return_value=(200, self.account)):
+            self.assertContains(self.client.get("/admin/account/"), "Profile updated.")
+            self.assertNotContains(self.client.get("/admin/account/"), "Profile updated.")
 
     def test_audit_filters_pagination_and_malformed_records(self):
         self.login("moderator")

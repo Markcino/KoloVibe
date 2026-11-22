@@ -1,13 +1,12 @@
-{% extends 'base_admin.html' %}
+{% extends 'base_admin.html' %}{% load admin_display %}
 {% block title %}Active sessions · KoloVibe{% endblock %}
 {% block content %}
-<section class="panel"><h1>Active sessions</h1>
-<div class="table-scroll" role="region" aria-label="Active sessions" tabindex="0"><table><caption>Your active sessions</caption>
+<div class="page-heading"><div><p class="eyebrow">Security</p><h1>Active sessions</h1><p class="supporting-text">End any session you don't recognise. Times are shown in UTC.</p></div></div>
+<div class="table-scroll" role="region" aria-label="Active sessions" tabindex="0"><table><caption class="visually-hidden">Your active sessions</caption>
 <thead><tr><th scope="col">Session</th><th scope="col">Started</th><th scope="col">Expires</th><th scope="col">Action</th></tr></thead>
 <tbody>{% for session in items %}<tr>
-<td>{% if session.current %}Current session{% else %}Other session{% endif %}</td><td>{{ session.created_at }}</td><td>{{ session.expires_at }}</td>
+<td>{% if session.current %}<span class="chip chip-positive">{% include 'icon.html' with name='check' %}This session</span>{% else %}<span class="chip chip-neutral">{% include 'icon.html' with name='info' %}Other session</span>{% endif %}</td><td><time datetime="{{ session.created_at }}">{{ session.created_at|utc_stamp }}</time></td><td><time datetime="{{ session.expires_at }}">{{ session.expires_at|utc_stamp }}</time></td>
 <td>{% if not session.current %}<form method="post" action="{% url 'revoke-session' session.id %}">{% csrf_token %}<button type="submit">End session</button></form>{% endif %}</td>
-</tr>{% empty %}<tr><td colspan="4">No active sessions.</td></tr>{% endfor %}</tbody>
-</table></div><p><a href="{% url 'account' %}">Back to account</a></p>
-</section>
+</tr>{% empty %}<tr><td colspan="4"><div class="empty-state">{% include 'icon.html' with name='info' %}<h3>No active sessions.</h3></div></td></tr>{% endfor %}</tbody>
+</table></div>
 {% endblock %}

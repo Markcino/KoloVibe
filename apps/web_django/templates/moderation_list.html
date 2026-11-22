@@ -1,20 +1,19 @@
-{% extends 'base_admin.html' %}
+{% extends 'base_admin.html' %}{% load admin_display %}
 {% block title %}{{ title }} · KoloVibe{% endblock %}
 {% block content %}
-<h1>{{ title }}</h1>
-<form class="filters" method="get">
-  <label>Status<select name="status">{% for status in statuses %}<option value="{{ status }}"{% if status == selected_status %} selected{% endif %}>{{ status|title }}</option>{% endfor %}</select></label>
-  <button type="submit">Apply filter</button>
-</form>
+<div class="page-heading"><div><p class="eyebrow">Moderation queue</p><h1>{{ title }}</h1><p class="supporting-text">{% if kind == 'videos' %}Processed content awaiting a decision.{% elif kind == 'reports' %}Community reports to assess.{% else %}Creator appeals needing an independent decision.{% endif %}</p></div></div>
+<nav class="chip-filters" aria-label="Filter by status">{% for status in statuses %}<a class="filter-chip" href="?{% if status != default_status %}status={{ status|urlencode }}{% endif %}"{% if status == selected_status %} aria-current="true"{% endif %}>{{ status|title }}</a>{% endfor %}</nav>
+<p class="result-summary" role="status">{% if count %}Showing {{ count }} {{ selected_status }} record{{ count|pluralize }}{% if has_more %} · more on the next page{% endif %}{% else %}No {{ selected_status }} records{% endif %}</p>
 
 <div class="table-scroll" role="region" aria-label="{{ title }} queue" tabindex="0">
-<table><caption>{{ title }} · {{ selected_status|title }}</caption>
-<thead><tr><th scope="col">Record</th><th scope="col">{% if kind == 'videos' %}Title{% else %}Reason{% endif %}</th><th scope="col">Status</th><th scope="col">Review</th></tr></thead>
+<table><caption class="visually-hidden">{{ title }} · {{ selected_status|title }}</caption>
+<thead><tr><th scope="col">{% if kind == 'videos' %}Video{% else %}Reason{% endif %}</th><th scope="col">Status</th>{% if kind != 'videos' %}<th scope="col">Waiting</th>{% endif %}<th scope="col">Action</th></tr></thead>
 <tbody>{% for item in items %}<tr>
-<td>{{ item.id }}</td><td>{% if kind == 'videos' %}{{ item.title }}{% else %}{{ item.reason }}{% endif %}</td>
-<td>{% if kind == 'videos' %}{{ selected_status|title }}{% else %}{{ item.status|title }}{% endif %}</td>
-<td>{% if kind == 'videos' %}<a href="{% url 'moderation-videos-detail' item.id %}{{ detail_query }}" aria-label="Review {{ item.id }}">Review</a>{% elif kind == 'reports' %}<a href="{% url 'moderation-reports-detail' item.id %}{{ detail_query }}" aria-label="Review {{ item.id }}">Review</a>{% else %}<a href="{% url 'moderation-appeals-detail' item.id %}{{ detail_query }}" aria-label="Review {{ item.id }}">Review</a>{% endif %}</td>
-</tr>{% empty %}<tr><td colspan="4">No records match this status.</td></tr>{% endfor %}</tbody>
+<td><strong class="cell-title">{% if kind == 'videos' %}{{ item.title }}{% elif kind == 'reports' %}{{ item.reason|title }}{% else %}{{ item.reason|truncatechars:90 }}{% endif %}</strong><span class="cell-sub">ID {{ item.id|short_id }}</span></td>
+<td>{% include 'chip.html' with value=item.status|default:selected_status %}</td>
+{% if kind != 'videos' %}<td><time datetime="{{ item.created_at }}" title="{{ item.created_at|utc_stamp }}">{{ item.created_at|age }}</time></td>{% endif %}
+<td>{% if kind == 'videos' %}<a href="{% url 'moderation-videos-detail' item.id %}{{ detail_query }}" aria-label="Review {{ item.title }}">Review</a>{% elif kind == 'reports' %}<a href="{% url 'moderation-reports-detail' item.id %}{{ detail_query }}" aria-label="Review report {{ item.id|short_id }}">Review</a>{% else %}<a href="{% url 'moderation-appeals-detail' item.id %}{{ detail_query }}" aria-label="Review appeal {{ item.id|short_id }}">Review</a>{% endif %}</td>
+</tr>{% empty %}<tr><td colspan="{% if kind == 'videos' %}3{% else %}4{% endif %}"><div class="empty-state">{% include 'icon.html' with name='check' %}<h3>No records match this status.</h3><p>Choose another status above to see earlier decisions.</p></div></td></tr>{% endfor %}</tbody>
 </table></div>
-<nav class="pagination" aria-label="Queue pages">{% if request.GET.cursor %}<a href="?status={{ selected_status|urlencode }}">First page</a>{% endif %}{% if next_query %}<a rel="next" href="?{{ next_query }}">Next page</a>{% endif %}</nav>
+<nav class="pagination" aria-label="Queue pages">{% if request.GET.cursor %}<a href="?{% if selected_status != default_status %}status={{ selected_status|urlencode }}{% endif %}">First page</a>{% endif %}{% if next_query %}<a rel="next" href="?{{ next_query }}">Next page</a>{% endif %}</nav>
 {% endblock %}

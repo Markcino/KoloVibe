@@ -1,6 +1,6 @@
 {% extends 'base_admin.html' %}{% load admin_display %}
 {% block title %}Audit · KoloVibe{% endblock %}
-{% block content %}<h1>Audit</h1><p>Read-only events within your authorized scope. Sensitive identifiers and payloads are redacted. Times are shown in UTC.</p>
+{% block content %}<h1>{% if can_review_points %}Audit{% else %}My activity{% endif %}</h1><p>{% if can_review_points %}Read-only events from the producers you have been granted.{% else %}Read-only events for your own actions.{% endif %} Sensitive identifiers and payloads are redacted. Times are shown in UTC.</p>
 <form method="get" class="filters">
 <label>Event kind<input name="kind" value="{{ filters.kind }}" placeholder="e.g. mfa.failed" maxlength="64"></label>
 <label>Producer<select name="producer"><option value="">All authorized producers</option>{% for producer in producers %}<option value="{{ producer }}"{% if producer == filters.producer %} selected{% endif %}>{{ producer|title }}</option>{% endfor %}</select></label>
