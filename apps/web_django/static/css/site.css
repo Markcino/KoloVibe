@@ -172,3 +172,5 @@ dd { margin: 6px 0 20px; overflow-wrap: anywhere; white-space: pre-wrap; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
 
 .invitation-secret { overflow-wrap: anywhere; white-space: normal; }
+.invitation-qr { display: flex; justify-content: center; margin: 20px 0; }
+.invitation-qr img { display: block; max-width: 100%; height: auto; image-rendering: pixelated; }
