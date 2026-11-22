@@ -23,21 +23,21 @@ def _json(data, status):
     return JsonResponse(data, status=status)
 
 
-def _invoke(path, data, success_statuses):
+def _invoke(path, data, success_statuses, *, max_response=MAX_RESPONSE):
     try:
         body = json.dumps(data, separators=(",", ":")).encode()
         response = signed_internal_request("identity", path, method="POST", payload=body)
         with response:
             status = response.status
-            raw = response.read(MAX_RESPONSE + 1)
-        if len(raw) > MAX_RESPONSE or status not in success_statuses:
+            raw = response.read(max_response + 1)
+        if len(raw) > max_response or status not in success_statuses:
             raise ValueError("Unexpected identity response")
         if status == 204 and raw:
             raise ValueError("Unexpected identity response body")
         result = json.loads(raw) if raw else {}
         if not isinstance(result, dict):
             raise ValueError("Invalid identity response")
-        if status == 202 and (
+        if status == 202 and path == "/internal/auth/login" and (
             set(result) != {"mfa_required", "challenge_token", "expires_in"}
             or result["mfa_required"] is not True
             or not isinstance(result["challenge_token"], str)

@@ -12,6 +12,9 @@ from .models import SecurityEvent
 
 logger = logging.getLogger(__name__)
 KINDS = {
+    "moderator.invitation_created", "moderator.invitation_listed", "moderator.invitation_revoked",
+    "moderator.invitation_setup_started", "moderator.invitation_accepted",
+    "moderator.invitation_denied", "moderator.invitation_failed", "moderator.invitation_throttled",
     "account.administrator_role_granted",
     "account.creator_role_granted",
     "account.registered", "account.verified", "account.verification_resent",

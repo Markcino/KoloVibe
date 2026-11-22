@@ -199,3 +199,40 @@ class AuditDelivery(models.Model):
     event = models.OneToOneField(SecurityEvent, on_delete=models.PROTECT, primary_key=True)
     attempts = models.PositiveIntegerField(default=0)
     delivered_at = models.DateTimeField(null=True)
+
+
+class ModeratorInvitation(models.Model):
+    """Mailbox-bound invitation; no account exists until TOTP enrollment succeeds."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created_by = models.ForeignKey(Account, on_delete=models.PROTECT, related_name="moderator_invitations")
+    email = models.EmailField(max_length=254)
+    display_name = models.CharField(max_length=80)
+    reason = models.CharField(max_length=500)
+    token_digest = models.CharField(max_length=64, unique=True)
+    idempotency_digest = models.CharField(max_length=64)
+    payload_digest = models.CharField(max_length=64)
+    created_at = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField()
+    closed = models.BooleanField(default=False)
+    revoked_at = models.DateTimeField(null=True)
+    revocation_reason = models.CharField(max_length=500, blank=True)
+    accepted_at = models.DateTimeField(null=True)
+    accepted_account = models.OneToOneField(Account, on_delete=models.PROTECT, null=True, related_name="moderator_invitation")
+    encrypted_secret = models.TextField(blank=True)
+    password_hash = models.CharField(max_length=128, blank=True)
+    setup_expires_at = models.DateTimeField(null=True)
+    failures = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["created_by", "idempotency_digest"], name="moderator_invite_actor_key"),
+            models.UniqueConstraint(fields=["email"], condition=models.Q(closed=False), name="moderator_invite_pending_email"),
+        ]
+
+
+class ModeratorInvitationEvent(models.Model):
+    """Owning-service correlation; sensitive invitation data is never sent to Audit."""
+
+    event = models.OneToOneField(SecurityEvent, primary_key=True, on_delete=models.PROTECT)
+    invitation = models.ForeignKey(ModeratorInvitation, on_delete=models.PROTECT)

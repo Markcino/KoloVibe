@@ -33,7 +33,7 @@ def main(service):
     routes = []
     for text in flatten(get_resolver().url_patterns):
         text = text.replace("<uuid:", "<").replace("<slug:", "<")
-        for name in ("video_id", "creator_id", "account_id", "session_id", "target_id", "entry_id"):
+        for name in ("video_id", "creator_id", "account_id", "session_id", "target_id", "entry_id", "invitation_id"):
             text = text.replace(f"<{name}>", SAMPLE_UUID)
         text = text.replace("<operation>", "status")
         routes.append("/" + text)

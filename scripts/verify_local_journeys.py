@@ -6,6 +6,7 @@ from http.client import HTTPConnection
 from http.cookies import SimpleCookie
 import json
 import os
+import re
 from pathlib import Path
 import secrets
 import socket
@@ -538,6 +539,70 @@ def verify():
                     self.assertEqual(post("/admin/logout/", {})[0], 302)
                     self.assertNotIn("sessionid", cookies)
                     self.assertEqual(request(ports["web"], "/admin/", cookies=cookies)[0], 302)
+
+            def test_WEB_ADM_moderator_invitation_enrollment_and_concurrent_acceptance(self):
+                """Real administrator UI, SMTP capture, encrypted setup, and PostgreSQL grant race."""
+                import pyotp
+                actor, administrator, recovery = privileged_fixture("administrator", "-invitations")
+                cookies = SimpleCookie()
+                self.assertEqual(request(ports["web"], "/login/", cookies=cookies)[0], 200)
+                def form(path, fields, jar=cookies):
+                    return request(ports["web"], path, method="POST", cookies=jar,
+                        form={"csrfmiddlewaretoken": jar["csrftoken"].value, **fields})
+                self.assertEqual(form("/login/", {k: administrator[k] for k in ("email", "password")})[0], 302)
+                self.assertEqual(form("/login/mfa/", {"code": recovery})[0], 302)
+                status, page = request(ports["web"], "/admin/team/", cookies=cookies)
+                self.assertEqual(status, 200)
+                proof = re.search(rb'name="intent" value="([^"]+)"', page).group(1).decode()
+                email, password = "invited-reviewer@example.test", secrets.token_urlsafe(32)
+                self.assertEqual(form("/admin/team/", {"operation": "create", "intent": proof,
+                    "email": email, "display_name": "Invited reviewer", "reason": "Disposable invitation journey"})[0], 302)
+                token = re.search(r"\n([A-Za-z0-9_-]{64})\n", (base / "verification-mail").read_text()).group(1)
+                self.assertNotIn(token.encode(), request(ports["web"], "/admin/team/", cookies=cookies)[1])
+                invitee = SimpleCookie()
+                self.assertEqual(request(ports["web"], "/moderator-invitation/", cookies=invitee)[0], 200)
+                self.assertEqual(form("/moderator-invitation/", {"email": email, "invitation_code": token,
+                    "password": password}, invitee)[0], 302)
+                status, page = request(ports["web"], "/moderator-invitation/", cookies=invitee)
+                self.assertEqual(status, 200)
+                secret = re.search(rb'<code class="invitation-secret">([A-Z2-7]{32})</code>', page).group(1).decode()
+                with fixture_connection("identity") as connection:
+                    self.assertIsNone(connection.execute("SELECT id FROM identity.service_account WHERE email=%s", (email,)).fetchone())
+                # Keep enough of the current period for a real HTTP round trip.
+                if time.time() % 30 > 25:
+                    time.sleep(30 - time.time() % 30 + 0.1)
+                status, page = form("/moderator-invitation/", {"code": pyotp.TOTP(secret).now()}, invitee)
+                self.assertEqual(status, 200)
+                self.assertIn(b"Your moderator account is ready", page)
+                self.assertNotIn(b"recovery_codes", request(ports["web"], "/moderator-invitation/", cookies=invitee)[1])
+                self.assertEqual(api("/auth/login", data={"email": email, "password": password})[0], 202)
+                with fixture_connection("identity") as connection:
+                    self.assertEqual(connection.execute("SELECT role,is_active FROM identity.service_account WHERE email=%s", (email,)).fetchone(), ("moderator", True))
+                status, challenge = api("/auth/login", data={k: administrator[k] for k in ("email", "password")})
+                self.assertEqual(status, 202)
+                second_recovery = (base / "administrator-invitations-recovery").read_text().splitlines()[1]
+                status, session = api("/auth/mfa/verify", data={"challenge_token": challenge["challenge_token"], "code": second_recovery})
+                self.assertEqual(status, 200)
+                access = session["access_token"]
+                status, receipt = api("/admin/moderator-invitations", token=access, key=secrets.token_urlsafe(32),
+                    data={"email": "concurrent-reviewer@example.test", "display_name": "Concurrent reviewer", "reason": "Disposable race fixture"})
+                self.assertEqual(status, 202)
+                contract("/admin/moderator-invitations", "post", status, receipt)
+                code = re.search(r"\n([A-Za-z0-9_-]{64})\n", (base / "verification-mail").read_text()).group(1)
+                payload = {"email": "concurrent-reviewer@example.test", "invitation_code": code}
+                status, setup = api("/auth/moderator-invitations/setup", data={**payload, "password": secrets.token_urlsafe(32)})
+                self.assertEqual(status, 200)
+                contract("/auth/moderator-invitations/setup", "post", status, setup)
+                if time.time() % 30 > 25:
+                    time.sleep(30 - time.time() % 30 + 0.1)
+                submitted = {**payload, "code": pyotp.TOTP(setup["secret"]).now()}
+                with ThreadPoolExecutor(max_workers=2) as pool:
+                    results = list(pool.map(lambda _: api("/auth/moderator-invitations/complete", data=submitted), range(2)))
+                self.assertEqual(sorted(result[0] for result in results), [200, 401])
+                contract("/auth/moderator-invitations/complete", "post", 200, next(result[1] for result in results if result[0] == 200))
+                with fixture_connection("identity") as connection:
+                    self.assertEqual(connection.execute("SELECT count(*) FROM identity.service_account WHERE email=%s", (payload["email"],)).fetchone()[0], 1)
+                    self.assertEqual(connection.execute("SELECT count(*) FROM identity.service_moderatorinvitationevent e JOIN identity.service_securityevent s ON s.id=e.event_id WHERE e.invitation_id=%s AND s.kind='moderator.invitation_accepted'", (receipt["id"],)).fetchone()[0], 1)
 
             def test_web_admin_boundary_and_csrf(self):
                 self.assertEqual(request(ports["web"], "/")[0], 302)

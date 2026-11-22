@@ -87,12 +87,27 @@ class PolicyDefinitionTests(unittest.TestCase):
             self.assertIn(rule.capability, policy.APPLICABLE[rule.service])
             self.assertTrue(rule.methods <= set(METHODS))
             self.assertTrue(rule.pattern.pattern.startswith("/"))
-        # Reviewer routes are the only privileged ones.
+        # Reviewer/admin routes and invite-only MFA enrollment require the privileged switch.
         self.assertEqual({rule.pattern.pattern for rule in policy.RULES if rule.privileged},
                          {r"/api/v1/moderation/(?:videos|reports|appeals)",
                           rf"/api/v1/moderation/(?:videos|reports|appeals)/{policy.UUID}/decisions",
                           rf"/api/v1/moderation/(?:videos|reports|appeals)/{policy.UUID}",
-                          rf"/api/v1/moderation/previews/{policy.UUID}", r"/api/v1/moderation/totals", r"/api/v1/engagement/fraud-holds", r"/api/v1/admin/audit", r"/api/v1/admin/points/balances", rf"/api/v1/admin/points/accounts/{policy.UUID}"})
+                          rf"/api/v1/moderation/previews/{policy.UUID}", r"/api/v1/moderation/totals", r"/api/v1/engagement/fraud-holds", r"/api/v1/admin/audit", r"/api/v1/admin/points/balances", rf"/api/v1/admin/points/accounts/{policy.UUID}",
+                          r"/api/v1/admin/moderator-invitations",
+                          rf"/api/v1/admin/moderator-invitations/{policy.UUID}/revoke",
+                          r"/api/v1/auth/moderator-invitations/(?:setup|complete)",
+                          r"/internal/auth/moderator-invitations",
+                          r"/internal/auth/moderator-invitations/(?:setup|complete)"})
+
+    def test_moderator_invitation_routes_need_both_accounts_and_privileged_gates(self):
+        for service, path in (("gateway", "/api/v1/admin/moderator-invitations"),
+                              ("gateway", "/api/v1/auth/moderator-invitations/setup"),
+                              ("identity", "/internal/auth/moderator-invitations/complete")):
+            self.assertFalse(route_allowed(service, "POST", path, accounts=True, privileged=True))
+            self.assertFalse(route_allowed(service, "POST", path, accounts=True,
+                                          capability_set=frozenset({"account_management"})))
+            self.assertTrue(route_allowed(service, "POST", path, accounts=True, privileged=True,
+                                         capability_set=frozenset({"account_management"})))
 
 
 class RouteCoverageTests(unittest.TestCase):

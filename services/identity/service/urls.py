@@ -3,9 +3,13 @@ from django.http import JsonResponse
 from .health import liveness
 from . import accounts
 from .mfa import verify_mfa
+from . import moderator_invitations
 from .preferences_privacy import preferences, privacy_requests
 
 urlpatterns = [
+    path("internal/auth/moderator-invitations", moderator_invitations.administer),
+    path("internal/auth/moderator-invitations/setup", moderator_invitations.accept),
+    path("internal/auth/moderator-invitations/complete", moderator_invitations.accept, {"complete": True}),
     path("health/live", liveness, name="liveness"),
     path("internal/probe", lambda request: JsonResponse({"status":"ok"}), name="internal-probe"),
     path("internal/auth/register", accounts.register, name="internal-register"),

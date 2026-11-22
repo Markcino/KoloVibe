@@ -10,6 +10,13 @@ from service.models import SecurityEvent
 
 
 class SecurityEventTests(TestCase):
+    def test_moderator_invitation_kinds_preserve_redaction_and_idempotency(self):
+        for suffix in ("created", "listed", "revoked", "setup_started", "accepted", "denied", "failed", "throttled"):
+            payload = {**self.payload, "id": str(uuid.uuid4()), "kind": "moderator.invitation_" + suffix}
+            self.assertEqual(self.send(payload).status_code, 201)
+            self.assertEqual(self.send(payload).status_code, 200)
+            self.assertEqual(self.send({**payload, "invitation_code": "never-transmitted"}).status_code, 400)
+
     def test_identity_settings_security_kinds_are_accepted_idempotently(self):
         for kind in ("account.administrator_role_granted", "account.creator_role_granted", "account.preferences_updated", "account.privacy_request_received",
                      "account.reauthenticated", "account.reauthentication_failed",

@@ -1,0 +1,24 @@
+{% extends 'base.html' %}{% load static %}
+{% block title %}Accept moderator invitation · KoloVibe{% endblock %}
+{% block shell %}
+<main id="main" class="auth-main" tabindex="-1"><section class="auth-card" aria-labelledby="invite-title">
+<img class="auth-logo" src="{% static 'images/landscape_logo_with_name.svg' %}" alt="KoloVibe">
+<h1 id="invite-title">{% if complete %}Your moderator account is ready{% elif enrollment %}Set up your authenticator{% else %}Accept moderator invitation{% endif %}</h1>
+{% if error %}<p class="notice error" role="alert">{{ error }}</p>{% endif %}
+{% if complete %}
+<p>Store these single-use recovery codes privately now. They are shown once and can replace an authenticator code if you lose your device.</p>
+<ul>{% for code in recovery_codes %}<li><code class="invitation-secret">{{ code }}</code></li>{% endfor %}</ul>
+<p>Your enrollment code has been used. Wait for the next authenticator code before signing in, or use one recovery code.</p>
+<p>Review access requires a separate queue assignment.</p><a class="button" href="{% url 'login' %}">Continue to sign in</a>
+{% else %}<form method="post">{% csrf_token %}
+{% if enrollment %}<p>Add a time-based account named KoloVibe in your authenticator app, using this setup key. Keep the key private. Setup expires after five minutes.</p>
+<p><code class="invitation-secret">{{ enrollment.secret }}</code></p><p>Enable automatic date and time on your device.</p>
+<label>Current authenticator code<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" required autofocus></label>
+<button type="submit">Complete MFA enrollment</button>
+{% else %}<p>Use the invitation sent by your administrator. No account is activated until authenticator enrollment succeeds.</p>
+<label>Email address<input type="email" name="email" autocomplete="username" maxlength="254" required></label>
+<label>Invitation code<input name="invitation_code" autocomplete="off" minlength="64" maxlength="64" pattern="[A-Za-z0-9_-]{64}" required></label>
+<label>Choose a password<input type="password" name="password" autocomplete="new-password" minlength="12" maxlength="128" required></label><p>Use at least 12 characters; common, numeric-only and similar-to-account passwords are rejected.</p>
+<button type="submit">Continue to authenticator setup</button>{% endif %}</form>
+<p><a href="{% url 'login' %}">Return to sign in</a></p>{% endif %}
+</section></main>{% endblock %}
