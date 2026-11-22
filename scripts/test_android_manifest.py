@@ -2,7 +2,7 @@
 
 from pathlib import Path
 import unittest
-import xml.etree.ElementTree as ET
+from defusedxml import ElementTree as ET
 
 
 MAIN = Path(__file__).resolve().parents[1] / "apps" / "mobile" / "android" / "app" / "src" / "main"

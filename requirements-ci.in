@@ -4,3 +4,5 @@ pip-audit==2.10.1
 bandit==1.8.6
 cyclonedx-bom==6.1.3
 detect-secrets==1.5.0
+# Safe XML parsing in the Android manifest hardening tests.
+defusedxml==0.7.1
