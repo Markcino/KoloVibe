@@ -87,6 +87,47 @@ class MfaAuditTests(TestCase):
             self.assertEqual(self.verify(next_challenge, code).status_code, 401)
             self.assertEqual(self.verify(next_challenge, pyotp.TOTP(self.factor).at(next_time)).status_code, 200)
 
+    def test_unused_previous_period_code_is_rejected_and_audited(self):
+        challenge = self.challenge()
+        code = pyotp.TOTP(self.factor).at(self.now - timedelta(seconds=30))
+        self.assertEqual(self.verify(challenge, code).status_code, 401)
+        self.assertEqual(TotpFactor.objects.get().last_step, -1)
+        self.assertFalse(LoginSession.objects.exists())
+        self.assertTrue(SecurityEvent.objects.filter(kind="mfa.failed").exists())
+        self.assertEqual(self.verify(challenge).status_code, 200)
+
+    def test_unused_future_period_code_is_rejected_without_consuming_it(self):
+        challenge = self.challenge()
+        future = self.now.replace(second=30)
+        code = pyotp.TOTP(self.factor).at(future)
+        self.assertEqual(self.verify(challenge, code).status_code, 401)
+        self.assertEqual(TotpFactor.objects.get().last_step, -1)
+        self.assertFalse(LoginSession.objects.exists())
+        self.assertTrue(SecurityEvent.objects.filter(kind="mfa.failed").exists())
+        with patch("service.mfa.time.time", return_value=future.timestamp()):
+            self.assertEqual(self.verify(challenge, code).status_code, 200)
+
+    def test_current_period_code_is_valid_until_the_boundary_and_only_once(self):
+        last_instant = self.now.replace(second=29, microsecond=999999)
+        code = pyotp.TOTP(self.factor).at(self.now)
+        with patch("service.mfa.time.time", return_value=last_instant.timestamp()):
+            self.assertEqual(self.verify(self.challenge(), code).status_code, 200)
+            self.assertEqual(self.verify(self.challenge(), code).status_code, 401)
+        self.assertEqual(TotpFactor.objects.get().last_step, int(self.now.timestamp()) // 30)
+
+    def test_unused_code_expires_at_exact_boundary_and_new_period_starts(self):
+        challenge = self.challenge()
+        code = pyotp.TOTP(self.factor).at(self.now)
+        boundary = self.now.replace(second=30)
+        with patch("service.mfa.time.time", return_value=boundary.timestamp()):
+            self.assertEqual(self.verify(challenge, code).status_code, 401)
+            self.assertEqual(TotpFactor.objects.get().last_step, -1)
+            self.assertFalse(LoginSession.objects.exists())
+            self.assertTrue(SecurityEvent.objects.filter(kind="mfa.failed").exists())
+            current_code = pyotp.TOTP(self.factor).at(boundary)
+            self.assertEqual(self.verify(challenge, current_code).status_code, 200)
+        self.assertEqual(TotpFactor.objects.get().last_step, int(boundary.timestamp()) // 30)
+
     def test_challenge_expiry_role_changes_and_attempt_limit(self):
         challenge = self.challenge()
         for _ in range(5):

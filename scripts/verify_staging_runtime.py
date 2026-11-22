@@ -468,7 +468,14 @@ def verify():
         assert status == 202
         assert api("gateway", "/api/v1/auth/mfa/verify",
                    data={"challenge_token": challenged["challenge_token"], "code": recovery})[0] == 401
-        code = pyotp.TOTP(factor_secret).at(time.time() + 30)
+        # Enrollment consumed its period. Future codes must fail until their
+        # actual boundary; then exercise concurrent consumption of a current code.
+        next_period = (int(time.time()) // 30 + 1) * 30
+        assert api("gateway", "/api/v1/auth/mfa/verify",
+                   data={"challenge_token": challenged["challenge_token"],
+                         "code": pyotp.TOTP(factor_secret).at(next_period)})[0] == 401
+        time.sleep(max(0, next_period - time.time()) + 0.1)
+        code = pyotp.TOTP(factor_secret).now()
         def verify_concurrently(_):
             return api("gateway", "/api/v1/auth/mfa/verify",
                        data={"challenge_token": challenged["challenge_token"], "code": code})[0]

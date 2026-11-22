@@ -56,11 +56,10 @@ def consume_factor(account, code):
         except (InvalidToken, UnicodeError, ValueError):
             raise RuntimeError("MFA encrypted factor unavailable") from None
         step = int(time.time()) // 30
-        for candidate in (step, step - 1, step + 1):
-            if candidate > factor.last_step and hmac.compare_digest(totp.at(candidate * 30), code):
-                factor.last_step = candidate
-                factor.save(update_fields=["last_step"])
-                return "totp"
+        if step > factor.last_step and hmac.compare_digest(totp.at(step * 30), code):
+            factor.last_step = step
+            factor.save(update_fields=["last_step"])
+            return "totp"
         return None
     if not re.fullmatch(r"[a-zA-Z0-9_-]{32,128}", code):
         return None
