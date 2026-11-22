@@ -7,7 +7,7 @@ index,Source,ID,Decision,Status,Owner_or_requirement,Due_gate
 5,DOC-207,ADR-016,PostgreSQL hosting and DR targets,Open — decision required,SRE/Platform,Before Stage 2 final sign-off
 6,DOC-207,ADR-017,Observability and audit pipeline,Proposed — needs approval,SRE/Platform,Before implementation of affected component
 7,DOC-207,ADR-018,"Secrets, images and CI/CD controls",Proposed — needs approval,Platform/Security,Before implementation of affected component
-8,DOC-207,ADR-019,Qualified view and points parameters,Open — business decision required,Product/Security,Before Stage 2 final sign-off
+8,DOC-207,ADR-019,Qualified view and points parameters,Partially approved — DEC-003 restricted-pilot parameters approved 10 Nov 2026; general-release parameters open,Product/Security,Before Stage 2 final sign-off
 9,DOC-207,ADR-020,Privacy retention and data residency,Open — legal/product decision required,Product/Security,Before Stage 2 final sign-off
 10,DOC-207,ADR-021,Nginx high availability and TLS ownership,Open — decision required,SRE/Platform,Before Stage 2 final sign-off
 11,DOC-207,ADR-022,API versioning and event contracts,Proposed — needs approval,SRE/Platform,Before implementation of affected component

@@ -18,6 +18,6 @@ The [seven-stage plan](liberian_platform_seven_stage_development_plan.md) is the
 ## Alignment notes
 
 - **Document sources of truth.** Delivery status: [R1 application tracker](../engineering/R1_Application_Tracker.md). Release checkpoint: latest dated record in `docs/operations/`. Gates: [consolidated release gates](../operations/R1_Consolidated_Release_Gates_2026-11-14.md) (a 14 November NO-GO snapshot, to be refreshed under #161).
-- **Known inconsistencies, tracked rather than silently edited:** document register IDs versus `docs/requirements/DOC-00x` files (#133); ADR-008 (managed Cloudflare video) versus OD-07 (R2 + FFmpeg) and Oracle-versus-AWS wording in DOC-207/208/209 (#138); ADR-019 'Open' versus DEC-003 approved (#137).
+- **Known inconsistencies, tracked rather than silently edited:** document register IDs versus `docs/requirements/DOC-00x` files (#133); Oracle-versus-AWS wording in DOC-207/208/209 (#138). ADR-008 and ADR-019 now record the owner's OD-07 and DEC-003 approvals of 10 November.
 - **Branch protection.** `main` now has an active ruleset that blocks deletion and force-push only; no required checks or reviews (#142).
 - **Time-bound risk.** The OpenSSL scanner exception expires 2026-11-28 UTC (#143).
