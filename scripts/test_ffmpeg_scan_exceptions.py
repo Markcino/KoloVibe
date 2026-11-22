@@ -34,7 +34,7 @@ DECODERS = (
     " A....D aac                 AAC (Advanced Audio Coding)\n A....D pcm_s16le          PCM signed 16-bit little-endian\n")
 ENCODERS = (
     "Encoders:\n V..... = Video\n ------\n V....D libx264            libx264 H.264\n A....D aac                 AAC\n"
-    " V....D mjpeg               MJPEG\n")
+    " V....D mjpeg               MJPEG\n A....D pcm_s16le          PCM signed 16-bit little-endian\n")
 HWACCELS = "Hardware acceleration methods:\n"
 BSFS = "Bitstream filters:\nnull\naac_adtstoasc\n"
 LISTINGS = {"decoders": DECODERS, "encoders": ENCODERS, "hwaccels": HWACCELS, "bsfs": BSFS}
@@ -105,9 +105,9 @@ class EvidenceMatchesTheBuildRecipeTests(unittest.TestCase):
     def test_the_enabled_codecs_are_exactly_the_ones_the_exceptions_were_argued_against(self):
         self.assertEqual(sorted(re.findall(r"--enable-decoder=(\w+)", CONFIGURE)),
                          ["aac", "alac", "h264", "hevc", "mp3float", "pcm_s16be", "pcm_s16le", "pcm_s24le"])
-        self.assertEqual(sorted(re.findall(r"--enable-encoder=(\w+)", CONFIGURE)), ["aac", "libx264", "mjpeg"])
+        self.assertEqual(sorted(re.findall(r"--enable-encoder=(\w+)", CONFIGURE)), ["aac", "libx264", "mjpeg", "pcm_s16le"])
         self.assertEqual(re.findall(r"--enable-demuxer=(\w+)", CONFIGURE), ["mov"])
-        self.assertEqual(re.findall(r"--enable-muxer=(\w+)", CONFIGURE), ["mp4", "image2"])
+        self.assertEqual(re.findall(r"--enable-muxer=(\w+)", CONFIGURE), ["mp4", "image2", "wav"])
         self.assertEqual(re.findall(r"--enable-bsf=(\w+)", CONFIGURE), ["null", "aac_adtstoasc"])
 
     def test_no_excepted_component_is_enabled_by_the_recipe(self):
@@ -133,7 +133,7 @@ class CheckerTests(unittest.TestCase):
 
     def test_listing_parsers_read_names_not_legends(self):
         self.assertEqual(checker.listed_names("decoders", DECODERS), {"h264", "aac", "pcm_s16le"})
-        self.assertEqual(checker.listed_names("encoders", ENCODERS), {"libx264", "aac", "mjpeg"})
+        self.assertEqual(checker.listed_names("encoders", ENCODERS), {"libx264", "aac", "mjpeg", "pcm_s16le"})
         self.assertEqual(checker.listed_names("hwaccels", HWACCELS), set())
         self.assertEqual(checker.listed_names("bsfs", BSFS), {"null", "aac_adtstoasc"})
         with self.assertRaises(ValueError):
