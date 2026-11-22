@@ -1,5 +1,7 @@
 > Source: platform_SRS_v0_2_scope_approved.docx (text export; original formatting, formulas and embedded images are not included). Original review status is retained.
 
+> Document control (DOC-002): **Detail status: Draft — owner decision pending (#133).** The v0.2 filename retains a v0.1 export body; version resolution and section decisions are in [the review manifest](detail_baseline_review.csv). [DEC-001 approval interpretation](platform_documentation_register_and_DEC001.md#approval-interpretation) applies. No signature or approval date is added.
+
 <PARSED TEXT FOR PAGE: 1 / 7>
 SOFTWARE REQUIREMENTS SPECIFICATION
 Flutter mobile + Django templates web + Django REST Framework | Creator-content pilot R1
@@ -16,11 +18,14 @@ interfaces or exclusions, not committed R1 functionality.
 
 
 2. System context and technology
-Flutter mobile clients and Django-rendered HTML/CSS/JavaScript web clients communicate with
-Django REST Framework or server-rendered views. Django owns authorization, engagement
-qualification, points and audit events. PostgreSQL is authoritative; Redis/Celery handle background
-processing. Media is delivered through a managed video service. All infrastructure and credentials
-are separated by environment.
+Flutter mobile clients and the moderator/administrator-only Django-rendered web console
+communicate with eight Django/DRF services. Owning services enforce authorization, engagement
+qualification, non-cash points and audit events. PostgreSQL is authoritative; RabbitMQ/Celery
+handle background processing. Private Cloudflare R2 stores media and a Content FFmpeg worker
+processes VOD; AWS is the staging target. Environments and credentials remain separate.
+
+Record alignment only: fixed R1 stack, ADR-007 and approved OD-07. This corrects obsolete
+Redis/managed-video wording; it does not approve the remaining SRS details or a production release.
 
 
 

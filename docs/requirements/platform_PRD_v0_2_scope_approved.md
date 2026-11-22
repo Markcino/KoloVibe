@@ -1,5 +1,7 @@
 > Source: platform_PRD_v0_2_scope_approved.docx (text export; original formatting, formulas and embedded images are not included). Original review status is retained.
 
+> Document control (DOC-001): **Detail status: Draft — owner decision pending (#133).** The v0.2 filename retains a v0.1 export body; version resolution and section decisions are in [the review manifest](detail_baseline_review.csv). [DEC-001 approval interpretation](platform_documentation_register_and_DEC001.md#approval-interpretation) applies. No signature or approval date is added.
+
 <PARSED TEXT FOR PAGE: 1 / 5>
 PRODUCT REQUIREMENTS DOCUMENT
 Liberian-owned content, verified services, events and advertising-funded rewards platform
@@ -184,7 +186,9 @@ Observability                                      Audit, metrics, error trackin
 
 
 11. External dependencies and constraints
-   Cloudflare Stream and object storage: verify actual costs and terms before production.
+   Private Cloudflare R2 plus Content FFmpeg processing (approved OD-07): verify actual costs,
+    processor terms and operational acceptance before production. Cloudflare Stream is superseded
+    for R1 VOD; live streaming remains outside R1.
    Google AdMob/AdSense: publisher and app approval are not guaranteed; review policy before
     production.
    Payment providers: verify Liberia coverage, business onboarding, webhooks, bulk

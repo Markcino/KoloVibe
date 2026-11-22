@@ -1,5 +1,7 @@
 > Source: DOC-005_User_Journeys_DRAFT.docx (text export; original formatting, formulas and embedded images are not included). Original review status is retained.
 
+> Approval interpretation: the export's “approved baselines” wording covers [DEC-001 scope only](platform_documentation_register_and_DEC001.md#approval-interpretation). Detailed approval is pending; the source remains Draft.
+
 <PARSED TEXT FOR PAGE: 1 / 3>
 End-to-End User Journeys
 DOC-005 | Role-based workflows, failure paths and acceptance checkpoints
