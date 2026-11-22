@@ -37,14 +37,15 @@ class ModeratorInvitationGatewayTests(SimpleTestCase):
             call.assert_not_called()
 
     def test_upstream_secret_fields_and_malformed_enrollment_are_rejected(self):
+        private_value = secrets.token_urlsafe(24)
         with patch("service.accounts.signed_internal_request") as call:
-            for payload in ({"secret": "bad", "expires_at": "2026-11-22T12:00:00Z"},
-                            {"secret": "A" * 32, "expires_at": "2026-11-22T12:00:00Z", "password": "never-render"}):
+            for payload in ({"secret": secrets.token_urlsafe(3), "expires_at": "2026-11-22T12:00:00Z"},
+                            {"secret": "A" * 32, "expires_at": "2026-11-22T12:00:00Z", "password": private_value}):
                 call.return_value = Response(200, json.dumps(payload).encode())
                 response = self.post("/api/v1/auth/moderator-invitations/setup", {})
                 self.assertEqual(response.status_code, 503)
-                self.assertNotIn(b"never-render", response.content)
-            call.return_value = Response(200, b'{"items": [], "next_cursor": null, "secret": "never-render"}')
+                self.assertNotIn(private_value.encode(), response.content)
+            call.return_value = Response(200, json.dumps({"items": [], "next_cursor": None, "secret": private_value}).encode())
             self.assertEqual(self.client.get(self.path, HTTP_AUTHORIZATION="Bearer session").status_code, 503)
 
     def test_revocation_cannot_choose_another_actor_and_preserves_no_store(self):

@@ -554,7 +554,8 @@ def verify():
                 status, page = request(ports["web"], "/admin/team/", cookies=cookies)
                 self.assertEqual(status, 200)
                 proof = re.search(rb'name="intent" value="([^"]+)"', page).group(1).decode()
-                email, password = "invited-reviewer@example.test", secrets.token_urlsafe(32)
+                email = "invited-reviewer@example.test"
+                password = secrets.token_urlsafe(32)
                 self.assertEqual(form("/admin/team/", {"operation": "create", "intent": proof,
                     "email": email, "display_name": "Invited reviewer", "reason": "Disposable invitation journey"})[0], 302)
                 token = re.search(r"\n([A-Za-z0-9_-]{64})\n", (base / "verification-mail").read_text()).group(1)

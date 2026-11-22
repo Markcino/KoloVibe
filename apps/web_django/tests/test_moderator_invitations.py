@@ -3,6 +3,8 @@ import secrets
 from datetime import timedelta
 from unittest.mock import patch
 
+import pyotp
+
 from django.test import Client, TestCase
 from django.utils import timezone
 
@@ -26,7 +28,7 @@ class ModeratorInvitationWebTests(TestCase):
     def setup(self, client=None):
         client = client or self.client
         self.invite_code = secrets.token_urlsafe(48)
-        self.secret = "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP"
+        self.secret = pyotp.random_base32()
         with patch("web.views._api", return_value=(200, {"secret": self.secret,
                    "expires_at": (timezone.now() + timedelta(minutes=5)).isoformat()})):
             return client.post("/moderator-invitation/", {"email": "reviewer@example.test",

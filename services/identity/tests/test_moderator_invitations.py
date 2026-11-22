@@ -160,7 +160,7 @@ class ModeratorInvitationTests(TestCase):
 
     def test_setup_expiry_password_policy_and_existing_accounts_cannot_be_promoted(self):
         item, token, _ = self.create()
-        self.assertEqual(self.begin(token, password="short").status_code, 400)
+        self.assertEqual(self.begin(token, password=secrets.token_urlsafe(3)).status_code, 400)
         secret = json.loads(self.begin(token).content)["secret"]
         ModeratorInvitation.objects.filter(pk=item.id).update(setup_expires_at=self.now)
         self.assertEqual(self.finish(token, pyotp.TOTP(secret).at(self.now)).status_code, 401)
