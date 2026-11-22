@@ -2,8 +2,10 @@ import json
 import secrets
 from datetime import timedelta
 from unittest.mock import patch
+from urllib.parse import parse_qs, unquote, urlsplit
 
 import pyotp
+import segno
 
 from django.test import Client, TestCase
 from django.utils import timezone
@@ -71,7 +73,7 @@ class ModeratorInvitationWebTests(TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(api.call_args.args, ("/admin/moderator-invitations",))
 
-    def test_setup_proof_is_encrypted_and_secret_is_only_shown_in_enrollment(self):
+    def test_setup_proof_is_encrypted_and_qr_is_session_bound(self):
         response = self.setup()
         self.assertEqual(response.status_code, 302)
         state = dict(self.client.session)
@@ -80,10 +82,27 @@ class ModeratorInvitationWebTests(TestCase):
             self.assertNotIn(secret, json.dumps(state))
             self.assertNotIn(secret, response.headers["Location"])
         page = self.client.get("/moderator-invitation/")
-        self.assertContains(page, self.secret)
+        self.assertNotContains(page, self.secret)
         self.assertNotContains(page, self.invite_code)
+        self.assertContains(page, 'src="/moderator-invitation/qr/"')
         self.assertIn("no-store", page.headers["Cache-Control"])
         self.assertIn("script-src 'none'", page.headers["Content-Security-Policy"])
+
+        with patch("web.invitation_views.segno.make_qr", wraps=segno.make_qr) as make_qr:
+            qr = self.client.get("/moderator-invitation/qr/")
+        self.assertEqual(qr.status_code, 200)
+        self.assertEqual(qr["Content-Type"], "image/png")
+        self.assertTrue(qr.content.startswith(b"\\x89PNG\\r\\n\\x1a\\n"))
+        self.assertIn("no-store", qr.headers["Cache-Control"])
+        uri = urlsplit(make_qr.call_args.args[0])
+        self.assertEqual((uri.scheme, uri.netloc), ("otpauth", "totp"))
+        self.assertEqual(unquote(uri.path), "/KoloVibe:reviewer@example.test")
+        params = parse_qs(uri.query)
+        self.assertEqual(params["secret"], [self.secret])
+        self.assertEqual(params["issuer"], ["KoloVibe"])
+        self.assertEqual(params["algorithm"], ["SHA1"])
+        self.assertEqual(params["digits"], ["6"])
+        self.assertEqual(params["period"], ["30"])
 
     def test_completion_shows_recovery_codes_once_without_creating_login(self):
         self.setup()
@@ -102,12 +121,15 @@ class ModeratorInvitationWebTests(TestCase):
         self.setup()
         with patch("django.utils.timezone.now", return_value=timezone.now() + timedelta(minutes=6)):
             self.assertNotContains(self.client.get("/moderator-invitation/"), self.secret)
+            self.assertEqual(self.client.get("/moderator-invitation/qr/").status_code, 404)
         with patch("web.views._api", return_value=(200, {"secret": self.secret, "expires_at": "bad"})):
             self.assertEqual(self.client.post("/moderator-invitation/", {}).status_code, 503)
         self.assertNotIn(invitation_views.PENDING, self.client.session)
 
     def test_anonymous_invitee_is_not_public_signup_and_team_needs_login(self):
         self.assertEqual(self.client.get("/moderator-invitation/").status_code, 200)
+        self.assertEqual(self.client.get("/moderator-invitation/qr/").status_code, 404)
+        self.assertEqual(self.client.post("/moderator-invitation/qr/", {}).status_code, 405)
         self.assertEqual(self.client.get("/admin/team/").status_code, 302)
         self.assertEqual(self.client.get("/register/").status_code, 404)
         self.assertContains(self.client.get("/login/"), "Accept moderator invitation")
