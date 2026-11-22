@@ -11,8 +11,9 @@
 <p>Your enrollment code has been used. Wait for the next authenticator code before signing in, or use one recovery code.</p>
 <p>Review access requires a separate queue assignment.</p><a class="button" href="{% url 'login' %}">Continue to sign in</a>
 {% else %}<form method="post">{% csrf_token %}
-{% if enrollment %}<p>Add a time-based account named KoloVibe in your authenticator app, using this setup key. Keep the key private. Setup expires after five minutes.</p>
-<p><code class="invitation-secret">{{ enrollment.secret }}</code></p><p>Enable automatic date and time on your device.</p>
+{% if enrollment %}<p>Open your authenticator app and choose <strong>Add account</strong> or <strong>Scan QR code</strong>. Scan the code below to add KoloVibe. The setup expires after five minutes.</p>
+<p class="invitation-qr"><img src="{% url 'moderator-invitation-qr' %}" width="240" height="240" alt="Scan to add KoloVibe to your authenticator app"></p>
+<p>Enable automatic date and time on your device. Enter the current six-digit code shown by the authenticator app to complete enrollment.</p>
 <label>Current authenticator code<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" required autofocus></label>
 <button type="submit">Complete MFA enrollment</button>
 {% else %}<p>Use the invitation sent by your administrator. No account is activated until authenticator enrollment succeeds.</p>
