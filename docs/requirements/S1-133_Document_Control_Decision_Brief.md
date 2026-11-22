@@ -1,8 +1,8 @@
 # #133 — Document register and detail-baseline decisions
 
-**Status: Proposed — recommended, awaiting owner approval.** Related to [#133](https://github.com/Markcino/KoloVibe/issues/133); Stage 1 remains open in [#169](https://github.com/Markcino/KoloVibe/issues/169). Approval authority: **Mark Allen Gbalazeh (@Markcino)**. No decision below is approved by this document or by passing CI.
+**Status: In review — four methods approved by the owner on 2026-11-22; detail acceptance and research execution pending.** [Owner decision record](https://github.com/Markcino/KoloVibe/issues/133#issuecomment-7076320307). Related to [#133](https://github.com/Markcino/KoloVibe/issues/133); Stage 1 remains open in [#169](https://github.com/Markcino/KoloVibe/issues/169). Approval authority: **Mark Allen Gbalazeh (@Markcino)**. The decision record below reflects the owner's explicit “Approve all four methods” reply; CI and this document grant no additional approval.
 
-## Recommended approval package
+## Owner-approved methods and remaining actions
 
 1. **S1-133-ID: preserve the IDs already present on source files.** Keep DOC-004 RBAC, DOC-005 journeys, DOC-006 rules, DOC-007 traceability, DOC-201–209 architecture, and the SRS's NFR section under DOC-002. Use the proposed [register CSV](document_register.csv) as the inventory, with the old register entries retained as historical aliases. Recover missing DOC-201/DOC-202 sources; do not invent their content or approval dates.
 2. **S1-133-RESEARCH: conduct a small, evidence-backed R1 role review.** Adopt the [DOC-003 protocol](DOC-003_Stakeholder_Research_Proposed.md), not a waiver. Cover viewer, creator, assigned moderator and supervising administrator tasks; record sanitized findings and requirement links. No interviews or research results are claimed to have occurred.
@@ -25,7 +25,7 @@ The register's owner roles describe responsibilities, not additional employees. 
 
 **Risk if wrong:** a historic approval could be attached to the wrong artifact. Mitigation: retain the original text, record aliases with source paths and revisions, and never infer an approval date from Git history.
 
-**Owner must approve:** option A and the 23-row inventory/mapping. **Exact updates after approval:** `document_register.csv` → `mapping_state` and `owner_decision_reference`; the register's `S1-133-ID` approval record; the historical table's supersession note. Preserve each source's observed status and existing approval scope.
+**Owner method decision:** A approved; inventory/source-detail limitations remain explicit. **Authorized record fields:** `document_register.csv` → `mapping_state` and `owner_decision_reference`; the register's `S1-133-ID` approval record; the historical table's supersession note. Preserve each source's observed status and existing approval scope.
 
 ## S1-133-RESEARCH — Record research or waive it?
 
@@ -41,7 +41,7 @@ The register's owner roles describe responsibilities, not additional employees. 
 
 **Risk if wrong:** a small sample misses usability/abuse misunderstandings. Mitigation: record sample limits, unresolved findings and pilot feedback checkpoints; do not call this representative market research or independent security testing.
 
-**Owner must approve:** protocol and participant/role coverage. **Exact updates after approval:** DOC-003 `Protocol owner decision`, `Decision reference` and `Actual decision date` fields. Research completion remains Pending until real dated findings are entered. A waiver instead requires DOC-003's waiver record and a linked owner decision; no fabricated findings.
+**Owner method decision:** protocol A approved; actual participant coverage/results remain pending. **Authorized record fields:** DOC-003 `Protocol owner decision`, `Decision reference` and `Actual decision date` fields. Research completion remains Pending until real dated findings are entered. A waiver instead requires DOC-003's waiver record and a linked owner decision; no fabricated findings.
 
 ## S1-133-BASELINE — How should PRD/SRS details be accepted?
 
@@ -57,7 +57,7 @@ The register's owner roles describe responsibilities, not additional employees. 
 
 **Risk if wrong:** conditional acceptance is mistaken for go-live. Mitigation: distinguish source detail approval from implementation, verification, legal acceptance and release authorization; Stage 1 stays open while its gate is unmet.
 
-**Owner must approve:** reviewed source revision and each accepted or explicitly deferred section, with rationale and remaining gate. **Exact updates after approval:** `detail_baseline_review.csv` → `owner_decision`, `decision_reference`, `actual_decision_date`, `conditions`; PRD/SRS `Detail status` and version metadata only for the approved revision/sections. Never fill a signature/date on the owner's behalf. DOC-007 formal sign-off remains #134.
+**Owner method decision:** A approved. The owner must still decide each reviewed source section, with rationale and remaining gate. **Fields for those later section decisions:** `detail_baseline_review.csv` → `owner_decision`, `decision_reference`, `actual_decision_date`, `conditions`; PRD/SRS `Detail status` and version metadata only for the approved revision/sections. Never fill a signature/date on the owner's behalf. DOC-007 formal sign-off remains #134.
 
 ## S1-133-CONTROL — What routine controls future changes?
 
@@ -73,15 +73,15 @@ The register's owner roles describe responsibilities, not additional employees. 
 
 **Risk if wrong:** a lightweight process is applied inconsistently. Mitigation: require the DOC-023 fields in each proposed change, name the owner and link an explicit decision before a lifecycle transition.
 
-**Owner must approve:** the DOC-023 routine. **Exact updates after approval:** DOC-023 `Routine owner decision`, `Decision reference`, `Actual decision date`; register row DOC-023 `owner_decision_reference`. Operational execution and independent assurance remain distinct.
+**Owner method decision:** DOC-023 routine A approved. **Authorized record fields:** DOC-023 `Routine owner decision`, `Decision reference`, `Actual decision date`; register row DOC-023 `owner_decision_reference`. Operational execution and independent assurance remain distinct.
 
-## Owner decision record — intentionally unfilled
+## Owner decision record — methods only
 
 | Decision ID | Recommended option | Owner decision | Actual decision date | Owner evidence link |
 | --- | --- | --- | --- | --- |
-| S1-133-ID | A | Pending | | |
-| S1-133-RESEARCH | A | Pending | | |
-| S1-133-BASELINE | A (review method; no blanket detail approval) | Pending | | |
-| S1-133-CONTROL | A | Pending | | |
+| S1-133-ID | A | Approved by Mark Allen Gbalazeh — method only | 2026-11-22 | [Owner record](https://github.com/Markcino/KoloVibe/issues/133#issuecomment-7076320307) |
+| S1-133-RESEARCH | A | Approved by Mark Allen Gbalazeh — method only | 2026-11-22 | [Owner record](https://github.com/Markcino/KoloVibe/issues/133#issuecomment-7076320307) |
+| S1-133-BASELINE | A (review method; no blanket detail approval) | Approved by Mark Allen Gbalazeh — method only | 2026-11-22 | [Owner record](https://github.com/Markcino/KoloVibe/issues/133#issuecomment-7076320307) |
+| S1-133-CONTROL | A | Approved by Mark Allen Gbalazeh — method only | 2026-11-22 | [Owner record](https://github.com/Markcino/KoloVibe/issues/133#issuecomment-7076320307) |
 
-Issue #133 is not closed by preparing these recommendations. The ID scheme, PRD/SRS detail decisions, and completed research or a formal waiver still need owner action. No #169 checkbox is eligible to be ticked from this proposal alone.
+Issue #133 remains open. The owner has approved the four methods; actual PRD/SRS section decisions, completed research, and source-recovery/gap handling still need action. No waiver was approved. No #169 checkbox is eligible to be ticked from this proposal alone.

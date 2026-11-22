@@ -1,6 +1,6 @@
 # DOC-023 — Source-document change control
 
-**Status: Proposed — recommended, awaiting owner approval.** Accountable owner: Mark Allen Gbalazeh (@Markcino). This implements a proposed routine for the governance already described in the [register](platform_documentation_register_and_DEC001.md); it grants no approval itself.
+**Status: In review — routine method approved by the owner on 2026-11-22.** [Owner decision](https://github.com/Markcino/KoloVibe/issues/133#issuecomment-7076320307); individual document approvals remain separate. Accountable owner: Mark Allen Gbalazeh (@Markcino). This records the owner-approved routine for the governance already described in the [register](platform_documentation_register_and_DEC001.md); it grants no approval itself.
 
 ## Recommended routine
 
@@ -35,6 +35,6 @@ Scope: document IDs, inventory, approval interpretation, detail-review manifest 
 
 Impact: preserves source links/history; corrects unsupported approval attribution; exposes missing files/evidence and owner decisions. No implementation pass, legal acceptance or new requirement approval is inferred. Rollback is a reviewed document revert while retaining the issue/decision history.
 
-Routine owner decision: Pending  
-Decision reference:  
-Actual decision date:
+- Routine owner decision: Approved by Mark Allen Gbalazeh — method only
+- Decision reference: https://github.com/Markcino/KoloVibe/issues/133#issuecomment-7076320307
+- Actual decision date: 2026-11-22

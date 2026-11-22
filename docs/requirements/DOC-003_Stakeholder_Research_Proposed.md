@@ -1,6 +1,6 @@
 # DOC-003 — Restricted-pilot stakeholder research
 
-**Status: Proposed — recommended, awaiting owner approval.** This is a protocol and empty evidence template, not completed research. Accountable owner: Mark Allen Gbalazeh (@Markcino). Related to #133; decision brief: [S1-133-RESEARCH](S1-133_Document_Control_Decision_Brief.md#s1-133-research--record-research-or-waive-it).
+**Status: In review — method approved by the owner on 2026-11-22.** [Owner decision](https://github.com/Markcino/KoloVibe/issues/133#issuecomment-7076320307). Research execution/section acceptance is not implied. This is a protocol and empty evidence template, not completed research. Accountable owner: Mark Allen Gbalazeh (@Markcino). Related to #133; decision brief: [S1-133-RESEARCH](S1-133_Document_Control_Decision_Brief.md#s1-133-research--record-research-or-waive-it).
 
 ## Recommended protocol
 
@@ -28,18 +28,18 @@ Research state: **Pending — no findings recorded**.
 
 Completion requires actual role coverage, dated sanitized findings, limitations, linked follow-ups and owner acceptance of the research or documented residual risk. It does not prove representative market demand, application security or production readiness.
 
-Protocol owner decision: Pending  
-Decision reference:  
-Actual decision date:
+- Protocol owner decision: Approved by Mark Allen Gbalazeh — method only
+- Decision reference: https://github.com/Markcino/KoloVibe/issues/133#issuecomment-7076320307
+- Actual decision date: 2026-11-22
 
 ## Alternative formal waiver — empty, not recommended
 
-Owner waiver decision: Pending  
-Rationale and unavailable evidence:  
-Affected PRD/SRS requirements:  
-Compensating checks and pilot feedback checkpoint:  
-Expiry or next review gate (owner to choose):  
-Accepted residual risk and accountable owner:  
-Decision reference and actual decision date:
+- Owner waiver decision: Pending
+- Rationale and unavailable evidence:
+- Affected PRD/SRS requirements:
+- Compensating checks and pilot feedback checkpoint:
+- Expiry or next review gate (owner to choose):
+- Accepted residual risk and accountable owner:
+- Decision reference and actual decision date:
 
 Do not infer a waiver from schedule pressure, a merged draft, or CI success.

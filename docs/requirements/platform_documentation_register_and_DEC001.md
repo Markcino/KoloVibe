@@ -6,9 +6,9 @@ Decision Log
 Liberian creator-content platform | Baseline v1.0 | 28 October 2026
 
 
-## Current inventory and approval interpretation — #133 proposal
+## Current inventory and approval interpretation — #133
 
-**Proposed — recommended, awaiting owner approval.** Use the [23-row source inventory](document_register.csv), [owner decision brief](S1-133_Document_Control_Decision_Brief.md), [detail review manifest](detail_baseline_review.csv), proposed [DOC-003 protocol](DOC-003_Stakeholder_Research_Proposed.md) and [DOC-023 change routine](DOC-023_Change_Control_Proposed.md). This is a document-control proposal; it neither approves details nor closes Stage 1.
+**Four document-control methods approved by Mark Allen Gbalazeh on 2026-11-22; detailed baselines and research execution remain pending.** [Owner decision](https://github.com/Markcino/KoloVibe/issues/133#issuecomment-7076320307). Use the [23-row source inventory](document_register.csv), [owner decision brief](S1-133_Document_Control_Decision_Brief.md), [detail review manifest](detail_baseline_review.csv), proposed [DOC-003 protocol](DOC-003_Stakeholder_Research_Proposed.md) and [DOC-023 change routine](DOC-023_Change_Control_Proposed.md). This records the owner-approved methods; it neither approves details nor closes Stage 1.
 
 ### Approval interpretation
 
@@ -16,18 +16,18 @@ DEC-001 approves R1 scope only. The PRD/SRS detailed bodies remain working draft
 
 The inventory records real paths, observed status, historical owner responsibilities, the recorded sole accountable owner, declared source dates and separately labelled Git dates. `Not recorded` means missing metadata, not a new date or approval. Git dates show a source change only. Its `inventory_base_commit` pins the inspection baseline. Architecture CSVs and BE/FL records retain their own scoped status; no local result or design approval is promoted to independent assurance.
 
-### Proposed ID resolution
+### Owner-approved ID method and aliases
 
-Keep materialized DOC-004/005/006/007 and DOC-201–209 identifiers. NFRs remain in DOC-002 section 5; the historical DOC-007 NFR reference is an alias to that section, not a second DOC-007. Legacy DOC-008/009/010/011/012/016 entries resolve to the architecture references named in the CSV. The 28 October table below is retained as history; its conflicting references are **proposed for Superseded status only on owner approval**. No source file is renamed or deleted. Standalone DOC-201/DOC-202 sources were not found; related files do not substitute for those missing artifacts.
+Keep materialized DOC-004/005/006/007 and DOC-201–209 identifiers. NFRs remain in DOC-002 section 5; the historical DOC-007 NFR reference is an alias to that section, not a second DOC-007. Legacy DOC-008/009/010/011/012/016 entries resolve to the architecture references named in the CSV. The 28 October table below is retained as history; its conflicting legacy references are **Superseded as register references** under the [owner-approved mapping method](https://github.com/Markcino/KoloVibe/issues/133#issuecomment-7076320307). Source artifacts keep their existing detail/design/verification status. No source file is renamed or deleted. Standalone DOC-201/DOC-202 sources were not found; related files do not substitute for those missing artifacts.
 
-### Owner decisions — deliberately pending
+### Owner decisions — method approval only
 
 | Decision | State | Owner evidence reference | Actual decision date |
 | --- | --- | --- | --- |
-| S1-133-ID | Proposed — recommended, awaiting owner approval | | |
-| S1-133-RESEARCH | Proposed — recommended, awaiting owner approval | | |
-| S1-133-BASELINE | Proposed — recommended, awaiting owner approval | | |
-| S1-133-CONTROL | Proposed — recommended, awaiting owner approval | | |
+| S1-133-ID | Approved by owner — method only | [Decision](https://github.com/Markcino/KoloVibe/issues/133#issuecomment-7076320307) | 2026-11-22 |
+| S1-133-RESEARCH | Approved by owner — method only | [Decision](https://github.com/Markcino/KoloVibe/issues/133#issuecomment-7076320307) | 2026-11-22 |
+| S1-133-BASELINE | Approved by owner — method only | [Decision](https://github.com/Markcino/KoloVibe/issues/133#issuecomment-7076320307) | 2026-11-22 |
+| S1-133-CONTROL | Approved by owner — method only | [Decision](https://github.com/Markcino/KoloVibe/issues/133#issuecomment-7076320307) | 2026-11-22 |
 
 
 Decision DEC-001 — Initial MVP scope approved
@@ -54,7 +54,7 @@ Documentation governance
     runbooks publicly.
 
 
-Historical master register — 28 October 2026 (retained; supersession proposed)
+Historical master register — 28 October 2026 (retained; conflicting aliases Superseded by owner-approved mapping)
 ID                 Document            Owner              Status              Target stage
 DOC-001            Product             Product owner      Scope approved;     1
                    Requirements                           details draft
