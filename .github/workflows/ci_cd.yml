@@ -574,14 +574,14 @@ jobs:
           for attempt in 1 2 3 4 5 6 7 8 9 10; do
             if curl -q -fsS --max-time 3 --cacert "$secrets_dir/web_tls_cert" \
               -H 'Host: kolovibe.cabetechs.shop' -H 'X-Forwarded-Proto: https' \
-              https://127.0.0.1:18001/health/live | grep -q '"status": "ok"'; then
+              https://127.0.0.1:18001/health/live | grep -F '"status": "ok"' >/dev/null; then
               break
             fi
             sleep 1
           done
           curl -q -fsS --max-time 3 --cacert "$secrets_dir/web_tls_cert" \
             -H 'Host: kolovibe.cabetechs.shop' -H 'X-Forwarded-Proto: https' \
-            https://127.0.0.1:18001/static/css/site.css | grep -q 'body'
+            https://127.0.0.1:18001/static/css/site.css | grep -F 'body' >/dev/null
           docker rm -f kolovibe-web-tls-ci
           KOLOVIBE_WEB_IMAGE=ghcr.io/example/kolovibe-web@sha256:$(printf '0%.0s' {1..64}) \
             docker stack config -c infra/swarm/web-aws.yml >/dev/null
