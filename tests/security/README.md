@@ -41,7 +41,7 @@ The UI uses [Material 3 color roles](https://m3.material.io/styles/color/the-col
 
 ## Remaining acceptance work
 
-- NFR-002 remains partial. Targeted L1/L2 checks above are evidence toward ASVS 5.0 L2, not a full certification. In particular, the retained restricted-staging HSTS profile is 86400 seconds without includeSubDomains and does not demonstrate full 3.4.1 acceptance; TLS/subdomain rollout review is still needed.
+- NFR-002 remains partial. Targeted L1/L2 checks above are evidence toward ASVS 5.0 L2, not a full certification. In particular, the restricted-staging HSTS profile is 2592000 seconds (30 days) without includeSubDomains and does not demonstrate full 3.4.1 acceptance; TLS/subdomain rollout review is still needed.
 - Real staged R2 preview delivery, buffering/resource behavior under load, and independent security/accessibility review remain unobserved.
 - Assignment routing/model policy and moderation SLAs remain open owner decisions. Explicit per-resource grants do not choose those policies.
 - Audit retention and broader redaction policy remain open. The implemented projection conservatively omits actor/subject IDs, digests and payloads.

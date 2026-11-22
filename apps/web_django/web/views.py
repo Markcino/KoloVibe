@@ -4,6 +4,7 @@ import json
 import re
 import secrets
 import ssl
+from datetime import datetime, timezone
 from functools import wraps
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -384,6 +385,18 @@ def points(request):
         "statuses": ["all", "awards", "reversals", "adjustments"], "selected_status": values.get("status", "all")})
 
 
+def _audit_bound(raw):
+    """Return the gateway value and the datetime-local display value; naive input is UTC."""
+    try:
+        stamp = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return raw, ""
+    if stamp.tzinfo is None:
+        stamp = stamp.replace(tzinfo=timezone.utc)
+    stamp = stamp.astimezone(timezone.utc)
+    return stamp.strftime("%Y-%m-%dT%H:%M:%SZ"), stamp.strftime("%Y-%m-%dT%H:%M")
+
+
 @privileged
 @require_GET
 def audit(request):
@@ -394,6 +407,10 @@ def audit(request):
     values = dict(request.GET.items())
     if "cursor" in values and not valid_id(values["cursor"]):
         return error_page(request, status=400)
+    display = dict(values)
+    for key in ("since", "until"):
+        if key in values:
+            values[key], display[key] = _audit_bound(values[key])
     query = "?" + urlencode(values) if values else ""
     status, page = _api("/admin/audit" + query, token=request.gateway_token)
     if status != 200:
@@ -401,7 +418,7 @@ def audit(request):
     if not valid_audit_page(page) or page["next_cursor"] is not None and page["next_cursor"] == values.get("cursor"):
         return error_page(request)
     next_query = urlencode({**values, "cursor": page["next_cursor"]}) if page["next_cursor"] else None
-    return _render(request, "audit.html", {"items": page["items"], "next_query": next_query, "filters": values, "producers": ["identity", "moderation", "creators", "content", "points", "audit"]})
+    return _render(request, "audit.html", {"items": page["items"], "next_query": next_query, "filters": display, "producers": ["identity", "moderation", "creators", "content", "points", "audit"]})
 
 
 @privileged

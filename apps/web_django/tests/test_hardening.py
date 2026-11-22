@@ -78,6 +78,21 @@ class WebHardeningTests(TestCase):
         self.assert_protections(response)
         self.assertFalse(self.client.session.get("authenticated"))
 
+    def test_WEB_SEC_005_staging_profile_hsts_csrf_cookie_and_single_csp_source(self):
+        from pathlib import Path
+        from django.conf import settings
+        self.assertEqual(settings.CSRF_COOKIE_SAMESITE, "Strict")
+        self.assertFalse(settings.SECURE_HSTS_INCLUDE_SUBDOMAINS)
+        self.assertFalse(settings.SECURE_HSTS_PRELOAD)
+        nginx = Path(__file__).resolve().parents[3] / "infra/nginx/kolovibe-web-staging.conf"
+        self.assertNotIn("add_header Content-Security-Policy", nginx.read_text())
+
+    def test_WEB_ADM_006_mfa_pattern_is_valid_under_unicode_sets_flag(self):
+        from django.template.loader import render_to_string
+        from django.test import RequestFactory
+        html = render_to_string("form.html", {"kind": "mfa", "title": "Verify your sign-in"}, RequestFactory().get("/login/mfa/"))
+        self.assertIn(r"[A-Za-z0-9_\-]{32,128}", html)
+
     def test_WEB_ADM_001_bounded_unicode_detail_exceeding_64k_remains_valid(self):
         self.login()
         value = self.detail("videos")

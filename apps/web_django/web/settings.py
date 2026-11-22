@@ -79,7 +79,7 @@ TEMPLATES = [{
 STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 CSRF_COOKIE_HTTPONLY = True
-CSRF_COOKIE_SAMESITE = "Lax" if ENVIRONMENT == "staging" else "Strict"
+CSRF_COOKIE_SAMESITE = "Strict"
 CSRF_COOKIE_SECURE = ENVIRONMENT == "staging"
 SESSION_COOKIE_SECURE = ENVIRONMENT == "staging"
 SESSION_COOKIE_NAME = "__Host-kolovibe_session" if ENVIRONMENT == "staging" else "sessionid"
@@ -92,8 +92,11 @@ SESSION_ENGINE = "django.contrib.sessions.backends.db"
 CSRF_TRUSTED_ORIGINS = ["https://kolovibe.cabetechs.shop"] if ENVIRONMENT == "staging" else []
 SECURE_PROXY_SSL_HEADER = (("HTTP_X_FORWARDED_PROTO", "https") if ENVIRONMENT == "staging" else None)
 SECURE_SSL_REDIRECT = ENVIRONMENT == "staging"
-SECURE_HSTS_SECONDS = 86400 if ENVIRONMENT == "staging" else 0
+# Thirty days for the single approved host. Subdomains of the shared apex are not covered
+# and preload is not requested until every subdomain is confirmed HTTPS-only.
+SECURE_HSTS_SECONDS = 30 * 86400 if ENVIRONMENT == "staging" else 0
 SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+SECURE_HSTS_PRELOAD = False
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "same-origin"
 X_FRAME_OPTIONS = "DENY"
