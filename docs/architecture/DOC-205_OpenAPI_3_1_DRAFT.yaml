@@ -4222,6 +4222,318 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '503':
           $ref: '#/components/responses/LocalUnavailable'
+  /admin/moderator-invitations:
+    get:
+      tags:
+      - Identity
+      summary: List masked moderator invitations; administrators only
+      operationId: get_admin_moderator_invitations
+      x-implementation: local
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModeratorInvitationPage'
+        '400':
+          description: Invalid input
+        '401':
+          description: Invalid, expired or consumed invitation/session
+        '403':
+          description: Administrator role, fresh MFA or activation required
+        '409':
+          description: Existing account, pending invitation or idempotency conflict
+        '429':
+          description: Bounded invitation or enrollment attempt limit
+        '503':
+          description: Identity, SMTP or MFA unavailable
+      parameters:
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          format: uuid
+    post:
+      tags:
+      - Identity
+      summary: Email a single-use moderator invitation; no account is activated
+      operationId: post_admin_moderator_invitations
+      x-implementation: local
+      security:
+      - bearerAuth: []
+      responses:
+        '202':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModeratorInvitationReceipt'
+        '400':
+          description: Invalid input
+        '401':
+          description: Invalid, expired or consumed invitation/session
+        '403':
+          description: Administrator role, fresh MFA or activation required
+        '409':
+          description: Existing account, pending invitation or idempotency conflict
+        '429':
+          description: Bounded invitation or enrollment attempt limit
+        '503':
+          description: Identity, SMTP or MFA unavailable
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModeratorInvitationCreate'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          maxLength: 128
+          minLength: 16
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      description: 'Identity requires a live administrator session with MFA verified within five minutes. The 24-hour invitation code is sent only to the invited mailbox, never in an API response or URL. Same actor/key/payload replays return the original receipt without another email or success audit event. Different payloads conflict. No existing account is promoted. Limits: five invitations per administrator/hour, twenty globally/hour, one pending invitation per email and one hundred live pending invitations.'
+  /admin/moderator-invitations/{invitation_id}/revoke:
+    post:
+      tags:
+      - Identity
+      summary: Revoke a pending invitation; administrators with fresh MFA only
+      operationId: post_admin_moderator_invitation_revoke
+      x-implementation: local
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: Revoked; no response body
+        '400':
+          description: Invalid input
+        '401':
+          description: Invalid, expired or consumed invitation/session
+        '403':
+          description: Administrator role, fresh MFA or activation required
+        '409':
+          description: Existing account, pending invitation or idempotency conflict
+        '429':
+          description: Bounded invitation or enrollment attempt limit
+        '503':
+          description: Identity, SMTP or MFA unavailable
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModeratorInvitationRevoke'
+      parameters:
+      - name: invitation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          maxLength: 128
+          minLength: 16
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      description: Identity rechecks role, session and MFA on every request, including replay. Repeated revocation returns 204 without duplicating its audit event. Accepted invitations cannot be revoked; this contract cannot deactivate or change an existing account.
+  /auth/moderator-invitations/setup:
+    post:
+      tags:
+      - Identity
+      summary: Begin invite-only moderator password and authenticator setup
+      operationId: post_auth_moderator_invitation_setup
+      x-implementation: local
+      security: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModeratorInvitationSetupResult'
+        '400':
+          description: Invalid input
+        '401':
+          description: Invalid, expired or consumed invitation/session
+        '403':
+          description: Administrator role, fresh MFA or activation required
+        '409':
+          description: Existing account, pending invitation or idempotency conflict
+        '429':
+          description: Bounded invitation or enrollment attempt limit
+        '503':
+          description: Identity, SMTP or MFA unavailable
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModeratorInvitationSetup'
+      description: Mailbox-bound 256-bit-or-stronger invitation proof required. No account or session exists yet. The private setup key and password hash are kept encrypted/hashed by Identity; the web keeps invitation proof and setup key encrypted in a server session. Five-minute setup lifetime; no invitation codes in URLs. The inviter must remain an active MFA-enrolled administrator. Five failed password/TOTP attempts exhaust the invitation.
+  /auth/moderator-invitations/complete:
+    post:
+      tags:
+      - Identity
+      summary: Activate only a moderator after current-period TOTP enrollment
+      operationId: post_auth_moderator_invitation_complete
+      x-implementation: local
+      security: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModeratorInvitationCompleteResult'
+        '400':
+          description: Invalid input
+        '401':
+          description: Invalid, expired or consumed invitation/session
+        '403':
+          description: Administrator role, fresh MFA or activation required
+        '409':
+          description: Existing account, pending invitation or idempotency conflict
+        '429':
+          description: Bounded invitation or enrollment attempt limit
+        '503':
+          description: Identity, SMTP or MFA unavailable
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModeratorInvitationComplete'
+      description: Consumes the invitation atomically, creates an email-verified moderator with encrypted TOTP and hashed one-use recovery codes, and records enrollment and acceptance audit events. Only the current server-aligned 30-second TOTP period is accepted; its step is consumed. This creates no login session and grants no queue assignments. Expiry, revocation, replay, wrong mailbox and inactive/non-administrator inviter fail closed. Recovery codes are returned once only.
+  /internal/auth/moderator-invitations:
+    post:
+      tags:
+      - Identity
+      summary: Signed Gateway forwarding; Identity enforces administrator MFA
+      operationId: post_internal_auth_moderator_invitations
+      x-implementation: local
+      security:
+      - internalCaller: []
+        internalTimestamp: []
+        internalNonce: []
+        internalSignature: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModeratorInvitationPage'
+        '400':
+          description: Invalid input
+        '401':
+          description: Invalid, expired or consumed invitation/session
+        '403':
+          description: Administrator role, fresh MFA or activation required
+        '409':
+          description: Existing account, pending invitation or idempotency conflict
+        '429':
+          description: Bounded invitation or enrollment attempt limit
+        '503':
+          description: Identity, SMTP or MFA unavailable
+        '202':
+          description: Invitation emailed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModeratorInvitationReceipt'
+        '204':
+          description: Invitation revoked
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModeratorInvitationAdministration'
+  /internal/auth/moderator-invitations/setup:
+    post:
+      tags:
+      - Identity
+      summary: Begin invite-only moderator password and authenticator setup
+      operationId: post_internal_auth_moderator_invitations_setup
+      x-implementation: local
+      security:
+      - internalCaller: []
+        internalTimestamp: []
+        internalNonce: []
+        internalSignature: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModeratorInvitationSetupResult'
+        '400':
+          description: Invalid input
+        '401':
+          description: Invalid, expired or consumed invitation/session
+        '403':
+          description: Administrator role, fresh MFA or activation required
+        '409':
+          description: Existing account, pending invitation or idempotency conflict
+        '429':
+          description: Bounded invitation or enrollment attempt limit
+        '503':
+          description: Identity, SMTP or MFA unavailable
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModeratorInvitationSetup'
+      description: Mailbox-bound 256-bit-or-stronger invitation proof required. No account or session exists yet. The private setup key and password hash are kept encrypted/hashed by Identity; the web keeps invitation proof and setup key encrypted in a server session. Five-minute setup lifetime; no invitation codes in URLs. The inviter must remain an active MFA-enrolled administrator. Five failed password/TOTP attempts exhaust the invitation.
+  /internal/auth/moderator-invitations/complete:
+    post:
+      tags:
+      - Identity
+      summary: Activate only a moderator after current-period TOTP enrollment
+      operationId: post_internal_auth_moderator_invitations_complete
+      x-implementation: local
+      security:
+      - internalCaller: []
+        internalTimestamp: []
+        internalNonce: []
+        internalSignature: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModeratorInvitationCompleteResult'
+        '400':
+          description: Invalid input
+        '401':
+          description: Invalid, expired or consumed invitation/session
+        '403':
+          description: Administrator role, fresh MFA or activation required
+        '409':
+          description: Existing account, pending invitation or idempotency conflict
+        '429':
+          description: Bounded invitation or enrollment attempt limit
+        '503':
+          description: Identity, SMTP or MFA unavailable
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModeratorInvitationComplete'
+      description: Consumes the invitation atomically, creates an email-verified moderator with encrypted TOTP and hashed one-use recovery codes, and records enrollment and acceptance audit events. Only the current server-aligned 30-second TOTP period is accepted; its step is consumed. This creates no login session and grants no queue assignments. Expiry, revocation, replay, wrong mailbox and inactive/non-administrator inviter fail closed. Recovery codes are returned once only.
 components:
   securitySchemes:
     bearerAuth:
@@ -4250,6 +4562,257 @@ components:
       in: header
       name: X-KoloVibe-Signature
   schemas:
+    ModeratorInvitationCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - email
+      - display_name
+      - reason
+      properties:
+        email:
+          type: string
+          maxLength: 254
+          format: email
+        display_name:
+          type: string
+          maxLength: 80
+          minLength: 2
+        reason:
+          type: string
+          maxLength: 500
+          minLength: 3
+    ModeratorInvitationRevoke:
+      type: object
+      additionalProperties: false
+      required:
+      - reason
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+          minLength: 3
+    ModeratorInvitationReceipt:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - status
+      - expires_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          const: pending
+        expires_at:
+          type: string
+          format: date-time
+    ModeratorInvitationPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - id
+            - display_name
+            - email_masked
+            - status
+            - expires_at
+            properties:
+              id:
+                type: string
+                format: uuid
+              display_name:
+                type: string
+                maxLength: 80
+                minLength: 2
+              email_masked:
+                type: string
+                maxLength: 257
+                minLength: 1
+              status:
+                enum:
+                - pending
+                - accepted
+                - revoked
+                - expired
+              expires_at:
+                type: string
+                format: date-time
+        next_cursor:
+          oneOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+    ModeratorInvitationSetup:
+      type: object
+      additionalProperties: false
+      required:
+      - email
+      - invitation_code
+      - password
+      properties:
+        email:
+          type: string
+          maxLength: 254
+          format: email
+        invitation_code:
+          type: string
+          maxLength: 64
+          minLength: 64
+          pattern: ^[A-Za-z0-9_-]{64}$
+          writeOnly: true
+        password:
+          type: string
+          maxLength: 128
+          minLength: 12
+          writeOnly: true
+    ModeratorInvitationSetupResult:
+      type: object
+      additionalProperties: false
+      required:
+      - secret
+      - expires_at
+      properties:
+        secret:
+          type: string
+          maxLength: 32
+          minLength: 32
+          pattern: ^[A-Z2-7]{32}$
+          description: Private authenticator setup key for this invitee only; never cache or log.
+        expires_at:
+          type: string
+          format: date-time
+    ModeratorInvitationComplete:
+      type: object
+      additionalProperties: false
+      required:
+      - email
+      - invitation_code
+      - code
+      properties:
+        email:
+          type: string
+          maxLength: 254
+          format: email
+        invitation_code:
+          type: string
+          maxLength: 64
+          minLength: 64
+          pattern: ^[A-Za-z0-9_-]{64}$
+          writeOnly: true
+        code:
+          type: string
+          maxLength: 6
+          minLength: 6
+          pattern: ^[0-9]{6}$
+          writeOnly: true
+    ModeratorInvitationCompleteResult:
+      type: object
+      additionalProperties: false
+      required:
+      - enrolled
+      - recovery_codes
+      properties:
+        enrolled:
+          const: true
+        recovery_codes:
+          type: array
+          minItems: 10
+          maxItems: 10
+          uniqueItems: true
+          items:
+            type: string
+            maxLength: 128
+            minLength: 32
+            pattern: ^[A-Za-z0-9_-]{32,128}$
+          description: Shown once to the enrolled moderator; stored hashed and never logged.
+    ModeratorInvitationAdministration:
+      oneOf:
+      - type: object
+        additionalProperties: false
+        required:
+        - access_token
+        - operation
+        properties:
+          access_token:
+            type: string
+            maxLength: 2048
+            writeOnly: true
+          operation:
+            const: list
+          cursor:
+            type: string
+            format: uuid
+      - type: object
+        additionalProperties: false
+        required:
+        - access_token
+        - operation
+        - email
+        - display_name
+        - reason
+        - key
+        properties:
+          access_token:
+            type: string
+            maxLength: 2048
+            writeOnly: true
+          operation:
+            const: create
+          email:
+            type: string
+            maxLength: 254
+            format: email
+          display_name:
+            type: string
+            maxLength: 80
+            minLength: 2
+          reason:
+            type: string
+            maxLength: 500
+            minLength: 3
+          key:
+            type: string
+            maxLength: 128
+            minLength: 16
+            pattern: ^[A-Za-z0-9_-]{16,128}$
+      - type: object
+        additionalProperties: false
+        required:
+        - access_token
+        - operation
+        - id
+        - reason
+        - key
+        properties:
+          access_token:
+            type: string
+            maxLength: 2048
+            writeOnly: true
+          operation:
+            const: revoke
+          id:
+            type: string
+            format: uuid
+          reason:
+            type: string
+            maxLength: 500
+            minLength: 3
+          key:
+            type: string
+            maxLength: 128
+            minLength: 16
+            pattern: ^[A-Za-z0-9_-]{16,128}$
     Problem:
       type: object
       additionalProperties: false

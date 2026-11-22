@@ -4,6 +4,8 @@
 **Author:** AI-assisted draft for Mark Allen Gbalazeh. **Date:** 2026-11-22.
 **Decision needed from:** Product owner (scope), Security (controls), Platform (contracts).
 
+**Narrow owner decision — 22 November 2026:** The owner instructed: “Add moderator invitations only, with administrator authorization, MFA enrollment and audit records.” This authorizes the separately reviewed moderator invitation implementation in R1. It does **not** approve this proposal as a whole, administrator invitations, role changes, deactivation/reactivation, MFA reset or assignment administration. The original broader R1.1 recommendation and open questions below remain proposals. See [the implementation contract and controls](../../apps/web_django/README.md#moderator-invitations-owner-approved-scope-exception); deployment still requires review and approval.
+
 ## 1. Context
 
 - The approved SRS ([platform_SRS_v0_2_scope_approved.md](../requirements/platform_SRS_v0_2_scope_approved.md), section 10) states that the web console excludes **role administration**. [apps/web_django/README.md](../../apps/web_django/README.md) repeats this: "No routes/UI".

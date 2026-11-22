@@ -1,6 +1,6 @@
 # Django R1 administration console
 
-This server-rendered web client serves moderators and administrators only. Its interface uses Material 3 color roles, tonal navigation, rounded surfaces, native accessible controls and responsive layouts without a JavaScript framework or CDN assets. `/` always redirects directly to the headerless `/login/` page. Successful MFA opens `/admin/`; every protected view revalidates Identity before rendering. Sign-in and its pending MFA challenge are the only anonymous application flow. Health and bundled static assets remain accessible. Former public, viewer and creator routes return 404.
+This server-rendered web client serves moderators and administrators only. Its interface uses Material 3 color roles, tonal navigation, rounded surfaces, native accessible controls and responsive layouts without a JavaScript framework or CDN assets. `/` always redirects directly to the headerless `/login/` page. Successful MFA opens `/admin/`; every protected view revalidates Identity before rendering. Anonymous flows are sign-in, its pending MFA challenge, and mailbox-bound moderator invitation acceptance. Health and bundled static assets remain accessible. Former public, viewer and creator routes return 404.
 
 The console reuses `_api()`, Identity's password → MFA → logout flow, encrypted server-side credentials and the existing staging session model. Every protected request checks Identity, account, role, MFA state and session deadlines. Authorization for resource scope, audit subsets and points access is enforced in the owning service; the web never supplies client-selected permissions or guesses endpoints. Unsupported contracts are labelled **Not available in R1**.
 
@@ -11,6 +11,8 @@ All gateway paths below use the `/api/v1` prefix. Every `/admin/` route requires
 | Web route | Gateway contract / behavior |
 | --- | --- |
 | `/login/`, `/login/mfa/` | `POST /auth/login`, `POST /auth/mfa/verify` |
+| `/moderator-invitation/` | Invite-only `POST /auth/moderator-invitations/setup` and `/complete`; password and current-period authenticator enrollment before account creation |
+| `/admin/team/` | Administrator-only `GET/POST /admin/moderator-invitations`; `POST /admin/moderator-invitations/<uuid>/revoke` |
 | `/admin/` | `GET /moderation/totals`, `/engagement/fraud-holds`, `/admin/audit`; audit denial leaves an explicit unavailable card |
 | `/admin/moderation/{videos,reports,appeals}/` | Matching `GET /moderation/<kind>?cursor=…&status=…` |
 | `/admin/moderation/{videos,reports,appeals}/<uuid>/` | Matching reviewer detail GET; decision POST calls `/moderation/<kind>/<uuid>/decisions` |
@@ -35,9 +37,20 @@ All gateway paths below use the `/api/v1` prefix. Every `/admin/` route requires
 | Active fraud holds | Videos in active video/report/appeal assignments | Global active holds | 403 |
 | Audit | Own actions | Explicit active producer grants in Audit | 403 |
 | Points | Audited 403 | Audited, read-only ledger review | 403 |
-| Role administration, award/reversal execution, cash payouts | No routes/UI | No routes/UI | No routes/UI |
+| Moderator invitations | 403 | List masked invitations; create/revoke with MFA sign-in within five minutes | 403 |
+| Other role administration, award/reversal execution, cash payouts | No routes/UI | No routes/UI | No routes/UI |
 
-`ModeratorAssignment` records explicit moderator, queue kind, target UUID and active state. There are no wildcard or implicit grants. Assignment checks cover reads, decisions, replay, inactive/revoked grants and delivery retries. Existing independent-appeal rules remain authoritative. **Open owner question:** broader assignment/routing model and moderation SLAs. This implementation does not choose automatic routing, workload or SLA policy and has no assignment/role-administration UI.
+`ModeratorAssignment` records explicit moderator, queue kind, target UUID and active state. There are no wildcard or implicit grants. Assignment checks cover reads, decisions, replay, inactive/revoked grants and delivery retries. Existing independent-appeal rules remain authoritative. **Open owner question:** broader assignment/routing model and moderation SLAs. This implementation does not choose automatic routing, workload or SLA policy and has no assignment UI. Moderator invitations grant no assignments.
+
+## Moderator invitations (owner-approved scope exception)
+
+On 22 November 2026 the owner approved **moderator invitations only**, with administrator authorization, MFA enrollment and audit records. This does not approve the broader [privileged administration proposal](../../docs/architecture/PROPOSAL_Privileged_User_Administration_DRAFT.md). Administrator invitations, existing-account promotion, deactivation, MFA resets and role editing remain absent.
+
+An administrator opens **Team**, signs in again if their MFA proof is older than five minutes, and supplies the invitee's email, display name and reason. Identity authorizes every operation, including idempotent replay. The 24-hour, single-use code goes only to the invited mailbox; administrator responses and lists never contain it. Limits are five sends per administrator/hour, twenty globally/hour, one pending invitation per email, and one hundred live pending invitations. Existing accounts cannot be converted. Lists are masked and cursor-paginated to fifty records.
+
+The invitee uses **Accept moderator invitation** on the sign-in page, enters the mailbox-bound code, chooses a password, and adds the privately displayed setup key to an authenticator. Five-minute setup, current-period TOTP and five failed enrollment attempts are enforced by Identity. No account exists until enrollment succeeds. Acceptance creates only a moderator, consumes the TOTP step, returns ten recovery codes once, and requires a separate sign-in with the next code or a recovery code. The code, setup key and pending email stay encrypted in a server session; the password is never retained by the web. Enrollment HTML necessarily displays the setup key and recovery codes privately to the invitee under no-store headers.
+
+Revoked/expired/consumed invitations, wrong mailboxes and inviters who lose administrator status, activity or MFA enrollment fail closed. Create/revoke/list/setup/accept/denial events use the existing immutable Identity audit outbox; owning-service event links correlate the invitation and reasons without changing Audit's redaction. Migration `0011_moderator_invitations` adds the invitation state, constraints and append-only event correlation. Staging routes additionally require existing account-management and privileged-MFA gates. No runtime flags, secret mounts, peer credentials, SMTP provider or deployment is changed.
 
 Video statuses are review/published/rejected/removed; reports open/resolved/dismissed; appeals open/denied/restored. Unsupported/repeated filters are rejected. Pages are bounded to 20 records and reject malformed data, duplicates and invalid cursors. Totals use the same owning-service filters, never a partial page count. Video scope forwarding is bounded to 1,000 assignments and fails closed above that limit. Fraud-hold reads describe active, unexpired inventory; no fraud policy or hold execution is added.
 

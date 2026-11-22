@@ -170,3 +170,5 @@ dd { margin: 6px 0 20px; overflow-wrap: anywhere; white-space: pre-wrap; }
   .app-context { font-size: 12px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+
+.invitation-secret { overflow-wrap: anywhere; white-space: normal; }

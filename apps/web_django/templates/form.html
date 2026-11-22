@@ -18,7 +18,7 @@
       {% endif %}
       <button class="auth-submit" type="submit">{% if kind == 'mfa' %}Verify and continue{% else %}Sign in{% endif %}{% include 'icon.html' with name='arrow' %}</button>
     </form>
-    {% if kind == 'mfa' %}<p class="auth-restart"><a href="{% url 'login' %}">Restart sign in</a></p>{% endif %}
+    {% if kind == 'mfa' %}<p class="auth-restart"><a href="{% url 'login' %}">Restart sign in</a></p>{% else %}<p class="auth-restart"><a href="{% url 'moderator-invitation' %}">Accept moderator invitation</a></p>{% endif %}
     <div class="auth-footer">{% include 'icon.html' with name='shield' %}<span>Moderator and administrator access only.</span></div>
   </section>
 </main>

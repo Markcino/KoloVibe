@@ -94,3 +94,15 @@ Open decisions
    Whether creator verification is manual, automated or mixed; proof required.
    Moderator geographic/queue scope and support access policy.
    Retention and appeal policy for removed content.
+
+## Owner-approved moderator invitation addendum — 22 November 2026
+
+The owner approved moderator invitations only, with administrator authorization, MFA enrollment and audit records. This is a narrow R1 scope exception; the broader privileged-user administration proposal remains unapproved.
+
+| Action | Moderator | Administrator | Other roles |
+| --- | --- | --- | --- |
+| List masked moderator invitations | Denied | Allowed with live MFA session; audited | Denied |
+| Create/revoke a pending moderator invitation, with reason | Denied | MFA sign-in within five minutes; idempotent and audited | Denied |
+| Accept invitation | Mailbox-bound, unexpired single-use invitation proof and current-period TOTP enrollment required; no account exists before completion | Cannot grant administrator role through this flow | No public registration or existing-account promotion |
+
+Identity enforces authorization and activation, not the web. Accepted invitations create only moderators, with no queue assignments. Inviter revocation, expired/revoked/reused proof and missing MFA fail closed. No role editing, administrator invitation, deactivation or MFA-reset API is added. See [implementation controls](../../apps/web_django/README.md#moderator-invitations-owner-approved-scope-exception).

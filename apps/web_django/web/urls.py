@@ -3,6 +3,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_GET
 
 from . import views
+from . import invitation_views
 
 handler400 = views.error_400
 handler403 = views.error_403
@@ -15,6 +16,8 @@ urlpatterns = [
     path("", views.root, name="root"),
     path("login/", views.login, name="login"),
     path("login/mfa/", views.login_mfa, name="login-mfa"),
+    path("moderator-invitation/", invitation_views.accept, name="moderator-invitation"),
+    path("admin/team/", invitation_views.team, name="team"),
     path("admin/", views.dashboard, name="dashboard"),
     path("admin/moderation/previews/<uuid:preview_id>/", views.reviewer_preview, name="reviewer-preview"),
     path("admin/points/", views.points, name="points"),

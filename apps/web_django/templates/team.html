@@ -1,0 +1,20 @@
+{% extends 'base_admin.html' %}
+{% block title %}Moderator invitations · KoloVibe{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Team</p><h1>Moderator invitations</h1><p class="supporting-text">Invite moderators to join your review team. Each person sets their own password and enrolls an authenticator.</p></div></div>
+{% if request.GET.sent %}<p class="notice" role="status">Invitation sent to the invited mailbox. It expires in 24 hours.</p>{% endif %}
+{% if request.GET.revoked %}<p class="notice" role="status">The pending invitation has been revoked.</p>{% endif %}
+{% if error %}<p class="notice error" role="alert">{{ error }}</p>{% endif %}
+<section class="panel"><h2>Invite a moderator</h2>
+<p>Sending or revoking an invitation requires an administrator sign-in with MFA within the last five minutes. <a href="{% url 'login' %}">Sign in again</a> if needed.</p>
+<form method="post">{% csrf_token %}<input type="hidden" name="operation" value="create"><input type="hidden" name="intent" value="{{ intent }}">
+<label>Email address<input type="email" name="email" maxlength="254" autocomplete="email" required></label>
+<label>Display name<input name="display_name" minlength="2" maxlength="80" autocomplete="name" required></label>
+<label>Reason<textarea name="reason" minlength="3" maxlength="500" required></textarea></label>
+<p>Role: <strong>Moderator</strong>. Queue assignments remain explicit; an invitation does not grant access to any review items.</p>
+<button type="submit">Send invitation</button></form></section>
+<section class="panel table-panel"><h2>Invitations</h2><div class="table-scroll"><table><caption>Moderator invitations</caption><thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Status</th><th scope="col">Expires (UTC)</th><th scope="col">Action</th></tr></thead><tbody>
+{% for item in items %}<tr><td>{{ item.display_name }}</td><td>{{ item.email_masked }}</td><td>{{ item.status|title }}</td><td>{{ item.expires_at }}</td><td>{% if item.status == 'pending' %}<form method="post">{% csrf_token %}<input type="hidden" name="operation" value="revoke"><input type="hidden" name="id" value="{{ item.id }}"><input type="hidden" name="intent" value="{{ item.intent }}"><label>Revocation reason<input name="reason" minlength="3" maxlength="500" required></label><button type="submit" class="button-outline">Revoke invitation</button></form>{% else %}—{% endif %}</td></tr>
+{% empty %}<tr><td colspan="5">No moderator invitations yet.</td></tr>{% endfor %}</tbody></table></div></section>
+{% if next_query %}<a href="?{{ next_query }}">Next page</a>{% endif %}
+{% endblock %}

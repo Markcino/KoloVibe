@@ -1,4 +1,5 @@
 <nav aria-label="Administration">
+{% if role == 'administrator' %}<a class="nav-item" href="{% url 'team' %}"{% if '/admin/team/' in request.path %} aria-current="page"{% endif %}>{% include 'icon.html' with name='account' %}<span>Team</span></a>{% endif %}
 <a class="nav-item" href="{% url 'dashboard' %}"{% if request.path == '/admin/' %} aria-current="page"{% endif %}>{% include 'icon.html' with name='dashboard' %}<span>Dashboard</span></a>
 <a class="nav-item" href="{% url 'moderation-videos' %}"{% if '/admin/moderation/videos/' in request.path %} aria-current="page"{% endif %}>{% include 'icon.html' with name='videos' %}<span>Videos</span></a>
 <a class="nav-item" href="{% url 'moderation-reports' %}"{% if '/admin/moderation/reports/' in request.path %} aria-current="page"{% endif %}>{% include 'icon.html' with name='reports' %}<span>Reports</span></a>

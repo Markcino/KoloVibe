@@ -83,6 +83,9 @@ def _rules():
         r"/api/v1/me/preferences", r"/api/v1/me/privacy-requests")
     add("gateway", "account_management", "PATCH", r"/api/v1/me", r"/api/v1/me/password", r"/api/v1/me/preferences")
     add("gateway", "account_management", "DELETE", rf"/api/v1/me/sessions/{UUID}")
+    add("gateway", "account_management", "GET POST", r"/api/v1/admin/moderator-invitations", privileged=True)
+    add("gateway", "account_management", "POST", rf"/api/v1/admin/moderator-invitations/{UUID}/revoke",
+        r"/api/v1/auth/moderator-invitations/(?:setup|complete)", privileged=True)
     add("gateway", "media", "GET", r"/api/v1/creators/me", r"/api/v1/creators/me/videos",
         rf"/api/v1/creators/me/videos/{UUID}", rf"/api/v1/videos/{UUID}/playback", rf"/api/v1/videos/{UUID}/upload-status")
     add("gateway", "media", "PATCH", r"/api/v1/creators/me", rf"/api/v1/videos/{UUID}")
@@ -110,6 +113,8 @@ def _rules():
     add("audit", "audit_read", "POST", r"/internal/audit/read")
 
     # ---- Identity (internal) ----------------------------------------------------------------------
+    add("identity", "account_management", "POST", r"/internal/auth/moderator-invitations",
+        r"/internal/auth/moderator-invitations/(?:setup|complete)", privileged=True)
     add("identity", "account_management", "POST",
         r"/internal/auth/(?:verification/resend|password/reset-request|password/reset|password/change|profile"
         r"|reauthenticate|preferences|privacy-requests|sessions)")
