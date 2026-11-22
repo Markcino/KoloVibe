@@ -4,13 +4,15 @@ Status: implemented in the Content media worker; **off by default**. Not legal a
 
 ## Behaviour
 
-After FFmpeg produces the playback rendition, the worker runs the configured screeners and records one decision:
+After FFmpeg produces the playback rendition, the worker runs the mandatory copyright gate and any configured additional screeners. The final gate requires explicit per-upload creator attestation and an approved trusted-creator policy. Sampling defaults to **100% until policy approval**; untrusted creators always require human review. The older global screening sample rate below can add review holds but cannot bypass this gate. See [copyright pipeline](../architecture/copyright-review-pipeline.md) and [policy draft — needs legal review](../privacy/copyright-policy-draft.md).
+
+Configured screeners propose these outcomes; the final copyright gate determines approval:
 
 | Result | Action | `rights_status` | Video state |
 | --- | --- | --- | --- |
-| Clean | automated approval (`approval_source = automated`) | `attested` | `published` (still private until the creator publishes) |
-| Reused music above the mute threshold | the matched segments are muted with FFmpeg, then approved | `muted` | `published` |
-| Duplicate or explicit content above the hide threshold, or music covering most of the video | held for a moderator | `hidden` | `review` |
+| Clean | only explicitly trusted, unsampled, attested uploads may receive automated approval | `attested` | `published` privately if the final gate allows; otherwise `review` |
+| Reused music above the mute threshold | matched segments may be muted with FFmpeg; human review remains required | `flagged` | `review` |
+| Duplicate or explicit content above the hide threshold, or music covering most of the video | held for a moderator | `flagged` | `review` |
 | Uncertain score, screener failure, misconfiguration, or failed mute | held for a moderator | `flagged` | `review` |
 | Random sample of otherwise clean uploads (`KOLOVIBE_SCREEN_SAMPLE_RATE`) | held for a moderator | as above | `review` |
 
@@ -20,7 +22,7 @@ Human removal and restoration set `removed` and `restored`. Reports, appeals and
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `KOLOVIBE_AUTO_SCREENING` | unset (off; every upload gets human review) | `1` enables screening |
+| `KOLOVIBE_AUTO_SCREENING` | unset (additional screeners off; mandatory copyright gate still runs) | `1` enables screening |
 | `KOLOVIBE_SCREENERS` | `exact_hash,pdq,chromaprint,nsfw` | add `music_id` for commercial-music identification |
 | `KOLOVIBE_SCREEN_{DUPLICATE,NSFW}_{HIDE,REVIEW}` | 0.85 / 0.5 | score thresholds, 0 to 1 |
 | `KOLOVIBE_SCREEN_MUSIC_{MUTE,REVIEW}` | 0.6 / 0.4 | score thresholds |
@@ -46,4 +48,4 @@ A screener whose dependency is missing raises an error that becomes a human hold
 
 - Open-source tools cannot identify commercial songs without a licensed catalogue. `music_id` (a paid service) is the practical route, or restrict audio to original and royalty-free sounds.
 - The media image needs `fpcalc` and the optional Python packages. The FFmpeg build now also enables the `volume` filter, the `wav` muxer and the `pcm_s16le` encoder.
-- No automated system is perfect. Appeals, takedown handling and repeat-infringer policy still need human and legal ownership.
+- No automated system is perfect. Copyright intake, takedowns, counter-notices and strikes use the existing independently reviewed appeals pipeline; legal policy and sanctions still need owner/legal acceptance.

@@ -33,6 +33,12 @@ def _valid_summary(item, *, account_id=None):
 
 
 def _valid_response(operation, data, target):
+    if operation == "review_policy":
+        return (isinstance(data, dict) and set(data) == {"account_id", "creator_id", "trusted", "sample_percent", "policy_version"}
+                and data["account_id"] == target and (data["creator_id"] is None or str(UUID(data["creator_id"])) == data["creator_id"])
+                and type(data["trusted"]) is bool and type(data["sample_percent"]) is int and 0 <= data["sample_percent"] <= 100
+                and (isinstance(data["policy_version"], str) and 1 <= len(data["policy_version"]) <= 32 if data["trusted"]
+                     else data["sample_percent"] == 100 and data["policy_version"] is None))
     if operation == "ownership":
         return (isinstance(data, dict) and set(data) == {"creator_id"}
                 and str(UUID(data["creator_id"])) == data["creator_id"])

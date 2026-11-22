@@ -114,6 +114,7 @@ class LiveUploadController extends ChangeNotifier {
 
   /// True when polling stopped before the server reported a final state.
   bool stalePreparation = false;
+  bool originalityAccepted = false;
 
   bool _disposed = false;
   int _generation = 0;
@@ -266,6 +267,12 @@ class LiveUploadController extends ChangeNotifier {
       _update();
       return;
     }
+    if (!originalityAccepted) {
+      error =
+          'Confirm that you own this content or have permission to share it.';
+      _update();
+      return;
+    }
     _details = UploadDetails(title.trim(), description, category!,
         normalizeTags(hashtags.split(RegExp(r'[\s,]+'))));
     _step = draft == null ? _Step.draft : _Step.reserve;
@@ -315,16 +322,18 @@ class LiveUploadController extends ChangeNotifier {
       }
       if (_step == _Step.reserve) {
         _uploadKey ??= _key();
-        _intent =
-            await content.reserveUpload(draft!, selectedBytes!, _uploadKey!);
+        _intent = await content.reserveUpload(
+            draft!, selectedBytes!, _uploadKey!,
+            originalityAccepted: originalityAccepted);
         _step = _Step.transfer;
       }
       if (_step == _Step.transfer) {
         var intent = _intent;
         if (intent == null || intent.expiresAt.isBefore(DateTime.now())) {
           _uploadKey = _key();
-          intent = _intent =
-              await content.reserveUpload(draft!, selectedBytes!, _uploadKey!);
+          intent = _intent = await content.reserveUpload(
+              draft!, selectedBytes!, _uploadKey!,
+              originalityAccepted: originalityAccepted);
         }
         sentBytes = 0;
         _update();

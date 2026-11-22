@@ -28,8 +28,14 @@ class ReviewerGatewayTests(SimpleTestCase):
     def test_detail_validator_rejects_raw_storage_url_and_unknown_records(self):
         video = str(uuid4())
         detail = {"record": {"id": video, "title": "Title"}, "video": {"id": video, "title": "Title", "description": "",
-            "state": "review", "duration_seconds": 30, "rights_status": "not_recorded"}, "preview": None,
+            "state": "review", "duration_seconds": 30, "rights_status": "flagged"}, "preview": None,
             "reports": [], "decisions": [], "history_truncated": {"reports": False, "decisions": False}}
         self.assertTrue(valid_detail(detail))
+        for state in ("attested", "flagged", "claimed", "removed", "restored"):
+            detail["video"]["rights_status"] = state
+            self.assertTrue(valid_detail(detail))
+        detail["video"]["rights_status"] = "not_recorded"
+        self.assertFalse(valid_detail(detail))
+        detail["video"]["rights_status"] = "flagged"
         detail["preview"] = {"id": video, "url": "https://storage.invalid/raw-key", "expires_at": "2026-11-21T10:00:00Z"}
         self.assertFalse(valid_detail(detail))

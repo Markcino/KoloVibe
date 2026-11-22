@@ -688,8 +688,16 @@ void main() {
   // through the real controller with a scripted content service.
   Future<void> uploadThrough(WidgetTester tester) async {
     await tapLabel(tester, 'Select a video');
+    // File selection replaces a short list with the details form. Start at its
+    // top; the previous offset may otherwise put the first label above view.
+    tester
+        .state<ScrollableState>(find.byType(Scrollable).first)
+        .position
+        .jumpTo(0);
+    await tester.pump();
     Future<void> type(String label, String value) async {
-      final field = find.widgetWithText(TextField, label);
+      final field = find.byWidgetPredicate((widget) =>
+          widget is TextField && widget.decoration?.labelText == label);
       if (field.evaluate().isEmpty) {
         await tester.scrollUntilVisible(field, 200,
             scrollable: find.byType(Scrollable).first);
@@ -712,6 +720,15 @@ void main() {
         .onChanged!('culture');
     await tester.pump();
     await type('Hashtags · Optional', '#Monrovia #StreetArt');
+    final consent = find.byType(CheckboxListTile);
+    if (consent.evaluate().isEmpty) {
+      await tester.scrollUntilVisible(consent, 200,
+          scrollable: find.byType(Scrollable).first);
+    }
+    await tester.ensureVisible(consent);
+    await tester.pump();
+    await tester.tap(consent);
+    await tester.pump();
     final submit = find.text('Create and upload');
     await tester.ensureVisible(submit);
     await tester.pump();

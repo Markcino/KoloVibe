@@ -99,7 +99,8 @@ def _rules():
     add("gateway", "watch", "POST", rf"/api/v1/videos/{UUID}/watch-sessions", r"/api/v1/engagement/watch-events")
     add("gateway", "moderation", "GET", r"/api/v1/me/standing", r"/api/v1/me/reports", rf"/api/v1/me/reports/{UUID}",
         r"/api/v1/me/appeals", rf"/api/v1/me/appeals/{UUID}", rf"/api/v1/creators/me/videos/{UUID}/notice")
-    add("gateway", "moderation", "POST", r"/api/v1/reports", rf"/api/v1/videos/{UUID}/appeals")
+    add("gateway", "moderation", "POST", r"/api/v1/reports", rf"/api/v1/videos/{UUID}/appeals", r"/api/v1/copyright/reports", rf"/api/v1/videos/{UUID}/counter-notices")
+    add("gateway", "moderation", "GET", r"/api/v1/creators/me/copyright")
     add("gateway", "moderation", "GET", r"/api/v1/moderation/(?:videos|reports|appeals)", privileged=True)
     add("gateway", "moderation", "POST", rf"/api/v1/moderation/(?:videos|reports|appeals)/{UUID}/decisions", privileged=True)
     add("gateway", "moderation", "GET", rf"/api/v1/moderation/(?:videos|reports|appeals)/{UUID}",
@@ -121,7 +122,7 @@ def _rules():
     # (library, detail, edit, delete, publish/unpublish, upload status). invite/review/pending/submit/status/
     # standing stay behind the separate privileged creator-onboarding flag (KOLOVIBE_STAGING_CREATOR_ONBOARDING).
     add("creators", "media", "POST", r"/internal/creators/onboarding/eligibility",
-        r"/internal/creators/onboarding/ownership")
+        r"/internal/creators/onboarding/ownership", r"/internal/creators/onboarding/review_policy")
 
     # ---- Content (internal) -----------------------------------------------------------------------
     add("content", "engagement", "POST", r"/internal/videos/lookup")
@@ -137,7 +138,7 @@ def _rules():
     add("engagement", "watch", "POST", rf"/internal/engagement/watch/{OP}")
     add("points", "points", "POST", rf"/internal/points/{OP}", r"/internal/points/admin/(?:balances|account)")
     add("moderation", "moderation", "POST", rf"/internal/moderation/{OP}")
-    add("moderation", "moderation", "POST", r"/internal/moderation/(?:review_queue|own_reports|own_report|own_appeals|own_appeal|video_decision|report_decision|appeal_decision|video_detail|report_detail|appeal_detail|fraud_scope)")
+    add("moderation", "moderation", "POST", r"/internal/moderation/(?:review_queue|own_reports|own_report|own_appeals|own_appeal|video_decision|report_decision|appeal_decision|video_detail|report_detail|appeal_detail|fraud_scope|copyright_report|counter_notice|copyright_status)")
     return tuple(r)
 
 

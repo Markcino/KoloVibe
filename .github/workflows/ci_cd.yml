@@ -383,7 +383,7 @@ jobs:
           test "$(printf '%s' "$protocols" | tr ' ' '\n' | grep -v '^$' | sort -u | tr '\n' ' ')" = "file pipe " || {
             echo "::error::FFmpeg must support only the file and pipe protocols, got: $protocols"; exit 1; }
           encoders="$(run ffmpeg -hide_banner -encoders)"
-          for encoder in libx264 aac mjpeg; do
+          for encoder in libx264 aac mjpeg pcm_s16le; do
             grep -qE " $encoder " <<<"$encoders" || { echo "::error::FFmpeg lacks the $encoder encoder"; exit 1; }
           done
           for listing in -encoders -decoders -demuxers -muxers -protocols; do

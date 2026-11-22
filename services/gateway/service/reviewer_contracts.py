@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-RIGHTS_STATUSES = {"not_recorded", "attested", "flagged", "muted", "hidden", "removed", "restored"}
+RIGHTS_STATUSES = {"attested", "flagged", "claimed", "removed", "restored"}
 
 
 def valid_detail(value):

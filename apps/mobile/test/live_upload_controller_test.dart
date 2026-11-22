@@ -20,8 +20,11 @@ void main() {
     await controller.select(mp4());
   }
 
-  Future<void> submit() => controller.submit(
-      '  My original ', 'A story', 'culture', '#Monrovia art, ART');
+  Future<void> submit() {
+    controller.originalityAccepted = true;
+    return controller.submit(
+        '  My original ', 'A story', 'culture', '#Monrovia art, ART');
+  }
 
   setUp(() {
     content = FakeContent();
@@ -94,6 +97,15 @@ void main() {
 
   group('story details (M-044)', () {
     setUp(() async => ready());
+
+    test('requires explicit originality consent before any upload request',
+        () async {
+      expect(controller.originalityAccepted, isFalse);
+      await controller.submit('My work', '', 'culture', '');
+      expect(content.events, isEmpty);
+      expect(controller.phase, UploadPhase.editing);
+      expect(controller.error, contains('permission'));
+    });
 
     test('blocks the network until title and category are valid', () async {
       await controller.submit('   ', '', null, '');

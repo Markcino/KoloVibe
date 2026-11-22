@@ -16,6 +16,9 @@ def patterns():
     from ..admin_reads import fraud_holds
 
     routes = [
+        path("api/v1/copyright/reports", moderation_endpoint, {"operation": "copyright_report"}),
+        path("api/v1/videos/<uuid:target_id>/counter-notices", moderation_endpoint, {"operation": "counter_notice"}),
+        path("api/v1/creators/me/copyright", moderation_endpoint, {"operation": "copyright_status"}),
         path("api/v1/moderation/totals", moderation_endpoint, {"operation": "totals"}),
         path("api/v1/engagement/fraud-holds", fraud_holds),
         path("api/v1/me/standing", standing, name="own-standing"),

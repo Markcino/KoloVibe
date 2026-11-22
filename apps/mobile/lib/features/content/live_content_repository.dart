@@ -321,8 +321,10 @@ class LiveContentRepository {
   }
 
   Future<UploadIntent> reserveUpload(
-      OwnedVideo video, int sizeBytes, String idempotencyKey) async {
-    if (!isApiId(video.id) ||
+      OwnedVideo video, int sizeBytes, String idempotencyKey,
+      {required bool originalityAccepted}) async {
+    if (!originalityAccepted ||
+        !isApiId(video.id) ||
         !{'draft', 'uploading'}.contains(video.state) ||
         sizeBytes < 1 ||
         sizeBytes > 50 * 1024 * 1024) {
@@ -332,7 +334,13 @@ class LiveContentRepository {
         '/videos/${video.id}/upload-intents',
         method: 'POST',
         idempotencyKey: idempotencyKey,
-        body: {'size_bytes': sizeBytes});
+        body: {
+          'size_bytes': sizeBytes,
+          'originality_attestation': {
+            'version': 'R1-originality-v1',
+            'accepted': true
+          }
+        });
     return UploadIntent.fromJson(result, video.id, sizeBytes);
   }
 

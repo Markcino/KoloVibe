@@ -1507,7 +1507,16 @@ paths:
               additionalProperties: false
               required:
               - size_bytes
+              - originality_attestation
               properties:
+                originality_attestation:
+                  type: object
+                  additionalProperties: false
+                  required: [version, accepted]
+                  properties:
+                    version: {type: string, const: R1-originality-v1}
+                    accepted: {type: boolean, const: true}
+                  description: Explicit consent for this upload. Content records the version, server timestamp and authenticated account ID. Client-supplied identity or trust is rejected.
                 size_bytes:
                   type: integer
                   minimum: 1
@@ -2996,7 +3005,7 @@ paths:
       x-mfa-required: true
       description: Owning-service assignment authorization; every read and denial audited.
         Most recent 20 authorized history entries; truncation is explicit. Rights status
-        is not_recorded until automated screening or a moderation action records it. Preview leases
+        is the Content-owned attested/flagged/claimed/removed/restored state. Attestation is not a legal finding. Preview leases
         expire after 60 seconds and require fresh MFA/role/assignment authorization
         on every fetch. No storage keys or raw storage URLs.
       parameters:
@@ -3075,11 +3084,9 @@ paths:
                       rights_status:
                         type: string
                         enum:
-                        - not_recorded
                         - attested
                         - flagged
-                        - muted
-                        - hidden
+                        - claimed
                         - removed
                         - restored
                   preview:
@@ -3178,7 +3185,7 @@ paths:
       x-mfa-required: true
       description: Owning-service assignment authorization; every read and denial audited.
         Most recent 20 authorized history entries; truncation is explicit. Rights status
-        is not_recorded until automated screening or a moderation action records it. Preview leases
+        is the Content-owned attested/flagged/claimed/removed/restored state. Attestation is not a legal finding. Preview leases
         expire after 60 seconds and require fresh MFA/role/assignment authorization
         on every fetch. No storage keys or raw storage URLs.
       parameters:
@@ -3247,11 +3254,9 @@ paths:
                       rights_status:
                         type: string
                         enum:
-                        - not_recorded
                         - attested
                         - flagged
-                        - muted
-                        - hidden
+                        - claimed
                         - removed
                         - restored
                   preview:
@@ -3350,7 +3355,7 @@ paths:
       x-mfa-required: true
       description: Owning-service assignment authorization; every read and denial audited.
         Most recent 20 authorized history entries; truncation is explicit. Rights status
-        is not_recorded until automated screening or a moderation action records it. Preview leases
+        is the Content-owned attested/flagged/claimed/removed/restored state. Attestation is not a legal finding. Preview leases
         expire after 60 seconds and require fresh MFA/role/assignment authorization
         on every fetch. No storage keys or raw storage URLs.
       parameters:
@@ -3419,11 +3424,9 @@ paths:
                       rights_status:
                         type: string
                         enum:
-                        - not_recorded
                         - attested
                         - flagged
-                        - muted
-                        - hidden
+                        - claimed
                         - removed
                         - restored
                   preview:
@@ -4019,6 +4022,201 @@ paths:
         '503':
           description: Service unavailable
 
+  /copyright/reports:
+    post:
+      tags:
+      - Moderation
+      summary: Submit a copyright allegation for review
+      operationId: post_copyright_report
+      x-implementation: local
+      x-required-roles:
+      - viewer
+      - creator
+      - moderator
+      - administrator
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - video_id
+              - work_reference
+              - details
+              - authority_attested
+              properties:
+                video_id:
+                  type: string
+                  format: uuid
+                work_reference:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                details:
+                  type: string
+                  minLength: 10
+                  maxLength: 1400
+                authority_attested:
+                  type: boolean
+                  const: true
+      responses:
+        '201':
+          description: Moderation operation accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '200':
+          description: Moderation operation accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '400':
+          description: Invalid moderation request
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Role or independence requirement not met
+        '404':
+          description: Resource not found
+        '409':
+          description: Open duplicate or idempotency conflict
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - $ref: '#/components/schemas/AlreadyReported'
+                - type: object
+                  additionalProperties: false
+                  required:
+                  - detail
+                  properties:
+                    detail:
+                      type: string
+        '503':
+          description: Moderation temporarily unavailable
+      x-capability: moderation
+      description: Authenticated platform intake, not a declaration of statutory notice validity. Authority attestation
+        and an identified work are required. Durable idempotent intake marks rights claimed without automatic takedown
+        or strikes. Existing report queues and assignments apply. Formal notice fields, jurisdiction and deadlines
+        need legal review.
+  /videos/{video_id}/counter-notices:
+    post:
+      tags:
+      - Moderation
+      summary: Submit counter-notice for current copyright takedown of own video
+      operationId: post_copyright_counter_notice
+      x-implementation: local
+      x-required-roles:
+      - creator
+      parameters:
+      - name: video_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - reason
+              - accuracy_attested
+              properties:
+                reason:
+                  type: string
+                  minLength: 10
+                  maxLength: 2000
+                accuracy_attested:
+                  type: boolean
+                  const: true
+      responses:
+        '201':
+          description: Moderation operation accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PilotAppeal'
+        '200':
+          description: Moderation operation accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PilotAppeal'
+        '400':
+          description: Invalid moderation request
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Role or independence requirement not met
+        '404':
+          description: Resource not found
+        '409':
+          description: State or idempotency conflict
+        '503':
+          description: Moderation temporarily unavailable
+      x-capability: moderation
+      description: Creator ownership is resolved server-side. The current applied copyright removal is required. Immutable
+        counter-notice metadata attaches to the existing appeal; no automatic restoration, strike reversal or legal
+        deadline. An assigned independent MFA-verified reviewer decides the appeal. Replays use an actor-bound Idempotency-Key;
+        changed payload conflicts. This platform dispute submission needs legal review before any statutory notice
+        representation.
+  /creators/me/copyright:
+    get:
+      tags:
+      - Moderation
+      summary: Read own active repeat-infringer strike count
+      operationId: get_own_copyright_strikes
+      x-capability: moderation
+      x-required-roles:
+      - creator
+      x-implementation: local
+      description: Owning Moderation query uses Gateway-resolved creator identity. Counts applied copyright takedowns
+        only, once per removal; independently reviewed restoration reverses that strike. Allegations, counter-notices
+        and safety takedowns do not increment it. No automatic suspension threshold or expiry policy is introduced.
+        Every read is audited.
+      responses:
+        '200':
+          description: Own active strike count
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - strike_count
+                properties:
+                  strike_count:
+                    type: integer
+                    minimum: 0
+        '400':
+          description: Unsupported query/body
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/LocalUnavailable'
 components:
   securitySchemes:
     bearerAuth:

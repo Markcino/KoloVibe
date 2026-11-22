@@ -293,6 +293,15 @@ class _LiveCreateOriginalScreenState extends State<LiveCreateOriginalScreen> {
               errorText: errors['tags']),
         ),
         const SizedBox(height: 12),
+        CheckboxListTile(
+          value: c.originalityAccepted,
+          onChanged: (value) =>
+              setState(() => c.originalityAccepted = value == true),
+          contentPadding: EdgeInsets.zero,
+          controlAffinity: ListTileControlAffinity.leading,
+          title: const Text(
+              'I created this content or have permission to share all of it, including its audio.'),
+        ),
         FilledButton(
           onPressed: () =>
               c.submit(title.text, description.text, category, hashtags.text),

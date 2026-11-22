@@ -288,6 +288,40 @@ def service_tests(service):
             self.assertEqual(PointsEntry.objects.filter(creator_user_id=creator).count(), 1)
             self.assertTrue(all(not apply_qualified_view(event, payload) for event in events))
 
+        def test_concurrent_copyright_duplicates_cannot_both_bypass_review(self):
+            from concurrent.futures import ThreadPoolExecutor
+            from django.utils import timezone
+            from service.models import Video, MediaUpload, OriginalityAttestation, PrescreenResult
+            from service.copyright import route, ATTESTATION_VERSION
+            videos = [Video.objects.create(creator_id=uuid.uuid4(), title="Concurrent copyright fixture") for _ in range(2)]
+            uploads = []
+            for video in videos:
+                upload = MediaUpload.objects.create(id=uuid.uuid4(), video=video, expected_bytes=10,
+                    expires_at=timezone.now() + timedelta(minutes=5))
+                uploads.append(upload.id)
+                OriginalityAttestation.objects.create(upload_id=upload.id, video=video, account_id=uuid.uuid4(),
+                    version=ATTESTATION_VERSION, review_policy={"trusted": True, "sample_percent": 0, "policy_version": "fixture-approved-v1"})
+            digest = hashlib.sha256(uuid.uuid4().bytes).hexdigest()
+
+            def screen(ident):
+                try:
+                    with transaction.atomic():
+                        upload = MediaUpload.objects.get(pk=ident)
+                        video = Video.objects.select_for_update().get(pk=upload.video_id)
+                        return route(video, upload, {"sha256": digest, "fingerprint": "b" * 64, "audio": "clear"})
+                finally:
+                    connection.close()
+
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                results = list(executor.map(screen, uploads))
+            self.assertEqual(sum(results), 1)
+            self.assertEqual(PrescreenResult.objects.filter(upload_id__in=uploads, disposition="flagged").count(), 1)
+            from service.models import RightsEvent
+            with self.assertRaises(DatabaseError), transaction.atomic():
+                RightsEvent.objects.filter(video_id=videos[0].id).update(reason="rewritten")
+            with self.assertRaises(DatabaseError), transaction.atomic(), connection.cursor() as cursor:
+                cursor.execute("TRUNCATE service_rightsevent")
+
     names = ["test_actual_cross_service_sql_access_is_denied",
              "test_signed_identity_replay_expiry_and_wrong_audience"]
     if service in ("points", "engagement"):
@@ -295,6 +329,12 @@ def service_tests(service):
     if service == "engagement":
         names.append("test_qualified_view_reaches_the_points_queue")
     suite = unittest.TestSuite(Foundations(name) for name in names)
+    if service in {"content", "moderation"}:
+        suite.addTests(unittest.defaultTestLoader.loadTestsFromName("tests.test_copyright"))
+    if service == "content":
+        suite.addTest(Foundations("test_concurrent_copyright_duplicates_cannot_both_bypass_review"))
+    if service == "creators":
+        suite.addTests(unittest.defaultTestLoader.loadTestsFromName("tests.test_copyright_policy"))
     if service == "points":
         suite.addTests(unittest.defaultTestLoader.loadTestsFromName("tests.test_ledger"))
         # The concurrent integration test commits ledger entries to the disposable database.

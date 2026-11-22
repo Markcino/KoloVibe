@@ -25,6 +25,8 @@ def _error(detail, status):
 
 
 def _valid_result(operation, result):
+    if operation == "copyright_status":
+        return isinstance(result, dict) and set(result) == {"strike_count"} and type(result["strike_count"]) is int and result["strike_count"] >= 0
     if operation == "totals":
         from .admin_contracts import valid_totals
         return valid_totals(result)
@@ -108,7 +110,7 @@ def _forward(operation, actor, role, data, *, mfa_verified=False):
 
 @never_cache
 def moderation_endpoint(request, operation, target_id=None):
-    method = "GET" if operation in QUEUES | OWN_LISTS | OWN_DETAILS | DETAILS | {"notice", "preview", "totals"} else "POST"
+    method = "GET" if operation in QUEUES | OWN_LISTS | OWN_DETAILS | DETAILS | {"notice", "preview", "totals", "copyright_status"} else "POST"
     if request.method != method:
         return HttpResponseNotAllowed([method])
     principal = authenticated_actor(request, require_verified_email=False)
@@ -125,7 +127,7 @@ def moderation_endpoint(request, operation, target_id=None):
             return context
         if context["account_id"] != actor or context["mfa_verified"] is not True:
             return _error("MFA-verified reviewer session required", 403)
-    if operation == "notice":
+    if operation in {"notice", "copyright_status"}:
         if role != "creator":
             return _error("Creator role required", 403)
         if request.GET or request.body:
@@ -133,9 +135,11 @@ def moderation_endpoint(request, operation, target_id=None):
         ownership = creator_ownership(actor, role)
         if ownership.status_code != 200:
             return ownership
-        result = _forward("notice", actor, role, {"video_id": str(target_id),
-                          "creator_id": json.loads(ownership.content)["creator_id"]})
-        if result.status_code == 200 and json.loads(result.content)["video_id"] != str(target_id):
+        payload = {"creator_id": json.loads(ownership.content)["creator_id"]}
+        if operation == "notice":
+            payload["video_id"] = str(target_id)
+        result = _forward(operation, actor, role, payload)
+        if operation == "notice" and result.status_code == 200 and json.loads(result.content)["video_id"] != str(target_id):
             return _error("Moderation temporarily unavailable", 503)
         return result
     try:
@@ -160,7 +164,13 @@ def moderation_endpoint(request, operation, target_id=None):
             data = json.loads(request.body)
             if not isinstance(data, dict):
                 raise ValueError("Invalid moderation request")
-            if operation == "report":
+            if operation == "copyright_report":
+                if set(data) != {"video_id", "work_reference", "details", "authority_attested"}:
+                    raise ValueError("Invalid copyright report")
+            elif operation == "counter_notice":
+                if set(data) != {"reason", "accuracy_attested"}:
+                    raise ValueError("Invalid counter-notice")
+            elif operation == "report":
                 if not {"video_id", "reason"} <= set(data) or set(data) - {"video_id", "reason", "details"}:
                     raise ValueError("Invalid report")
                 data.setdefault("details", "")
@@ -170,7 +180,7 @@ def moderation_endpoint(request, operation, target_id=None):
                 data["target_id"] = str(target_id)
             elif set(data) != {"reason"}:
                 raise ValueError("Invalid appeal")
-            if operation == "report" or operation in DECISIONS:
+            if operation in {"report", "copyright_report", "counter_notice"} or operation in DECISIONS:
                 key = request.headers.get("Idempotency-Key", "")
                 if not re.fullmatch(r"[A-Za-z0-9_-]{16,128}", key):
                     raise ValueError("Invalid idempotency key")
@@ -178,9 +188,13 @@ def moderation_endpoint(request, operation, target_id=None):
     except (ValueError, TypeError, AttributeError):
         return _error("Invalid moderation request", 400)
 
-    if operation == "appeal":
+    if operation in {"appeal", "counter_notice"}:
         ownership = creator_ownership(actor, role)
         if ownership.status_code != 200:
             return ownership
         data.update(video_id=str(target_id), creator_id=json.loads(ownership.content)["creator_id"])
-    return _forward(operation, actor, role, data, mfa_verified=reviewer)
+    result = _forward(operation, actor, role, data, mfa_verified=reviewer)
+    if operation in {"counter_notice", "copyright_report"} and result.status_code in {200, 201}:
+        if json.loads(result.content)["video_id"] != data["video_id"]:
+            return _error("Moderation temporarily unavailable", 503)
+    return result
