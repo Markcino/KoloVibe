@@ -19,6 +19,7 @@ All gateway paths below use the `/api/v1` prefix. Every `/admin/` route requires
 | `/admin/moderation/{videos,reports,appeals}/<uuid>/` | Matching reviewer detail GET; decision POST calls `/moderation/<kind>/<uuid>/decisions` |
 | `/admin/moderation/{videos,reports,appeals}/<uuid>/assignments/` | Administrator-only POST. Grants or revokes one moderator's access to the item through `GET/POST /admin/moderation/assignments`; the detail page lists current grants and assignable (accepted) moderators |
 | `/admin/moderation/previews/<uuid>/` | Authenticated proxy for `/moderation/previews/<uuid>`; no storage redirect |
+| `/admin/fraud/` | Moderator and administrator, read-only. `GET /engagement/fraud-holds?cursor=…`: every active hold in the caller's scope, 20 per page, each linked to its video review. A moderator with no assignment sees the explicit empty state. The dashboard shows the first five and links here |
 | `/admin/points/` | `GET /admin/points/balances`; `?account=<uuid>` reads `/admin/points/accounts/<uuid>` |
 | `/admin/audit/` | `GET /admin/audit` with cursor, kind, producer, since and until filters; since/until are UTC `datetime-local` inputs sent to the gateway as ISO 8601 `Z` values |
 | `/admin/account/` | Own identity from `GET /me` |
