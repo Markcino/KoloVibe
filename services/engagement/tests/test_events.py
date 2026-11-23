@@ -42,12 +42,52 @@ class OutboxPublishPermissionTests(SimpleTestCase):
         self.assertEqual(queue.name, "kolovibe.points")
         self.assertEqual(queue.exchange.name, "kolovibe.points")
         self.assertEqual(queue.routing_key, "kolovibe.points")
+        self.assertEqual(options["exchange"], "kolovibe.points")
+        self.assertEqual(options["routing_key"], "kolovibe.points")
         self.assertEqual(queue.exchange.type, "direct")
         self.assertTrue(queue.no_declare)
         self.assertTrue(queue.exchange.no_declare)
         self.assertEqual(options["delivery_mode"], 2)
         self.assertEqual(options["task_id"], "d37b09c2-934f-4b69-ad5f-d41f4a3d8096")
         self.assertIn("published_at = now()", cursor.execute.call_args_list[-1].args[0])
+
+    def test_qualified_view_actual_celery_publish_uses_named_exchange(self):
+        """Exercise Celery's actual routing; a Queue object's metadata is not enough."""
+        from celery import Celery
+        from kombu.transport import memory
+
+        app = Celery("kolovibe-publish-route-test", broker="memory://")
+        app.conf.update(
+            task_default_queue="kolovibe.engagement",
+            task_serializer="json",
+            task_ignore_result=True,
+            result_backend=None,
+        )
+        db = MagicMock()
+        cursor = db.cursor.return_value.__enter__.return_value
+        cursor.fetchone.return_value = (
+            UUID("d37b09c2-934f-4b69-ad5f-d41f4a3d8096"),
+            events.QUALIFIED_VIEW,
+            {"creator_user_id": "test", "qualified_at": "test"},
+        )
+        published = []
+
+        def reject_declaration(*args, **kwargs):
+            raise AssertionError("Publisher must not declare or bind broker resources")
+
+        def capture_publish(channel, message, **kwargs):
+            published.append((kwargs.get("exchange"), kwargs.get("routing_key")))
+
+        with (
+            patch.object(events, "connection", db),
+            patch.object(events.transaction, "atomic", return_value=nullcontext()),
+            patch.object(memory.Channel, "queue_bind", new=reject_declaration),
+            patch.object(memory.Channel, "exchange_declare", new=reject_declaration),
+            patch.object(memory.Channel, "basic_publish", new=capture_publish),
+        ):
+            self.assertTrue(events.dispatch_one(app))
+
+        self.assertEqual(published, [("kolovibe.points", "kolovibe.points")])
 
     def test_engagement_queue_routing_unchanged(self):
         app, _ = self.dispatch("engagement.received")
