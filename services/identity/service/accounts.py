@@ -30,6 +30,7 @@ from django.views.decorators.http import require_POST
 from .models import (Account, CodeKind, EmailVerification, LoginSession, LoginThrottle,
                      PasswordReset, ReauthenticationToken, UsedRefreshToken)
 from .mfa import challenge, privileged_enabled, session_allowed
+from .retention import maybe_purge
 from .security_audit import record
 
 ACCESS_SECONDS = 300
@@ -602,6 +603,7 @@ def login(request):
         return _error("Invalid credentials", 401)
     key = _throttle_key(email, request.META.get("REMOTE_ADDR", ""))
     now = timezone.now()
+    maybe_purge()  # anonymous attempts create throttle rows; keep the table bounded
     with transaction.atomic():
         throttle, _ = LoginThrottle.objects.select_for_update().get_or_create(
             key=key, defaults={"window_started_at": now})
