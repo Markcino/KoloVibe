@@ -82,6 +82,11 @@ jobs:
           set -euo pipefail
           export PATH="$(pg_config --bindir):$PATH"
           python scripts/verify_r1_db_preflight.py
+      - name: Cross-service event pipeline (disposable PostgreSQL)
+        run: |
+          set -euo pipefail
+          export PATH="$(pg_config --bindir):$PATH"
+          python scripts/verify_event_pipeline.py
       - name: Service checks
         run: |
           python scripts/check_structure.py
