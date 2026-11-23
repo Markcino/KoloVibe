@@ -8,6 +8,7 @@ from urllib.error import URLError
 from django.core import signing
 from django.test import Client, TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from web import staging_session
 from web.api_contracts import ACTIONS, valid_queue_page
@@ -21,6 +22,13 @@ class AdminConsoleTests(TestCase):
         self.access = secrets.token_urlsafe(36)
         self.refresh = str(uuid.uuid4()) + "." + secrets.token_urlsafe(48)
         self.target = str(uuid.uuid4())
+
+    @staticmethod
+    def routes(table):
+        """Answer by gateway path, so tests do not depend on the order of concurrent reads."""
+        def fake(path, **kwargs):
+            return table[path]
+        return fake
 
     def login(self, role="administrator", client=None):
         client = client or self.client
@@ -137,19 +145,20 @@ class AdminConsoleTests(TestCase):
         for kind, actions in ACTIONS.items():
             for action in actions:
                 intent = self.intent(kind)
-                submitted = {"intent": intent, "action": action, "reason": "Reviewed against the content policy."}
+                submitted = {"intent": intent, "action": action, "reason": "Reviewed against the content policy.", "confirmed": "1"}
                 result = {"id": str(uuid.uuid4()), "video_id": self.target, "action": action, "status": "applied"}
                 keys = []
                 for _ in range(2):
-                    with patch("web.views._api", side_effect=[(200, self.account), (200, result)]) as api:
+                    with patch("web.views._api", side_effect=[(200, self.account), (200, result), (503, {})]) as api:
                         response = self.client.post(self.detail_url(kind), submitted)
                     self.assertContains(response, "Decision recorded")
-                    self.assertEqual(api.call_args.args, (f"/moderation/{kind}/{self.target}/decisions",))
-                    self.assertEqual(api.call_args.kwargs["method"], "POST")
-                    self.assertEqual(api.call_args.kwargs["token"], self.access)
-                    self.assertEqual(api.call_args.kwargs["data"], {
+                    decision = api.call_args_list[1]
+                    self.assertEqual(decision.args, (f"/moderation/{kind}/{self.target}/decisions",))
+                    self.assertEqual(decision.kwargs["method"], "POST")
+                    self.assertEqual(decision.kwargs["token"], self.access)
+                    self.assertEqual(decision.kwargs["data"], {
                         "action": action, "reason": submitted["reason"]})
-                    keys.append(api.call_args.kwargs["idempotency_key"])
+                    keys.append(decision.kwargs["idempotency_key"])
                 self.assertEqual(keys[0], keys[1])
                 self.assertGreaterEqual(len(keys[0]), 16)
 
@@ -202,8 +211,8 @@ class AdminConsoleTests(TestCase):
             intent = self.intent(kind, client)
             action = sorted(ACTIONS[kind])[0]
             with patch("web.views._api", side_effect=[(200, self.account), (200, {
-                    "id": str(uuid.uuid4()), "video_id": self.target, "action": action, "status": "applied"})]):
-                response = client.post(self.detail_url(kind), {"intent": intent, "action": action,
+                    "id": str(uuid.uuid4()), "video_id": self.target, "action": action, "status": "applied"}), (503, {})]):
+                response = client.post(self.detail_url(kind), {"intent": intent, "action": action, "confirmed": "1",
                     "reason": "A valid review reason.", "csrfmiddlewaretoken": client.cookies["csrftoken"].value})
             self.assertEqual(response.status_code, 200)
 
@@ -380,8 +389,10 @@ class AdminConsoleTests(TestCase):
         self.login("moderator")
         totals = {"videos": dict.fromkeys(["review", "published", "rejected", "removed"], 0),
                   "reports": {"open": 7, "resolved": 3, "dismissed": 2}, "appeals": {"open": 2, "denied": 1, "restored": 0}}
-        with patch("web.views._api", side_effect=[(200, self.account), (200, totals),
-                (200, {"total": 9, "items": [], "next_cursor": None}), (403, {})]):
+        with patch("web.views._api", side_effect=self.routes({
+                "/me": (200, self.account), "/moderation/totals": (200, totals),
+                "/engagement/fraud-holds": (200, {"total": 9, "items": [], "next_cursor": None}),
+                "/admin/audit": (403, {})})):
             response = self.client.get("/admin/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["totals"]["reports"]["open"], 7)
@@ -392,18 +403,161 @@ class AdminConsoleTests(TestCase):
             self.assertEqual(self.client.get("/admin/").status_code, 503)
 
 
+    def test_authorized_preview_plays_inline_from_the_same_origin_only(self):
+        self.login("moderator")
+        detail = self.detail("videos")
+        detail["preview"] = {"id": self.target, "url": "/api/v1/moderation/previews/" + self.target,
+                             "expires_at": "2026-11-21T10:01:00Z"}
+        with patch("web.views._api", side_effect=[(200, self.account), (200, detail)]):
+            response = self.client.get(self.detail_url("videos"))
+        player = f'<video class="preview-player" controls playsinline preload="metadata" src="/admin/moderation/previews/{self.target}/"'
+        self.assertContains(response, player)
+        self.assertContains(response, "Open authorized preview")
+        self.assertContains(response, "10:01 UTC")
+        self.assertNotContains(response, "/api/v1/")
+        self.assertNotContains(response, "https://")
+
+    def test_destructive_decisions_need_confirmation_and_send_nothing_until_confirmed(self):
+        self.login("moderator")
+        reason = "Contains <b>repeated</b> policy violations."
+        for kind, action in (("videos", "remove"), ("videos", "reject"), ("appeals", "deny"), ("reports", "remove")):
+            intent = self.intent(kind)
+            with patch("web.views._api", side_effect=[(200, self.account)]) as api:
+                page = self.client.post(self.detail_url(kind), {"intent": intent, "action": action, "reason": reason})
+            self.assertContains(page, "Confirm your decision")
+            self.assertContains(page, f"Confirm {action}")
+            self.assertContains(page, "&lt;b&gt;repeated&lt;/b&gt;")
+            self.assertEqual(api.call_count, 1, "confirmation must not reach the gateway")
+            self.assertEqual(page.context["intent"], intent)
+        # Non-destructive actions are applied directly; the confirmation field is not a security control.
+        intent = self.intent("videos")
+        result = {"id": str(uuid.uuid4()), "video_id": self.target, "action": "publish", "status": "applied"}
+        with patch("web.views._api", side_effect=[(200, self.account), (200, result), (503, {})]):
+            self.assertContains(self.client.post(self.detail_url("videos"), {"intent": intent, "action": "publish", "reason": reason}), "Decision recorded")
+
+    def test_decision_result_links_to_the_next_open_item_and_never_to_the_decided_one(self):
+        self.login("moderator")
+        other = str(uuid.uuid4())
+        ids = sorted([self.target, other])
+        queue = {"items": [self.record("reports", item_id) for item_id in ids], "next_cursor": None}
+        intent = self.intent("reports")
+        result = {"id": str(uuid.uuid4()), "video_id": self.target, "action": "dismiss", "status": "applied"}
+        with patch("web.views._api", side_effect=[(200, self.account), (200, result), (200, queue)]):
+            response = self.client.post(self.detail_url("reports"), {"intent": intent, "action": "dismiss", "reason": "Reviewed against the content policy."})
+        self.assertContains(response, "Review next item")
+        self.assertContains(response, f'href="/admin/moderation/reports/{other}/"')
+        self.assertNotContains(response, f'href="/admin/moderation/reports/{self.target}/"')
+        queue = {"items": [self.record("reports", self.target)], "next_cursor": None}
+        intent = self.intent("reports")
+        with patch("web.views._api", side_effect=[(200, self.account), (200, result), (200, queue)]):
+            response = self.client.post(self.detail_url("reports"), {"intent": intent, "action": "dismiss", "reason": "Reviewed against the content policy."})
+        self.assertNotContains(response, "Review next item")
+        self.assertContains(response, "Back to reports queue")
+
+    def test_header_states_when_the_session_ends(self):
+        self.login("moderator")
+        with patch("web.views._api", side_effect=[(200, self.account), (200, self.account)]):
+            response = self.client.get("/admin/account/")
+        ends = timezone.datetime.fromisoformat(self.client.session["session_ends_at"])
+        self.assertAlmostEqual((ends - timezone.now()).total_seconds(), 900, delta=30)
+        self.assertContains(response, f"yours ends at <strong>{ends.strftime('%H:%M')} UTC</strong>")
+
+    def test_dashboard_shows_full_breakdowns_and_reads_holds_and_audit_concurrently(self):
+        self.login("administrator")
+        totals = {"videos": {"review": 12, "published": 340, "rejected": 8, "removed": 3},
+                  "reports": {"open": 7, "resolved": 31, "dismissed": 12}, "appeals": {"open": 2, "denied": 4, "restored": 1}}
+        table = {"/me": (200, self.account), "/moderation/totals": (200, totals),
+                 "/engagement/fraud-holds": (200, {"total": 0, "items": [], "next_cursor": None}), "/admin/audit": (403, {})}
+        with patch("web.views._api", side_effect=self.routes(table)):
+            response = self.client.get("/admin/")
+        for text in ("340 published · 8 rejected · 3 removed", "31 resolved · 12 dismissed", "4 denied · 1 restored"):
+            self.assertContains(response, text)
+        # A failing hold read is still an error, whatever the audit read does.
+        for failure, expected in (((503, {}), 503), ((403, {}), 403)):
+            with patch("web.views._api", side_effect=self.routes({**table, "/engagement/fraud-holds": failure})):
+                self.assertEqual(self.client.get("/admin/").status_code, expected)
+        # Expired credentials on the audit read end the session, as before.
+        with patch("web.views._api", side_effect=self.routes({**table, "/admin/audit": (401, {})})):
+            self.assertRedirects(self.client.get("/admin/"), "/login/?expired=1", fetch_redirect_response=False)
+
+    def test_navigation_leads_with_the_dashboard_and_keeps_administration_last(self):
+        self.login("administrator")
+        with patch("web.views._api", side_effect=[(200, self.account), (200, self.account)]):
+            page = self.client.get("/admin/account/").content.decode()
+        order = [page.index(f"<span>{name}</span>") for name in ("Dashboard", "Videos", "Reports", "Appeals", "Points", "Audit", "Team", "Account")]
+        self.assertEqual(order, sorted(order))
+
+    def test_find_by_id_opens_the_item_and_rejects_anything_else_without_calling_the_gateway(self):
+        self.login("moderator")
+        with patch("web.views._api", side_effect=[(200, self.account)]) as api:
+            response = self.client.get("/admin/moderation/reports/", {"find": f"  {self.target.upper()} "})
+        self.assertRedirects(response, f"/admin/moderation/reports/{self.target}/", fetch_redirect_response=False)
+        self.assertEqual(api.call_count, 1)
+        for bad in ("", "not-an-id", "../../etc/passwd", self.target + "x"):
+            with patch("web.views._api", side_effect=[(200, self.account)]):
+                self.assertEqual(self.client.get("/admin/moderation/reports/", {"find": bad}).status_code, 400, bad)
+        with patch("web.views._api", side_effect=[(200, self.account)]):
+            self.assertEqual(self.client.get("/admin/moderation/reports/", {"find": self.target, "status": "open"}).status_code, 400)
+
+    def test_natural_console_addresses_lead_to_the_dashboard_guard(self):
+        for path in ("/moderator/", "/dashboard/"):
+            with patch("web.views._api") as api:
+                response = self.client.get(path)
+            self.assertRedirects(response, "/admin/", fetch_redirect_response=False)
+            api.assert_not_called()
+        # Anonymous visitors then reach sign-in; the redirect grants nothing by itself.
+        self.assertRedirects(self.client.get("/admin/"), "/login/", fetch_redirect_response=False)
+
+    def test_error_pages_explain_the_problem_and_offer_a_way_back_without_leaking(self):
+        expected = {404: "Page not found", 403: "Access denied"}
+        for status, title in expected.items():
+            self.login("moderator")
+            gateway = (status, {"detail": "private-host secret-token"})
+            with patch("web.views._api", side_effect=[(200, self.account), gateway]):
+                response = self.client.get("/admin/moderation/reports/")
+            self.assertEqual(response.status_code, status)
+            self.assertContains(response, title, status_code=status)
+            self.assertContains(response, f"Error {status}", status_code=status)
+            self.assertContains(response, 'href="/admin/">Back to dashboard', status_code=status)
+            self.assertNotContains(response, 'href="/login/"', status_code=status)
+            self.assertNotContains(response, "secret-token", status_code=status)
+            self.assertNotContains(response, "Request unavailable", status_code=status)
+        missing = Client().get("/no-such-page/")
+        self.assertContains(missing, "Page not found", status_code=404)
+        self.assertContains(missing, 'href="/login/">Sign in', status_code=404)
+        self.assertNotContains(missing, "Back to dashboard", status_code=404)
+
+    def test_refused_pages_show_access_denied_keep_the_session_and_hide_unusable_links(self):
+        self.login("moderator")
+        for path in ("/admin/points/", "/admin/team/"):
+            with patch("web.views._api", side_effect=[(200, self.account), (403, {"detail": "Forbidden"})]):
+                response = self.client.get(path)
+            self.assertContains(response, "Access denied", status_code=403)
+            self.assertContains(response, "signed in as <strong>Moderator</strong>", status_code=403)
+            self.assertContains(response, 'href="/admin/">Back to dashboard', status_code=403)
+            self.assertTrue(self.client.session.get("authenticated"), path)
+        with patch("web.views._api", side_effect=[(200, self.account), (200, self.account)]):
+            moderator_nav = self.client.get("/admin/account/").content.decode()
+        self.assertNotIn("<span>Points</span>", moderator_nav)
+        self.assertNotIn("<span>Team</span>", moderator_nav)
+        self.login("administrator")
+        with patch("web.views._api", side_effect=[(200, self.account), (200, self.account)]):
+            admin_nav = self.client.get("/admin/account/").content.decode()
+        self.assertIn("<span>Points</span>", admin_nav)
+        self.assertIn("<span>Team</span>", admin_nav)
+
     def test_unassigned_moderator_sees_empty_state_not_an_error(self):
         self.login("moderator")
         denied = (403, {"detail": "Resource unavailable"})
-        with patch("web.views._api", side_effect=[(200, self.account), denied, (403, {})]) as api:
+        with patch("web.views._api", side_effect=self.routes({
+                "/me": (200, self.account), "/moderation/totals": denied, "/admin/audit": (403, {})})) as api:
             response = self.client.get("/admin/")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "No review assignments yet")
         self.assertTrue(response.context["unassigned"])
         self.assertNotContains(response, "Review workspace")
         # Scoped reads are not attempted: only /me, totals and audit are called.
-        self.assertEqual([call.args[0] for call in api.call_args_list],
-                         ["/me", "/moderation/totals", "/admin/audit"])
+        self.assertCountEqual([call.args[0] for call in api.call_args_list], ["/me", "/moderation/totals", "/admin/audit"])
         self.assertTrue(self.client.session.get("authenticated"))
         # Any other 403, and any non-moderator, stays an error and is not downgraded.
         with patch("web.views._api", side_effect=[(200, self.account), (403, {"detail": "Reviewer role required"})]):

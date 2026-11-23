@@ -17,7 +17,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.http import require_GET
 
-from . import staging_session, views
+from . import assignment_views, staging_session, views
 from .invitation_contracts import identifier, valid_page, valid_receipt, valid_setup, valid_complete
 
 PENDING = "moderator_enrollment"
@@ -78,7 +78,10 @@ def team(request):
     if not valid_page(page) or cursor is not None and page["next_cursor"] == cursor:
         return views.error_page(request)
     items = [{**row, "intent": intent(request, "revoke", row["id"])} for row in page["items"]]
-    return views._render(request, "team.html", {"items": items, "intent": intent(request, "create", "new"),
+    accepted = [row for row in page["items"] if row["status"] == "accepted"]
+    load = assignment_views.workload(request, sorted(row["account_id"] for row in accepted))
+    moderators = [{**row, "workload": None if load is None else load.get(row["account_id"])} for row in accepted]
+    return views._render(request, "team.html", {"items": items, "moderators": moderators, "intent": intent(request, "create", "new"),
         "next_query": urlencode({"cursor": page["next_cursor"]}) if page["next_cursor"] else None,
         "error": error}, status=result_status if error and result_status in (400, 403, 409, 429) else 503 if error else 200)
 
@@ -138,6 +141,9 @@ def accept(request):
     if request.method == "POST":
         if state is None:
             fields = {name: request.POST.get(name, "") for name in ("invitation_code", "email", "password")}
+            # Mail clients add spaces and line breaks when copying; the code itself never contains them.
+            fields["invitation_code"] = "".join(fields["invitation_code"].split())
+            fields["email"] = fields["email"].strip()
             status, payload = views._api("/auth/moderator-invitations/setup", method="POST", data=fields)
             if status == 200:
                 if not valid_setup(payload):

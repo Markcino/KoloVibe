@@ -12,7 +12,7 @@ All gateway paths below use the `/api/v1` prefix. Every `/admin/` route requires
 | --- | --- |
 | `/login/`, `/login/mfa/` | `POST /auth/login`, `POST /auth/mfa/verify` |
 | `/moderator-invitation/` | Invite-only `POST /auth/moderator-invitations/setup` and `/complete`; password and current-period authenticator enrollment before account creation |
-| `/admin/team/` | Administrator-only `GET/POST /admin/moderator-invitations`; `POST /admin/moderator-invitations/<uuid>/revoke` |
+| `/admin/team/` | Administrator-only `GET/POST /admin/moderator-invitations`; `POST /admin/moderator-invitations/<uuid>/revoke`; accepted moderators are listed with open-assignment counts from `GET /admin/moderation/assignments/summary` |
 | `/admin/` | `GET /moderation/totals`, `/engagement/fraud-holds`, `/admin/audit`; audit denial leaves an explicit unavailable card |
 | `/admin/moderation/{videos,reports,appeals}/` | Matching `GET /moderation/<kind>?cursor=…&status=…` |
 | `/admin/moderation/{videos,reports,appeals}/<uuid>/` | Matching reviewer detail GET; decision POST calls `/moderation/<kind>/<uuid>/decisions` |

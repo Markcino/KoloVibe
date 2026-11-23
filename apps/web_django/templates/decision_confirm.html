@@ -1,0 +1,10 @@
+{% extends 'base_admin.html' %}
+{% block title %}Confirm your decision · KoloVibe{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Review item</p><h1>Confirm your decision</h1><p class="supporting-text">This outcome affects the creator and is recorded in the audit log. Check it before you continue.</p></div></div>
+<section class="panel" aria-labelledby="confirm-title"><div class="section-heading"><div><p class="eyebrow">Decision</p><h2 id="confirm-title">{{ action|title }}</h2></div><span class="status-chip" data-state="removed">Needs confirmation</span></div>
+<dl><dt>Item</dt><dd>{{ target_id }}</dd><dt>Your reason</dt><dd>{{ reason }}</dd></dl>
+<form method="post">{% csrf_token %}<input type="hidden" name="intent" value="{{ intent }}"><input type="hidden" name="action" value="{{ action }}"><input type="hidden" name="reason" value="{{ reason }}"><input type="hidden" name="confirmed" value="1">
+<div class="status-actions"><button class="button-danger" type="submit">Confirm {{ action }}</button><a class="button button-outline" href="{{ request.path }}{% if request.GET.cursor %}?cursor={{ request.GET.cursor|urlencode }}{% endif %}">Cancel</a></div></form>
+<p class="supporting-text">To change your reason, use your browser's back button.</p></section>
+{% endblock %}

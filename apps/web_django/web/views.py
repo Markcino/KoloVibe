@@ -5,6 +5,7 @@ import re
 import secrets
 import ssl
 from datetime import datetime, timezone
+from concurrent.futures import ThreadPoolExecutor
 from functools import wraps
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -14,6 +15,7 @@ from django.conf import settings
 from django.core import signing
 from django.http import FileResponse, Http404, HttpResponseNotAllowed, HttpResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.middleware.csrf import rotate_token
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
@@ -95,13 +97,25 @@ def _api(path, *, method="GET", data=None, token=None, idempotency_key=None, bin
     return status, payload
 
 
+# Fixed copy per status. It never echoes gateway bodies and names no resource, so it cannot enumerate anything.
+ERROR_COPY = {
+    400: ("We couldn't process that request", "Something in the request wasn't valid. Go back and try again."),
+    403: ("Access denied", "Your account isn't permitted to open this page."),
+    404: ("Page not found", "This page doesn't exist or is no longer available. Return to the dashboard to continue."),
+    503: ("Something went wrong", "This request couldn't be completed right now. Try again in a moment, or sign in again if it continues."),
+}
+
+
 @never_cache
 def error_page(request, exception=None, status=503):
     # One non-enumerating message. Never render gateway response bodies.
+    title, message = ERROR_COPY.get(status, ERROR_COPY[503])
+    # A signed-in person stays signed in and is offered the dashboard; only visitors are offered sign-in.
+    account = getattr(request, "admin_account", None)
+    signed_in = bool(request.session.get("authenticated")) and isinstance(account, dict)
     return render(request, "status.html", {
-        "title": "Request unavailable",
-        "message": "This request cannot be completed. Sign in again or return to the dashboard.",
-    }, status=status)
+        "title": title, "message": message, "code": status, "signed_in": signed_in,
+        "role": account["roles"][0] if signed_in else None}, status=status)
 
 
 def error_400(request, exception=None):
@@ -165,6 +179,7 @@ def _render(request, template, context=None, *, status=200):
     return render(request, template, {
         "account": request.admin_account,
         "role": request.admin_account["roles"][0],
+        "session_ends": request.session.get("session_ends_at"),
         **(context or {}),
     }, status=status)
 
@@ -261,12 +276,18 @@ def dashboard(request):
             return _gateway_error(request, status)
         if not valid_totals(totals):
             return error_page(request)
-        status, holds = _api("/engagement/fraud-holds", token=request.gateway_token)
+    # Holds and audit do not depend on each other: ask for both at once (the 5s limit then applies once).
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        holds_call = None if unassigned else pool.submit(_api, "/engagement/fraud-holds", token=request.gateway_token)
+        audit_call = pool.submit(_api, "/admin/audit", token=request.gateway_token)
+        if holds_call is not None:
+            status, holds = holds_call.result()
+        audit_status, events = audit_call.result()
+    if holds_call is not None:
         if status != 200:
             return _gateway_error(request, status)
         if not valid_holds(holds):
             return error_page(request)
-    audit_status, events = _api("/admin/audit", token=request.gateway_token)
     if audit_status == 401:
         return _expired(request)
     recent = events["items"] if audit_status == 200 and valid_audit_page(events) else None
@@ -305,6 +326,12 @@ def _unavailable(request, title, message):
 @privileged
 @require_GET
 def moderation_queue(request, kind):
+    if "find" in request.GET:
+        # Jump straight to an item; the detail view and Moderation still authorise it.
+        target = request.GET["find"].strip().lower()
+        if set(request.GET) != {"find"} or not valid_id(target):
+            return error_page(request, status=400)
+        return redirect(reverse(f"moderation-{kind}-detail", args=[target]))
     query = _queue_query(request, kind)
     if query is None:
         return error_page(request, status=400)
@@ -319,6 +346,21 @@ def moderation_queue(request, kind):
         "statuses": STATUSES[kind],
         "detail_query": "?" + urlencode({"cursor": cursor}) if cursor else "",
     })
+
+
+# Decisions that remove or refuse something cannot be silently undone by the creator, so they are confirmed.
+CONFIRMED_ACTIONS = {"reject", "remove", "deny"}
+
+
+def _next_item(request, kind, decided):
+    """Link to the first remaining item in the default queue, or None; never fails the decision."""
+    status, page = _queue_page(request, kind, None)
+    if status != 200:
+        return None
+    for item in page["items"]:
+        if item["id"] != str(decided):
+            return reverse(f"moderation-{kind}-detail", args=[item["id"]])
+    return None
 
 
 def _intent(request, kind, target_id):
@@ -344,6 +386,11 @@ def moderation_detail(request, kind, target_id):
         action, reason = request.POST.get("action", ""), request.POST.get("reason", "")
         if action not in ACTIONS[kind] or not 10 <= len(reason.strip()) <= len(reason) <= 2000:
             return error_page(request, status=400)
+        if action in CONFIRMED_ACTIONS and request.POST.get("confirmed") != "1":
+            # Irreversible outcomes need a second, explicit step. Nothing is sent to the gateway yet.
+            return _render(request, "decision_confirm.html", {
+                "title": "Confirm your decision", "kind": kind, "action": action, "reason": reason.strip(),
+                "intent": request.POST["intent"], "target_id": target_id})
         status, result = _api(f"/moderation/{kind}/{target_id}/decisions", method="POST",
                               token=request.gateway_token, data={"action": action, "reason": reason.strip()},
                               idempotency_key=key)
@@ -351,7 +398,8 @@ def moderation_detail(request, kind, target_id):
             return _gateway_error(request, status)
         if not valid_decision(result, video_id, action):
             return error_page(request)
-        return _render(request, "decision_result.html", {"kind": kind})
+        return _render(request, "decision_result.html", {"kind": kind, "action": action,
+                                                         "next_url": _next_item(request, kind, target_id)})
     status, detail = _api(f"/moderation/{kind}/{target_id}", token=request.gateway_token, response_limit=524288)
     if status != 200:
         return _gateway_error(request, status)

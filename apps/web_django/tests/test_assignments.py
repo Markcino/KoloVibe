@@ -79,8 +79,8 @@ class AssignmentWebTests(TestCase):
         return response, api, body
 
     def test_assignment_grants_and_revokes_through_the_gateway_then_confirms_once(self):
-        # Granting checks the moderator against Identity's roster; revoking needs only the gateway.
-        for active, replies in (("1", lambda roster, body: (roster, (200, body))), ("0", lambda roster, body: ((200, body),))):
+        # The roster was cached when the page opened, so neither granting nor revoking asks Identity again.
+        for active, replies in (("1", lambda roster, body: ((200, body),)), ("0", lambda roster, body: ((200, body),))):
             response, api, body = self.submit(active, replies)
             self.assertEqual(response.status_code, 302, active)
             self.assertEqual(response["Location"], reverse("moderation-reports-detail", args=[self.target]))
@@ -129,6 +129,37 @@ class AssignmentWebTests(TestCase):
         data = {"intent": opened.context["assignments"]["intent"], "moderator_id": known, "active": "1"}
         wrong = {"scope": "reports", "target_id": self.target, "moderator_id": str(uuid.uuid4()), "active": True}
         for reply, expected in (((403, {"detail": "Request unavailable"}), 403), ((404, {}), 404), ((503, {}), 503), ((200, wrong), 503)):
-            with patch("web.views._api", side_effect=[(200, self.account), roster, reply]):
+            with patch("web.views._api", side_effect=[(200, self.account), reply]):
                 self.assertEqual(self.client.post(url, data).status_code, expected, reply)
             self.assertNotIn("assignment_notice", self.client.session)
+
+    def test_roster_is_cached_briefly_and_refreshed_before_refusing_an_unknown_moderator(self):
+        self.login("administrator")
+        roster = self.moderators("Ada Reviewer")
+        known = next(iter(self.people))
+        first, api = self.open_detail(self.listing(), roster)
+        self.assertEqual(api.call_count, 4)  # /me, detail, assignments, roster
+        second, api = self.open_detail(self.listing())
+        self.assertEqual(api.call_count, 3, "second view must reuse the cached roster")
+        self.assertEqual([row["id"] for row in second.context["assignments"]["candidates"]], [known])
+        # A moderator who joined after the cache was filled is found by one fresh lookup, not refused.
+        newcomer = str(uuid.uuid4())
+        fresh = (200, {"items": [{"id": str(uuid.uuid4()), "display_name": "New Joiner", "email_masked": "n***@example.test",
+                                   "status": "accepted", "expires_at": "2026-11-25T10:00:00+00:00", "account_id": newcomer}], "next_cursor": None})
+        body = {"scope": "reports", "target_id": self.target, "moderator_id": newcomer, "active": True}
+        data = {"intent": second.context["assignments"]["intent"], "moderator_id": newcomer, "active": "1"}
+        with patch("web.views._api", side_effect=[(200, self.account), fresh, (200, body)]) as api:
+            response = self.client.post(reverse("moderation-reports-assign", args=[self.target]), data)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(api.call_args_list[1].args[0], "/admin/moderator-invitations")
+        # Truly unknown ids are still refused after the fresh lookup, and nothing is written.
+        data["moderator_id"] = str(uuid.uuid4())
+        with patch("web.views._api", side_effect=[(200, self.account), fresh]) as api:
+            self.assertEqual(self.client.post(reverse("moderation-reports-assign", args=[self.target]), data).status_code, 400)
+        self.assertNotIn("POST", [call.kwargs.get("method") for call in api.call_args_list])
+        # An expired or tampered cache is ignored.
+        session = self.client.session
+        session["moderator_roster"] = {"at": 0, "people": {known: "Stale"}}
+        session.save()
+        third, api = self.open_detail(self.listing(), roster)
+        self.assertEqual(api.call_count, 4)

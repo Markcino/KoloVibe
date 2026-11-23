@@ -39,12 +39,13 @@ FIELDS = {
     "video_detail": {"target_id"}, "report_detail": {"target_id"}, "appeal_detail": {"target_id"},
     "preview": {"preview_id"}, "totals": set(), "fraud_scope": set(),
     "assignment_list": {"scope", "target_id"}, "assignment_set": {"scope", "target_id", "moderator_id", "active"},
+    "assignment_summary": {"moderator_ids"},
     "notice": {"video_id", "creator_id"}, "standing": {"creator_id"},
     **{operation: {"target_id", "action", "reason", "key"} for operation in DECISIONS},
 }
 
 
-ASSIGNMENT_OPERATIONS = {"assignment_list", "assignment_set"}
+ASSIGNMENT_OPERATIONS = {"assignment_list", "assignment_set", "assignment_summary"}
 
 
 class ContentUnavailable(Exception):

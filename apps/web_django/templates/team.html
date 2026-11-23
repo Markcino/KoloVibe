@@ -1,4 +1,4 @@
-{% extends 'base_admin.html' %}
+{% extends 'base_admin.html' %}{% load admin_display %}
 {% block title %}Moderator invitations · KoloVibe{% endblock %}
 {% block content %}
 <div class="page-heading"><div><p class="eyebrow">Team</p><h1>Moderator invitations</h1><p class="supporting-text">Invite moderators to join your review team. Each person sets their own password and enrolls an authenticator.</p></div></div>
@@ -13,8 +13,14 @@
 <label>Reason<textarea name="reason" minlength="3" maxlength="500" required></textarea></label>
 <p>Role: <strong>Moderator</strong>. Queue assignments remain explicit; an invitation does not grant access to any review items.</p>
 <button type="submit">Send invitation</button></form></section>
+{% if moderators %}<section class="panel table-panel" aria-labelledby="moderators-title"><div class="section-heading"><div><p class="eyebrow">Directory</p><h2 id="moderators-title">Moderators</h2></div><span class="status-chip">{{ moderators|length }} active</span></div>
+<p class="supporting-text">Open assignments per moderator, so work can be shared evenly. Assign items from a review page.</p>
+<div class="table-scroll" role="region" aria-label="Moderators" tabindex="0"><table><caption class="visually-hidden">Moderators and their open assignments</caption><thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Open assignments</th></tr></thead><tbody>
+{% for person in moderators %}<tr><td data-label="Name"><strong>{{ person.display_name }}</strong></td><td data-label="Email">{{ person.email_masked }}</td><td data-label="Open assignments">{% if person.workload %}{% if person.workload.total %}<span class="status-chip" data-state="pending">{{ person.workload.total }} open</span> <span class="supporting-text">{{ person.workload.videos }} videos · {{ person.workload.reports }} reports · {{ person.workload.appeals }} appeals</span>{% else %}<span class="supporting-text">None yet</span>{% endif %}{% else %}<span class="supporting-text">Unavailable</span>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div></section>
+{% endif %}
 <section class="panel table-panel"><h2>Invitations</h2><div class="table-scroll"><table><caption>Moderator invitations</caption><thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Status</th><th scope="col">Expires (UTC)</th><th scope="col">Action</th></tr></thead><tbody>
-{% for item in items %}<tr><td data-label="Name">{{ item.display_name }}</td><td data-label="Email">{{ item.email_masked }}</td><td data-label="Status"><span class="status-chip" data-state="{{ item.status }}">{{ item.status|title }}</span></td><td data-label="Expires (UTC)">{{ item.expires_at }}</td><td data-label="Action">{% if item.status == 'pending' %}<form method="post">{% csrf_token %}<input type="hidden" name="operation" value="revoke"><input type="hidden" name="id" value="{{ item.id }}"><input type="hidden" name="intent" value="{{ item.intent }}"><label>Revocation reason<input name="reason" minlength="3" maxlength="500" required></label><button type="submit" class="button-outline">Revoke invitation</button></form>{% else %}—{% endif %}</td></tr>
+{% for item in items %}<tr><td data-label="Name">{{ item.display_name }}</td><td data-label="Email">{{ item.email_masked }}</td><td data-label="Status"><span class="status-chip" data-state="{{ item.status }}">{{ item.status|title }}</span></td><td data-label="Expires (UTC)">{{ item.expires_at|utc_stamp }}</td><td data-label="Action">{% if item.status == 'pending' %}<form method="post">{% csrf_token %}<input type="hidden" name="operation" value="revoke"><input type="hidden" name="id" value="{{ item.id }}"><input type="hidden" name="intent" value="{{ item.intent }}"><label>Revocation reason<input name="reason" minlength="3" maxlength="500" required></label><button type="submit" class="button-outline">Revoke invitation</button></form>{% else %}—{% endif %}</td></tr>
 {% empty %}<tr><td colspan="5">No moderator invitations yet.</td></tr>{% endfor %}</tbody></table></div></section>
 {% if next_query %}<nav class="pagination" aria-label="Invitation pages"><a href="?{{ next_query }}">Next page</a></nav>{% endif %}
 {% endblock %}

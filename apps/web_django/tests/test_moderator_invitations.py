@@ -1,5 +1,6 @@
 import json
 import secrets
+import uuid
 from datetime import timedelta
 from unittest.mock import patch
 from urllib.parse import parse_qs, unquote, urlsplit
@@ -52,6 +53,50 @@ class ModeratorInvitationWebTests(TestCase):
         self.assertEqual(api.call_args.args, ("/admin/moderator-invitations",))
         self.assertIn("idempotency_key", api.call_args.kwargs)
         self.assertNotIn("role", api.call_args.kwargs["data"])
+
+    def accepted_page(self, *names):
+        rows = [{"id": str(uuid.uuid4()), "display_name": name, "email_masked": "m***@example.test", "status": "accepted",
+                 "expires_at": (timezone.now() + timedelta(hours=1)).isoformat(), "account_id": str(uuid.uuid4())} for name in names]
+        return rows, {"items": rows, "next_cursor": None}
+
+    def test_team_lists_moderators_with_open_assignment_counts(self):
+        self.login()
+        rows, page = self.accepted_page("Ada Eze", "Bola Ade")
+        ids = sorted(row["account_id"] for row in rows)
+        summary = {"items": [{"moderator_id": ids[0], "videos": 1, "reports": 2, "appeals": 0},
+                             {"moderator_id": ids[1], "videos": 0, "reports": 0, "appeals": 0}]}
+        with patch("web.views._api", side_effect=[(200, self.account), (200, page), (200, summary)]) as api:
+            response = self.client.get("/admin/team/")
+        self.assertContains(response, "Moderators")
+        self.assertContains(response, "3 open")
+        self.assertContains(response, "1 videos · 2 reports · 0 appeals")
+        self.assertContains(response, "None yet")
+        self.assertEqual(api.call_args.args[0], "/admin/moderation/assignments/summary?" + "&".join(f"moderator={i}" for i in ids))
+
+    def test_directory_degrades_when_workload_is_unavailable_or_malformed(self):
+        self.login()
+        rows, page = self.accepted_page("Ada Eze")
+        for reply in ((503, {}), (200, {"items": [], "extra": 1}),
+                      (200, {"items": [{"moderator_id": rows[0]["account_id"], "videos": -1, "reports": 0, "appeals": 0}]})):
+            with patch("web.views._api", side_effect=[(200, self.account), (200, page), reply]):
+                response = self.client.get("/admin/team/")
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, "Unavailable")
+            self.assertContains(response, "Ada Eze")
+        # No accepted moderators means no workload request at all.
+        with patch("web.views._api", side_effect=[(200, self.account), (200, self.page())]) as api:
+            self.assertNotContains(self.client.get("/admin/team/"), "Directory")
+        self.assertEqual(api.call_count, 2)
+
+    def test_invitation_code_and_email_are_cleaned_before_use(self):
+        code = secrets.token_urlsafe(48)
+        pasted = code[:20] + " \r\n " + code[20:] + "  "
+        with patch("web.views._api", return_value=(200, {"secret": pyotp.random_base32(),
+                   "expires_at": (timezone.now() + timedelta(minutes=5)).isoformat()})) as api:
+            self.client.post("/moderator-invitation/", {"email": "  reviewer@example.test ", "invitation_code": pasted,
+                                                         "password": secrets.token_urlsafe(32)})
+        sent = api.call_args.kwargs["data"]
+        self.assertEqual((sent["invitation_code"], sent["email"]), (code, "reviewer@example.test"))
 
     def test_cross_session_intent_and_missing_csrf_are_rejected(self):
         self.login()

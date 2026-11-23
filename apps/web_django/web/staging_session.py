@@ -99,9 +99,11 @@ def start(request, payload, *, mfa_verified=False):
     request.session["authenticated_role"] = account["roles"][0]
     request.session["authenticated_account"] = account["id"]
     lifetime = PRIVILEGED_ABSOLUTE
+    now = timezone.now()
+    # Shown to the user so a session never ends by surprise; the database row stays the authority.
+    request.session["session_ends_at"] = (now + lifetime).isoformat()
     request.session.set_expiry(int(lifetime.total_seconds()))
     request.session.save()
-    now = timezone.now()
     WebCredential.objects.create(
         session_key=request.session.session_key, identity_session_id=identity_session_id,
         ciphertext=_pack(access, refresh), created_at=now, last_activity_at=now,

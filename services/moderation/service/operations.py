@@ -2,6 +2,7 @@ from uuid import UUID
 
 from django.http import JsonResponse
 from django.db import transaction
+from django.db.models import Count
 from .security_audit import record
 from .models import ModeratorAssignment, Report, Appeal
 from .reviewer import denied
@@ -60,6 +61,8 @@ def assignments(operation, actor, data, content):
     Grants are idempotent: repeating the same state changes nothing and records no event.
     Administrators keep global supervision and are never given or denied a grant here.
     """
+    if operation == "assignment_summary":
+        return _summary(data["moderator_ids"])
     try:
         scope = data["scope"]
         if scope not in SCOPES:
@@ -96,3 +99,23 @@ def assignments(operation, actor, data, content):
     rows = ModeratorAssignment.objects.filter(queue_scope=scope, target_id=target, active=True)
     return JsonResponse({"scope": scope, "target_id": str(target), "items": [
         {"moderator_id": str(row)} for row in rows.order_by("moderator_id").values_list("moderator_id", flat=True)[:MAX_ASSIGNEES]]})
+
+
+MAX_SUMMARY = 50
+
+
+def _summary(value):
+    """Active grants per moderator, for workload visibility. Every requested moderator is answered."""
+    try:
+        if not isinstance(value, list) or not 1 <= len(value) <= MAX_SUMMARY:
+            raise ValueError
+        ids = [_uuid(item) for item in value]
+        if len(set(ids)) != len(ids):
+            raise ValueError
+    except (ValueError, TypeError):
+        return JsonResponse({"detail": "Invalid assignment request"}, status=400)
+    counts = {moderator: dict.fromkeys(SCOPES, 0) for moderator in ids}
+    for row in (ModeratorAssignment.objects.filter(moderator_id__in=ids, active=True)
+                .values("moderator_id", "queue_scope").annotate(total=Count("id"))):
+        counts[row["moderator_id"]][row["queue_scope"]] = row["total"]
+    return JsonResponse({"items": [{"moderator_id": str(moderator), **counts[moderator]} for moderator in sorted(ids, key=str)]})
