@@ -100,17 +100,18 @@ class RetentionTests(TestCase):
         self.assertEqual(SecurityEvent.objects.filter(kind="session.replay").count(), 1)
 
     def test_login_attempts_trigger_a_rate_limited_purge_and_a_failing_purge_never_blocks_login(self):
-        LoginThrottle.objects.create(key="a" * 64, window_started_at=self.now - timedelta(days=3))
+        first, second, wrong = self.digest(), self.digest(), secrets.token_urlsafe(24)
+        LoginThrottle.objects.create(key=first, window_started_at=self.now - timedelta(days=3))
         retention._state["at"] = None
         factory = RequestFactory()
         attempt = lambda: accounts.login(factory.post("/x", json.dumps({"email": "nobody@example.test",
-                                                                          "password": "wrong-password-1"}),
+                                                                          "password": wrong}),
                                                        content_type="application/json", REMOTE_ADDR="127.0.0.1"))
         self.assertEqual(attempt().status_code, 401)
-        self.assertFalse(LoginThrottle.objects.filter(key="a" * 64).exists())
-        LoginThrottle.objects.create(key="b" * 64, window_started_at=self.now - timedelta(days=3))
+        self.assertFalse(LoginThrottle.objects.filter(key=first).exists())
+        LoginThrottle.objects.create(key=second, window_started_at=self.now - timedelta(days=3))
         self.assertEqual(attempt().status_code, 401)
-        self.assertTrue(LoginThrottle.objects.filter(key="b" * 64).exists(), "no second purge inside the interval")
+        self.assertTrue(LoginThrottle.objects.filter(key=second).exists(), "no second purge inside the interval")
         from django.db import DatabaseError
 
         retention._state["at"] = None
