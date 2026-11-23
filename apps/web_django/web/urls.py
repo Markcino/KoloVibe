@@ -17,6 +17,7 @@ urlpatterns = [
     path("login/", views.login, name="login"),
     path("login/mfa/", views.login_mfa, name="login-mfa"),
     path("moderator-invitation/", invitation_views.accept, name="moderator-invitation"),
+    path("moderator-invitation/qr/", invitation_views.enrollment_qr, name="moderator-invitation-qr"),
     path("admin/team/", invitation_views.team, name="team"),
     path("admin/", views.dashboard, name="dashboard"),
     path("admin/moderation/previews/<uuid:preview_id>/", views.reviewer_preview, name="reviewer-preview"),

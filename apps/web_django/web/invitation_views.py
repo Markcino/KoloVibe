@@ -2,17 +2,20 @@
 
 import json
 import secrets
+from io import BytesIO
 from datetime import datetime, timedelta
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
+import segno
 from cryptography.fernet import InvalidToken
 from django.core import signing
-from django.http import HttpResponseNotAllowed
+from django.http import HttpResponse, HttpResponseNotAllowed, HttpResponseNotFound
 from django.middleware.csrf import rotate_token
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
+from django.views.decorators.http import require_GET
 
 from . import staging_session, views
 from .invitation_contracts import identifier, valid_page, valid_receipt, valid_setup, valid_complete
@@ -95,6 +98,34 @@ def pending(request):
     except (InvalidToken, ValueError, TypeError, AttributeError, KeyError, UnicodeError):
         request.session.pop(PENDING, None)
         return None
+
+
+
+@never_cache
+@require_GET
+def enrollment_qr(request):
+    """Render the temporary TOTP provisioner on the same origin, never via an external QR service.
+
+    The image URL contains no MFA seed or invitation proof. The encrypted
+    server-side session is the only source, and an expired setup returns 404.
+    """
+    state = pending(request)
+    if state is None:
+        return HttpResponseNotFound()
+    label = "KoloVibe:" + quote(state["email"], safe="")
+    query = urlencode({
+        "secret": state["secret"],
+        "issuer": "KoloVibe",
+        "algorithm": "SHA1",
+        "digits": "6",
+        "period": "30",
+    })
+    provisioner = "otpauth://totp/" + label + "?" + query
+    image = BytesIO()
+    segno.make_qr(provisioner, error="M").save(image, kind="png", scale=5, border=4)
+    response = HttpResponse(image.getvalue(), content_type="image/png")
+    response["Content-Disposition"] = 'inline; filename="kolovibe-authenticator.png"'
+    return response
 
 
 @never_cache

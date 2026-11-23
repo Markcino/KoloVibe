@@ -19,7 +19,7 @@ RUN set -eux; \
     rm -rf "$pydir"/sqlite3 "$pydir"/lib-dynload/_sqlite3*; \
     if apk list -I | grep -qi sqlite; then exit 1; fi; \
     if python -c 'import sqlite3' 2>/dev/null; then exit 1; fi; \
-    python -c 'import django, gunicorn, psycopg, cryptography.fernet, ssl'; python -m pip check
+    python -c 'import django, gunicorn, psycopg, cryptography.fernet, segno, ssl'; python -m pip check
 
 COPY --chown=10001:10001 apps/web_django/ /app/web/
 USER 10001:10001
