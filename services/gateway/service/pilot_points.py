@@ -9,13 +9,10 @@ from django.http import JsonResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
 
+from .responses import error_response as error
 from .creator_onboarding import authenticated_actor, creator_ownership
 from .creators import read_creator
 from .internal_client import signed_internal_request
-
-
-def error(detail, status):
-    return JsonResponse({"detail": detail}, status=status)
 
 
 def _forward(service, path, payload, validate):
