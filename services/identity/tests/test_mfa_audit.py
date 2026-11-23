@@ -128,6 +128,47 @@ class MfaAuditTests(TestCase):
             self.assertEqual(self.verify(challenge, current_code).status_code, 200)
         self.assertEqual(TotpFactor.objects.get().last_step, int(boundary.timestamp()) // 30)
 
+    def challenge_from(self, origin):
+        """A fresh challenge via a different network origin, as an attacker rotating addresses would obtain."""
+        response = self.factory.post("/internal/auth/test", json.dumps(
+            {"email": self.account.email, "password": self.password}),
+            content_type="application/json", REMOTE_ADDR=origin)
+        response = accounts.login(response)
+        self.assertEqual(response.status_code, 202)
+        return json.loads(response.content)["challenge_token"]
+
+    def test_account_level_lock_stops_guessing_across_challenges_and_origins(self):
+        """Per-challenge and per-origin limits alone allow unlimited guesses against one account."""
+        for number in range(2):
+            challenge = self.challenge_from(f"198.51.100.{number + 1}")
+            for _ in range(5):
+                self.assertEqual(self.verify(challenge, "000000").status_code, 401)
+            self.assertEqual(self.verify(challenge, "000000").status_code, 429)
+        # Ten failures across two challenges and two origins: the account is now locked for MFA ...
+        challenge = self.challenge_from("198.51.100.3")
+        locked = self.verify(challenge)  # even the correct code
+        self.assertEqual(locked.status_code, 429)
+        self.assertFalse(LoginSession.objects.exists())
+        self.assertNotIn(b"access_token", locked.content)
+        self.assertTrue(SecurityEvent.objects.filter(kind="login.throttled", actor_id=self.account.id).exists())
+        # ... and the lock is bounded: it expires with its window.
+        later = self.now + timedelta(minutes=16)
+        with patch("service.mfa.time.time", return_value=later.timestamp()), \
+                patch("django.utils.timezone.now", return_value=later):
+            fresh = self.challenge_from("198.51.100.4")
+            self.assertEqual(self.verify(fresh, pyotp.TOTP(self.factor).at(later)).status_code, 200)
+
+    def test_failures_below_the_lock_never_block_and_success_clears_the_count(self):
+        for round_number in range(3):
+            challenge = self.challenge_from(f"203.0.113.{round_number + 1}")
+            for _ in range(4):
+                self.assertEqual(self.verify(challenge, "000000").status_code, 401)
+            # Twelve failures in total across the rounds would lock the account; each success resets the count.
+            with patch("service.mfa.time.time", return_value=self.now.timestamp() + 30 * round_number):
+                code = pyotp.TOTP(self.factor).at(self.now.timestamp() + 30 * round_number)
+                self.assertEqual(self.verify(challenge, code).status_code, 200)
+        self.assertEqual(LoginSession.objects.count(), 3)
+
     def test_challenge_expiry_role_changes_and_attempt_limit(self):
         challenge = self.challenge()
         for _ in range(5):

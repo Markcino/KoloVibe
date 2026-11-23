@@ -19,6 +19,10 @@ from .security_audit import record
 logger = logging.getLogger(__name__)
 PRIVILEGED = {Account.Role.MODERATOR, Account.Role.ADMINISTRATOR}
 PRIVILEGED_SECONDS = 900
+# Per-challenge (5) and per-origin login limits do not bound guessing against one account: an attacker holding the
+# password can obtain challenges from many origins. The account-level lock caps total failures across all of them.
+MFA_ACCOUNT_FAILURES = 10
+MFA_ACCOUNT_WINDOW = timedelta(minutes=15)
 
 
 def cipher():
@@ -89,7 +93,7 @@ def challenge(account, throttle_key):
 
 @require_POST
 def verify_mfa(request):
-    from .accounts import _body, _digest, _error, _issue
+    from .accounts import _body, _bucket_add, _bucket_full, _digest, _error, _guard_key, _issue
     if not privileged_enabled():
         return _error("Privileged access unavailable", 403)
     try:
@@ -110,15 +114,22 @@ def verify_mfa(request):
                 return _error("Invalid MFA challenge", 401)
             if item.failures >= 5:
                 return _error("Too many MFA attempts", 429)
+            account_key = _guard_key("mfa-account", str(item.account_id))
+            if _bucket_full(account_key, MFA_ACCOUNT_FAILURES, now, MFA_ACCOUNT_WINDOW):
+                # Refused before the code is examined, so a correct guess cannot end the lock early.
+                record("login.throttled", item.account_id)
+                return _error("Too many MFA attempts", 429)
             method = consume_factor(item.account, code)
             if method is None:
                 item.failures += 1
                 item.save(update_fields=["failures"])
+                _bucket_add(account_key, now, MFA_ACCOUNT_WINDOW)
                 record("mfa.failed", item.account_id)
                 return _error("Invalid MFA code", 401)
             item.used_at = now
             item.save(update_fields=["used_at"])
             LoginThrottle.objects.filter(key=item.throttle_key).update(failures=0)
+            LoginThrottle.objects.filter(key=account_key).update(failures=0)
             session = LoginSession.objects.create(
                 account=item.account, authenticated_role=item.role, mfa_verified_at=now,
                 refresh_digest=_digest(secrets.token_urlsafe(48)),
