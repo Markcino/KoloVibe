@@ -103,6 +103,16 @@ class WatchTests(TestCase):
         self.assertEqual(QualifiedWatch.objects.count(), 2)
         self.assertEqual(self.event.call_count, 2)
 
+    def test_a_creator_cannot_qualify_views_of_their_own_video(self):
+        """Self-engagement is rejected by the owning service itself, not only by the gateway that normally prevents it."""
+        own = self.asset | {"creator_user_id": self.asset["account_id"]}
+        self.assertEqual(self.call("start", own).status_code, 403)
+        self.assertFalse(WatchSession.objects.exists(), "no session is issued")
+        progress = own | {"session_id": str(uuid4()), "position_ms": 2500}
+        self.assertEqual(self.call("progress", progress).status_code, 403)
+        self.assertFalse(QualifiedWatch.objects.exists())
+        self.event.assert_not_called()
+
     def test_clients_cannot_submit_qualification_points_or_a_watch_timestamp(self):
         for field, value in (("qualified", True), ("points", 999), ("qualified_at", self.now.isoformat()),
                              ("watched_ms", 30000), ("amount", 1)):

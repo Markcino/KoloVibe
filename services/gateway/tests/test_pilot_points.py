@@ -56,6 +56,16 @@ class PilotGatewayTests(SimpleTestCase):
         self.assertEqual(watch(self.factory.post("/watch", b"", content_type="application/json"), self.video).status_code, 403)
         self.peer.assert_not_called()
 
+    @patch("service.pilot_points.read_creator")
+    @patch("service.media.forward_media")
+    def test_self_views_are_refused_for_progress_as_well_as_start_before_engagement_is_called(self, media, owner):
+        media.return_value = JsonResponse({"creator_id": self.creator, "duration_ms": 2130, "revision": 1})
+        owner.return_value = JsonResponse({"user_id": self.account})  # the signed-in viewer is the video's creator
+        body = {"video_id": str(self.video), "session_id": self.session, "position_ms": 2000}
+        response = watch(self.factory.post("/watch", body, content_type="application/json"))
+        self.assertEqual(response.status_code, 403)
+        self.peer.assert_not_called()
+
     @patch("service.pilot_points.creator_ownership")
     def test_points_rejects_foreign_creator_and_client_account_override(self, ownership):
         ownership.return_value = JsonResponse({"creator_id": self.creator, "upload_eligible": True})
