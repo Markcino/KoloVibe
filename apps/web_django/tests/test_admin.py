@@ -392,6 +392,32 @@ class AdminConsoleTests(TestCase):
             self.assertEqual(self.client.get("/admin/").status_code, 503)
 
 
+    def test_natural_console_addresses_lead_to_the_dashboard_guard(self):
+        for path in ("/moderator/", "/dashboard/"):
+            with patch("web.views._api") as api:
+                response = self.client.get(path)
+            self.assertRedirects(response, "/admin/", fetch_redirect_response=False)
+            api.assert_not_called()
+        # Anonymous visitors then reach sign-in; the redirect grants nothing by itself.
+        self.assertRedirects(self.client.get("/admin/"), "/login/", fetch_redirect_response=False)
+
+    def test_error_pages_explain_the_problem_and_offer_a_way_back_without_leaking(self):
+        expected = {404: "Page not found", 403: "You don&#x27;t have access to this page"}
+        for status, title in expected.items():
+            self.login("moderator")
+            gateway = (status, {"detail": "private-host secret-token"})
+            with patch("web.views._api", side_effect=[(200, self.account), gateway]):
+                response = self.client.get("/admin/moderation/reports/")
+            self.assertEqual(response.status_code, status)
+            self.assertContains(response, title, status_code=status)
+            self.assertContains(response, f"Error {status}", status_code=status)
+            self.assertContains(response, 'href="/admin/">Go to dashboard', status_code=status)
+            self.assertNotContains(response, "secret-token", status_code=status)
+            self.assertNotContains(response, "Request unavailable", status_code=status)
+        missing = self.client.get("/no-such-page/")
+        self.assertContains(missing, "Page not found", status_code=404)
+        self.assertContains(missing, "Go to dashboard", status_code=404)
+
     def test_unassigned_moderator_sees_empty_state_not_an_error(self):
         self.login("moderator")
         denied = (403, {"detail": "Resource unavailable"})

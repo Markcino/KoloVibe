@@ -95,13 +95,20 @@ def _api(path, *, method="GET", data=None, token=None, idempotency_key=None, bin
     return status, payload
 
 
+# Fixed copy per status. It never echoes gateway bodies and names no resource, so it cannot enumerate anything.
+ERROR_COPY = {
+    400: ("We couldn't process that request", "Something in the request wasn't valid. Go back and try again."),
+    403: ("You don't have access to this page", "Your account isn't permitted to open this page. Return to the dashboard, or sign in with a different account."),
+    404: ("Page not found", "This page doesn't exist or is no longer available. Return to the dashboard to continue."),
+    503: ("Something went wrong", "This request couldn't be completed right now. Try again in a moment, or sign in again if it continues."),
+}
+
+
 @never_cache
 def error_page(request, exception=None, status=503):
     # One non-enumerating message. Never render gateway response bodies.
-    return render(request, "status.html", {
-        "title": "Request unavailable",
-        "message": "This request cannot be completed. Sign in again or return to the dashboard.",
-    }, status=status)
+    title, message = ERROR_COPY.get(status, ERROR_COPY[503])
+    return render(request, "status.html", {"title": title, "message": message, "code": status}, status=status)
 
 
 def error_400(request, exception=None):

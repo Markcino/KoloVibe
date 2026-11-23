@@ -1,3 +1,14 @@
-{% extends 'base.html' %}
-{% block title %}Request status · KoloVibe{% endblock %}
-{% block content %}<section class="notice" role="status"><h1>{{ title }}</h1><p>{{ message }}</p><p><a class="button button-tonal" href="{% url 'login' %}">Sign in</a> <a class="button button-outline" href="{% url 'dashboard' %}">Dashboard</a></p></section>{% endblock %}
+{% extends 'base.html' %}{% load static %}
+{% block title %}{{ title }} · KoloVibe{% endblock %}
+{% block shell %}
+<main id="main" class="auth-main" tabindex="-1">
+  <section class="auth-card status-card" aria-labelledby="status-title" role="status">
+    <img class="auth-logo" src="{% static 'images/landscape_logo_with_name.svg' %}" alt="KoloVibe">
+    <span class="status-icon">{% include 'icon.html' with name='alert' %}</span>
+    {% if code %}<p class="eyebrow">Error {{ code }}</p>{% endif %}
+    <h1 id="status-title">{{ title }}</h1>
+    {% if message %}<p class="supporting-text">{{ message }}</p>{% endif %}
+    <div class="status-actions"><a class="button" href="{% url 'dashboard' %}">Go to dashboard</a><a class="button button-outline" href="{% url 'login' %}">Sign in</a></div>
+  </section>
+</main>
+{% endblock %}

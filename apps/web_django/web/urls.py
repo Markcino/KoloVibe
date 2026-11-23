@@ -1,4 +1,5 @@
 from django.urls import path
+from django.views.generic import RedirectView
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
 
@@ -15,6 +16,9 @@ urlpatterns = [
     path("health/live", require_GET(lambda request: JsonResponse({"status": "ok"})), name="web-liveness"),
     path("static/<path:asset>", views.static_asset, name="web-static"),
     path("", views.root, name="root"),
+    # Natural addresses people try; the console itself lives under /admin/.
+    path("moderator/", RedirectView.as_view(pattern_name="dashboard"), name="moderator-home"),
+    path("dashboard/", RedirectView.as_view(pattern_name="dashboard"), name="dashboard-alias"),
     path("login/", views.login, name="login"),
     path("login/mfa/", views.login_mfa, name="login-mfa"),
     path("moderator-invitation/", invitation_views.accept, name="moderator-invitation"),
