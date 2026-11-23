@@ -55,14 +55,20 @@ def dispatch_one(celery_app):
                     durable=True,
                     no_declare=True,
                 )
+                # Celery selects amq.default for direct queues when no explicit
+                # exchange/routing_key is supplied. The Engagement user is only
+                # permitted to WRITE to the pre-provisioned Points exchange.
+                publish_options = {"exchange": "kolovibe.points", "routing_key": "kolovibe.points"}
             else:
                 task_name, queue = TASK_NAME, f"kolovibe.{SERVICE}"
+                publish_options = {}
             celery_app.send_task(
                 task_name,
                 args=[str(ident), event_type, payload],
                 queue=queue,
                 task_id=str(ident),
                 delivery_mode=2,
+                **publish_options,
             )
             cur.execute(
                 "UPDATE event_outbox SET published_at = now(), attempts = attempts + 1 "
