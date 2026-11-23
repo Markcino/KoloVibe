@@ -69,6 +69,36 @@ def _accepted_keys(caller, secret_file):
     return None if value is None else (value if isinstance(value, list) else [value])
 
 
+# A signed request is accepted for 60 seconds, so a nonce older than the retention below can never match a valid
+# timestamp and is safe to forget. Without this the table grows by one row per internal request, forever.
+NONCE_RETENTION_MINUTES = 10
+NONCE_PURGE_INTERVAL = 60.0  # seconds, per process
+NONCE_PURGE_BATCH = 5000
+_nonce_purge = {"at": None}
+
+
+def _purge_expired_nonces():
+    """Delete one bounded batch of expired nonces, at most once a minute; never fails a valid request."""
+    now = time.monotonic()
+    if _nonce_purge["at"] is not None and now - _nonce_purge["at"] < NONCE_PURGE_INTERVAL:
+        return
+    _nonce_purge["at"] = now
+    try:
+        with transaction.atomic(), connection.cursor() as cursor:
+            if connection.vendor == "postgresql":
+                cursor.execute(
+                    "DELETE FROM internal_request_nonce WHERE ctid IN (SELECT ctid FROM internal_request_nonce "
+                    "WHERE received_at < CURRENT_TIMESTAMP - make_interval(mins => %s) LIMIT %s)",
+                    [NONCE_RETENTION_MINUTES, NONCE_PURGE_BATCH])
+            else:
+                cursor.execute(
+                    "DELETE FROM internal_request_nonce WHERE rowid IN (SELECT rowid FROM internal_request_nonce "
+                    "WHERE received_at < datetime('now', %s) LIMIT %s)",
+                    [f"-{int(NONCE_RETENTION_MINUTES)} minutes", NONCE_PURGE_BATCH])
+    except DatabaseError:
+        logging.getLogger(__name__).error("Internal nonce purge unavailable")
+
+
 class ServiceAuthMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
@@ -122,6 +152,7 @@ class ServiceAuthMiddleware:
         except DatabaseError:
             logging.getLogger(__name__).error("Internal nonce database unavailable")
             return JsonResponse({"detail": "Service unavailable"}, status=503)
+        _purge_expired_nonces()
         request.service_caller = caller
         return self.get_response(request)
 # END shared service-identity verifier
