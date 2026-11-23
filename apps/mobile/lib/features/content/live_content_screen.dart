@@ -30,11 +30,19 @@ class _LiveContentScreenState extends State<LiveContentScreen> {
   bool _loading = false;
   bool _loaded = false;
   String _filter = 'all';
+  String _query = '';
+  final _search = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _load(reset: true);
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
   }
 
   Future<void> _load({bool reset = false}) async {
@@ -48,8 +56,10 @@ class _LiveContentScreenState extends State<LiveContentScreen> {
       }
     });
     try {
-      final page =
-          await widget.repository.library(cursor: _cursor, state: _filter);
+      final page = await widget.repository.library(
+          cursor: _cursor,
+          state: _filter,
+          query: _query.isEmpty ? null : _query);
       if (!mounted) return;
       final known = _items.map((video) => video.id).toSet();
       if (page.items.any((video) => known.contains(video.id))) {
@@ -218,6 +228,25 @@ class _LiveContentScreenState extends State<LiveContentScreen> {
                 onPressed: () => _manage(video), child: const Text('Manage')),
       ]));
 
+  /// Runs the search the creator typed; blank input clears it. The service validates length and characters again.
+  void _submitSearch(String value) {
+    final text = value.trim();
+    if (text == _query || _loading) return;
+    if (text.length > 100 || text.runes.any((rune) => rune < 32)) {
+      _notify('Search must be 1 to 100 characters.');
+      return;
+    }
+    _query = text;
+    _load(reset: true);
+  }
+
+  void _clearSearch() {
+    _search.clear();
+    if (_query.isEmpty) return;
+    _query = '';
+    _load(reset: true);
+  }
+
   void _setFilter(String value) {
     if (_filter == value) return;
     _filter = value;
@@ -234,6 +263,22 @@ class _LiveContentScreenState extends State<LiveContentScreen> {
           child: ListView(
               padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
               children: [
+                TextField(
+                  controller: _search,
+                  textInputAction: TextInputAction.search,
+                  maxLength: 100,
+                  onSubmitted: _submitSearch,
+                  decoration: InputDecoration(
+                    labelText: 'Search my videos',
+                    counterText: '',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: IconButton(
+                        tooltip: 'Clear search',
+                        icon: const Icon(Icons.close),
+                        onPressed: _clearSearch),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 Wrap(spacing: 8, runSpacing: 4, children: [
                   for (final (label, value) in const [
                     ('All', 'all'),
@@ -259,7 +304,10 @@ class _LiveContentScreenState extends State<LiveContentScreen> {
                     child: Semantics(liveRegion: true, child: Text(_error!)),
                   ),
                 if (_loaded && _items.isEmpty && !_loading && _error == null)
-                  const Center(child: Text('You have no videos yet.')),
+                  Center(
+                      child: Text(_query.isEmpty
+                          ? 'You have no videos yet.'
+                          : 'No videos match "$_query".')),
                 for (final video in _items) _row(video),
                 if (_loading && _loaded)
                   const Center(child: CircularProgressIndicator()),

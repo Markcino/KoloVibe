@@ -355,6 +355,36 @@ void main() {
       expect(page.items.single.category, 'culture');
     });
 
+    test('library search is trimmed, sent with the filter, and validated first',
+        () async {
+      final queries = <Map<String, String>>[];
+      final account = LiveAccountRepository(
+          ApiClient('https://api.example.test/api/v1',
+              client: MockClient((request) async {
+            if (request.url.path.endsWith('/auth/refresh')) {
+              return http.Response(
+                  jsonEncode({'access_token': 'a', 'refresh_token': 'r'}), 200);
+            }
+            queries.add(request.url.queryParameters);
+            return http.Response(
+                jsonEncode({'items': <Object>[], 'next_cursor': null}), 200);
+          })),
+          _Credentials());
+      final repository = LiveContentRepository(account);
+      await repository.library(query: '  river  ', state: 'published');
+      await repository.library();
+      expect(queries, [
+        {'state': 'published', 'q': 'river'},
+        <String, String>{},
+      ]);
+      queries.clear();
+      for (final bad in ['', '   ', 'x' * 101, 'bad\u0001query']) {
+        await expectLater(repository.library(query: bad), throwsFormatException,
+            reason: bad);
+      }
+      expect(queries, isEmpty, reason: 'invalid searches never reach the API');
+    });
+
     test('draft requires a known category before any request is made',
         () async {
       var calls = 0;

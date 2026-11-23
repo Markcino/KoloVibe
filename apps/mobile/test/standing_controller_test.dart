@@ -137,7 +137,8 @@ class _Library extends LiveContentRepository {
   int reads = 0;
 
   @override
-  Future<OwnedVideoPage> library({String? cursor, String state = 'all'}) async {
+  Future<OwnedVideoPage> library(
+      {String? cursor, String state = 'all', String? query}) async {
     reads++;
     final start =
         cursor == null ? 0 : videos.indexWhere((v) => v.id == cursor) + 1;

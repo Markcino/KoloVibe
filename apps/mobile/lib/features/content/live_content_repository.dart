@@ -401,10 +401,20 @@ class LiveContentRepository {
     return VideoUploadStatus.fromJson(result, videoId);
   }
 
-  /// [state] is one of the service's library filters; `all` sends none.
-  Future<OwnedVideoPage> library({String? cursor, String state = 'all'}) async {
+  /// [state] is one of the service's library filters; `all` sends none. [query] searches the creator's own
+  /// videos by title or description; the service applies it to the caller's own non-deleted videos only, and the
+  /// same value (and state) must be reused while following a cursor.
+  Future<OwnedVideoPage> library(
+      {String? cursor, String state = 'all', String? query}) async {
     if (cursor != null && !isApiId(cursor)) {
       throw const FormatException('Invalid video cursor');
+    }
+    final search = query?.trim();
+    if (search != null &&
+        (search.isEmpty ||
+            search.length > 100 ||
+            search.runes.any((rune) => rune < 32))) {
+      throw const FormatException('Invalid library search');
     }
     if (!const {
       'all',
@@ -422,6 +432,7 @@ class LiveContentRepository {
         await account.authenticatedRequest('/creators/me/videos', query: {
       if (cursor != null) 'cursor': cursor,
       if (state != 'all') 'state': state,
+      if (search != null) 'q': search,
     });
     final entries = raw['items'];
     final next = raw['next_cursor'];

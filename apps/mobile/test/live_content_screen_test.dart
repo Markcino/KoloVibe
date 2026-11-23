@@ -34,10 +34,21 @@ class _ContentFixture extends LiveContentRepository {
     ),
   ];
 
+  /// Every library read: the filter and search the screen actually sent.
+  final reads = <({String state, String? query})>[];
+
   @override
   Future<OwnedVideoPage> library(
-          {String? cursor, String state = 'all'}) async =>
-      OwnedVideoPage(List.of(videos), null);
+      {String? cursor, String state = 'all', String? query}) async {
+    reads.add((state: state, query: query));
+    final needle = query?.toLowerCase();
+    return OwnedVideoPage(
+        videos
+            .where((video) =>
+                needle == null || video.title.toLowerCase().contains(needle))
+            .toList(),
+        null);
+  }
 
   @override
   Future<void> deleteDraft(OwnedVideo video) async =>
@@ -119,5 +130,48 @@ void main() {
     final route = pushed.last.arguments as ScreenRoute;
     expect(route.screen, 53);
     expect(route.entityId, '00000000-0000-4000-8000-000000000101');
+  });
+
+  testWidgets(
+      'searching the library sends the trimmed query with the chosen filter, '
+      'distinguishes no matches from no videos, and clearing restores the list',
+      (tester) async {
+    final repository = _ContentFixture();
+    await tester.pumpWidget(MaterialApp(
+      home: LiveContentScreen(
+        route: const ScreenRoute(40),
+        catalog: catalog,
+        repository: repository,
+      ),
+    ));
+    await tester.pumpAndSettle();
+    expect(repository.reads.last, (state: 'all', query: null));
+    expect(find.bySemanticsLabel('Search my videos'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), '  RIVER  ');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    expect(repository.reads.last, (state: 'all', query: 'RIVER'));
+    expect(find.text('My draft'), findsNothing);
+    expect(find.text('No videos match "RIVER".'), findsOneWidget);
+    expect(find.text('You have no videos yet.'), findsNothing);
+
+    // The filter and the search compose, and neither drops the other.
+    await tester.tap(find.text('Published'));
+    await tester.pumpAndSettle();
+    expect(repository.reads.last, (state: 'published', query: 'RIVER'));
+
+    await tester.tap(find.byTooltip('Clear search'));
+    await tester.pumpAndSettle();
+    expect(repository.reads.last, (state: 'published', query: null));
+    expect(find.text('My draft'), findsOneWidget);
+
+    // Submitting the same text twice, or blank text, does not re-read or search.
+    final reads = repository.reads.length;
+    await tester.enterText(find.byType(TextField), '   ');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    expect(repository.reads.length, reads);
+    expect(tester.takeException(), isNull);
   });
 }
