@@ -4,6 +4,7 @@ from django.views.decorators.http import require_GET
 
 from . import views
 from . import invitation_views
+from . import assignment_views
 
 handler400 = views.error_400
 handler403 = views.error_403
@@ -35,4 +36,6 @@ for kind in ("videos", "reports", "appeals"):
         path(f"admin/moderation/{kind}/", views.moderation_queue, {"kind": kind}, name=f"moderation-{kind}"),
         path(f"admin/moderation/{kind}/<uuid:target_id>/", views.moderation_detail,
              {"kind": kind}, name=f"moderation-{kind}-detail"),
+        path(f"admin/moderation/{kind}/<uuid:target_id>/assignments/", assignment_views.assign,
+             {"kind": kind}, name=f"moderation-{kind}-assign"),
     ]

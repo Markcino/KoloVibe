@@ -38,9 +38,13 @@ FIELDS = {
     "own_report": {"target_id"}, "own_appeal": {"target_id"},
     "video_detail": {"target_id"}, "report_detail": {"target_id"}, "appeal_detail": {"target_id"},
     "preview": {"preview_id"}, "totals": set(), "fraud_scope": set(),
+    "assignment_list": {"scope", "target_id"}, "assignment_set": {"scope", "target_id", "moderator_id", "active"},
     "notice": {"video_id", "creator_id"}, "standing": {"creator_id"},
     **{operation: {"target_id", "action", "reason", "key"} for operation in DECISIONS},
 }
+
+
+ASSIGNMENT_OPERATIONS = {"assignment_list", "assignment_set"}
 
 
 class ContentUnavailable(Exception):
@@ -442,8 +446,15 @@ def moderation_workflow(request, operation):
             raise ValueError("Invalid moderation operation")
         allowed = ({"creator"} if operation in {"notice", "copyright_status", "counter_notice"} else VIEWERS | REVIEWERS if operation == "standing" else VIEWERS if operation in ("appeal", "own_appeals", "own_appeal") else
                    VIEWERS | REVIEWERS if operation in ("report", "copyright_report", "own_reports", "own_report") else REVIEWERS)
+        if operation in ASSIGNMENT_OPERATIONS:
+            allowed = {"administrator"}
         if role not in allowed:
             return _error("Forbidden", 403)
+        if operation in ASSIGNMENT_OPERATIONS:
+            if envelope.get("mfa_verified") is not True:
+                return _error("MFA-verified reviewer session required", 403)
+            from .operations import assignments
+            return assignments(operation, actor, data, _content)
         if operation in DECISIONS or operation in {"review_queue", "reports", "appeals", "video_detail", "report_detail", "appeal_detail", "preview", "totals", "fraud_scope"}:
             if envelope.get("mfa_verified") is not True:
                 return _error("MFA-verified reviewer session required", 403)

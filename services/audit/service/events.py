@@ -31,7 +31,7 @@ KINDS = {
 PRODUCER_KINDS = {
     "identity": KINDS,
     "moderation": {"moderation.report_created", "moderation.appeal_created", "moderation.decision_recorded",
-                   "moderation.decision_applied", "moderation.decision_conflicted", "moderation.assignment_denied", "moderation.reviewer_read", "moderation.preview_read", "moderation.totals_read", "moderation.fraud_scope_read", "moderation.counter_notice_created", "moderation.copyright_status_read"},
+                   "moderation.decision_applied", "moderation.decision_conflicted", "moderation.assignment_denied", "moderation.assignment_changed", "moderation.reviewer_read", "moderation.preview_read", "moderation.totals_read", "moderation.fraud_scope_read", "moderation.counter_notice_created", "moderation.copyright_status_read"},
     "creators": {"creator.invited", "creator.application_submitted", "creator.approved", "creator.rejected",
                  "creator.profile_updated", "creator.restricted", "creator.suspended", "creator.restored"},
     "content": {"video.created", "video.updated", "video.upload_intent_created", "video.upload_completed",

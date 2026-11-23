@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from django.http import JsonResponse
 from django.db import transaction
 from .security_audit import record
@@ -37,3 +39,60 @@ def operational_read(operation, actor, role, content):
     return JsonResponse({"videos": counts, "reports": {state: reports.filter(status=state).count()
         for state in ("open", "resolved", "dismissed")}, "appeals": {state: appeals.filter(status=state).count()
         for state in ("open", "denied", "restored")}})
+
+
+SCOPES = {"videos", "reports", "appeals"}
+MAX_ASSIGNEES = 100
+
+
+def _uuid(value):
+    if not isinstance(value, str):
+        raise ValueError
+    parsed = UUID(value)
+    if str(parsed) != value:
+        raise ValueError
+    return parsed
+
+
+def assignments(operation, actor, data, content):
+    """Administrator-only explicit grants. A grant names one moderator and one resource.
+
+    Grants are idempotent: repeating the same state changes nothing and records no event.
+    Administrators keep global supervision and are never given or denied a grant here.
+    """
+    try:
+        scope = data["scope"]
+        if scope not in SCOPES:
+            raise ValueError
+        target = _uuid(data["target_id"])
+        if operation == "assignment_set":
+            moderator, active = _uuid(data["moderator_id"]), data["active"]
+            if type(active) is not bool or moderator == actor:
+                raise ValueError
+    except (ValueError, TypeError, KeyError):
+        return JsonResponse({"detail": "Invalid assignment request"}, status=400)
+    if scope == "reports":
+        exists = Report.objects.filter(pk=target).exists()
+    elif scope == "appeals":
+        exists = Appeal.objects.filter(pk=target).exists()
+    else:
+        exists = content("detail", {"video_id": str(target)}) is not None
+    if not exists:
+        return JsonResponse({"detail": "Resource unavailable"}, status=404)
+    if operation == "assignment_set":
+        result = {"scope": scope, "target_id": str(target), "moderator_id": str(moderator), "active": active}
+        with transaction.atomic():
+            grant = ModeratorAssignment.objects.select_for_update().filter(
+                moderator_id=moderator, queue_scope=scope, target_id=target).first()
+            if grant is None and active:
+                ModeratorAssignment.objects.create(moderator_id=moderator, queue_scope=scope, target_id=target)
+            elif grant is not None and grant.active != active:
+                grant.active = active
+                grant.save(update_fields=["active"])
+            else:
+                return JsonResponse(result)
+            record("moderation.assignment_changed", actor, "account", moderator)
+        return JsonResponse(result)
+    rows = ModeratorAssignment.objects.filter(queue_scope=scope, target_id=target, active=True)
+    return JsonResponse({"scope": scope, "target_id": str(target), "items": [
+        {"moderator_id": str(row)} for row in rows.order_by("moderator_id").values_list("moderator_id", flat=True)[:MAX_ASSIGNEES]]})

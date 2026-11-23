@@ -13,7 +13,7 @@ def patterns():
         return audit_routes
     from ..moderation import moderation_endpoint
     from ..standing import standing
-    from ..admin_reads import fraud_holds
+    from ..admin_reads import fraud_holds, moderation_assignments
 
     routes = [
         path("api/v1/copyright/reports", moderation_endpoint, {"operation": "copyright_report"}),
@@ -21,6 +21,7 @@ def patterns():
         path("api/v1/creators/me/copyright", moderation_endpoint, {"operation": "copyright_status"}),
         path("api/v1/moderation/totals", moderation_endpoint, {"operation": "totals"}),
         path("api/v1/engagement/fraud-holds", fraud_holds),
+        path("api/v1/admin/moderation/assignments", moderation_assignments),
         path("api/v1/me/standing", standing, name="own-standing"),
         path("api/v1/creators/me/videos/<uuid:target_id>/notice", moderation_endpoint,
              {"operation": "notice"}, name="own-video-notice"),

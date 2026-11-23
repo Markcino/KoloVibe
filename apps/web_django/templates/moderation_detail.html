@@ -15,4 +15,21 @@
   <p id="reason-help">Give a reason of 10 to 2,000 characters. This decision is recorded.</p>
   <button type="submit">Submit decision</button>
 </form></section>
+{% if assignments %}
+<section class="panel" id="assignments" aria-labelledby="assignments-title"><div class="section-heading"><div><p class="eyebrow">Access</p><h2 id="assignments-title">Moderator assignments</h2></div>{% if assignments.available %}<span class="status-chip">{{ assignments.assigned|length }} assigned</span>{% endif %}</div>
+{% if assignments.notice == 'assigned' %}<p class="notice" role="status">Moderator assigned. They can now review this item.</p>{% elif assignments.notice == 'revoked' %}<p class="notice" role="status">Assignment revoked. Access ends immediately.</p>{% endif %}
+{% if not assignments.available %}<p class="notice error" role="alert">Assignments are unavailable right now. Try again later.</p>
+{% else %}
+<p class="supporting-text">Moderators see and decide only items assigned to them. Administrators keep access to everything. Each change is recorded in the audit log.</p>
+<ul class="assignee-list" aria-label="Assigned moderators">
+{% for person in assignments.assigned %}<li class="assignee-row"><span class="avatar">{{ person.name|default:'?'|slice:':1'|upper }}</span><span class="row-copy"><strong>{{ person.name|default:'Moderator' }}</strong><small>{{ person.id|slice:':8' }}</small></span>
+<form method="post" action="{{ assignments.action }}">{% csrf_token %}<input type="hidden" name="intent" value="{{ assignments.intent }}"><input type="hidden" name="moderator_id" value="{{ person.id }}"><input type="hidden" name="active" value="0"><button class="button-outline" type="submit">Revoke</button></form></li>
+{% empty %}<li class="empty-state"><h3>No moderators assigned</h3><p>Assign a moderator so this item appears in their queue.</p></li>{% endfor %}
+</ul>
+{% if assignments.candidates %}<form class="assign-form" method="post" action="{{ assignments.action }}">{% csrf_token %}<input type="hidden" name="intent" value="{{ assignments.intent }}"><input type="hidden" name="active" value="1">
+<label>Moderator<select name="moderator_id" required><option value="">Select a moderator</option>{% for person in assignments.candidates %}<option value="{{ person.id }}">{{ person.name }}</option>{% endfor %}</select></label>
+<button type="submit">Assign moderator</button></form>
+{% else %}<p class="supporting-text">{% if assignments.assigned %}Every invited moderator is already assigned.{% else %}No moderators have joined yet. <a href="{% url 'team' %}">Invite a moderator</a>.{% endif %}</p>{% endif %}
+{% endif %}</section>
+{% endif %}
 {% endblock %}

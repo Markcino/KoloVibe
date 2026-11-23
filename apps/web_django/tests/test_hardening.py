@@ -59,7 +59,7 @@ class WebHardeningTests(TestCase):
         value["reports"] = [{"id": str(uuid4()), "video_id": self.target, "reason": "other", "details": "<script>report</script>", "status": "open", "created_at": "2026-11-21T10:00:00Z"}]
         value["decisions"] = [{"id": str(uuid4()), "action": "reject", "status": "applied", "reason": "<script>reason</script>", "created_at": "2026-11-21T10:00:00Z"}]
         value["preview"] = {"id": self.target, "url": "/api/v1/moderation/previews/" + self.target, "expires_at": "2026-11-21T10:01:00Z"}
-        with patch("web.views._api", side_effect=[(200, self.account), (200, value)]):
+        with patch("web.views._api", side_effect=[(200, self.account), (200, value), (503, {})]):
             response = self.client.get(f"/admin/moderation/videos/{self.target}/")
         self.assertContains(response, "&lt;script&gt;report&lt;/script&gt;")
         self.assertContains(response, "&lt;script&gt;reason&lt;/script&gt;")
@@ -100,11 +100,12 @@ class WebHardeningTests(TestCase):
                              "status": "open", "created_at": "2026-11-21T10:00:00Z"} for _ in range(20)]
         raw = json.dumps(value).encode()
         self.assertGreater(len(raw), 65536)
-        identity, detail = MagicMock(), MagicMock()
+        identity, detail, assignments = MagicMock(), MagicMock(), MagicMock()
+        assignments.status, assignments.read.return_value = 503, b"{}"
         identity.status, identity.read.return_value = 200, json.dumps(self.account).encode()
         detail.status, detail.read.return_value = 200, raw
         with patch("web.views.build_opener") as opener:
-            opener.return_value.open.return_value.__enter__.side_effect = [identity, detail]
+            opener.return_value.open.return_value.__enter__.side_effect = [identity, detail, assignments]
             response = self.client.get(f"/admin/moderation/videos/{self.target}/")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "अ")

@@ -60,7 +60,8 @@ class AdminConsoleTests(TestCase):
         return reverse(f"moderation-{kind}-detail", args=[target or self.target])
 
     def intent(self, kind, client=None):
-        with patch("web.views._api", side_effect=[(200, self.account), (200, self.detail(kind))]):
+        # An administrator's page also asks for assignments; "unavailable" keeps these tests about decisions.
+        with patch("web.views._api", side_effect=[(200, self.account), (200, self.detail(kind)), (503, {})]):
             response = (client or self.client).get(self.detail_url(kind))
         self.assertEqual(response.status_code, 200)
         self.assertNotIn(self.client.session.session_key.encode(), response.content)
@@ -278,7 +279,8 @@ class AdminConsoleTests(TestCase):
         record = {**self.record("videos"), "title": '<script>alert("x")</script>'}
         for url in (reverse("moderation-videos"), self.detail_url("videos")):
             with patch("web.views._api", side_effect=[(200, self.account), (200, ({"items": [record], "next_cursor": None} if url == reverse("moderation-videos") else
-                    {**self.detail("videos"), "record": record, "video": {**self.detail("videos")["video"], "title": record["title"]}}))]) as api:
+                    {**self.detail("videos"), "record": record, "video": {**self.detail("videos")["video"], "title": record["title"]}})),
+                    (503, {})]) as api:
                 response = self.client.get(url)
             self.assertContains(response, "&lt;script&gt;")
             self.assertNotContains(response, "<script>")

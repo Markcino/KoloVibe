@@ -362,9 +362,12 @@ def moderation_detail(request, kind, target_id):
     intent = signing.dumps({**_intent(request, kind, target_id), "key": secrets.token_urlsafe(32),
                             "video": item["id"] if kind == "videos" else item["video_id"]},
                            salt="admin-decision")
+    from . import assignment_views
     return _render(request, "moderation_detail.html", {
         "title": kind.title() + " review", "kind": kind, "item": item,
         "actions": sorted(ACTIONS[kind]), "intent": intent, "detail": detail,
+        "assignments": (assignment_views.panel(request, kind, target_id)
+                        if request.admin_account["roles"] == ["administrator"] else None),
     })
 
 

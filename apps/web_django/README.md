@@ -16,6 +16,7 @@ All gateway paths below use the `/api/v1` prefix. Every `/admin/` route requires
 | `/admin/` | `GET /moderation/totals`, `/engagement/fraud-holds`, `/admin/audit`; audit denial leaves an explicit unavailable card |
 | `/admin/moderation/{videos,reports,appeals}/` | Matching `GET /moderation/<kind>?cursor=…&status=…` |
 | `/admin/moderation/{videos,reports,appeals}/<uuid>/` | Matching reviewer detail GET; decision POST calls `/moderation/<kind>/<uuid>/decisions` |
+| `/admin/moderation/{videos,reports,appeals}/<uuid>/assignments/` | Administrator-only POST. Grants or revokes one moderator's access to the item through `GET/POST /admin/moderation/assignments`; the detail page lists current grants and assignable (accepted) moderators |
 | `/admin/moderation/previews/<uuid>/` | Authenticated proxy for `/moderation/previews/<uuid>`; no storage redirect |
 | `/admin/points/` | `GET /admin/points/balances`; `?account=<uuid>` reads `/admin/points/accounts/<uuid>` |
 | `/admin/audit/` | `GET /admin/audit` with cursor, kind, producer, since and until filters; since/until are UTC `datetime-local` inputs sent to the gateway as ISO 8601 `Z` values |
@@ -33,7 +34,8 @@ All gateway paths below use the `/api/v1` prefix. Every `/admin/` route requires
 | --- | --- | --- | --- |
 | Own account/profile/password/sessions | Own, with MFA | Own, with MFA | 403 |
 | Queues, detail and decisions | Active resource assignment, enforced by Moderation | Global supervision | 403 |
-| Dashboard totals | Assigned resources; no assignments → audited 403 | Global supervision | 403 |
+| Grant or revoke assignments | 403 | MFA session; audited as `moderation.assignment_changed` | 403 |
+| Dashboard totals | Assigned resources; with no assignments the dashboard shows a "No review assignments yet" state (Moderation still audits the 403) | Global supervision | 403 |
 | Active fraud holds | Videos in active video/report/appeal assignments | Global active holds | 403 |
 | Audit | Own actions | Explicit active producer grants in Audit | 403 |
 | Points | Audited 403 | Audited, read-only ledger review | 403 |

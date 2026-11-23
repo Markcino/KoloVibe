@@ -179,6 +179,17 @@ class ModeratorInvitationTests(TestCase):
             self.assertNotIn(value, result.content.decode())
         self.assertTrue(SecurityEvent.objects.filter(kind="moderator.invitation_listed").exists())
 
+    def test_only_accepted_rows_expose_the_new_moderator_account_id(self):
+        item, token, _ = self.create()
+        listed = lambda: json.loads(self.post(invitations.administer, {"access_token": self.access, "operation": "list"}).content)["items"][0]
+        self.assertNotIn("account_id", listed())
+        secret = json.loads(self.begin(token).content)["secret"]
+        self.assertEqual(self.finish(token, pyotp.TOTP(secret).at(self.now)).status_code, 200)
+        row = listed()
+        self.assertEqual(row["status"], "accepted")
+        self.assertEqual(row["account_id"], str(Account.objects.get(email=item.email).id))
+        self.assertEqual(set(row), {"id", "display_name", "email_masked", "status", "expires_at", "account_id"})
+
     def test_send_failure_rolls_back_invitation_and_success_event(self):
         with patch("service.moderator_invitations.send_mail", side_effect=OSError("fixture outage")):
             with self.assertLogs("service.moderator_invitations", level="ERROR"):
