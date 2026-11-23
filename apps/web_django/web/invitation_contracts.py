@@ -24,11 +24,19 @@ def valid_receipt(value):
             and identifier(value["id"]) and value["status"] == "pending" and timestamp(value["expires_at"]))
 
 
+def valid_row_keys(row):
+    """Only accepted invitations carry the created moderator's account id."""
+    base = {"id", "display_name", "email_masked", "status", "expires_at"}
+    if row.get("status") == "accepted":
+        return set(row) == base | {"account_id"} and identifier(row["account_id"])
+    return set(row) == base
+
+
 def valid_page(value):
     return (isinstance(value, dict) and set(value) == {"items", "next_cursor"}
             and (value["next_cursor"] is None or identifier(value["next_cursor"]))
             and isinstance(value["items"], list) and len(value["items"]) <= 50
-            and all(isinstance(row, dict) and set(row) == {"id", "display_name", "email_masked", "status", "expires_at"}
+            and all(isinstance(row, dict) and valid_row_keys(row)
                     and identifier(row["id"]) and timestamp(row["expires_at"])
                     and isinstance(row["display_name"], str) and 2 <= len(row["display_name"]) <= 80
                     and isinstance(row["email_masked"], str) and 1 <= len(row["email_masked"]) <= 257

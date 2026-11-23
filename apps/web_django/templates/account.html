@@ -1,13 +1,15 @@
 {% extends 'base_admin.html' %}
 {% block title %}Account · KoloVibe{% endblock %}
 {% block content %}
-<section class="panel"><h1>My account</h1><dl>
+<div class="page-heading"><div><p class="eyebrow">Account</p><h1>My account</h1><p class="supporting-text">Your identity and security settings.</p></div></div>
+<section class="panel"><div class="section-heading"><div><p class="eyebrow">Profile</p><h2>{{ account.display_name }}</h2></div><span class="role-badge">{% include 'icon.html' with name='shield' %}<span class="label">{{ role|title }}</span></span></div><dl>
 <dt>Name</dt><dd>{{ account.display_name }}</dd>
 <dt>Email</dt><dd>{{ account.email }}</dd>
 <dt>Role</dt><dd>{{ role|title }}</dd>
-</dl>
-<p><a href="{% url 'profile-edit' %}">Edit profile</a></p>
-<p><a href="{% url 'password-change' %}">Change password</a></p>
-<p><a href="{% url 'sessions' %}">Active sessions</a></p>
+</dl></section>
+<section class="panel"><div class="section-heading"><div><p class="eyebrow">Manage</p><h2>Settings</h2></div></div>
+<a class="list-link" href="{% url 'profile-edit' %}"><span class="row-icon tone-purple">{% include 'icon.html' with name='account' %}</span><span class="row-copy"><strong>Edit profile</strong><small>Change your display name</small></span>{% include 'icon.html' with name='arrow' %}</a>
+<a class="list-link" href="{% url 'password-change' %}"><span class="row-icon tone-amber">{% include 'icon.html' with name='shield' %}</span><span class="row-copy"><strong>Change password</strong><small>Signs you out of this browser</small></span>{% include 'icon.html' with name='arrow' %}</a>
+<a class="list-link" href="{% url 'sessions' %}"><span class="row-icon tone-teal">{% include 'icon.html' with name='clock' %}</span><span class="row-copy"><strong>Active sessions</strong><small>Review where you are signed in</small></span>{% include 'icon.html' with name='arrow' %}</a>
 </section>
 {% endblock %}

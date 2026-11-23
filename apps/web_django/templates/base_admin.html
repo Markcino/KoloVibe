@@ -9,7 +9,7 @@
   <div class="admin-workspace">
     <header class="admin-topbar">
       <div class="topbar-start"><details class="mobile-navigation"><summary aria-label="Open navigation">{% include 'icon.html' with name='menu' %}</summary><div class="mobile-navigation-panel">{% include 'admin_nav.html' %}</div></details><span class="app-context">Administration</span></div>
-      <div class="topbar-end"><span class="role-badge">{% include 'icon.html' with name='shield' %}{{ role|title }}</span><form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="icon-button" type="submit" aria-label="Sign out" title="Sign out">{% include 'icon.html' with name='logout' %}</button></form></div>
+      <div class="topbar-end"><span class="role-badge">{% include 'icon.html' with name='shield' %}<span class="label">{{ role|title }}</span></span><form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="icon-button" type="submit" aria-label="Sign out" title="Sign out">{% include 'icon.html' with name='logout' %}</button></form></div>
     </header>
     <main id="main" class="admin-main" tabindex="-1">
       <div class="session-notice" role="note">{% include 'icon.html' with name='clock' %}<span>Sessions expire 15 minutes after sign-in. Sign in again when your session ends.</span></div>

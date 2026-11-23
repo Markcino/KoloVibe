@@ -1,6 +1,6 @@
 # Django R1 administration console
 
-This server-rendered web client serves moderators and administrators only. Its interface uses Material 3 color roles, tonal navigation, rounded surfaces, native accessible controls and responsive layouts without a JavaScript framework or CDN assets. `/` always redirects directly to the headerless `/login/` page. Successful MFA opens `/admin/`; every protected view revalidates Identity before rendering. Anonymous flows are sign-in, its pending MFA challenge, and mailbox-bound moderator invitation acceptance. Health and bundled static assets remain accessible. Former public, viewer and creator routes return 404.
+This server-rendered web client serves moderators and administrators only. Its interface follows Material Design 3: color roles with automatic light and dark schemes (WCAG AA contrast checked for every pair), the M3 type scale and shape tokens, tonal navigation with a permanent drawer on wide screens and a CSS-only modal drawer on narrow ones, state layers, 48px touch targets, tables that reflow into cards on phones, and reduced-motion, high-contrast and forced-colors support. It uses no JavaScript, inline styles, web fonts or CDN assets, as the CSP requires. `/` always redirects directly to the headerless `/login/` page. Successful MFA opens `/admin/`; every protected view revalidates Identity before rendering. Anonymous flows are sign-in, its pending MFA challenge, and mailbox-bound moderator invitation acceptance. Health and bundled static assets remain accessible. Former public, viewer and creator routes return 404.
 
 The console reuses `_api()`, Identity's password → MFA → logout flow, encrypted server-side credentials and the existing staging session model. Every protected request checks Identity, account, role, MFA state and session deadlines. Authorization for resource scope, audit subsets and points access is enforced in the owning service; the web never supplies client-selected permissions or guesses endpoints. Unsupported contracts are labelled **Not available in R1**.
 
@@ -16,6 +16,7 @@ All gateway paths below use the `/api/v1` prefix. Every `/admin/` route requires
 | `/admin/` | `GET /moderation/totals`, `/engagement/fraud-holds`, `/admin/audit`; audit denial leaves an explicit unavailable card |
 | `/admin/moderation/{videos,reports,appeals}/` | Matching `GET /moderation/<kind>?cursor=…&status=…` |
 | `/admin/moderation/{videos,reports,appeals}/<uuid>/` | Matching reviewer detail GET; decision POST calls `/moderation/<kind>/<uuid>/decisions` |
+| `/admin/moderation/{videos,reports,appeals}/<uuid>/assignments/` | Administrator-only POST. Grants or revokes one moderator's access to the item through `GET/POST /admin/moderation/assignments`; the detail page lists current grants and assignable (accepted) moderators |
 | `/admin/moderation/previews/<uuid>/` | Authenticated proxy for `/moderation/previews/<uuid>`; no storage redirect |
 | `/admin/points/` | `GET /admin/points/balances`; `?account=<uuid>` reads `/admin/points/accounts/<uuid>` |
 | `/admin/audit/` | `GET /admin/audit` with cursor, kind, producer, since and until filters; since/until are UTC `datetime-local` inputs sent to the gateway as ISO 8601 `Z` values |
@@ -33,7 +34,8 @@ All gateway paths below use the `/api/v1` prefix. Every `/admin/` route requires
 | --- | --- | --- | --- |
 | Own account/profile/password/sessions | Own, with MFA | Own, with MFA | 403 |
 | Queues, detail and decisions | Active resource assignment, enforced by Moderation | Global supervision | 403 |
-| Dashboard totals | Assigned resources; no assignments → audited 403 | Global supervision | 403 |
+| Grant or revoke assignments | 403 | MFA session; audited as `moderation.assignment_changed` | 403 |
+| Dashboard totals | Assigned resources; with no assignments the dashboard shows a "No review assignments yet" state (Moderation still audits the 403) | Global supervision | 403 |
 | Active fraud holds | Videos in active video/report/appeal assignments | Global active holds | 403 |
 | Audit | Own actions | Explicit active producer grants in Audit | 403 |
 | Points | Audited 403 | Audited, read-only ledger review | 403 |

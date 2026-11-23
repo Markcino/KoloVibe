@@ -2,7 +2,7 @@ import json
 from urllib.error import HTTPError
 from django.http import JsonResponse
 from django.views.decorators.cache import never_cache
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_http_methods
 from .creator_onboarding import authenticated_actor
 from .standing import identity_context
 from .internal_client import signed_internal_request
@@ -94,3 +94,45 @@ def points_review(request, account_id=None):
         data["account_id"] = str(account_id)
     return forward("points", "/internal/points/admin/" + ("account" if account_id else "balances"), *actor, data,
         lambda value: valid_points_review(value) and (account_id is None or value.get("account_id") == str(account_id)))
+
+
+def _uuid_text(value):
+    from uuid import UUID
+    try:
+        return isinstance(value, str) and str(UUID(value)) == value
+    except ValueError:
+        return False
+
+
+@never_cache
+@require_http_methods(["GET", "POST"])
+def moderation_assignments(request):
+    """Administrators list and set explicit moderator grants; Moderation owns every decision."""
+    from .admin_contracts import valid_assignment, valid_assignment_list
+    actor = principal(request)
+    if isinstance(actor, JsonResponse):
+        return actor
+    account, role = actor
+    if role != "administrator":
+        return JsonResponse({"detail": "Forbidden"}, status=403)
+    if request.method == "GET":
+        values = {key: request.GET.getlist(key) for key in request.GET}
+        if (request.body or set(values) != {"scope", "target"} or any(len(v) != 1 for v in values.values())
+                or request.GET["scope"] not in {"videos", "reports", "appeals"} or not _uuid_text(request.GET["target"])):
+            return JsonResponse({"detail": "Invalid request"}, status=400)
+        scope, target = request.GET["scope"], request.GET["target"]
+        return forward("moderation", "/internal/moderation/assignment_list", account, role,
+                       {"scope": scope, "target_id": target},
+                       lambda value: valid_assignment_list(value, scope, target))
+    try:
+        if request.GET or len(request.body) > 1024:
+            raise ValueError
+        data = json.loads(request.body)
+        if (not isinstance(data, dict) or set(data) != {"scope", "target_id", "moderator_id", "active"}
+                or data["scope"] not in {"videos", "reports", "appeals"} or type(data["active"]) is not bool
+                or not _uuid_text(data["target_id"]) or not _uuid_text(data["moderator_id"])):
+            raise ValueError
+    except (ValueError, UnicodeError):
+        return JsonResponse({"detail": "Invalid request"}, status=400)
+    return forward("moderation", "/internal/moderation/assignment_set", account, role, data,
+                   lambda value: valid_assignment(value, data))

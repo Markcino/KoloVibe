@@ -84,3 +84,25 @@ def valid_points_review(value):
         return ids == sorted(set(ids)) and (value["next_cursor"] is None or len(ids) == 20 and value["next_cursor"] == ids[-1])
     except (ValueError, TypeError, KeyError, AttributeError):
         return False
+
+
+def valid_assignment_list(value, scope, target):
+    try:
+        if (not isinstance(value, dict) or set(value) != {"scope", "target_id", "items"}
+                or value["scope"] != scope or value["target_id"] != target
+                or not isinstance(value["items"], list) or len(value["items"]) > 100):
+            return False
+        ids = []
+        for item in value["items"]:
+            if not isinstance(item, dict) or set(item) != {"moderator_id"} or str(UUID(item["moderator_id"])) != item["moderator_id"]:
+                return False
+            ids.append(item["moderator_id"])
+        return ids == sorted(set(ids))
+    except (ValueError, TypeError, AttributeError, KeyError):
+        return False
+
+
+def valid_assignment(value, request):
+    return (isinstance(value, dict) and set(value) == {"scope", "target_id", "moderator_id", "active"}
+            and all(value[key] == request[key] for key in ("scope", "target_id", "moderator_id", "active"))
+            and type(value["active"]) is bool)

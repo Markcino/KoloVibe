@@ -69,9 +69,13 @@ def receipt(item):
 def summary(item, now):
     state = ("accepted" if item.accepted_at else "revoked" if item.revoked_at
              else "expired" if item.expires_at <= now else "pending")
-    return {"id": str(item.id), "display_name": item.display_name,
-            "email_masked": item.email[0] + "***@" + item.email.rsplit("@", 1)[1],
-            "status": state, "expires_at": item.expires_at.isoformat()}
+    row = {"id": str(item.id), "display_name": item.display_name,
+           "email_masked": item.email[0] + "***@" + item.email.rsplit("@", 1)[1],
+           "status": state, "expires_at": item.expires_at.isoformat()}
+    if state == "accepted":
+        # Lets an administrator name the moderator when granting queue access; no email or secret.
+        row["account_id"] = str(item.accepted_account_id)
+    return row
 
 
 @never_cache

@@ -3714,6 +3714,139 @@ paths:
         assignment scope to Engagement. Account identifiers are redacted. Read-only;
         no fraud policy or hold mutation endpoint is introduced.
 
+  /admin/moderation/assignments:
+    get:
+      tags:
+      - Administration
+      summary: List moderators assigned to one review item
+      operationId: list_moderator_assignments
+      x-implementation: local
+      x-capability: moderation
+      x-required-roles:
+      - administrator
+      x-mfa-required: true
+      parameters:
+      - name: scope
+        in: query
+        required: true
+        schema:
+          enum:
+          - videos
+          - reports
+          - appeals
+      - name: target
+        in: query
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Active grants for the item (at most 100)
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - scope
+                - target_id
+                - items
+                properties:
+                  scope:
+                    type: string
+                  target_id:
+                    type: string
+                    format: uuid
+                  items:
+                    type: array
+                    maxItems: 100
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - moderator_id
+                      properties:
+                        moderator_id:
+                          type: string
+                          format: uuid
+        '400':
+          description: Invalid query
+        '403':
+          description: Administrator role or MFA required
+        '404':
+          description: Item unavailable
+        '503':
+          description: Service unavailable
+    post:
+      tags:
+      - Administration
+      summary: Grant or revoke a moderator's access to one review item
+      description: Idempotent. Repeating the current state changes nothing and records no audit event; each change is audited as moderation.assignment_changed.
+      operationId: set_moderator_assignment
+      x-implementation: local
+      x-capability: moderation
+      x-required-roles:
+      - administrator
+      x-mfa-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - scope
+              - target_id
+              - moderator_id
+              - active
+              properties:
+                scope:
+                  enum:
+                  - videos
+                  - reports
+                  - appeals
+                target_id:
+                  type: string
+                  format: uuid
+                moderator_id:
+                  type: string
+                  format: uuid
+                active:
+                  type: boolean
+      responses:
+        '200':
+          description: Resulting grant state (echoes the request)
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - scope
+                - target_id
+                - moderator_id
+                - active
+                properties:
+                  scope:
+                    type: string
+                  target_id:
+                    type: string
+                    format: uuid
+                  moderator_id:
+                    type: string
+                    format: uuid
+                  active:
+                    type: boolean
+        '400':
+          description: Invalid request, or the administrator named themselves
+        '403':
+          description: Administrator role or MFA required
+        '404':
+          description: Item unavailable
+        '503':
+          description: Service unavailable
   /admin/audit:
     get:
       tags:
@@ -4648,6 +4781,10 @@ components:
               expires_at:
                 type: string
                 format: date-time
+              account_id:
+                type: string
+                format: uuid
+                description: Present only when status is accepted; the moderator account created by the invitation.
         next_cursor:
           oneOf:
           - type: string

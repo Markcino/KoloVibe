@@ -4,13 +4,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#fef7ff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141218" media="(prefers-color-scheme: dark)">
   <title>{% block title %}KoloVibe administration{% endblock %}</title>
-  <link rel="stylesheet" href="{% static 'css/site.css' %}?v=material-admin-r1">
+  <link rel="stylesheet" href="{% static 'css/site.css' %}?v=material3-r1">
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
   {% block shell %}
-  <header class="site-header"><a class="brand" href="{% url 'root' %}"><img src="{% static 'images/landscape_logo_with_name.svg' %}" alt="KoloVibe"></a><span>Administration</span></header>
+  <header class="site-header"><a class="brand" href="{% url 'root' %}"><img src="{% static 'images/landscape_logo_with_name.svg' %}" alt="KoloVibe"></a><span class="supporting-text">Administration</span></header>
   <main id="main" tabindex="-1">{% block content %}{% endblock %}</main>
   {% endblock %}
 </body>
