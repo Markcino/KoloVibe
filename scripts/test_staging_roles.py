@@ -72,6 +72,29 @@ class RoleTests(unittest.TestCase):
             roles.run_job("x", 30, 10, call=boom, sleep=lambda s: None, stop=lambda: False)
         self.assertEqual(raised.exception.code, 1)
 
+    def test_engagement_dispatch_reports_only_exception_type_names(self):
+        from contextlib import redirect_stderr
+        from io import StringIO
+
+        def boom(*args):
+            try:
+                raise PermissionError("amqps://publisher:private-password@rabbitmq")
+            except PermissionError as exc:
+                raise RuntimeError("database password=private-password") from exc
+
+        output = StringIO()
+        with redirect_stderr(output), self.assertRaises(SystemExit) as raised:
+            roles.run_job("dispatch_engagement_events", 30, 10, call=boom,
+                          sleep=lambda value: None, stop=lambda: False)
+
+        self.assertEqual(raised.exception.code, 1)
+        text = output.getvalue()
+        self.assertIn("Engagement dispatch failure type=RuntimeError cause_type=PermissionError", text)
+        self.assertEqual(text.count("Engagement dispatch failure type="), roles.MAX_CONSECUTIVE_FAILURES)
+        self.assertNotIn("private-password", text)
+        self.assertNotIn("amqps://", text)
+        self.assertNotIn("database password=", text)
+
     def test_a_single_failure_is_retried_and_success_resets_the_count(self):
         outcome = iter([False, True] * 4)
 
