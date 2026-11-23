@@ -1147,7 +1147,7 @@ class _AuditLibrary extends LiveContentRepository {
   _AuditLibrary() : super(unusedAccount());
   @override
   Future<OwnedVideoPage> library(
-          {String? cursor, String state = 'all'}) async =>
+          {String? cursor, String state = 'all', String? query}) async =>
       OwnedVideoPage([
         OwnedVideo(videoId, creatorId, 'Waterside at dawn', 'A city waking up.',
             'published', DateTime.utc(2026, 11, 11),
