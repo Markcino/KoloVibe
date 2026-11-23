@@ -109,7 +109,7 @@ def _rules():
     add("gateway", "moderation", "GET", rf"/api/v1/moderation/(?:videos|reports|appeals)/{UUID}",
         rf"/api/v1/moderation/previews/{UUID}", r"/api/v1/moderation/totals", r"/api/v1/engagement/fraud-holds", privileged=True)
 
-    add("gateway", "moderation", "GET POST", r"/api/v1/admin/moderation/assignments", privileged=True)
+    add("gateway", "moderation", "GET POST", r"/api/v1/admin/moderation/assignments(?:/summary)?", privileged=True)
 
     add("gateway", "audit_read", "GET", r"/api/v1/admin/audit", privileged=True)
     add("audit", "audit_read", "POST", r"/internal/audit/read")
@@ -145,7 +145,7 @@ def _rules():
     add("engagement", "watch", "POST", rf"/internal/engagement/watch/{OP}")
     add("points", "points", "POST", rf"/internal/points/{OP}", r"/internal/points/admin/(?:balances|account)")
     add("moderation", "moderation", "POST", rf"/internal/moderation/{OP}")
-    add("moderation", "moderation", "POST", r"/internal/moderation/(?:review_queue|own_reports|own_report|own_appeals|own_appeal|video_decision|report_decision|appeal_decision|video_detail|report_detail|appeal_detail|fraud_scope|assignment_list|assignment_set|copyright_report|counter_notice|copyright_status)")
+    add("moderation", "moderation", "POST", r"/internal/moderation/(?:review_queue|own_reports|own_report|own_appeals|own_appeal|video_decision|report_decision|appeal_decision|video_detail|report_detail|appeal_detail|fraud_scope|assignment_list|assignment_set|assignment_summary|copyright_report|counter_notice|copyright_status)")
     return tuple(r)
 
 

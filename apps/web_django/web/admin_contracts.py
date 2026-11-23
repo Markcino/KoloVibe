@@ -106,3 +106,19 @@ def valid_assignment(value, request):
     return (isinstance(value, dict) and set(value) == {"scope", "target_id", "moderator_id", "active"}
             and all(value[key] == request[key] for key in ("scope", "target_id", "moderator_id", "active"))
             and type(value["active"]) is bool)
+
+
+def valid_assignment_summary(value, requested):
+    try:
+        if not isinstance(value, dict) or set(value) != {"items"} or not isinstance(value["items"], list):
+            return False
+        ids = []
+        for item in value["items"]:
+            if (not isinstance(item, dict) or set(item) != {"moderator_id", "videos", "reports", "appeals"}
+                    or str(UUID(item["moderator_id"])) != item["moderator_id"]
+                    or any(type(item[key]) is not int or not 0 <= item[key] <= 1_000_000 for key in ("videos", "reports", "appeals"))):
+                return False
+            ids.append(item["moderator_id"])
+        return ids == sorted(requested)
+    except (ValueError, TypeError, AttributeError, KeyError):
+        return False

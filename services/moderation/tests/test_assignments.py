@@ -124,3 +124,33 @@ class AssignmentAdministrationTests(TestCase):
         self.assertEqual(self.grant(scope="videos", target=self.video).status_code, 200)
         self.assertEqual(content.call_args.args, ("detail", {"video_id": str(self.video)}))
         self.assertTrue(ModeratorAssignment.objects.filter(queue_scope="videos", target_id=self.video, active=True).exists())
+
+
+class AssignmentSummaryTests(TestCase):
+    setUp = AssignmentAdministrationTests.setUp
+    call = AssignmentAdministrationTests.call
+
+    def summary(self, ids, **kwargs):
+        return self.call("assignment_summary", {"moderator_ids": [str(item) for item in ids]}, **kwargs)
+
+    def test_counts_active_grants_per_scope_and_answers_every_requested_moderator(self):
+        busy, idle, other = uuid4(), uuid4(), uuid4()
+        appeal_report = Report.objects.create(id=uuid4(), video_id=uuid4(), reporter_id=uuid4(), reason="spam")
+        for moderator, scope, target, active in ((busy, "reports", self.report.id, True), (busy, "reports", appeal_report.id, True),
+                                                  (busy, "videos", uuid4(), True), (busy, "appeals", uuid4(), False),
+                                                  (other, "reports", self.report.id, True)):
+            ModeratorAssignment.objects.create(moderator_id=moderator, queue_scope=scope, target_id=target, active=active)
+        rows = json.loads(self.summary([busy, idle]).content)["items"]
+        self.assertEqual(rows, sorted([{"moderator_id": str(busy), "videos": 1, "reports": 2, "appeals": 0},
+                                       {"moderator_id": str(idle), "videos": 0, "reports": 0, "appeals": 0}],
+                                      key=lambda row: row["moderator_id"]))
+
+    def test_summary_is_administrator_mfa_only_and_strictly_bounded(self):
+        mod = uuid4()
+        for role in ("moderator", "viewer"):
+            self.assertEqual(self.summary([mod], role=role).status_code, 403)
+        self.assertEqual(self.summary([mod], mfa=False).status_code, 403)
+        for bad in ([], [mod, mod], [str(mod).upper()], ["x"], [uuid4() for _ in range(51)]):
+            response = self.call("assignment_summary", {"moderator_ids": [str(i).lower() if not isinstance(i, str) else i for i in bad]})
+            self.assertEqual(response.status_code, 400, bad)
+        self.assertEqual(self.call("assignment_summary", {"moderator_ids": "x"}).status_code, 400)

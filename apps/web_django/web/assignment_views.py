@@ -8,7 +8,7 @@ from django.shortcuts import redirect
 from django.urls import reverse
 
 from . import views
-from .admin_contracts import valid_assignment, valid_assignment_list
+from .admin_contracts import valid_assignment, valid_assignment_list, valid_assignment_summary
 from .api_contracts import valid_id
 from .invitation_contracts import valid_page
 
@@ -87,3 +87,15 @@ def assign(request, kind, target_id):
     request.session[NOTICE] = "assigned" if data["active"] else "revoked"
     cursor = request.GET.get("cursor")
     return redirect(reverse(f"moderation-{kind}-detail", args=[target_id]) + ("?" + urlencode({"cursor": cursor}) if cursor else ""))
+
+
+def workload(request, moderator_ids):
+    """Active grants per moderator as {id: {videos, reports, appeals, total}}, or None if unavailable."""
+    if not moderator_ids:
+        return {}
+    status, payload = views._api("/admin/moderation/assignments/summary?" + urlencode([("moderator", item) for item in moderator_ids]),
+                                 token=request.gateway_token)
+    if status != 200 or not valid_assignment_summary(payload, moderator_ids):
+        return None
+    return {row["moderator_id"]: {**{key: row[key] for key in ("videos", "reports", "appeals")},
+                                  "total": row["videos"] + row["reports"] + row["appeals"]} for row in payload["items"]}

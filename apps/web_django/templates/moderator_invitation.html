@@ -18,7 +18,7 @@
 <button type="submit">Complete MFA enrollment</button>
 {% else %}<p>Use the invitation sent by your administrator. No account is activated until authenticator enrollment succeeds.</p>
 <label>Email address<input type="email" name="email" autocomplete="username" maxlength="254" required></label>
-<label>Invitation code<input name="invitation_code" autocomplete="off" minlength="64" maxlength="64" pattern="[A-Za-z0-9_-]{64}" required></label>
+<label>Invitation code<input name="invitation_code" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="128" required aria-describedby="code-help"></label><p id="code-help" class="supporting-text">Paste the code from your invitation email. Spaces and line breaks are ignored.</p>
 <label>Choose a password<input type="password" name="password" autocomplete="new-password" minlength="12" maxlength="128" required></label><p>Use at least 12 characters; common, numeric-only and similar-to-account passwords are rejected.</p>
 <button type="submit">Continue to authenticator setup</button>{% endif %}</form>
 <p><a href="{% url 'login' %}">Return to sign in</a></p>{% endif %}

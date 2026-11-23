@@ -136,3 +136,22 @@ def moderation_assignments(request):
         return JsonResponse({"detail": "Invalid request"}, status=400)
     return forward("moderation", "/internal/moderation/assignment_set", account, role, data,
                    lambda value: valid_assignment(value, data))
+
+
+@never_cache
+@require_GET
+def moderation_assignment_summary(request):
+    """Administrator-only workload counts for up to 50 moderators."""
+    from .admin_contracts import valid_assignment_summary
+    actor = principal(request)
+    if isinstance(actor, JsonResponse):
+        return actor
+    account, role = actor
+    if role != "administrator":
+        return JsonResponse({"detail": "Forbidden"}, status=403)
+    ids = request.GET.getlist("moderator")
+    if (request.body or set(request.GET) != {"moderator"} or not 1 <= len(ids) <= 50
+            or len(set(ids)) != len(ids) or not all(_uuid_text(item) for item in ids)):
+        return JsonResponse({"detail": "Invalid request"}, status=400)
+    return forward("moderation", "/internal/moderation/assignment_summary", account, role,
+                   {"moderator_ids": sorted(ids)}, lambda value: valid_assignment_summary(value, ids))

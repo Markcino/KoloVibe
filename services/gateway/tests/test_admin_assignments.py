@@ -87,3 +87,32 @@ class AssignmentGatewayTests(SimpleTestCase):
         self.assertFalse(valid_page(page({**row, "status": "accepted"})))
         self.assertFalse(valid_page(page({**row, "account_id": self.moderator})))
         self.assertFalse(valid_page(page({**row, "status": "accepted", "account_id": "x"})))
+
+
+class AssignmentSummaryGatewayTests(SimpleTestCase):
+    def get(self, query, role="administrator"):
+        request = RequestFactory().get("/summary", query)
+        with patch("service.admin_reads.principal", return_value=(str(uuid4()), role)), \
+             patch("service.admin_reads.forward", return_value=JsonResponse({})) as forward:
+            return admin_reads.moderation_assignment_summary(request), forward
+
+    def test_only_administrators_and_only_exact_bounded_queries_reach_moderation(self):
+        ids = sorted(str(uuid4()) for _ in range(2))
+        response, forward = self.get({"moderator": ids}, role="moderator")
+        self.assertEqual(response.status_code, 403)
+        forward.assert_not_called()
+        for query in ({}, {"moderator": "x"}, {"moderator": [ids[0], ids[0]]}, {"moderator": ids, "extra": "1"},
+                      {"moderator": [str(uuid4()) for _ in range(51)]}, {"moderator": ids[0].upper()}):
+            response, forward = self.get(query)
+            self.assertEqual(response.status_code, 400, query)
+            forward.assert_not_called()
+        response, forward = self.get({"moderator": ids[::-1]})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(forward.call_args.args[4], {"moderator_ids": ids})
+        validate = forward.call_args.args[5]
+        row = lambda m: {"moderator_id": m, "videos": 0, "reports": 1, "appeals": 2}
+        self.assertTrue(validate({"items": [row(i) for i in ids]}))
+        for bad in ({"items": [row(ids[0])]}, {"items": [row(i) for i in ids[::-1]]},
+                    {"items": [{**row(i), "reports": -1} for i in ids]}, {"items": [{**row(i), "reports": True} for i in ids]},
+                    {"items": [{**row(i), "email": "a@b.test"} for i in ids]}):
+            self.assertFalse(validate(bad), bad)
