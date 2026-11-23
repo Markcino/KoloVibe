@@ -1,10 +1,17 @@
 # API test deployment roadmap
 
-## Current continuation — 17 November 2026
+## Current continuation — 23 November 2026
 
-Use the [current reconciliation](../operations/R1_AWS_Staging_Reconciliation_2026-11-17.md) before following an older deployment checklist. Publication, eight-service deployment and media-worker startup are complete for the reported v0.187.2 release. The original assessment remains **26 passed / 0 failed / 19 pending**.
+Use the [AWS v0.357.1 reconciliation](../operations/R1_AWS_Staging_Reconciliation_2026-11-23.md) as the **current deployment and acceptance checkpoint** and the [AWS as-built topology](../architecture/R1_AWS_Staging_As_Built_2026-11-23.md) for network and component assumptions. On this release, 16/16 services and 6/6 public smoke probes passed; the owner reported 6/6 privileged administrator/moderator journeys passing. These counts do **not** complete the full R1 API, mobile or security matrix; **production remains NO-GO**.
 
-After documentation reconciliation, continue authenticated/session/security acceptance, then creator eligibility, the real video journey, engagement/points, moderation/audit and physical-device verification. Preserve completed routing and deployment checks. Existing decisions and restricted-staging waivers remain unchanged. Do not repeat provisioning or rollout solely because an earlier section lists it as pending.
+**Next acceptance order:**
+1. Read-only PostgreSQL runtime ownership and membership/privilege inspection: current finding **26 runtime-owned tables and eight sequences**, correction plan and independent recovery authorization needed before any DDL.
+2. Negative session, MFA and reviewer-scoping tests (unassigned, cross-reviewer, role-only, CSRF, expiry/replay); do not grant moderators admin rights to fix a 403.
+3. Staged authenticated creator eligibility → private R2 upload → RabbitMQ/FFmpeg encode → moderation/publication → authorized playback, including expiry/retry and audit evidence.
+4. Server-verified likes/qualified views → noncash points caps/ledger/reversal and cross-account negatives; replay/recovery of all background jobs.
+5. Physical iPhone session restore on an identified current mobile build, end-to-end playback/points and Android verification; then monitoring, backup/restore and pilot go/no-go.
+
+The 17 November [v0.187.2 report](../operations/R1_AWS_Staging_Reconciliation_2026-11-17.md) retains its historical **26 PASS / 0 FAIL / 19 PENDING** assessment. Do not copy that count to v0.357.1. Older Oracle setup steps and dated release runbooks below are historical; **do not re-provision or roll out services merely because those old instructions say to do so**.
 
 ## Historical environment plans and evidence
 
