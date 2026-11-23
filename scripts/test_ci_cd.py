@@ -202,6 +202,28 @@ class WorkflowTests(unittest.TestCase):
         self.assertNotIn("KOLOVIBE_ENV=local", smoke["run"])
         self.assertNotIn("sqlite", smoke["run"].lower())
 
+    def test_web_artifact_download_is_checked_and_retried_once(self):
+        # Run 45199527621: download-artifact reported success with a partial extraction.
+        steps = self.jobs["publish"]["steps"]
+        names = [step.get("name", "") for step in steps]
+        first = next(i for i, step in enumerate(steps)
+                     if step.get("with", {}).get("name", "").startswith("verified-web-image-"))
+        check = steps[first + 1]
+        retry = steps[first + 2]
+        self.assertEqual(check["id"], "web-artifact")
+        for required in ("image.tar", "image.tar.sha256", "image-id.txt", "revision.txt",
+                         "web-image-sbom.json"):
+            self.assertIn(required, check["run"])
+        self.assertEqual(retry["if"], "steps.web-artifact.outputs.complete != 'true'")
+        self.assertEqual(retry["uses"], steps[first]["uses"])
+        self.assertEqual(retry["with"], steps[first]["with"])
+        # Retrying must never relax the publish-time checksum, revision and image-ID checks.
+        self.assertLess(first + 2, names.index("Verify and load the exact tested image"))
+        publish_web = next(step for step in steps if step.get("name") == "Publish verified web image")
+        self.assertIn("sha256sum -c image.tar.sha256", publish_web["run"])
+        self.assertNotIn("continue-on-error", check)
+        self.assertNotIn("continue-on-error", retry)
+
     def test_publication_uses_remote_digest_and_verifies_pulled_image(self):
         publish = next(step for step in self.jobs["publish"]["steps"]
                        if step.get("name") == "Authenticate and publish")
