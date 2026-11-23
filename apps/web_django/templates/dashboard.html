@@ -21,6 +21,6 @@
   </section>
 </div>
 {% if not unassigned %}<section class="panel hold-panel"><div class="section-heading"><div><p class="eyebrow">Integrity</p><h2>Active hold records</h2></div><span class="status-chip">{{ holds.total }} active</span></div>
-{% if holds.items %}<div class="hold-list">{% for hold in holds.items|slice:':5' %}<div class="hold-row"><span class="row-icon tone-neutral">{% include 'icon.html' with name='shield' %}</span><div class="row-copy"><strong>{{ hold.reason_code|human_label }}</strong><small>Video {{ hold.video_id|slice:':8' }} · {{ hold.created_at|slice:':10' }}</small></div><span class="status-chip">Active</span></div>{% endfor %}</div>{% else %}<p class="supporting-text">No active fraud holds in your current scope.</p>{% endif %}
+{% if holds.items %}<div class="hold-list">{% for hold in holds.items|slice:':5' %}<div class="hold-row"><span class="row-icon tone-neutral">{% include 'icon.html' with name='shield' %}</span><div class="row-copy"><strong>{{ hold.reason_code|human_label }}</strong><small>Video {{ hold.video_id|slice:':8' }} · {{ hold.created_at|slice:':10' }}</small></div><span class="status-chip">Active</span></div>{% endfor %}</div>{% else %}<p class="supporting-text">No active fraud holds in your current scope.</p>{% endif %}{% if holds.total %}<p><a href="{% url 'fraud' %}">Review all {{ holds.total }} active hold{{ holds.total|pluralize }}</a></p>{% endif %}
 </section>{% endif %}
 {% endblock %}

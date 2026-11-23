@@ -28,6 +28,7 @@ urlpatterns = [
     path("admin/creators/", creator_views.creators, name="creators"),
     path("admin/", views.dashboard, name="dashboard"),
     path("admin/moderation/previews/<uuid:preview_id>/", views.reviewer_preview, name="reviewer-preview"),
+    path("admin/fraud/", views.fraud_holds, name="fraud"),
     path("admin/points/", views.points, name="points"),
     path("admin/audit/", views.audit, name="audit"),
     path("admin/account/", views.account, name="account"),

@@ -47,6 +47,7 @@ def static_asset(request, asset):
 
 
 NO_ASSIGNMENT_BODY = {"detail": "Resource unavailable"}
+REQUEST_UNAVAILABLE_BODY = {"detail": "Request unavailable"}
 
 
 class _NoRedirect(HTTPRedirectHandler):
@@ -293,6 +294,35 @@ def dashboard(request):
     recent = events["items"] if audit_status == 200 and valid_audit_page(events) else None
     return _render(request, "dashboard.html", {"totals": totals, "holds": holds, "recent_events": recent,
                                                 "unassigned": unassigned})
+
+
+@privileged
+@require_GET
+def fraud_holds(request):
+    """Every active fraud hold in the caller's authorised scope, 20 per page; read-only.
+
+    The gateway scopes the list (an administrator sees all, a moderator only holds on videos in an active assignment)
+    and Engagement owns the records, so the console only validates the cursor and the response shape.
+    """
+    from .admin_contracts import valid_holds
+    if set(request.GET) - {"cursor"} or any(len(request.GET.getlist(key)) != 1 for key in request.GET):
+        return error_page(request, status=400)
+    cursor = request.GET.get("cursor")
+    if cursor is not None and not valid_id(cursor):
+        return error_page(request, status=400)
+    status, page = _api("/engagement/fraud-holds" + ("?" + urlencode({"cursor": cursor}) if cursor else ""),
+                        token=request.gateway_token)
+    if status == 403 and request.admin_account["roles"] == ["moderator"] and page == REQUEST_UNAVAILABLE_BODY:
+        # The same explicit empty state as the dashboard: signed in with MFA, nothing assigned yet.
+        return _render(request, "fraud.html", {"title": "Fraud review", "holds": None, "unassigned": True,
+                                               "next_query": None})
+    if status != 200:
+        return _gateway_error(request, status)
+    if not valid_holds(page) or cursor is None and page["items"] == [] and page["total"] != 0:
+        return error_page(request)
+    return _render(request, "fraud.html", {
+        "title": "Fraud review", "holds": page, "unassigned": False,
+        "next_query": urlencode({"cursor": page["next_cursor"]}) if page["next_cursor"] else None})
 
 
 def _queue_query(request, kind):

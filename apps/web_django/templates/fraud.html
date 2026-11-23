@@ -1,0 +1,21 @@
+{% extends 'base_admin.html' %}{% load admin_display %}
+{% block title %}{{ title }} · KoloVibe{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Integrity</p><h1>{{ title }}</h1><p class="supporting-text">Active fraud holds on videos you are authorised to review. A hold pauses qualified views for that video until it is cleared; this page is read-only.</p></div></div>
+{% if unassigned %}<section class="panel"><div class="empty-state">{% include 'icon.html' with name='shield' %}<h2>No review assignments yet</h2><p>Your account is signed in with MFA, but no videos, reports or appeals have been assigned to you. Fraud holds appear here once an administrator assigns work.</p></div></section>
+{% else %}
+<p class="status-chip" role="status">{{ holds.total }} active hold{{ holds.total|pluralize }}</p>
+<div class="table-scroll" role="region" aria-label="Active fraud holds" tabindex="0">
+<table><caption>Active fraud holds · ordered by hold ID</caption>
+<thead><tr><th scope="col">Reason</th><th scope="col">Video</th><th scope="col">Since</th><th scope="col">Hold</th><th scope="col">Review</th></tr></thead>
+<tbody>{% for hold in holds.items %}<tr>
+<td data-label="Reason"><strong>{{ hold.reason_code|human_label }}</strong></td>
+<td data-label="Video"><code title="{{ hold.video_id }}">{{ hold.video_id|slice:':8' }}</code></td>
+<td data-label="Since"><time datetime="{{ hold.created_at }}" title="{{ hold.created_at|utc_stamp }}">{{ hold.created_at|age }}</time></td>
+<td data-label="Hold"><code title="{{ hold.id }}">{{ hold.id|slice:':8' }}</code></td>
+<td data-label="Review"><a href="{% url 'moderation-videos-detail' hold.video_id %}">Open video review<span class="visually-hidden"> for video {{ hold.video_id|slice:':8' }}</span></a></td>
+</tr>{% empty %}<tr><td colspan="5">No active fraud holds in your current scope.</td></tr>{% endfor %}</tbody>
+</table></div>
+<nav class="pagination" aria-label="Fraud hold pages">{% if request.GET.cursor %}<a href="{% url 'fraud' %}">First page</a>{% endif %}{% if next_query %}<a rel="next" href="?{{ next_query }}">Next page</a>{% endif %}</nav>
+{% endif %}
+{% endblock %}
