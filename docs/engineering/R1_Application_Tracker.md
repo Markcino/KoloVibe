@@ -14,6 +14,51 @@ The 23 November database catalog audit found **26 tables and eight sequences own
 
 The dated feature table and 10 November iPhone run below are retained as **historical implementation and test evidence**, not the current release's feature acceptance. Updates must keep those dates and their tested builds separate.
 
+## Phase 0 verified implementation baseline — repository HEAD `bb79e1a` (23 November)
+
+Source: [Phase 0 baseline](Phase0_Implementation_Baseline_2026-11-23.md), which holds the evidence, backlog (B-xx), DRY analysis, risk register (R-xx) and Phase 1 backlog (P1-xx). **HEAD is 30 commits ahead of v0.357.1.** The owner reports a v0.373.1 rollout; **no repository file records its commit or digests**, so "Deployed" below means deployed on v0.357.1 only. Source presence and passing local tests are not staging acceptance. Production is **NO-GO**.
+
+**Status key:** *Verified complete* (scoped to the stated evidence) · *Implemented, awaiting integration* · *Partial* · *Missing* · *Blocked by dependency* · *Blocked by approval* · *Deployed, awaiting acceptance*. Mobile column cites design IDs (M-xxx); "wired" means a live repository against the gateway exists, proven only by widget tests with test doubles. Tests column gives Python suites that **passed locally at HEAD on 23 November** (counts) or, for Flutter, declared tests only (Flutter was not runnable here). No coverage is measured.
+
+| Feature | Service | Mobile | Web | API | Security | Tests | Status | Blocker | Next task |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Eight-service layout, health, structure check | all eight | n/a | n/a | `/health/live` | read-only roots, non-root image (CI) | `check_structure.py` OK; 432 script tests pass | **Verified complete** (repository scope) | None | None |
+| Service-to-service identity (per-audience HMAC keys, nonce table) | all eight | n/a | n/a | internal | ±60 s window, TLS, one key per peer; 8 copies drift-tested | `test_service_identity_drift.py` | **Verified complete** (code); deployed secret distinctness unverified | Owner read-back on staging | None (owner) |
+| Account register, verify, sign-in, refresh, sign-out, `/me` | identity, gateway | M-002–M-016 wired | n/a | DOC-205 | ADR-013 implemented; refresh revoke/replay negatives unproven | identity 139, gateway 183, Flutter FL-A | **Deployed, awaiting acceptance** | SEC-05 iPhone retest; SEC-08 | P1-03 |
+| Password reset/change, sessions, notification preferences | identity, gateway | M-009–M-011, M-082–M-086 wired | own password/sessions | DOC-205 | single-use reauth proofs | included above | **Implemented, awaiting integration** | No staging/device evidence | P1-03 |
+| Privacy requests, data export, account deletion | identity | M-091–M-094 intake wired | none | `/me/privacy-requests` | retention undefined | included above | **Blocked by approval** | ADR-020 retention/deletion/export policy | B-18 |
+| Admin console: moderation queues, detail, decisions, assignments | moderation, gateway | n/a | wired | DOC-205 | MFA, 15/30-minute sessions, CSRF, owning-service scope | web 101, moderation 67 | **Deployed, awaiting acceptance** (positive UAT 6/6 owner-reported) | Negative/BOLA evidence | P1-01, P1-02 |
+| Admin: moderator invitations and assignment summary | identity, gateway | n/a | wired | DOC-205 | TOTP replay protection, audited | identity 139, web 101 | **Deployed, awaiting acceptance** | Live QR enrolment receipt | P1-02 |
+| Admin: creators find, invite, approve | creators, identity, gateway | n/a | wired (`742aaac`, main only) | DOC-205 | administrator-only, confirmation step | creators 72, web 101 | **Implemented, awaiting integration** | Not evidenced on v0.357.1; staging onboarding flag default off | B-01 |
+| Admin: audit read, points review (read-only) | audit, points | n/a | wired | DOC-205 | grant-scoped, redacted, denials audited | audit 44, points 64 | **Deployed, awaiting acceptance** | Retention/redaction policy (OD-08) | B-18 |
+| Creator onboarding (DEC-004) | creators, gateway | M-036–M-039 wired | via admin page | DOC-205 | account-bound invitations, verified email | creators 72 | **Implemented, awaiting integration** | Staging activation and end-to-end journey | B-10 |
+| Public video/creator discovery and search | content, creators, gateway | M-017–M-028 wired | none | `GET /videos`, `/creators/*` | public allow-list; `user_id` removed from public creator reads | content 123 | **Deployed, awaiting acceptance** (feed 200; empty) | No published content; no leak regression test | P1-05 |
+| Video upload to R2, FFmpeg processing, review, publish | content, media worker, gateway | M-041–M-052 wired | review preview | DOC-205 | signed size/type, create-only PUT, no-shell FFmpeg, DEC-005 gate | content 123; image E2E in CI | **Implemented, awaiting integration** | Live R2/FFmpeg/RabbitMQ untested; worker sandbox; R2 lifecycle | B-10 |
+| Authorized playback | content, gateway | M-024–M-035 (`video_player`) | admin preview | `/videos/{id}/playback` | 5-minute links, published+approved only | included above | **Partial** | No device playback evidence | B-12 |
+| Post-approval metadata edits | content | M-054 | none | `PATCH /videos/{id}` | Published videos can change with no re-review (R-03) | included above | **Blocked by approval** | Owner decision: re-review or risk acceptance | B-08 |
+| Likes, follows, shares | engagement, gateway | M-028–M-030 wired | none | DOC-205 | server-derived identity | engagement 67 | **Implemented, awaiting integration** | Staging activation | B-10 |
+| Qualified views and watch sessions (DEC-003) | engagement, gateway | engagement controller wired | none | `/watch-sessions`, `/engagement/watch-events` | server elapsed time, 24 h dedup, creator cap | engagement 67 | **Implemented, awaiting integration** | Live RabbitMQ; device playback | B-11 |
+| Engagement → RabbitMQ → Points delivery | engagement, points | n/a | n/a | internal | outbox/inbox idempotency; WRITE-only publish to `kolovibe.points` | engagement 67, points 64 | **Partial** | Three fixes after v0.357.1; no live retry/dead-letter/recovery evidence. Do not change permissions | B-11 (owner-run) |
+| Non-cash points ledger and balance | points, gateway | M-061–M-069 wired | read-only | DOC-205 | append-only triggers, idempotent awards | points 64 | **Implemented, awaiting integration** | Live delivery; TRUNCATE grant unverified | P1-06 |
+| Fraud holds | engagement | none | dashboard card | `/engagement/fraud-holds` | scoped to assigned videos | engagement 67 | **Partial** | No mobile surface; thresholds untuned | B-11 |
+| Reports, notices, standing | moderation, gateway | M-070–M-077 wired | queues | DOC-205 | idempotent decisions, receipts | moderation 67 | **Implemented, awaiting integration** | M-070 options sheet; staging activation | P1-02 |
+| Appeals | moderation, gateway | M-078 read-only state | queues | `POST /videos/{id}/appeals` | independent reviewer rule | moderation 67 | **Blocked by approval** | M-078 design says "does not submit"; API accepts submit | B-17 |
+| Copyright screening and notices | content, moderation | notice screens | queues | DOC-205 | pipeline and notice flow | content 123 | **Partial** | Needs live media journey | B-10 |
+| Creator analytics | content, engagement, gateway | M-058–M-060 wired | none | `/creators/me/analytics` | owner-only | gateway 183 | **Implemented, awaiting integration** | Staging activation | B-10 |
+| Audit event pipeline and retention | audit, identity | n/a | audit page | internal | append-only ingest, grants | audit 44 | **Partial** | Delivery scheduling, retention (OD-08, ADR-017) | B-18 |
+| Shared API contracts | `packages/contracts` | hand-written parsers | hand-written validators | only `health.yaml`; business contract is DOC-205 **DRAFT** | none | CI validates syntax only | **Partial** | No route-to-contract or auth-metadata test | P1-01, B-13 |
+| CI and supply-chain controls | CI | Flutter job | web image | n/a | SHA-pinned actions, secrets scan, audit, Bandit, OSV, Grype, SBOM | no coverage metric | **Partial** | No required checks on `main` (#142); OpenSSL exception ends 2026-11-28 (#143) | B-15 |
+| Database role separation | PostgreSQL | n/a | n/a | n/a | 26 tables + 8 sequences owned by runtime roles | `r1_readonly_preflight.sql` in CI | **Partial** (open High risk R-01) | Needs read-only role/grant report, then owner-approved plan | P1-06 |
+| Backup, restore, RTO/RPO, monitoring | infra | n/a | n/a | n/a | none evidenced | none | **Blocked by approval** | ADR-016, INF-05/INF-10 | B-16 |
+| Business listings and verification (R2) | none | none | none | none | none | none | **Missing**; **Blocked by approval** | Outside R1 (DEC-001); PRD/SRS detail unapproved (#133) | B-19 |
+| Events and ticketing (R3) | none | none | none | none | none | none | **Missing**; **Blocked by approval** | Outside R1; payment and legal approvals | B-19 |
+| Advertising and sponsorship | none | none | none | none | none | none | **Missing**; **Blocked by approval** | Advertising policy and approvals | B-19 |
+| Payments, payouts, settlement | none | none | none | none | disabled | none | **Missing**; **Blocked by approval** | Provider, financial-control and legal approvals; sandbox only when authorised | B-19 |
+| Public viewer/creator website | none | n/a | admin console only | none | n/a | n/a | **Missing** (by design) | Not in approved R1 scope | None |
+| Live streaming | none | none | none | none | n/a | n/a | **Excluded** | Excluded by owner | None |
+
+Local test run at HEAD and the full backlog, DRY analysis, risk register and Phase 1 acceptance criteria are in the [Phase 0 baseline](Phase0_Implementation_Baseline_2026-11-23.md#2-local-test-evidence-at-head).
+
 ## Earlier implementation and acceptance record
 
 | Area | Status recorded before this reconciliation | Evidence | Remaining gate at that time |
