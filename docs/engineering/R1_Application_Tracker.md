@@ -57,6 +57,19 @@ Source: [Phase 0 baseline](Phase0_Implementation_Baseline_2026-11-23.md), which 
 | Public viewer/creator website | none | n/a | admin console only | none | n/a | n/a | **Missing** (by design) | Not in approved R1 scope | None |
 | Live streaming | none | none | none | none | n/a | n/a | **Excluded** | Excluded by owner | None |
 
+### Phase 2 backend completion (23 November) — open pull requests, none merged
+
+Same columns and status key as above. These rows add to, or supersede the "Next task" of, the rows above once their pull requests merge. Evidence is local test runs plus the pull-request CI; **none is deployed or staged**.
+
+| Feature | Service | Mobile | Web | API | Security | Tests | Status | Blocker | Next task |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Internal request nonce retention (replay table bounded) | all eight | n/a | n/a | internal | nonces older than 10 minutes cannot match the 60-second window; purge cannot fail a request | 4 shared tests × 8 services; real PostgreSQL check | **Implemented, awaiting integration** ([#202](https://github.com/Markcino/KoloVibe/pull/202)) | Runtime login must keep DELETE on the nonce table (B-09) | Owner review and deploy |
+| Identity retention of expired throttle, code, challenge, replay-marker and finished-session rows | identity | n/a | n/a | internal + `purge_expired_security_rows` | closes anonymous growth of `LoginThrottle`; replay detection preserved; accounts, events, audit rows untouched | identity 8 new tests (suite 147) | **Implemented, awaiting integration** ([#203](https://github.com/Markcino/KoloVibe/pull/203)) | Unverified-account and event retention need ADR-020/OD-08 | Owner schedules the command if wanted |
+| Search within a creator's own video library (`q`) | content, gateway | M-040 search field not built | n/a | `GET /creators/me/videos?q=` (additive, DOC-205 updated) | own non-deleted videos only; cursor stays in the filtered view; response checked | content 1 + gateway 1 new (suites 124 / 184) | **Implemented, awaiting integration** ([#204](https://github.com/Markcino/KoloVibe/pull/204)) | Mobile adoption | Flutter search field (client phase) |
+| Points reversal and award adjustment execution | points | M-067 reads only | read-only review | none | no write path exists by design | n/a | **Blocked by approval** | No approved reversal rule (DEC-003 covers qualified awards and the daily cap only); README states no execution routes | Owner defines when and by whom a reversal is allowed |
+| Audit retention, redaction policy and legal-hold | audit | n/a | audit page | `/internal/audit/read` | conservative projection and append-only guards exist | audit 48 | **Blocked by approval** | OD-08, ADR-017 | Owner decision |
+| Post-approval edit re-review; appeal submit (M-078); account deletion and export | content, moderation, identity | M-054, M-078, M-091–M-094 | queues | existing | see risks R-03, R-13 | existing | **Blocked by approval** | B-08, B-17, B-18 | Owner decisions |
+
 Local test run at HEAD and the full backlog, DRY analysis, risk register and Phase 1 acceptance criteria are in the [Phase 0 baseline](Phase0_Implementation_Baseline_2026-11-23.md#2-local-test-evidence-at-head).
 
 ## Earlier implementation and acceptance record
