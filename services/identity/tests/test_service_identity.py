@@ -175,6 +175,72 @@ class ServiceIdentityTests(TestCase):
         self.assert_denied(self.signed(caller, secrets.token_urlsafe(48), nonce=nonce))
         self.assertEqual(self.call(self.signed(caller, self.keys[caller], nonce=nonce)).status_code, 200)
 
+    # --- nonce retention -----------------------------------------------------------------------
+
+    def nonces(self):
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT nonce FROM internal_request_nonce")
+            return {row[0] for row in cursor.fetchall()}
+
+    def add_old_nonces(self, caller, count, minutes=30):
+        names = [secrets.token_urlsafe(24) for _ in range(count)]
+        with connection.cursor() as cursor:
+            for name in names:
+                if connection.vendor == "postgresql":
+                    cursor.execute("INSERT INTO internal_request_nonce (caller, nonce, received_at) VALUES "
+                                   "(%s, %s, CURRENT_TIMESTAMP - make_interval(mins => %s))", [caller, name, minutes])
+                else:
+                    cursor.execute("INSERT INTO internal_request_nonce (caller, nonce, received_at) VALUES "
+                                   "(%s, %s, datetime('now', %s))", [caller, name, f"-{minutes} minutes"])
+        return set(names)
+
+    def test_expired_nonces_are_purged_and_current_ones_keep_blocking_replay(self):
+        from service import service_auth
+
+        caller = self.first_caller()
+        old = self.add_old_nonces(caller, 3)
+        service_auth._nonce_purge["at"] = None
+        request = self.signed(caller, self.keys[caller])
+        self.assertEqual(self.call(request).status_code, 200)
+        remaining = self.nonces()
+        self.assertFalse(old & remaining, "expired nonces must be removed")
+        self.assertEqual(len(remaining), 1, "the request just accepted keeps its nonce")
+        self.assert_denied(request)
+
+    def test_purge_is_bounded_and_runs_at_most_once_per_interval(self):
+        from service import service_auth
+
+        caller = self.first_caller()
+        old = self.add_old_nonces(caller, 5)
+        service_auth._nonce_purge["at"] = None
+        with patch.object(service_auth, "NONCE_PURGE_BATCH", 2):
+            self.assertEqual(self.call(self.signed(caller, self.keys[caller])).status_code, 200)
+            self.assertEqual(len(old & self.nonces()), 3, "one purge removes at most one batch")
+            self.assertEqual(self.call(self.signed(caller, self.keys[caller])).status_code, 200)
+            self.assertEqual(len(old & self.nonces()), 3, "a second request inside the interval does not purge")
+            service_auth._nonce_purge["at"] = None
+            self.assertEqual(self.call(self.signed(caller, self.keys[caller])).status_code, 200)
+            self.assertEqual(len(old & self.nonces()), 1)
+
+    def test_recent_nonces_are_never_purged(self):
+        from service import service_auth
+
+        caller = self.first_caller()
+        recent = self.add_old_nonces(caller, 2, minutes=5)
+        service_auth._nonce_purge["at"] = None
+        self.assertEqual(self.call(self.signed(caller, self.keys[caller])).status_code, 200)
+        self.assertEqual(recent & self.nonces(), recent)
+
+    def test_a_failing_purge_never_denies_a_valid_request(self):
+        from service import service_auth
+
+        caller = self.first_caller()
+        service_auth._nonce_purge["at"] = None
+        with patch.object(service_auth, "NONCE_PURGE_BATCH", "not-a-number"):
+            request = self.signed(caller, self.keys[caller])
+            self.assertEqual(self.call(request).status_code, 200)
+        self.assert_denied(request)
+
     # --- missing or unsafe credentials ------------------------------------------------------
 
     def test_missing_or_unusable_credentials_fail_closed(self):
