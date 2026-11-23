@@ -1,0 +1,29 @@
+{% extends 'base_admin.html' %}{% load admin_display %}
+{% block title %}Creators · KoloVibe{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Onboarding</p><h1>Creators</h1><p class="supporting-text">Invite people to upload videos, then review their applications.</p></div></div>
+{% if notice %}<p class="notice" role="status">{{ notice }}</p>{% endif %}
+{% if error %}<p class="notice error" role="alert">{{ error }}</p>{% endif %}
+<section class="panel" aria-labelledby="invite-title"><div class="section-heading"><div><p class="eyebrow">Step 1</p><h2 id="invite-title">Invite someone</h2></div></div>
+<p class="supporting-text">The person must already have a KoloVibe account with a verified email. After you invite them, they apply from the app's <strong>Become a creator</strong> screen, then you approve them below.</p>
+{% if candidate %}
+<div class="assignee-row"><span class="avatar">{{ candidate.display_name|slice:':1'|upper }}</span><span class="row-copy"><strong>{{ candidate.display_name }}</strong><small>Current role: {{ candidate.role|title }}</small></span>
+<span class="status-chip" data-state="{% if candidate.email_verified %}accepted{% else %}open{% endif %}">{% if candidate.email_verified %}Email verified{% else %}Email not verified{% endif %}</span></div>
+{% if not candidate.email_verified %}<p class="notice" role="note">They can be invited now, but cannot apply until they verify their email in the app.</p>{% endif %}
+<form method="post" class="status-actions">{% csrf_token %}<input type="hidden" name="operation" value="invite"><input type="hidden" name="account_id" value="{{ candidate.account_id }}"><input type="hidden" name="intent" value="{{ candidate.intent }}">
+<button type="submit">Send creator invitation</button><a class="button button-outline" href="{% url 'creators' %}">Cancel</a></form>
+{% else %}
+<form method="post" class="assign-form">{% csrf_token %}<input type="hidden" name="operation" value="lookup">
+<label>Email address<input type="email" name="email" maxlength="254" autocomplete="off" required placeholder="name@example.com"></label>
+<button type="submit">Find account</button></form>
+{% endif %}</section>
+<section class="panel table-panel" aria-labelledby="apps-title"><div class="section-heading"><div><p class="eyebrow">Step 2</p><h2 id="apps-title">Applications awaiting review</h2></div>{% if applications_available %}<span class="status-chip">{{ applications|length }} waiting</span>{% endif %}</div>
+{% if not applications_available %}<p class="notice error" role="alert">Applications are unavailable right now. Creator onboarding may not be enabled in this environment.</p>
+{% else %}<div class="table-scroll" role="region" aria-label="Pending creator applications" tabindex="0"><table><caption class="visually-hidden">Creator applications awaiting a decision</caption>
+<thead><tr><th scope="col">Handle</th><th scope="col">Submitted</th><th scope="col">Account</th><th scope="col">Decision</th></tr></thead><tbody>
+{% for row in applications %}<tr><td data-label="Handle"><strong>@{{ row.handle }}</strong></td><td data-label="Submitted"><time datetime="{{ row.submitted_at }}" title="{{ row.submitted_at|utc_stamp }}">{{ row.submitted_at|age }}</time></td><td data-label="Account"><code title="{{ row.account_id }}">{{ row.account_id|slice:':8' }}</code></td>
+<td data-label="Decision"><form method="post" class="status-actions">{% csrf_token %}<input type="hidden" name="operation" value="decide"><input type="hidden" name="account_id" value="{{ row.account_id }}"><input type="hidden" name="handle" value="{{ row.handle }}"><input type="hidden" name="intent" value="{{ row.intent }}">
+<button type="submit" name="decision" value="approved" aria-label="Approve @{{ row.handle }}">Approve</button><button type="submit" name="decision" value="rejected" class="button-outline" aria-label="Reject @{{ row.handle }}">Reject</button></form></td></tr>
+{% empty %}<tr><td colspan="4">No applications are waiting.</td></tr>{% endfor %}</tbody></table></div>
+{% if next_query %}<nav class="pagination" aria-label="Application pages"><a rel="next" href="?{{ next_query }}">Next page</a></nav>{% endif %}{% endif %}</section>
+{% endblock %}

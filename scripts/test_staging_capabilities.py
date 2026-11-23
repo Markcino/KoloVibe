@@ -94,6 +94,7 @@ class PolicyDefinitionTests(unittest.TestCase):
                           rf"/api/v1/moderation/(?:videos|reports|appeals)/{policy.UUID}",
                           rf"/api/v1/moderation/previews/{policy.UUID}", r"/api/v1/moderation/totals", r"/api/v1/engagement/fraud-holds", r"/api/v1/admin/moderation/assignments(?:/summary)?", r"/api/v1/admin/audit", r"/api/v1/admin/points/balances", rf"/api/v1/admin/points/accounts/{policy.UUID}",
                           r"/api/v1/admin/moderator-invitations",
+                          r"/api/v1/admin/accounts/lookup", r"/internal/auth/account-lookup",
                           rf"/api/v1/admin/moderator-invitations/{policy.UUID}/revoke",
                           r"/api/v1/auth/moderator-invitations/(?:setup|complete)",
                           r"/internal/auth/moderator-invitations",

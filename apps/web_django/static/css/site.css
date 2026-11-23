@@ -261,6 +261,9 @@ main { width: min(100% - 2 * var(--page-margin), 1200px); min-width: 0; margin: 
 .status-icon .icon { width: 28px; height: 28px; flex-basis: 28px; }
 .actions-center { justify-content: center; }
 .status-actions + p { margin-top: 1rem; }
+.panel > p + form, .panel > p + .assignee-row { margin-top: 1rem; }
+td .status-actions { margin: 0; justify-content: flex-end; }
+.panel > .assignee-row + .notice, .panel > .assignee-row + form { margin-top: 1rem; }
 .status-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 1.5rem; }
 
 /* Authentication */

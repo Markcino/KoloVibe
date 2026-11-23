@@ -1,0 +1,9 @@
+{% extends 'base_admin.html' %}
+{% block title %}Confirm your decision · KoloVibe{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Creators</p><h1>Confirm your decision</h1><p class="supporting-text">{% if decision == 'approved' %}Approving makes this account a creator who can upload videos.{% else %}Rejecting closes this application. The person cannot reapply without a new invitation.{% endif %}</p></div></div>
+<section class="panel"><div class="section-heading"><div><p class="eyebrow">Application</p><h2>{% if handle %}@{{ handle }}{% else %}Creator application{% endif %}</h2></div><span class="status-chip" data-state="{% if decision == 'approved' %}accepted{% else %}removed{% endif %}">{% if decision == 'approved' %}Approve{% else %}Reject{% endif %}</span></div>
+<dl><dt>Account</dt><dd>{{ account_id }}</dd></dl>
+<form method="post" class="status-actions">{% csrf_token %}<input type="hidden" name="operation" value="decide"><input type="hidden" name="account_id" value="{{ account_id }}"><input type="hidden" name="handle" value="{{ handle }}"><input type="hidden" name="decision" value="{{ decision }}"><input type="hidden" name="intent" value="{{ intent }}"><input type="hidden" name="confirmed" value="1">
+<button type="submit" class="{% if decision == 'rejected' %}button-danger{% endif %}">Confirm {% if decision == 'approved' %}approval{% else %}rejection{% endif %}</button><a class="button button-outline" href="{% url 'creators' %}">Cancel</a></form></section>
+{% endblock %}

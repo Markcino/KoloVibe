@@ -650,7 +650,7 @@ paths:
                   items:
                     type: array
                     maxItems: 20
-                    items: {$ref: '#/components/schemas/PilotCreatorApplication'}
+                    items: {$ref: '#/components/schemas/PilotPendingCreatorApplication'}
                   next_cursor: {type: [string, 'null'], format: uuid}
         '400': {description: Invalid cursor}
         '401': {description: Missing or invalid session}
@@ -3914,6 +3914,66 @@ paths:
           description: Administrator role or MFA required
         '503':
           description: Service unavailable
+  /admin/accounts/lookup:
+    post:
+      tags:
+      - Administration
+      summary: Find an invitable account by exact email
+      description: Used to invite an existing viewer or creator as a creator. Privileged, inactive and unknown accounts answer identically (404). Rate limited to 30 lookups per administrator per hour and audited as account.creator_candidate_looked_up.
+      operationId: lookup_creator_candidate
+      x-implementation: local
+      x-capability: account_management
+      x-required-roles:
+      - administrator
+      x-mfa-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - email
+              properties:
+                email:
+                  type: string
+                  format: email
+                  maxLength: 254
+      responses:
+        '200':
+          description: The matching account
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - account_id
+                - display_name
+                - role
+                - email_verified
+                properties:
+                  account_id:
+                    type: string
+                    format: uuid
+                  display_name:
+                    type: string
+                    maxLength: 80
+                  role:
+                    enum:
+                    - viewer
+                    - creator
+                  email_verified:
+                    type: boolean
+        '400':
+          description: Invalid email
+        '403':
+          description: Administrator role or MFA required
+        '404':
+          description: Account unavailable
+        '429':
+          description: Too many lookups
   /admin/audit:
     get:
       tags:
@@ -5225,6 +5285,17 @@ components:
         account_id: {type: string, format: uuid}
         status: {type: string, enum: [invited, pending, approved, rejected]}
         creator_id: {type: [string, 'null'], format: uuid}
+    PilotPendingCreatorApplication:
+      description: A submitted application as shown to reviewers, with the handle and submission time needed to decide.
+      type: object
+      additionalProperties: false
+      required: [account_id, status, creator_id, handle, submitted_at]
+      properties:
+        account_id: {type: string, format: uuid}
+        status: {type: string, enum: [pending]}
+        creator_id: {type: string, format: uuid}
+        handle: {type: string, pattern: '^[a-z0-9_]{3,30}$'}
+        submitted_at: {type: string, format: date-time}
     Creator:
       type: object
       description: Public creator profile. It never includes the internal account id.

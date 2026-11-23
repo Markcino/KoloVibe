@@ -132,6 +132,23 @@ class RenderedPageStructureTests(TestCase):
         for path in ("/login/", "/moderator-invitation/", "/no-such-page/"):
             self.check(path, self.client.get(path))
 
+    def test_creator_pages(self):
+        import uuid as _uuid
+        self.login("administrator")
+        row = {"account_id": str(_uuid.uuid4()), "status": "pending", "creator_id": str(_uuid.uuid4()), "handle": "ada_eze",
+               "submitted_at": "2026-11-23T10:00:00+00:00"}
+        page = (200, {"items": [row], "next_cursor": None})
+        with patch("web.views._api", side_effect=[(200, self.account), page]):
+            response = self.client.get("/admin/creators/")
+        self.check("creators", response)
+        found = (200, {"account_id": str(_uuid.uuid4()), "display_name": "Ada Eze", "role": "viewer", "email_verified": False})
+        with patch("web.views._api", side_effect=[(200, self.account), found, page]):
+            self.check("creator candidate", self.client.post("/admin/creators/", {"operation": "lookup", "email": "ada@example.test"}))
+        intent = response.context["applications"][0]["intent"]
+        with patch("web.views._api", side_effect=[(200, self.account)]):
+            self.check("creator confirm", self.client.post("/admin/creators/", {
+                "operation": "decide", "account_id": row["account_id"], "handle": "ada_eze", "decision": "rejected", "intent": intent}))
+
     def test_console_pages_for_both_roles(self):
         totals = {"videos": {"review": 1, "published": 2, "rejected": 3, "removed": 4},
                   "reports": {"open": 1, "resolved": 2, "dismissed": 3}, "appeals": {"open": 1, "denied": 2, "restored": 3}}
