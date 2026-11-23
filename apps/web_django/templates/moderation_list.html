@@ -11,7 +11,7 @@
 <table><caption>{{ title }} · {{ selected_status|title }}</caption>
 <thead><tr><th scope="col">{% if kind == 'videos' %}Title{% else %}Reason{% endif %}</th>{% if kind != 'videos' %}<th scope="col">Submitted</th>{% endif %}<th scope="col">Status</th><th scope="col">Item</th><th scope="col">Review</th></tr></thead>
 <tbody>{% for item in items %}<tr>
-<td data-label="{% if kind == 'videos' %}Title{% else %}Reason{% endif %}">{% if kind == 'videos' %}<strong>{{ item.title }}</strong>{% else %}<strong>{{ item.reason|human_label }}</strong>{% if item.details %}<br><span class="supporting-text">{{ item.details|truncatechars:90 }}</span>{% endif %}{% endif %}</td>
+<td data-label="{% if kind == 'videos' %}Title{% else %}Reason{% endif %}"><div>{% if kind == 'videos' %}<strong>{{ item.title }}</strong>{% else %}<strong>{{ item.reason|human_label }}</strong>{% if item.details %}<br><span class="supporting-text">{{ item.details|truncatechars:90 }}</span>{% endif %}{% endif %}</div></td>
 {% if kind != 'videos' %}<td data-label="Submitted"><time datetime="{{ item.created_at }}" title="{{ item.created_at|utc_stamp }}">{{ item.created_at|age }}</time></td>{% endif %}
 <td data-label="Status"><span class="status-chip" data-state="{% if kind == 'videos' %}{{ selected_status }}{% else %}{{ item.status }}{% endif %}">{% if kind == 'videos' %}{{ selected_status|title }}{% else %}{{ item.status|title }}{% endif %}</span></td>
 <td data-label="Item"><code title="{{ item.id }}">{{ item.id|slice:':8' }}</code></td>

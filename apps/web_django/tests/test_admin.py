@@ -8,6 +8,7 @@ from urllib.error import URLError
 from django.core import signing
 from django.test import Client, TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from web import staging_session
 from web.api_contracts import ACTIONS, valid_queue_page
@@ -137,19 +138,20 @@ class AdminConsoleTests(TestCase):
         for kind, actions in ACTIONS.items():
             for action in actions:
                 intent = self.intent(kind)
-                submitted = {"intent": intent, "action": action, "reason": "Reviewed against the content policy."}
+                submitted = {"intent": intent, "action": action, "reason": "Reviewed against the content policy.", "confirmed": "1"}
                 result = {"id": str(uuid.uuid4()), "video_id": self.target, "action": action, "status": "applied"}
                 keys = []
                 for _ in range(2):
-                    with patch("web.views._api", side_effect=[(200, self.account), (200, result)]) as api:
+                    with patch("web.views._api", side_effect=[(200, self.account), (200, result), (503, {})]) as api:
                         response = self.client.post(self.detail_url(kind), submitted)
                     self.assertContains(response, "Decision recorded")
-                    self.assertEqual(api.call_args.args, (f"/moderation/{kind}/{self.target}/decisions",))
-                    self.assertEqual(api.call_args.kwargs["method"], "POST")
-                    self.assertEqual(api.call_args.kwargs["token"], self.access)
-                    self.assertEqual(api.call_args.kwargs["data"], {
+                    decision = api.call_args_list[1]
+                    self.assertEqual(decision.args, (f"/moderation/{kind}/{self.target}/decisions",))
+                    self.assertEqual(decision.kwargs["method"], "POST")
+                    self.assertEqual(decision.kwargs["token"], self.access)
+                    self.assertEqual(decision.kwargs["data"], {
                         "action": action, "reason": submitted["reason"]})
-                    keys.append(api.call_args.kwargs["idempotency_key"])
+                    keys.append(decision.kwargs["idempotency_key"])
                 self.assertEqual(keys[0], keys[1])
                 self.assertGreaterEqual(len(keys[0]), 16)
 
@@ -202,8 +204,8 @@ class AdminConsoleTests(TestCase):
             intent = self.intent(kind, client)
             action = sorted(ACTIONS[kind])[0]
             with patch("web.views._api", side_effect=[(200, self.account), (200, {
-                    "id": str(uuid.uuid4()), "video_id": self.target, "action": action, "status": "applied"})]):
-                response = client.post(self.detail_url(kind), {"intent": intent, "action": action,
+                    "id": str(uuid.uuid4()), "video_id": self.target, "action": action, "status": "applied"}), (503, {})]):
+                response = client.post(self.detail_url(kind), {"intent": intent, "action": action, "confirmed": "1",
                     "reason": "A valid review reason.", "csrfmiddlewaretoken": client.cookies["csrftoken"].value})
             self.assertEqual(response.status_code, 200)
 
@@ -391,6 +393,65 @@ class AdminConsoleTests(TestCase):
         with patch("web.views._api", side_effect=[(200, self.account), (200, {**totals, "videos": {"review": True}})]):
             self.assertEqual(self.client.get("/admin/").status_code, 503)
 
+
+    def test_authorized_preview_plays_inline_from_the_same_origin_only(self):
+        self.login("moderator")
+        detail = self.detail("videos")
+        detail["preview"] = {"id": self.target, "url": "/api/v1/moderation/previews/" + self.target,
+                             "expires_at": "2026-11-21T10:01:00Z"}
+        with patch("web.views._api", side_effect=[(200, self.account), (200, detail)]):
+            response = self.client.get(self.detail_url("videos"))
+        player = f'<video class="preview-player" controls playsinline preload="metadata" src="/admin/moderation/previews/{self.target}/"'
+        self.assertContains(response, player)
+        self.assertContains(response, "Open authorized preview")
+        self.assertContains(response, "10:01 UTC")
+        self.assertNotContains(response, "/api/v1/")
+        self.assertNotContains(response, "https://")
+
+    def test_destructive_decisions_need_confirmation_and_send_nothing_until_confirmed(self):
+        self.login("moderator")
+        reason = "Contains <b>repeated</b> policy violations."
+        for kind, action in (("videos", "remove"), ("videos", "reject"), ("appeals", "deny"), ("reports", "remove")):
+            intent = self.intent(kind)
+            with patch("web.views._api", side_effect=[(200, self.account)]) as api:
+                page = self.client.post(self.detail_url(kind), {"intent": intent, "action": action, "reason": reason})
+            self.assertContains(page, "Confirm your decision")
+            self.assertContains(page, f"Confirm {action}")
+            self.assertContains(page, "&lt;b&gt;repeated&lt;/b&gt;")
+            self.assertEqual(api.call_count, 1, "confirmation must not reach the gateway")
+            self.assertEqual(page.context["intent"], intent)
+        # Non-destructive actions are applied directly; the confirmation field is not a security control.
+        intent = self.intent("videos")
+        result = {"id": str(uuid.uuid4()), "video_id": self.target, "action": "publish", "status": "applied"}
+        with patch("web.views._api", side_effect=[(200, self.account), (200, result), (503, {})]):
+            self.assertContains(self.client.post(self.detail_url("videos"), {"intent": intent, "action": "publish", "reason": reason}), "Decision recorded")
+
+    def test_decision_result_links_to_the_next_open_item_and_never_to_the_decided_one(self):
+        self.login("moderator")
+        other = str(uuid.uuid4())
+        ids = sorted([self.target, other])
+        queue = {"items": [self.record("reports", item_id) for item_id in ids], "next_cursor": None}
+        intent = self.intent("reports")
+        result = {"id": str(uuid.uuid4()), "video_id": self.target, "action": "dismiss", "status": "applied"}
+        with patch("web.views._api", side_effect=[(200, self.account), (200, result), (200, queue)]):
+            response = self.client.post(self.detail_url("reports"), {"intent": intent, "action": "dismiss", "reason": "Reviewed against the content policy."})
+        self.assertContains(response, "Review next item")
+        self.assertContains(response, f'href="/admin/moderation/reports/{other}/"')
+        self.assertNotContains(response, f'href="/admin/moderation/reports/{self.target}/"')
+        queue = {"items": [self.record("reports", self.target)], "next_cursor": None}
+        intent = self.intent("reports")
+        with patch("web.views._api", side_effect=[(200, self.account), (200, result), (200, queue)]):
+            response = self.client.post(self.detail_url("reports"), {"intent": intent, "action": "dismiss", "reason": "Reviewed against the content policy."})
+        self.assertNotContains(response, "Review next item")
+        self.assertContains(response, "Back to reports queue")
+
+    def test_header_states_when_the_session_ends(self):
+        self.login("moderator")
+        with patch("web.views._api", side_effect=[(200, self.account), (200, self.account)]):
+            response = self.client.get("/admin/account/")
+        ends = timezone.datetime.fromisoformat(self.client.session["session_ends_at"])
+        self.assertAlmostEqual((ends - timezone.now()).total_seconds(), 900, delta=30)
+        self.assertContains(response, f"yours ends at <strong>{ends.strftime('%H:%M')} UTC</strong>")
 
     def test_natural_console_addresses_lead_to_the_dashboard_guard(self):
         for path in ("/moderator/", "/dashboard/"):

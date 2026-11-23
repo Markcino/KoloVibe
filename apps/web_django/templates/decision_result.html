@@ -1,3 +1,5 @@
 {% extends 'base_admin.html' %}
 {% block title %}Decision recorded · KoloVibe{% endblock %}
-{% block content %}<section class="panel"><div class="empty-state">{% include 'icon.html' with name='shield' %}<h1>Decision recorded</h1><p role="status">Your decision was applied.</p><p><a class="button" href="{% url 'dashboard' %}">Return to dashboard</a></p></div></section>{% endblock %}
+{% block content %}<section class="panel"><div class="empty-state">{% include 'icon.html' with name='shield' %}<h1>Decision recorded</h1><p role="status">Your decision was applied.</p>
+<div class="status-actions actions-center">{% if next_url %}<a class="button" href="{{ next_url }}">Review next item</a>{% endif %}<a class="button {% if next_url %}button-outline{% endif %}" href="{% url 'moderation-'|add:kind %}">Back to {{ kind }} queue</a><a class="button button-outline" href="{% url 'dashboard' %}">Dashboard</a></div>
+{% if not next_url %}<p class="supporting-text">There is no other item to open from this queue right now.</p>{% endif %}</div></section>{% endblock %}

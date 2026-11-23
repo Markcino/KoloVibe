@@ -14,6 +14,7 @@ from django.conf import settings
 from django.core import signing
 from django.http import FileResponse, Http404, HttpResponseNotAllowed, HttpResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.middleware.csrf import rotate_token
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
@@ -172,6 +173,7 @@ def _render(request, template, context=None, *, status=200):
     return render(request, template, {
         "account": request.admin_account,
         "role": request.admin_account["roles"][0],
+        "session_ends": request.session.get("session_ends_at"),
         **(context or {}),
     }, status=status)
 
@@ -328,6 +330,21 @@ def moderation_queue(request, kind):
     })
 
 
+# Decisions that remove or refuse something cannot be silently undone by the creator, so they are confirmed.
+CONFIRMED_ACTIONS = {"reject", "remove", "deny"}
+
+
+def _next_item(request, kind, decided):
+    """Link to the first remaining item in the default queue, or None; never fails the decision."""
+    status, page = _queue_page(request, kind, None)
+    if status != 200:
+        return None
+    for item in page["items"]:
+        if item["id"] != str(decided):
+            return reverse(f"moderation-{kind}-detail", args=[item["id"]])
+    return None
+
+
 def _intent(request, kind, target_id):
     return {"kind": kind, "target": str(target_id), "actor": request.admin_account["id"],
             "session": salted_hmac("admin-decision-session", request.session.session_key).hexdigest()}
@@ -351,6 +368,11 @@ def moderation_detail(request, kind, target_id):
         action, reason = request.POST.get("action", ""), request.POST.get("reason", "")
         if action not in ACTIONS[kind] or not 10 <= len(reason.strip()) <= len(reason) <= 2000:
             return error_page(request, status=400)
+        if action in CONFIRMED_ACTIONS and request.POST.get("confirmed") != "1":
+            # Irreversible outcomes need a second, explicit step. Nothing is sent to the gateway yet.
+            return _render(request, "decision_confirm.html", {
+                "title": "Confirm your decision", "kind": kind, "action": action, "reason": reason.strip(),
+                "intent": request.POST["intent"], "target_id": target_id})
         status, result = _api(f"/moderation/{kind}/{target_id}/decisions", method="POST",
                               token=request.gateway_token, data={"action": action, "reason": reason.strip()},
                               idempotency_key=key)
@@ -358,7 +380,8 @@ def moderation_detail(request, kind, target_id):
             return _gateway_error(request, status)
         if not valid_decision(result, video_id, action):
             return error_page(request)
-        return _render(request, "decision_result.html", {"kind": kind})
+        return _render(request, "decision_result.html", {"kind": kind, "action": action,
+                                                         "next_url": _next_item(request, kind, target_id)})
     status, detail = _api(f"/moderation/{kind}/{target_id}", token=request.gateway_token, response_limit=524288)
     if status != 200:
         return _gateway_error(request, status)
