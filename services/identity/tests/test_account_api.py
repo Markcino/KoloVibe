@@ -3,6 +3,7 @@ import re
 import secrets
 import smtplib
 import time
+import uuid
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -270,6 +271,60 @@ class AccountApiTests(TestCase):
         self.assertEqual(self.post(accounts.validate_access,
                                    {"access_token": second["access_token"]}).status_code, 401)
         self.assertIsNotNone(LoginSession.objects.get().revoked_at)
+
+    def sign_in(self, account):
+        response = self.post(accounts.login, {"email": account.email, "password": self.password})
+        self.assertEqual(response.status_code, 200)
+        return json.loads(response.content)
+
+    def test_replay_of_an_old_refresh_token_revokes_the_family_and_the_newest_token(self):
+        account = self.register_and_verify()
+        first = self.sign_in(account)
+        second = json.loads(self.post(accounts.refresh, {"refresh_token": first["refresh_token"]}).content)
+        third = json.loads(self.post(accounts.refresh, {"refresh_token": second["refresh_token"]}).content)
+        self.assertEqual(self.post(accounts.validate_access, {"access_token": third["access_token"]}).status_code, 200)
+        # A stolen, long-rotated token is still recognised as a replay and ends the whole session.
+        self.assertEqual(self.post(accounts.refresh, {"refresh_token": first["refresh_token"]}).status_code, 401)
+        self.assertEqual(self.post(accounts.refresh, {"refresh_token": third["refresh_token"]}).status_code, 401)
+        self.assertEqual(self.post(accounts.validate_access, {"access_token": third["access_token"]}).status_code, 401)
+        self.assertEqual(self.post(accounts.revoke, {"refresh_token": third["refresh_token"]}).status_code, 401)
+        self.assertEqual(SecurityEvent.objects.filter(kind="session.replay", actor_id=account.id).count(), 1)
+
+    def test_replay_events_and_audit_rows_carry_no_token_material(self):
+        account = self.register_and_verify()
+        first = self.sign_in(account)
+        second = json.loads(self.post(accounts.refresh, {"refresh_token": first["refresh_token"]}).content)
+        self.post(accounts.refresh, {"refresh_token": first["refresh_token"]})
+        stored = " ".join(str(value) for value in SecurityEvent.objects.values_list("kind", "actor_id"))
+        for token in (first["refresh_token"], first["access_token"], second["refresh_token"], second["access_token"]):
+            self.assertNotIn(token, stored)
+            self.assertNotIn(token.split(".")[-1], stored)
+        # The event table has no column that could hold a credential.
+        self.assertEqual({field.name for field in SecurityEvent._meta.concrete_fields},
+                         {"id", "actor_id", "kind", "occurred_at"})
+
+    def test_a_wrong_refresh_token_cannot_revoke_someone_elses_session(self):
+        account = self.register_and_verify()
+        tokens = self.sign_in(account)
+        session_id, _, secret = tokens["refresh_token"].partition(".")
+        guesses = [f"{session_id}.{'A' * len(secret)}", f"{session_id}.{secret[::-1]}",
+                   f"{uuid.uuid4()}.{secret}", f"{session_id}.", session_id]
+        for guess in guesses:
+            with self.subTest(guess=guess[:8]):
+                self.assertEqual(self.post(accounts.refresh, {"refresh_token": guess}).status_code, 401)
+                self.assertEqual(self.post(accounts.revoke, {"refresh_token": guess}).status_code, 401)
+        # Knowing the session id is not enough to end, or to hijack, the session.
+        self.assertEqual(self.post(accounts.validate_access, {"access_token": tokens["access_token"]}).status_code, 200)
+        self.assertIsNone(LoginSession.objects.get().revoked_at)
+        self.assertEqual(self.post(accounts.refresh, {"refresh_token": tokens["refresh_token"]}).status_code, 200)
+
+    def test_signing_out_one_session_leaves_the_account_other_sessions_valid(self):
+        account = self.register_and_verify()
+        phone, tablet = self.sign_in(account), self.sign_in(account)
+        self.assertEqual(self.post(accounts.revoke, {"access_token": phone["access_token"]}).status_code, 204)
+        self.assertEqual(self.post(accounts.revoke, {"access_token": phone["access_token"]}).status_code, 401)
+        self.assertEqual(self.post(accounts.validate_access, {"access_token": tablet["access_token"]}).status_code, 200)
+        self.assertEqual(self.post(accounts.refresh, {"refresh_token": tablet["refresh_token"]}).status_code, 200)
 
     def test_creator_verification_requires_recorded_email_verification(self):
         account = Account.objects.create_user(
