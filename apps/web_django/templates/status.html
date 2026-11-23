@@ -8,7 +8,8 @@
     {% if code %}<p class="eyebrow">Error {{ code }}</p>{% endif %}
     <h1 id="status-title">{{ title }}</h1>
     {% if message %}<p class="supporting-text">{{ message }}</p>{% endif %}
-    <div class="status-actions"><a class="button" href="{% url 'dashboard' %}">Go to dashboard</a><a class="button button-outline" href="{% url 'login' %}">Sign in</a></div>
+    {% if code == 403 and signed_in %}<p class="supporting-text">You are signed in as <strong>{{ role|title }}</strong>. If you need this access, ask an administrator.</p>{% endif %}
+    <div class="status-actions">{% if signed_in %}<a class="button" href="{% url 'dashboard' %}">Back to dashboard</a>{% else %}<a class="button" href="{% url 'login' %}">Sign in</a>{% endif %}</div>
   </section>
 </main>
 {% endblock %}

@@ -100,7 +100,7 @@ def _api(path, *, method="GET", data=None, token=None, idempotency_key=None, bin
 # Fixed copy per status. It never echoes gateway bodies and names no resource, so it cannot enumerate anything.
 ERROR_COPY = {
     400: ("We couldn't process that request", "Something in the request wasn't valid. Go back and try again."),
-    403: ("You don't have access to this page", "Your account isn't permitted to open this page. Return to the dashboard, or sign in with a different account."),
+    403: ("Access denied", "Your account isn't permitted to open this page."),
     404: ("Page not found", "This page doesn't exist or is no longer available. Return to the dashboard to continue."),
     503: ("Something went wrong", "This request couldn't be completed right now. Try again in a moment, or sign in again if it continues."),
 }
@@ -110,7 +110,12 @@ ERROR_COPY = {
 def error_page(request, exception=None, status=503):
     # One non-enumerating message. Never render gateway response bodies.
     title, message = ERROR_COPY.get(status, ERROR_COPY[503])
-    return render(request, "status.html", {"title": title, "message": message, "code": status}, status=status)
+    # A signed-in person stays signed in and is offered the dashboard; only visitors are offered sign-in.
+    account = getattr(request, "admin_account", None)
+    signed_in = bool(request.session.get("authenticated")) and isinstance(account, dict)
+    return render(request, "status.html", {
+        "title": title, "message": message, "code": status, "signed_in": signed_in,
+        "role": account["roles"][0] if signed_in else None}, status=status)
 
 
 def error_400(request, exception=None):

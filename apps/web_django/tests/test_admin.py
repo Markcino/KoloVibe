@@ -509,7 +509,7 @@ class AdminConsoleTests(TestCase):
         self.assertRedirects(self.client.get("/admin/"), "/login/", fetch_redirect_response=False)
 
     def test_error_pages_explain_the_problem_and_offer_a_way_back_without_leaking(self):
-        expected = {404: "Page not found", 403: "You don&#x27;t have access to this page"}
+        expected = {404: "Page not found", 403: "Access denied"}
         for status, title in expected.items():
             self.login("moderator")
             gateway = (status, {"detail": "private-host secret-token"})
@@ -518,12 +518,33 @@ class AdminConsoleTests(TestCase):
             self.assertEqual(response.status_code, status)
             self.assertContains(response, title, status_code=status)
             self.assertContains(response, f"Error {status}", status_code=status)
-            self.assertContains(response, 'href="/admin/">Go to dashboard', status_code=status)
+            self.assertContains(response, 'href="/admin/">Back to dashboard', status_code=status)
+            self.assertNotContains(response, 'href="/login/"', status_code=status)
             self.assertNotContains(response, "secret-token", status_code=status)
             self.assertNotContains(response, "Request unavailable", status_code=status)
-        missing = self.client.get("/no-such-page/")
+        missing = Client().get("/no-such-page/")
         self.assertContains(missing, "Page not found", status_code=404)
-        self.assertContains(missing, "Go to dashboard", status_code=404)
+        self.assertContains(missing, 'href="/login/">Sign in', status_code=404)
+        self.assertNotContains(missing, "Back to dashboard", status_code=404)
+
+    def test_refused_pages_show_access_denied_keep_the_session_and_hide_unusable_links(self):
+        self.login("moderator")
+        for path in ("/admin/points/", "/admin/team/"):
+            with patch("web.views._api", side_effect=[(200, self.account), (403, {"detail": "Forbidden"})]):
+                response = self.client.get(path)
+            self.assertContains(response, "Access denied", status_code=403)
+            self.assertContains(response, "signed in as <strong>Moderator</strong>", status_code=403)
+            self.assertContains(response, 'href="/admin/">Back to dashboard', status_code=403)
+            self.assertTrue(self.client.session.get("authenticated"), path)
+        with patch("web.views._api", side_effect=[(200, self.account), (200, self.account)]):
+            moderator_nav = self.client.get("/admin/account/").content.decode()
+        self.assertNotIn("<span>Points</span>", moderator_nav)
+        self.assertNotIn("<span>Team</span>", moderator_nav)
+        self.login("administrator")
+        with patch("web.views._api", side_effect=[(200, self.account), (200, self.account)]):
+            admin_nav = self.client.get("/admin/account/").content.decode()
+        self.assertIn("<span>Points</span>", admin_nav)
+        self.assertIn("<span>Team</span>", admin_nav)
 
     def test_unassigned_moderator_sees_empty_state_not_an_error(self):
         self.login("moderator")
