@@ -1,5 +1,7 @@
 # KoloVibe R1 consolidated release-candidate gates — 2026-11-14
 
+> **Historical gate snapshot only (reconciled 23 November).** This **14 November** `NO-GO` checklist is not a description of the currently running version. [AWS v0.357.1](R1_AWS_Staging_Reconciliation_2026-11-23.md) subsequently passed 16/16 image updates, 6/6 public smoke probes and owner-reported 6/6 privileged web UAT. The overall **production NO-GO** remains because negative API/security/device tests, recovery, monitoring and PostgreSQL least-privilege review remain open. Rebaseline every gate with release-specific evidence under [#161](https://github.com/Markcino/KoloVibe/issues/161); do not mark historical unchecked items as passed solely from a later successful deploy.
+
 Status: **PREPARATION / NO-GO**. This document does not authorize infrastructure changes, PR merges, image publication or deployment.
 
 ## Source baseline
