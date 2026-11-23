@@ -85,6 +85,32 @@ Same columns and status key. Evidence is local runs (disposable PostgreSQL for t
 | R2 lifecycle: delete originals, abandoned uploads, superseded renditions | content | n/a | n/a | none | no deletion added | n/a | **Blocked by approval** | Retention rule (OD-07) and a credential allowed to delete | Owner |
 | Poison-message handling (dead-letter) for the Points queue | points | n/a | n/a | n/a | malformed payload is raised and acknowledged, not retried | #207 documents | **Blocked by dependency** | Needs broker configuration (owner); permissions untouched | Owner |
 
+### Phase 4 mobile (23 November) — merged: #211, #212
+
+Same columns and status key. Evidence: whole Flutter suite 1,555 tests passing locally on SDK 3.50.1 (CI pins 3.47.8 and its Flutter job passed on #211). **No physical-device result exists.** Per-journey runs and the screen table by journey are in [mobile-phase4-journey-matrix](../mobile-phase4-journey-matrix.md).
+
+| Feature | Service | Mobile | Web | API | Security | Tests | Status | Blocker | Next task |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 108 mobile screens and states (M-001–M-108) | gateway | all implemented; 8 visually matched, 99 functional with a recorded deviation, 1 not verified | n/a | DOC-205 | refresh credential in platform secure storage; ownership and points never computed on the client | 1,555 Flutter tests | **Implemented, awaiting integration** | Physical iPhone and Android runs; owner decisions for M-045, profile photos, M-078, brand mark | Run the iPhone and Android checklists |
+| M-040 search within the creator's own library | content, gateway | wired (#211) | n/a | `GET /creators/me/videos?q=` | validated before any request | repository and widget tests | **Implemented, awaiting integration** | Device acceptance | Device run |
+| M-045 cover choice | content | slider stands in | n/a | none for frames | n/a | n/a | **Blocked by approval** | Frame-thumbnail endpoint or accept the slider (D-2) | Owner |
+
+### Phase 5 administration console (23 November) — open pull requests
+
+Same columns and status key. Evidence is the web test suite plus pull-request CI; **no staging run was made** and the owner-reported 6/6 positive UAT on v0.357.1 remains the only privileged evidence from a deployed environment.
+
+| Feature | Service | Mobile | Web | API | Security | Tests | Status | Blocker | Next task |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Secure login, privileged MFA, session validation, secure logout | identity, gateway | n/a | existing | `/auth/*`, `/me/*` | encrypted server session, 15-minute absolute and 30-minute idle limits, MFA flag checked in two layers | route security matrix, 11 tests ([#213](https://github.com/Markcino/KoloVibe/pull/213)) plus 101 existing | **Deployed, awaiting acceptance** (matrix itself: **Verified complete**, repository scope) | Negative authorization and MFA replay on staging | Owner run |
+| Administrator dashboard, video review, report management, appeals, content restrictions (remove, restore, reject decisions), decision idempotency | moderation, content, gateway | n/a | existing | `/moderation/*` | intent bound to actor, session, target and expiry; stable idempotency keys; CSRF on every decision | existing 101 + #213 | **Deployed, awaiting acceptance** | Staging negative and cross-account evidence | Owner run |
+| Moderator assignment management and moderator invitations | moderation, identity | n/a | existing | `/admin/moderation/assignments`, `/admin/moderator-invitations` | administrator-only; assignment scope enforced by Moderation | existing + #213 | **Deployed, awaiting acceptance** | Live QR enrolment receipt | Owner run |
+| Creator verification: find, invite, review applications | creators, identity, gateway | n/a | existing (main only at v0.357.1) | `/creator-invitations`, `/creator-applications` | administrator-only in console and service | existing | **Implemented, awaiting integration** | Not evidenced on staging | Owner run |
+| Creator invitation management: list outstanding invitations, revoke | creators | n/a | missing | none | n/a | none | **Missing**; **Blocked by approval** | No approved contract; revocation needs a new application state (migration) and audit semantics | Owner decides; then a focused backend task |
+| Fraud review page | engagement, gateway | n/a | new ([#214](https://github.com/Markcino/KoloVibe/pull/214)) | `GET /engagement/fraud-holds?cursor=` | scoped by the gateway, read-only, response validated | 8 tests | **Implemented, awaiting integration** | Clearing or creating holds has no approved rule or operation | Owner decision |
+| Points review (read-only) and audit browsing | points, audit | n/a | existing | `/admin/points/*`, `/admin/audit` | grant-scoped, redacted, denials audited | existing | **Deployed, awaiting acceptance** | Award or reversal execution and audit retention blocked by approval | Owner decisions |
+| Own account settings | identity | n/a | existing | `/me`, `/me/password`, `/me/sessions` | reauthentication proofs, session revoke ownership | existing | **Deployed, awaiting acceptance** | Staging evidence | Owner run |
+| Layout and accessibility checks | n/a | n/a | tests ([#215](https://github.com/Markcino/KoloVibe/pull/215)) | n/a | n/a | 11 static checks | **Partial** | No screen-reader pass, browser check at real widths or keyboard walk-through performed | Manual accessibility pass |
+
 Local test run at HEAD and the full backlog, DRY analysis, risk register and Phase 1 acceptance criteria are in the [Phase 0 baseline](Phase0_Implementation_Baseline_2026-11-23.md#2-local-test-evidence-at-head).
 
 ## Earlier implementation and acceptance record
