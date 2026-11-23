@@ -2,6 +2,10 @@
 
 The Flutter app uses `lib/main.dart` only. Its default composition reports unavailable operations unless `KOLOVIBE_API_URL` is set to an approved HTTPS gateway URL ending in `/api/v1` (or debug loopback). The opt-in composition wires account operations and public video and reviewed-creator metadata; it does not bundle accounts, content records, points balances, or simulated service results.
 
+## Current deployment versus mobile acceptance — 23 November 2026
+
+The AWS **v0.357.1** release [deployed 16/16 backend/job/web services and passed six public HTTP smoke probes](operations/R1_AWS_Staging_Reconciliation_2026-11-23.md), with six positive administrator/moderator web UAT checks. **This does not verify Flutter integration on that release.** The recorded iPhone 9/9 account journey belongs to its older tested build; force-close session restore (SEC-05), expiry-driven refresh, video upload/playback, server-qualified views/likes/points, real Cloudflare R2/FFmpeg processing and physical Android acceptance remain open. Identify the exact mobile artifact/commit for new device testing, rather than assuming the currently deployed server image was paired with a retested client.
+
 ## Source of truth
 
 - Product scope: `docs/requirements/platform_PRD_v0_2_scope_approved.md` and `platform_SRS_v0_2_scope_approved.md`.

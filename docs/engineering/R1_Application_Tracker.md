@@ -1,14 +1,18 @@
 # R1 application delivery tracker
 
-**Updated 17 November 2026.** The project owner confirmed that Stage 3 (Technical Foundation) was completed successfully. Stage 4 (MVP implementation) is in progress, with Stage 5 (testing and security verification) running in parallel on AWS staging. See the [Stage 3 tracker](Stage3_Implementation_Tracker.csv) for the detailed foundation record.
+**Updated 23 November 2026.** Stage 3 (Technical Foundation) was **declared completed by the owner on 10 November**, while unresolved security, operations and recovery controls remain open. Stage 4 (R1 MVP implementation) and Stage 5 (verification) remain in progress on AWS staging. Production is **NO-GO**. See the [Stage 3 tracker](Stage3_Implementation_Tracker.csv) and the [current AWS release record](../operations/R1_AWS_Staging_Reconciliation_2026-11-23.md).
 
-## Current release checkpoint
+## Current release checkpoint — v0.357.1 (23 November)
 
-The [17 November reconciliation](../operations/R1_AWS_Staging_Reconciliation_2026-11-17.md) is the current release checkpoint: **v0.187.2 published; all eight APIs and the media worker deployed by operator report; 26 passed / 0 failed / 19 pending**. POST authentication routing is verified for the submitted invalid-input probes. Successful authenticated login/profile and refresh on this release remain pending evidence.
+The operator supplied deployment and smoke-test output for immutable release `807b1edc6e80454bd6bfcb4a78761fa284cd6bee` (published by [successful CI run 45196093209](https://github.com/Markcino/KoloVibe/actions/runs/45196093209)): **16/16** services updated (eight APIs, six background jobs, media worker and web) and **six/six** public HTTPS checks passed. Identity migration `0011_moderator_invitations` was previously applied and retained. This records a verified **deployment**, not full API/mobile acceptance.
 
-The [21 November record](../operations/R1_AWS_Gateway_Prior_Release_v0.290.1_2026-11-21.md) reports all eight APIs, including the Gateway, running a later operator-observed digest (source commit `1be1236`). No integrated acceptance assessment has been recorded for it, so the 26/0/19 totals above are not transferred to that release. Open work toward go-live is indexed in [go-live readiness](../planning/go_live_readiness.md) and tracked in [#169](https://github.com/Markcino/KoloVibe/issues/169).
+On the same release, the owner reported **six/six authenticated administrator/moderator UAT passes**: dashboard, video review, reports/appeals, points review, moderator assignment, and moderator access. This resolves the *reported positive-path* “Request unavailable” regression for those tested journeys; it does not certify negative authorization, browser-session/MFA replay protections or every R1 contract. The earlier read-only check found **one administrator, one moderator and zero reviewer assignments** when 403s were observed; scoped grants are required for a moderator.
 
-This checkpoint supersedes the deployment/worker-provisioning status in the earlier area table and local-candidate notes below. Preserve their implementation and older UAT evidence under their original dates; do not transfer a prior release's pass to v0.187.2. Current remaining work is listed in the linked reconciliation.
+The 23 November database catalog audit found **26 tables and eight sequences owned by runtime `_app` roles**. Role inheritance/effective grants and a safe migration-owner correction remain to be investigated before any DDL. Backup/restore, origin and workload identity, live R2/FFmpeg/RabbitMQ journeys, qualified engagement/points, mobile device UAT and pilot sign-off remain open. Follow the [security and acceptance detail](../operations/R1_AWS_Staging_Reconciliation_2026-11-23.md) and [go-live readiness](../planning/go_live_readiness.md).
+
+**Evidence boundary:** the **26 passed / 0 failed / 19 pending** assessment belongs only to [v0.187.2, 17 November](../operations/R1_AWS_Staging_Reconciliation_2026-11-17.md); no full row-by-row retest of that matrix was supplied for v0.357.1. The repository `main` tip inspected on 23 November was four commits ahead of v0.357.1, with creator-admin and account-lookup work **not observed deployed**; do not infer staging acceptance from source presence.
+
+The dated feature table and 10 November iPhone run below are retained as **historical implementation and test evidence**, not the current release's feature acceptance. Updates must keep those dates and their tested builds separate.
 
 ## Earlier implementation and acceptance record
 

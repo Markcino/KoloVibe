@@ -1,5 +1,7 @@
 # Stage 3 — Current execution status
 
+> **Current delivery note (23 November 2026):** Stage 3 remains **owner-declared complete** as of 10 November; this historical task assessment is not a current infrastructure snapshot. AWS staging subsequently reached **v0.357.1**, with 16/16 services and 6/6 HTTPS probes passing and owner-reported 6/6 administrator/moderator web UAT. Stage 4/5 remain open for full R1 security, media and mobile tests; production is **NO-GO**. See the [current AWS release reconciliation](../operations/R1_AWS_Staging_Reconciliation_2026-11-23.md) and [go-live readiness](../planning/go_live_readiness.md). Do not transfer this document's dated Oracle checks or task percentages to the latest AWS release.
+
 As of 10 November 2026. Owner and sole developer: **Mark Allen Gbalazeh (@Markcino)**, with AI assistance.
 
 **Stage 3 completed by owner declaration on 10 November 2026.** Stage 4 MVP implementation and Stage 5 testing and security verification are in progress. Outstanding foundation evidence remains tracked below. See the [R1 application tracker](R1_Application_Tracker.md) and the [AWS staging deployment record](../operations/AWS_Staging_Deployment_Verification_2026-11-10.md).
