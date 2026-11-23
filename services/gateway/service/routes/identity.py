@@ -6,10 +6,11 @@ def patterns():
     from .. import accounts
     from ..compatibility import compatibility
     from ..preferences_privacy import preferences, privacy_requests
-    from .. import moderator_invitations
+    from .. import account_lookup, moderator_invitations
 
     return [
         path("api/v1/admin/moderator-invitations", moderator_invitations.collection),
+        path("api/v1/admin/accounts/lookup", account_lookup.lookup),
         path("api/v1/admin/moderator-invitations/<uuid:invitation_id>/revoke", moderator_invitations.revoke),
         path("api/v1/auth/moderator-invitations/setup", moderator_invitations.accept),
         path("api/v1/auth/moderator-invitations/complete", moderator_invitations.accept, {"complete": True}),

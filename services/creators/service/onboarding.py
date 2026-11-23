@@ -103,8 +103,9 @@ def _pending(cursor):
     query = Application.objects.filter(status=Application.Status.PENDING).order_by("account_id")
     if cursor is not None:
         query = query.filter(account_id__gt=UUID(cursor))
-    applications = list(query[:PAGE_SIZE + 1])
-    items = [_summary(application) for application in applications[:PAGE_SIZE]]
+    applications = list(query.select_related("profile")[:PAGE_SIZE + 1])
+    items = [{**_summary(application), "handle": application.profile.handle,
+              "submitted_at": application.submitted_at.isoformat()} for application in applications[:PAGE_SIZE]]
     return JsonResponse({"items": items,
                          "next_cursor": items[-1]["account_id"] if len(applications) > PAGE_SIZE else None})
 

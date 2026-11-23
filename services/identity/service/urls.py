@@ -3,11 +3,12 @@ from django.http import JsonResponse
 from .health import liveness
 from . import accounts
 from .mfa import verify_mfa
-from . import moderator_invitations
+from . import account_lookup, moderator_invitations
 from .preferences_privacy import preferences, privacy_requests
 
 urlpatterns = [
     path("internal/auth/moderator-invitations", moderator_invitations.administer),
+    path("internal/auth/account-lookup", account_lookup.lookup),
     path("internal/auth/moderator-invitations/setup", moderator_invitations.accept),
     path("internal/auth/moderator-invitations/complete", moderator_invitations.accept, {"complete": True}),
     path("health/live", liveness, name="liveness"),

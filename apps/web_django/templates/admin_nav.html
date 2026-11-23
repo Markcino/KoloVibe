@@ -5,6 +5,6 @@
 <a class="nav-item" href="{% url 'moderation-appeals' %}"{% if '/admin/moderation/appeals/' in request.path %} aria-current="page"{% endif %}>{% include 'icon.html' with name='appeals' %}<span>Appeals</span></a>
 {% if role == 'administrator' %}<a class="nav-item" href="{% url 'points' %}"{% if '/admin/points/' in request.path %} aria-current="page"{% endif %}>{% include 'icon.html' with name='points' %}<span>Points</span></a>{% endif %}
 <a class="nav-item" href="{% url 'audit' %}"{% if '/admin/audit/' in request.path %} aria-current="page"{% endif %}>{% include 'icon.html' with name='audit' %}<span>Audit</span></a>
-{% if role == 'administrator' %}<a class="nav-item" href="{% url 'team' %}"{% if '/admin/team/' in request.path %} aria-current="page"{% endif %}>{% include 'icon.html' with name='account' %}<span>Team</span></a>{% endif %}
+{% if role == 'administrator' %}<a class="nav-item" href="{% url 'team' %}"{% if '/admin/team/' in request.path %} aria-current="page"{% endif %}>{% include 'icon.html' with name='account' %}<span>Team</span></a><a class="nav-item" href="{% url 'creators' %}"{% if '/admin/creators/' in request.path %} aria-current="page"{% endif %}>{% include 'icon.html' with name='creator' %}<span>Creators</span></a>{% endif %}
 <a class="nav-item" href="{% url 'account' %}"{% if '/admin/account/' in request.path %} aria-current="page"{% endif %}>{% include 'icon.html' with name='account' %}<span>Account</span></a>
 </nav>

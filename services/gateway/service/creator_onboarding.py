@@ -1,6 +1,8 @@
 """Bind creator onboarding operations to the authenticated account at the gateway."""
 
 import json
+import re
+from datetime import datetime
 from urllib.error import HTTPError
 from uuid import UUID
 
@@ -32,6 +34,16 @@ def _valid_summary(item, *, account_id=None):
             and (item["creator_id"] is None or str(UUID(item["creator_id"])) == item["creator_id"]))
 
 
+def _valid_pending(item):
+    try:
+        return (isinstance(item, dict) and set(item) == SUMMARY_FIELDS | {"handle", "submitted_at"}
+                and _valid_summary({key: item[key] for key in SUMMARY_FIELDS}) and item["status"] == "pending"
+                and isinstance(item["handle"], str) and re.fullmatch(r"[a-z0-9_]{3,30}", item["handle"]) is not None
+                and isinstance(item["submitted_at"], str) and datetime.fromisoformat(item["submitted_at"]).tzinfo is not None)
+    except (ValueError, TypeError, KeyError):
+        return False
+
+
 def _valid_response(operation, data, target):
     if operation == "review_policy":
         return (isinstance(data, dict) and set(data) == {"account_id", "creator_id", "trusted", "sample_percent", "policy_version"}
@@ -50,7 +62,7 @@ def _valid_response(operation, data, target):
     if operation == "pending":
         return (isinstance(data, dict) and set(data) == {"items", "next_cursor"}
                 and isinstance(data["items"], list) and len(data["items"]) <= 20
-                and all(_valid_summary(item) and item["status"] == "pending" for item in data["items"])
+                and all(_valid_pending(item) for item in data["items"])
                 and (data["next_cursor"] is None or
                      bool(data["items"]) and data["next_cursor"] == data["items"][-1]["account_id"]))
     return _valid_summary(data, account_id=target)

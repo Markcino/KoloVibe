@@ -6,6 +6,7 @@ from django.views.decorators.http import require_GET
 from . import views
 from . import invitation_views
 from . import assignment_views
+from . import creator_views
 
 handler400 = views.error_400
 handler403 = views.error_403
@@ -24,6 +25,7 @@ urlpatterns = [
     path("moderator-invitation/", invitation_views.accept, name="moderator-invitation"),
     path("moderator-invitation/qr/", invitation_views.enrollment_qr, name="moderator-invitation-qr"),
     path("admin/team/", invitation_views.team, name="team"),
+    path("admin/creators/", creator_views.creators, name="creators"),
     path("admin/", views.dashboard, name="dashboard"),
     path("admin/moderation/previews/<uuid:preview_id>/", views.reviewer_preview, name="reviewer-preview"),
     path("admin/points/", views.points, name="points"),

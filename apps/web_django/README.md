@@ -12,6 +12,7 @@ All gateway paths below use the `/api/v1` prefix. Every `/admin/` route requires
 | --- | --- |
 | `/login/`, `/login/mfa/` | `POST /auth/login`, `POST /auth/mfa/verify` |
 | `/moderator-invitation/` | Invite-only `POST /auth/moderator-invitations/setup` and `/complete`; password and current-period authenticator enrollment before account creation |
+| `/admin/creators/` | Administrator-only. `POST /admin/accounts/lookup` finds an invitable account by exact email; `POST /creator-invitations` invites it; `GET /creator-applications` lists pending applications (handle and submitted time); `POST /creator-applications/<uuid>/decision` approves or rejects after a confirmation step. Needs the staging creator-onboarding flag |
 | `/admin/team/` | Administrator-only `GET/POST /admin/moderator-invitations`; `POST /admin/moderator-invitations/<uuid>/revoke`; accepted moderators are listed with open-assignment counts from `GET /admin/moderation/assignments/summary` |
 | `/admin/` | `GET /moderation/totals`, `/engagement/fraud-holds`, `/admin/audit`; audit denial leaves an explicit unavailable card |
 | `/admin/moderation/{videos,reports,appeals}/` | Matching `GET /moderation/<kind>?cursor=…&status=…` |

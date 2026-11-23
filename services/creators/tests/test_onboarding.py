@@ -41,6 +41,9 @@ class CreatorOnboardingTests(TestCase):
         self.assertFalse(self.eligibility()["upload_eligible"])
         queue = self.call("pending", self.reviewer, "moderator", {"cursor": None})
         self.assertEqual(json.loads(queue.content)["items"][0]["account_id"], str(self.applicant))
+        row = json.loads(queue.content)["items"][0]
+        self.assertEqual(set(row), {"account_id", "status", "creator_id", "handle", "submitted_at"})
+        self.assertRegex(row["handle"], r"^[a-z0-9_]{3,30}$")
         decision = {"account_id": str(self.applicant), "decision": "approved"}
         self.assertEqual(self.call("review", self.applicant, "moderator", decision).status_code, 403)
         self.assertEqual(self.call("review", self.reviewer, "moderator", decision).status_code, 200)
