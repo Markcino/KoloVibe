@@ -162,6 +162,35 @@ class CreatorContentTests(TestCase):
         foreign = Video.objects.create(creator_id=uuid4(), title="Foreign cursor")
         self.assertEqual(library({"cursor": str(foreign.id)}).status_code, 400)
 
+    def test_library_search_matches_only_own_undeleted_videos_and_composes_with_state_and_cursor(self):
+        mine = {"creator_id": self.creator}
+        Video.objects.create(**mine, title="River Song", description="a short film", state="published",
+                             provider_asset_id="legacy-asset", moderation_approved_at=timezone.now())
+        Video.objects.create(**mine, title="Skit night", description="about the RIVER", state="draft")
+        Video.objects.create(**mine, title="Unrelated", description="nothing", state="draft")
+        Video.objects.create(**mine, title="100% river_run", description="literal wildcard characters", state="draft")
+        Video.objects.create(**mine, title="river deleted", state="draft", deleted_at=timezone.now())
+        Video.objects.create(creator_id=uuid4(), title="river of someone else", state="published",
+                             provider_asset_id="legacy-asset-foreign", moderation_approved_at=timezone.now())
+        base = {"creator_id": str(self.creator), "cursor": None}
+
+        def library(fields):
+            return media_api(self.request("/internal/videos/media/library", base | fields), "library")
+
+        titles = lambda fields: [item["title"] for item in json.loads(library(fields).content)["items"]]
+        self.assertEqual(set(titles({"q": " river "})), {"River Song", "Skit night", "100% river_run"})
+        self.assertEqual(titles({"q": "RIVER", "state": "published"}), ["River Song"])
+        self.assertEqual(titles({"q": "100%"}), ["100% river_run"], "% is literal, not a wildcard")
+        self.assertEqual(titles({"q": "_"}), ["100% river_run"], "_ is literal, not a wildcard")
+        self.assertEqual(titles({"q": "no such text"}), [])
+        # A cursor must belong to the same filtered view; one from outside it is rejected, never leaked.
+        everything = json.loads(library({}).content)["items"]
+        outside = next(item for item in everything if item["title"] == "Unrelated")
+        self.assertEqual(library({"q": "river", "cursor": outside["id"]}).status_code, 400)
+        for bad in ("", "   ", "x" * 101, "bad\x00query", 5, ["river"]):
+            with self.subTest(q=bad):
+                self.assertEqual(library({"q": bad}).status_code, 400)
+
     def test_deleted_video_is_hidden_in_every_read_and_moderation_cannot_restore_it(self):
         self.publish()
         reservation = MediaUpload.objects.create(id=uuid4(), video=self.video, expected_bytes=10,
