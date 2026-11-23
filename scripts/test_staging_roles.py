@@ -76,11 +76,16 @@ class RoleTests(unittest.TestCase):
         from contextlib import redirect_stderr
         from io import StringIO
 
+        # Use non-credential sentinels so secret scanning remains strict.
+        # Exception messages must never be included in worker logs.
+        outer_marker = "outer-message-should-not-be-logged"
+        cause_marker = "underlying-message-should-not-be-logged"
+
         def boom(*args):
             try:
-                raise PermissionError("amqps://publisher:private-password@rabbitmq")
+                raise PermissionError(cause_marker)
             except PermissionError as exc:
-                raise RuntimeError("database password=private-password") from exc
+                raise RuntimeError(outer_marker) from exc
 
         output = StringIO()
         with redirect_stderr(output), self.assertRaises(SystemExit) as raised:
@@ -91,9 +96,8 @@ class RoleTests(unittest.TestCase):
         text = output.getvalue()
         self.assertIn("Engagement dispatch failure type=RuntimeError cause_type=PermissionError", text)
         self.assertEqual(text.count("Engagement dispatch failure type="), roles.MAX_CONSECUTIVE_FAILURES)
-        self.assertNotIn("private-password", text)
-        self.assertNotIn("amqps://", text)
-        self.assertNotIn("database password=", text)
+        self.assertNotIn(outer_marker, text)
+        self.assertNotIn(cause_marker, text)
 
     def test_a_single_failure_is_retried_and_success_resets_the_count(self):
         outcome = iter([False, True] * 4)
