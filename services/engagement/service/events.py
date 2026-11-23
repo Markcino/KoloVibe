@@ -40,7 +40,21 @@ def dispatch_one(celery_app):
             if isinstance(payload, str):
                 payload = json.loads(payload)
             if event_type == QUALIFIED_VIEW:
-                task_name, queue = "kolovibe.points.event", "kolovibe.points"
+                from kombu import Exchange, Queue
+
+                task_name = "kolovibe.points.event"
+                # The Points worker owns this pre-provisioned durable queue and its binding.
+                # A producer-side Queue declaration tries queue.bind and requires READ on
+                # the Points exchange. Since the exchange and queue share a name, granting
+                # that READ right would also permit the Engagement user to consume points.
+                # Publish to the existing binding without re-declaring broker resources.
+                queue = Queue(
+                    "kolovibe.points",
+                    exchange=Exchange("kolovibe.points", type="direct", durable=True, no_declare=True),
+                    routing_key="kolovibe.points",
+                    durable=True,
+                    no_declare=True,
+                )
             else:
                 task_name, queue = TASK_NAME, f"kolovibe.{SERVICE}"
             celery_app.send_task(
