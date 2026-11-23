@@ -1,4 +1,8 @@
 """Django database contract tests for the outbox and inbox primitives."""
+from contextlib import nullcontext
+from unittest.mock import MagicMock, patch
+from uuid import UUID
+
 from django.test import SimpleTestCase
 from service import events
 
@@ -12,3 +16,58 @@ class EventContractTests(SimpleTestCase):
     def test_event_payload_validation_requires_transaction_first(self):
         with self.assertRaises(RuntimeError):
             events.record_event("content.created", {"sample": True})
+
+
+class OutboxPublishPermissionTests(SimpleTestCase):
+    def dispatch(self, event_type):
+        app = MagicMock()
+        db = MagicMock()
+        cursor = db.cursor.return_value.__enter__.return_value
+        cursor.fetchone.return_value = (
+            UUID("d37b09c2-934f-4b69-ad5f-d41f4a3d8096"),
+            event_type,
+            {"video_id": "test-video"},
+        )
+        with patch.object(events, "connection", db), patch.object(
+            events.transaction, "atomic", return_value=nullcontext()
+        ):
+            self.assertTrue(events.dispatch_one(app))
+        return app, cursor
+
+    def test_qualified_view_uses_preexisting_points_binding(self):
+        app, cursor = self.dispatch(events.QUALIFIED_VIEW)
+        options = app.send_task.call_args.kwargs
+        queue = options["queue"]
+        self.assertEqual(app.send_task.call_args.args[0], "kolovibe.points.event")
+        self.assertEqual(queue.name, "kolovibe.points")
+        self.assertEqual(queue.exchange.name, "kolovibe.points")
+        self.assertEqual(queue.routing_key, "kolovibe.points")
+        self.assertEqual(queue.exchange.type, "direct")
+        self.assertTrue(queue.no_declare)
+        self.assertTrue(queue.exchange.no_declare)
+        self.assertEqual(options["delivery_mode"], 2)
+        self.assertEqual(options["task_id"], "d37b09c2-934f-4b69-ad5f-d41f4a3d8096")
+        self.assertIn("published_at = now()", cursor.execute.call_args_list[-1].args[0])
+
+    def test_engagement_queue_routing_unchanged(self):
+        app, _ = self.dispatch("engagement.received")
+        options = app.send_task.call_args.kwargs
+        self.assertEqual(app.send_task.call_args.args[0], events.TASK_NAME)
+        self.assertEqual(options["queue"], "kolovibe.engagement")
+
+    def test_failed_publish_does_not_acknowledge_outbox(self):
+        app = MagicMock()
+        app.send_task.side_effect = RuntimeError("broker publish rejected")
+        db = MagicMock()
+        cursor = db.cursor.return_value.__enter__.return_value
+        cursor.fetchone.return_value = (
+            UUID("d37b09c2-934f-4b69-ad5f-d41f4a3d8096"),
+            events.QUALIFIED_VIEW,
+            {},
+        )
+        with patch.object(events, "connection", db), patch.object(
+            events.transaction, "atomic", return_value=nullcontext()
+        ):
+            with self.assertRaises(RuntimeError):
+                events.dispatch_one(app)
+        self.assertEqual(cursor.execute.call_count, 1)
