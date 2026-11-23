@@ -700,6 +700,28 @@ jobs:
         with:
           name: verified-web-image-${{ github.sha }}
           path: verified-web-image
+      # download-artifact can report success after extracting only part of the
+      # archive (run 45199527621). Detect that and retry once; the publish step
+      # below still verifies the checksum, revision and image ID before pushing.
+      - name: Check the verified web image artifact is complete
+        id: web-artifact
+        run: |
+          set -euo pipefail
+          complete=true
+          for name in image.tar image.tar.sha256 image-id.txt revision.txt web-image-sbom.json; do
+            test -s "verified-web-image/$name" || complete=false
+          done
+          if [ "$complete" != true ]; then
+            echo "::warning::The web image artifact download was incomplete; retrying once"
+            rm -rf verified-web-image
+          fi
+          echo "complete=$complete" >> "$GITHUB_OUTPUT"
+      - name: Retry the verified web image download
+        if: steps.web-artifact.outputs.complete != 'true'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: verified-web-image-${{ github.sha }}
+          path: verified-web-image
       - name: Verify and load the exact tested image
         env:
           REVISION: ${{ github.sha }}
