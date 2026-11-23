@@ -79,8 +79,18 @@ def run_job(command, interval, limit, *, sleep=time.sleep, clock=time.monotonic,
         try:
             call(command, "--limit", str(limit))
             failures = 0
-        except Exception:  # noqa: BLE001 - never print the cause: it may carry configuration
+        except Exception as exc:  # noqa: BLE001 - never print the cause: it may carry configuration
             failures += 1
+            if command == "dispatch_engagement_events":
+                # Only trusted exception type names: never render str(exc), repr(exc), or tracebacks.
+                # A wrapped AMQP refusal may be visible only in __cause__.
+                cause = exc.__cause__ or exc.__context__
+                print(
+                    f"Engagement dispatch failure type={type(exc).__name__} "
+                    f"cause_type={type(cause).__name__ if cause is not None else 'none'}",
+                    file=sys.stderr,
+                    flush=True,
+                )
             print("Job failed; will retry", file=sys.stderr)
             if failures >= MAX_CONSECUTIVE_FAILURES:
                 raise SystemExit(1) from None
