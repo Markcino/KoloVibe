@@ -1,5 +1,7 @@
 # Staging administrator promotion and web MFA sign-in
 
+> **Current console note (23 November 2026):** The originally described promotion command remains a distinct role-elevation procedure requiring explicit owner authorization; **do not rerun it** merely to resolve review queue 403s. The v0.357.1 Django administrator console supports same-origin moderator invitation QR MFA enrollment and explicit review-item assignments. The owner reported six/six administrator/moderator positive UAT checks on v0.357.1, but individual QR enrollment, negative assignment authorization, MFA/session replay and audit delivery are not certified by that result. An earlier read-only audit showed one administrator, one moderator and zero active assignments during 403 reports. See [current staging reconciliation](R1_AWS_Staging_Reconciliation_2026-11-23.md); use the administrator assignment workflow rather than widening moderator privileges.
+
 This procedure promotes an existing, active, verified moderator with an enrolled MFA factor. It preserves the password, encrypted factor, factor replay counter and unused recovery codes. It revokes existing Identity sessions and invalidates outstanding MFA challenges and reauthentication tokens, so the next sign-in requires password and MFA again.
 
 The command grants the application `administrator` role. It does not set Django `is_staff` or `is_superuser` and does not create a Django admin site or a new administrative dashboard.
