@@ -179,20 +179,30 @@ class PreflightTests(unittest.TestCase):
             self.assertNotIn(self.admin_password, result.stdout + result.stderr)
 
 
+ROOT = Path(__file__).resolve().parents[1]
+WRITE_STATEMENT = r"\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|TRUNCATE|GRANT|REVOKE|COPY)\b"
+
+
+def run_psql_file(script, password, port, ca, user="kolovibe_ci_admin", dbname="kolovibe_ci"):
+    """Run one of the operator SQL scripts with psql over verified TLS; skip where psql is not installed."""
+    import os
+    import shutil
+
+    psql = shutil.which("psql")
+    if psql is None:
+        raise unittest.SkipTest("psql is not installed")
+    env = dict(os.environ, PGPASSWORD=password, PGSSLMODE="verify-full", PGSSLROOTCERT=ca, PGGSSENCMODE="disable",
+               PGHOSTADDR="127.0.0.1")
+    return subprocess.run([psql, "-X", "-v", "ON_ERROR_STOP=1", "-h", "localhost", "-p", str(port), "-U", user,
+                           "-d", dbname, "-f", str(ROOT / "infra" / "postgres" / script)],
+                          capture_output=True, text=True, env=env, timeout=60)
+
+
 class SqlScriptTests(unittest.TestCase):
     """The psql variant for operators without a Python path to the database."""
 
     def run_sql(self, password, port, ca, user="kolovibe_ci_admin", dbname="kolovibe_ci"):
-        import os
-        import shutil
-
-        psql = shutil.which("psql")
-        if psql is None:
-            self.skipTest("psql is not installed")
-        env = dict(os.environ, PGPASSWORD=password, PGSSLMODE="verify-full", PGSSLROOTCERT=ca, PGGSSENCMODE="disable", PGHOSTADDR="127.0.0.1")
-        return subprocess.run([psql, "-X", "-v", "ON_ERROR_STOP=1", "-h", "localhost", "-p", str(port), "-U", user,
-                               "-d", dbname, "-f", str(Path(__file__).resolve().parents[1] / "infra/postgres/r1_readonly_preflight.sql")],
-                              capture_output=True, text=True, env=env, timeout=60)
+        return run_psql_file("r1_readonly_preflight.sql", password, port, ca, user, dbname)
 
     def test_the_sql_script_is_read_only_prints_counts_and_never_selects_handles(self):
         context = postgres_fixture()
@@ -213,6 +223,65 @@ class SqlScriptTests(unittest.TestCase):
         self.assertNotRegex(code.upper(), r"\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|TRUNCATE|GRANT|COPY)\b")
         self.assertNotRegex(code, r"SELECT\s+handle\b|,\s*handle\s*[,)]|array_agg")
         self.assertTrue(code.lstrip().startswith("\\set QUIET on") or "BEGIN READ ONLY;" in code)
+        self.assertTrue(code.rstrip().endswith("ROLLBACK;"))
+
+
+class RoleOwnershipReportTests(unittest.TestCase):
+    """The read-only role, ownership and privilege report (the 23 Nov 2026 `_app` ownership finding)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.context = postgres_fixture()
+        cls.base, cls.environments = cls.context.__enter__()
+        env = cls.environments["gateway"]
+        cls.result = run_psql_file("r1_role_ownership_report.sql", (cls.base / "admin-password").read_text(),
+                                   env["KOLOVIBE_DB_PORT"], env["KOLOVIBE_DB_SSLROOTCERT"], dbname=env["KOLOVIBE_DB_NAME"])
+        cls.out = cls.result.stdout
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.context.__exit__(None, None, None)
+
+    def rows(self, heading):
+        section = self.out.split(heading, 1)[1]
+        return [line for line in section.split("== ", 1)[0].splitlines() if "|" in line]
+
+    def test_the_report_runs_read_only_and_prints_every_section(self):
+        self.assertEqual(self.result.returncode, 0, self.result.stderr)
+        for number in range(1, 9):
+            self.assertIn(f"== {number}. ", self.out)
+        self.assertRegex(self.out, r"transaction_read_only[\s\S]*\bon\b")
+
+    def test_the_report_makes_the_login_owned_objects_visible(self):
+        """Migrations run by a service login leave that LOGIN role owning its tables and sequences."""
+        owned = [line for line in self.rows("== 4. ") if "ci_identity" in line and "table" in line]
+        self.assertTrue(owned, self.out)
+        self.assertRegex(owned[0], r"\bt\s*$", "owner_can_login must be reported as true")
+
+    def test_the_report_shows_when_a_login_controls_an_append_only_table(self):
+        guarded = [line for line in self.rows("== 6. ") if "points_entries" in line and "ci_points" in line]
+        self.assertTrue(guarded, "the points ledger guard must appear with the login that can control it")
+        self.assertIn(" t ", guarded[0] + " ")
+
+    def test_the_report_shows_membership_and_schema_reach_without_secrets(self):
+        self.assertTrue(any("ci_points" in line and "kolovibe_points" in line for line in self.rows("== 3. ")))
+        reach = self.rows("== 5. ")
+        self.assertTrue(any("points" in line and "ci_points" in line for line in reach))
+        self.assertFalse(any("ci_identity" in line and line.split("|")[0].strip() == "points" for line in reach),
+                         "one service login must not reach another service's schema")
+        for secret in ("PASSWORD", "rolpassword", "SCRAM-SHA-256"):
+            self.assertNotIn(secret, self.out)
+
+    def test_the_script_cannot_change_anything(self):
+        sql = (ROOT / "infra" / "postgres" / "r1_role_ownership_report.sql").read_text()
+        code = "\n".join(line for line in sql.splitlines() if not line.lstrip().startswith("--") and not line.startswith("\\echo"))
+        import re
+
+        # Privilege names such as 'CREATE' are string literals in has_*_privilege(); only statements matter here.
+        statements = re.sub(r"'(?:[^']|'')*'|\"[^\"]*\"", "''", code)
+        self.assertIsNone(re.search(WRITE_STATEMENT, statements, re.I), "the report must contain no write or DDL statement")
+        self.assertNotRegex(code.lower(), r"pg_authid|rolpassword|set\s+role|set\s+session")
+        self.assertIn("BEGIN READ ONLY;", code)
         self.assertTrue(code.rstrip().endswith("ROLLBACK;"))
 
 
