@@ -44,6 +44,9 @@ def static_asset(request, asset):
     return response
 
 
+NO_ASSIGNMENT_BODY = {"detail": "Resource unavailable"}
+
+
 class _NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, request, fp, code, msg, headers, newurl):
         return None
@@ -246,23 +249,29 @@ def login_mfa(request):
 @privileged
 @require_GET
 def dashboard(request):
-    from .admin_contracts import valid_totals, valid_holds
+    from .admin_contracts import valid_totals, valid_holds, valid_audit_page
+    totals = holds = None
     status, totals = _api("/moderation/totals", token=request.gateway_token)
-    if status != 200:
-        return _gateway_error(request, status)
-    if not valid_totals(totals):
-        return error_page(request)
-    status, holds = _api("/engagement/fraud-holds", token=request.gateway_token)
-    if status != 200:
-        return _gateway_error(request, status)
-    if not valid_holds(holds):
-        return error_page(request)
-    from .admin_contracts import valid_audit_page
+    # Moderation answers exactly this body for a moderator with no active assignment. Show an
+    # explicit empty state; any other 403 (role, MFA) stays an error. No scoped data is requested.
+    unassigned = (status == 403 and request.admin_account["roles"] == ["moderator"]
+                  and totals == NO_ASSIGNMENT_BODY)
+    if not unassigned:
+        if status != 200:
+            return _gateway_error(request, status)
+        if not valid_totals(totals):
+            return error_page(request)
+        status, holds = _api("/engagement/fraud-holds", token=request.gateway_token)
+        if status != 200:
+            return _gateway_error(request, status)
+        if not valid_holds(holds):
+            return error_page(request)
     audit_status, events = _api("/admin/audit", token=request.gateway_token)
     if audit_status == 401:
         return _expired(request)
     recent = events["items"] if audit_status == 200 and valid_audit_page(events) else None
-    return _render(request, "dashboard.html", {"totals": totals, "holds": holds, "recent_events": recent})
+    return _render(request, "dashboard.html", {"totals": totals, "holds": holds, "recent_events": recent,
+                                                "unassigned": unassigned})
 
 
 def _queue_query(request, kind):

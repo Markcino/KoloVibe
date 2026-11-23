@@ -390,6 +390,26 @@ class AdminConsoleTests(TestCase):
             self.assertEqual(self.client.get("/admin/").status_code, 503)
 
 
+    def test_unassigned_moderator_sees_empty_state_not_an_error(self):
+        self.login("moderator")
+        denied = (403, {"detail": "Resource unavailable"})
+        with patch("web.views._api", side_effect=[(200, self.account), denied, (403, {})]) as api:
+            response = self.client.get("/admin/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "No review assignments yet")
+        self.assertTrue(response.context["unassigned"])
+        self.assertNotContains(response, "Review workspace")
+        # Scoped reads are not attempted: only /me, totals and audit are called.
+        self.assertEqual([call.args[0] for call in api.call_args_list],
+                         ["/me", "/moderation/totals", "/admin/audit"])
+        self.assertTrue(self.client.session.get("authenticated"))
+        # Any other 403, and any non-moderator, stays an error and is not downgraded.
+        with patch("web.views._api", side_effect=[(200, self.account), (403, {"detail": "Reviewer role required"})]):
+            self.assertEqual(self.client.get("/admin/").status_code, 403)
+        self.login("administrator")
+        with patch("web.views._api", side_effect=[(200, self.account), denied]):
+            self.assertEqual(self.client.get("/admin/").status_code, 403)
+
     def test_audit_filters_pagination_and_malformed_records(self):
         self.login("moderator")
         records = [{"id": str(uuid.uuid4()), "kind": "moderation.reviewer_read", "producer": "moderation",
