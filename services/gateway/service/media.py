@@ -10,16 +10,13 @@ from django.http import HttpResponseNotAllowed, JsonResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
 
+from .responses import error_response as _error
 from .accounts import current_account
 from .creator_onboarding import authenticated_actor, creator_eligibility, creator_ownership, _forward as creator_forward
 from .internal_client import signed_internal_request
 from .videos import list_videos, video_detail
 from .video_validation import (FAILURES, LIBRARY_STATES, checked_metadata, safe_url as _safe_url,
                                valid_video)
-
-
-def _error(detail, status):
-    return JsonResponse({"detail": detail}, status=status)
 
 
 def _valid_result(operation, data, payload):

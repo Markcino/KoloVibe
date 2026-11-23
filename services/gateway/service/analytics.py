@@ -10,6 +10,7 @@ from django.http import JsonResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 
+from .responses import error_response as _error
 from .internal_client import signed_internal_request
 from .accounts import current_account
 from .video_validation import valid_video
@@ -17,10 +18,6 @@ from .media import _owned_creator
 
 
 VIDEO_STATES = {"draft", "uploading", "processing", "failed", "review", "published", "rejected", "removed"}
-
-
-def _error(detail, status):
-    return JsonResponse({"detail": detail}, status=status)
 
 
 def _peer(service, path, payload):

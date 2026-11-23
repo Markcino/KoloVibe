@@ -8,6 +8,7 @@ from uuid import UUID
 from django.http import HttpResponseNotAllowed, JsonResponse, HttpResponse
 from django.views.decorators.cache import never_cache
 
+from .responses import error_response as _error
 from .creator_onboarding import authenticated_actor, creator_ownership
 from .internal_client import signed_internal_request
 
@@ -18,10 +19,6 @@ QUEUES = {"review_queue", "reports", "appeals"}
 OWN_LISTS = {"own_reports", "own_appeals"}
 OWN_DETAILS = {"own_report", "own_appeal"}
 DECISIONS = {"video_decision", "report_decision", "appeal_decision"}
-
-
-def _error(detail, status):
-    return JsonResponse({"detail": detail}, status=status)
 
 
 def _valid_result(operation, result):

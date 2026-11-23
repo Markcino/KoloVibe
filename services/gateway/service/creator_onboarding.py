@@ -9,6 +9,7 @@ from uuid import UUID
 from django.http import HttpResponseNotAllowed, JsonResponse
 from django.views.decorators.cache import never_cache
 
+from .responses import error_response as _error
 from .accounts import current_account
 from .internal_client import signed_internal_request
 
@@ -20,10 +21,6 @@ METHODS = {
 SELF_OPERATIONS = {"application", "eligibility"}
 SUMMARY_FIELDS = {"account_id", "status", "creator_id"}
 STATUSES = {"invited", "pending", "approved", "rejected"}
-
-
-def _error(detail, status):
-    return JsonResponse({"detail": detail}, status=status)
 
 
 def _valid_summary(item, *, account_id=None):
