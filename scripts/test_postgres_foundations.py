@@ -257,7 +257,13 @@ def service_tests(service):
             self.assertFalse(events.dispatch_one(Publisher()))
             name, message = delivered[0]
             self.assertEqual(name, "kolovibe.points.event")
-            self.assertEqual(message["queue"], "kolovibe.points")
+            queue = message["queue"]
+            self.assertEqual(queue.name, "kolovibe.points")
+            self.assertEqual(queue.exchange.name, "kolovibe.points")
+            self.assertEqual(queue.exchange.type, "direct")
+            self.assertEqual(queue.routing_key, "kolovibe.points")
+            self.assertTrue(queue.no_declare)
+            self.assertTrue(queue.exchange.no_declare)
             self.assertEqual(message["args"], [message["task_id"], events.QUALIFIED_VIEW, {
                 "creator_user_id": str(data["creator_user_id"]), "qualified_at": accepted_at.isoformat(),
             }])
