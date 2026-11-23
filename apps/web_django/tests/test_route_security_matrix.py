@@ -22,8 +22,13 @@ SAMPLE = str(uuid.uuid4())
 # Reachable without a console session. Each answers for itself and is covered by its own tests.
 PUBLIC = {"web-liveness", "web-static", "root", "moderator-home", "dashboard-alias", "login", "login-mfa",
           "moderator-invitation", "moderator-invitation-qr"}
-# Privileged routes only an administrator may use; a moderator must be refused by the console.
-ADMIN_ONLY = {"team", "creators", "moderation-videos-assign", "moderation-reports-assign", "moderation-appeals-assign"}
+# Administrator-only pages the console itself refuses a moderator on (403, before any gateway call), as defence in
+# depth on top of the owning service's own check.
+CONSOLE_CHECKED = {"creators", "moderation-videos-assign", "moderation-reports-assign", "moderation-appeals-assign"}
+# Administrator-only page where the console forwards and the gateway and Identity decide (the console surfaces the
+# refusal). Listed explicitly so a change in either direction is a visible decision.
+DELEGATED = {"team"}
+ADMIN_ONLY = CONSOLE_CHECKED | DELEGATED
 # Privileged routes whose POST changes state.
 POSTING = {"profile-edit", "password-change", "revoke-session", "logout", "team", "creators",
            "moderation-videos-detail", "moderation-reports-detail", "moderation-appeals-detail",
@@ -195,12 +200,21 @@ class RouteSecurityMatrixTests(TestCase):
 
     # --- role matrix --------------------------------------------------------------------------------
 
-    def test_the_owning_services_refusal_of_a_moderator_is_shown_as_forbidden_never_as_content(self):
-        """The console does not decide roles for administrator-only pages; the gateway and owning services do, and the
-        console must faithfully surface their refusal: no 2xx, no data, and no mutation made on the moderator's behalf
-        beyond the single request that was refused."""
+    def test_the_console_itself_refuses_a_moderator_on_its_administrator_only_pages(self):
         self.sign_in("moderator")
-        for name in sorted(ADMIN_ONLY):
+        for name in sorted(CONSOLE_CHECKED):
+            for method in ("get", "post"):
+                fake, calls = self.identity_only("moderator")
+                with self.subTest(route=name, method=method), patch("web.views._api", side_effect=fake):
+                    response = getattr(self.client, method)(PRIVILEGED[name], {})
+                    self.assertIn(response.status_code, (403, 405), f"{method.upper()} {PRIVILEGED[name]}")
+                    self.assertEqual(calls, [], "a moderator caused a gateway request on an administrator-only page")
+
+    def test_a_delegated_page_surfaces_the_owning_services_refusal_never_content(self):
+        """For `team` the gateway and Identity decide; the console must show their refusal faithfully: no 2xx, no data,
+        no echo of the service's detail, and no more than the one refused request."""
+        self.sign_in("moderator")
+        for name in sorted(DELEGATED):
             for method, body in (("get", None), ("post", {"email": "x@example.test"})):
                 calls = []
 

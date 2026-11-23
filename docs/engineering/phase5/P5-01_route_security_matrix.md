@@ -14,10 +14,11 @@
 | Missing CSRF token | all 12 state-changing routes (profile, password, session revoke, logout, team, creators, three decision pages, three assignment pages) | 403 before any gateway call |
 | CSRF token from another session | same 12 routes | 403 before any gateway call |
 | Safe methods | every privileged route | a GET never makes a non-GET gateway request |
-| Moderator on administrator-only pages | team, creators, three assignment routes | the console forwards one request and surfaces the gateway's refusal as a non-2xx page that does not echo the gateway's detail; no further call is made |
+| Moderator on administrator-only pages | creators and the three assignment routes | refused **by the console itself** (403/405) with **zero** gateway calls: defence in depth on top of the owning service |
+| Moderator on `team` | team | the console forwards and the gateway and Identity decide; the refusal is shown as a non-2xx page that does not echo the service's detail, after at most the one refused request |
 
-## A finding about the design, not a defect
-The console does **not** pre-check the role on administrator-only pages: it forwards the request and the gateway and owning services (Identity, Creators, Moderation) decide, as the console README states. That satisfies "never depend on client-side checks" (nothing is decided in the browser or the template), and the test pins what the console must do with a refusal. A console-side role pre-check would duplicate backend rules, which the DRY requirement for this phase forbids; it is therefore not added.
+## How administrator-only pages are protected
+Two patterns exist and the test pins both so a change in either direction is a visible decision: `creators` and the assignment views check the administrator role in the console as well as in the owning service; `team` delegates entirely to the gateway and Identity (which refuse a moderator) and the console surfaces that refusal. Nothing is decided in a template or in the browser. This write-up originally described all of these pages as delegated; that was wrong for four of the five and is corrected here.
 
 Mutation checks: removing `@privileged` from `points` fails the matrix; removing both MFA-flag layers fails it.
 
