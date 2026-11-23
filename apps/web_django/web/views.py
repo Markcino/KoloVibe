@@ -5,6 +5,7 @@ import re
 import secrets
 import ssl
 from datetime import datetime, timezone
+from concurrent.futures import ThreadPoolExecutor
 from functools import wraps
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -270,12 +271,18 @@ def dashboard(request):
             return _gateway_error(request, status)
         if not valid_totals(totals):
             return error_page(request)
-        status, holds = _api("/engagement/fraud-holds", token=request.gateway_token)
+    # Holds and audit do not depend on each other: ask for both at once (the 5s limit then applies once).
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        holds_call = None if unassigned else pool.submit(_api, "/engagement/fraud-holds", token=request.gateway_token)
+        audit_call = pool.submit(_api, "/admin/audit", token=request.gateway_token)
+        if holds_call is not None:
+            status, holds = holds_call.result()
+        audit_status, events = audit_call.result()
+    if holds_call is not None:
         if status != 200:
             return _gateway_error(request, status)
         if not valid_holds(holds):
             return error_page(request)
-    audit_status, events = _api("/admin/audit", token=request.gateway_token)
     if audit_status == 401:
         return _expired(request)
     recent = events["items"] if audit_status == 200 and valid_audit_page(events) else None
@@ -314,6 +321,12 @@ def _unavailable(request, title, message):
 @privileged
 @require_GET
 def moderation_queue(request, kind):
+    if "find" in request.GET:
+        # Jump straight to an item; the detail view and Moderation still authorise it.
+        target = request.GET["find"].strip().lower()
+        if set(request.GET) != {"find"} or not valid_id(target):
+            return error_page(request, status=400)
+        return redirect(reverse(f"moderation-{kind}-detail", args=[target]))
     query = _queue_query(request, kind)
     if query is None:
         return error_page(request, status=400)

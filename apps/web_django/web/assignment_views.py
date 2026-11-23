@@ -1,5 +1,6 @@
 """Administrator-only explicit grants: which moderator may review one video, report or appeal."""
 
+import time
 from urllib.parse import urlencode
 
 from django.core import signing
@@ -21,8 +22,32 @@ def _proof(request, kind, target_id):
     return views._intent(request, "assignment-" + kind, target_id)
 
 
-def roster(request):
-    """Accepted moderators as {account id: display name}, or None when Identity cannot answer."""
+ROSTER_KEY = "moderator_roster"
+ROSTER_TTL = 300
+
+
+def _cached_roster(request, now):
+    cached = request.session.get(ROSTER_KEY)
+    try:
+        if (isinstance(cached, dict) and set(cached) == {"at", "people"} and 0 <= now - cached["at"] < ROSTER_TTL
+                and all(valid_id(key) and isinstance(name, str) for key, name in cached["people"].items())):
+            return cached["people"]
+    except (TypeError, ValueError):
+        pass
+    return None
+
+
+def roster(request, fresh=False):
+    """Accepted moderators as {account id: display name}, or None when Identity cannot answer.
+
+    Cached for a few minutes in the server-side session: listing invitations is audited and slow, and
+    every review page needs it. A moderator missing from the cache is looked up fresh before refusing.
+    """
+    now = time.time()
+    if not fresh:
+        cached = _cached_roster(request, now)
+        if cached is not None:
+            return cached
     people, cursor = {}, None
     for _ in range(ROSTER_PAGES):
         status, page = views._api("/admin/moderator-invitations" + ("?" + urlencode({"cursor": cursor}) if cursor else ""),
@@ -33,6 +58,7 @@ def roster(request):
         cursor = page["next_cursor"]
         if cursor is None:
             break
+    request.session[ROSTER_KEY] = {"at": now, "people": people}
     return people
 
 
@@ -74,6 +100,8 @@ def assign(request, kind, target_id):
         return views.error_page(request, status=400)
     if active == "1":
         people = roster(request)
+        if people is not None and moderator not in people:
+            people = roster(request, fresh=True)  # may have joined since the cache was filled
         if people is None:
             return views.error_page(request)
         if moderator not in people:

@@ -23,6 +23,13 @@ class AdminConsoleTests(TestCase):
         self.refresh = str(uuid.uuid4()) + "." + secrets.token_urlsafe(48)
         self.target = str(uuid.uuid4())
 
+    @staticmethod
+    def routes(table):
+        """Answer by gateway path, so tests do not depend on the order of concurrent reads."""
+        def fake(path, **kwargs):
+            return table[path]
+        return fake
+
     def login(self, role="administrator", client=None):
         client = client or self.client
         self.account["roles"] = [role]
@@ -382,8 +389,10 @@ class AdminConsoleTests(TestCase):
         self.login("moderator")
         totals = {"videos": dict.fromkeys(["review", "published", "rejected", "removed"], 0),
                   "reports": {"open": 7, "resolved": 3, "dismissed": 2}, "appeals": {"open": 2, "denied": 1, "restored": 0}}
-        with patch("web.views._api", side_effect=[(200, self.account), (200, totals),
-                (200, {"total": 9, "items": [], "next_cursor": None}), (403, {})]):
+        with patch("web.views._api", side_effect=self.routes({
+                "/me": (200, self.account), "/moderation/totals": (200, totals),
+                "/engagement/fraud-holds": (200, {"total": 9, "items": [], "next_cursor": None}),
+                "/admin/audit": (403, {})})):
             response = self.client.get("/admin/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["totals"]["reports"]["open"], 7)
@@ -453,6 +462,43 @@ class AdminConsoleTests(TestCase):
         self.assertAlmostEqual((ends - timezone.now()).total_seconds(), 900, delta=30)
         self.assertContains(response, f"yours ends at <strong>{ends.strftime('%H:%M')} UTC</strong>")
 
+    def test_dashboard_shows_full_breakdowns_and_reads_holds_and_audit_concurrently(self):
+        self.login("administrator")
+        totals = {"videos": {"review": 12, "published": 340, "rejected": 8, "removed": 3},
+                  "reports": {"open": 7, "resolved": 31, "dismissed": 12}, "appeals": {"open": 2, "denied": 4, "restored": 1}}
+        table = {"/me": (200, self.account), "/moderation/totals": (200, totals),
+                 "/engagement/fraud-holds": (200, {"total": 0, "items": [], "next_cursor": None}), "/admin/audit": (403, {})}
+        with patch("web.views._api", side_effect=self.routes(table)):
+            response = self.client.get("/admin/")
+        for text in ("340 published · 8 rejected · 3 removed", "31 resolved · 12 dismissed", "4 denied · 1 restored"):
+            self.assertContains(response, text)
+        # A failing hold read is still an error, whatever the audit read does.
+        for failure, expected in (((503, {}), 503), ((403, {}), 403)):
+            with patch("web.views._api", side_effect=self.routes({**table, "/engagement/fraud-holds": failure})):
+                self.assertEqual(self.client.get("/admin/").status_code, expected)
+        # Expired credentials on the audit read end the session, as before.
+        with patch("web.views._api", side_effect=self.routes({**table, "/admin/audit": (401, {})})):
+            self.assertRedirects(self.client.get("/admin/"), "/login/?expired=1", fetch_redirect_response=False)
+
+    def test_navigation_leads_with_the_dashboard_and_keeps_administration_last(self):
+        self.login("administrator")
+        with patch("web.views._api", side_effect=[(200, self.account), (200, self.account)]):
+            page = self.client.get("/admin/account/").content.decode()
+        order = [page.index(f"<span>{name}</span>") for name in ("Dashboard", "Videos", "Reports", "Appeals", "Points", "Audit", "Team", "Account")]
+        self.assertEqual(order, sorted(order))
+
+    def test_find_by_id_opens_the_item_and_rejects_anything_else_without_calling_the_gateway(self):
+        self.login("moderator")
+        with patch("web.views._api", side_effect=[(200, self.account)]) as api:
+            response = self.client.get("/admin/moderation/reports/", {"find": f"  {self.target.upper()} "})
+        self.assertRedirects(response, f"/admin/moderation/reports/{self.target}/", fetch_redirect_response=False)
+        self.assertEqual(api.call_count, 1)
+        for bad in ("", "not-an-id", "../../etc/passwd", self.target + "x"):
+            with patch("web.views._api", side_effect=[(200, self.account)]):
+                self.assertEqual(self.client.get("/admin/moderation/reports/", {"find": bad}).status_code, 400, bad)
+        with patch("web.views._api", side_effect=[(200, self.account)]):
+            self.assertEqual(self.client.get("/admin/moderation/reports/", {"find": self.target, "status": "open"}).status_code, 400)
+
     def test_natural_console_addresses_lead_to_the_dashboard_guard(self):
         for path in ("/moderator/", "/dashboard/"):
             with patch("web.views._api") as api:
@@ -482,15 +528,15 @@ class AdminConsoleTests(TestCase):
     def test_unassigned_moderator_sees_empty_state_not_an_error(self):
         self.login("moderator")
         denied = (403, {"detail": "Resource unavailable"})
-        with patch("web.views._api", side_effect=[(200, self.account), denied, (403, {})]) as api:
+        with patch("web.views._api", side_effect=self.routes({
+                "/me": (200, self.account), "/moderation/totals": denied, "/admin/audit": (403, {})})) as api:
             response = self.client.get("/admin/")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "No review assignments yet")
         self.assertTrue(response.context["unassigned"])
         self.assertNotContains(response, "Review workspace")
         # Scoped reads are not attempted: only /me, totals and audit are called.
-        self.assertEqual([call.args[0] for call in api.call_args_list],
-                         ["/me", "/moderation/totals", "/admin/audit"])
+        self.assertCountEqual([call.args[0] for call in api.call_args_list], ["/me", "/moderation/totals", "/admin/audit"])
         self.assertTrue(self.client.session.get("authenticated"))
         # Any other 403, and any non-moderator, stays an error and is not downgraded.
         with patch("web.views._api", side_effect=[(200, self.account), (403, {"detail": "Reviewer role required"})]):
