@@ -277,6 +277,24 @@ class CreatorContentGatewayTests(SimpleTestCase):
             self.assertEqual(media.own_video_library(self.factory.get("/creators/me/videos", {"state": "uploading"})).status_code, 400)
             call.assert_not_called()
 
+    def test_owner_library_search_is_validated_forwarded_trimmed_and_checked_in_the_response(self):
+        item = self.video_item(title="River Song", description="a short film")
+        page = json.dumps({"items": [item], "next_cursor": None}).encode()
+        with patch("service.media._owned_creator", return_value=(self.creator, None)), \
+                patch("service.media.signed_internal_request", return_value=Response(200, page)) as call:
+            result = media.own_video_library(self.factory.get("/creators/me/videos", {"q": "  river  ", "state": "all"}))
+            self.assertEqual(result.status_code, 200)
+            self.assertEqual(json.loads(call.call_args.kwargs["payload"])["q"], "river")
+            # Upstream returning a video that does not match the search is refused, not forwarded.
+            result = media.own_video_library(self.factory.get("/creators/me/videos", {"q": "unrelated"}))
+            self.assertEqual(result.status_code, 503)
+            call.reset_mock()
+            for bad in ({"q": ""}, {"q": "   "}, {"q": "x" * 101}, {"q": "bad\x01"}, {"q": "a", "extra": "1"}):
+                with self.subTest(bad=bad):
+                    self.assertEqual(media.own_video_library(self.factory.get("/creators/me/videos", bad)).status_code, 400)
+            self.assertEqual(media.own_video_library(self.factory.get("/creators/me/videos?q=a&q=b")).status_code, 400)
+            call.assert_not_called()
+
     def test_new_write_routes_are_media_gated_and_public_listing_stays_on(self):
         with patch("service.routes.creator_studio.enabled", return_value=False):
             self.assertEqual(creator_studio.patterns(), [])

@@ -30,6 +30,8 @@ def _valid_result(operation, data, payload):
                 and all(payload.get("state", "all") == "all"
                         or item["state"] in ({"uploading", "processing"} if payload["state"] == "in_progress"
                                               else {payload["state"]}) for item in items)
+                and all("q" not in payload or payload["q"].casefold() in (item["title"] + "\n" + item["description"]).casefold()
+                        for item in items)
                 and len({item["id"] for item in items}) == len(items)
                 and (next_cursor is None or len(items) == 20 and next_cursor == items[-1]["id"]))
     if operation == "detail":
@@ -142,7 +144,7 @@ def own_video_library(request):
     creator_id, error = _owned_creator(request)
     if error is not None:
         return error
-    if (request.body or set(request.GET) - {"cursor", "state"}
+    if (request.body or set(request.GET) - {"cursor", "state", "q"}
             or any(len(request.GET.getlist(key)) != 1 for key in request.GET)):
         return _error("Invalid library query", 400)
     try:
@@ -152,6 +154,11 @@ def own_video_library(request):
             if request.GET["state"] not in LIBRARY_STATES:
                 raise ValueError
             data["state"] = request.GET["state"]
+        if "q" in request.GET:
+            query = request.GET["q"]
+            if not 1 <= len(query.strip()) <= 100 or any(ord(char) < 32 for char in query):
+                raise ValueError
+            data["q"] = query.strip()
     except (ValueError, TypeError):
         return _error("Invalid cursor", 400)
     return forward_media("library", data, (200,))

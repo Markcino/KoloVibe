@@ -108,13 +108,19 @@ def _owned_detail(video):
     return _owned_item(video) | {"revision": video.moderation_revision}
 
 
-def _library(creator_id, cursor, state="all"):
+def _library(creator_id, cursor, state="all", query=None):
     allowed = {"all", "draft", "in_progress", "review", "published", "rejected", "removed", "failed"}
     if state not in allowed:
         raise ValueError("Invalid library state")
     videos = Video.objects.filter(creator_id=creator_id, deleted_at__isnull=True).order_by("-created_at", "-id")
     if state != "all":
         videos = videos.filter(state__in=["uploading", "processing"] if state == "in_progress" else [state])
+    if query is not None:
+        # The same rule as public search, applied only to the creator's own non-deleted videos.
+        if (not isinstance(query, str) or not 1 <= len(query.strip()) <= 100
+                or any(ord(char) < 32 for char in query)):
+            raise ValueError("Invalid library search")
+        videos = videos.filter(Q(title__icontains=query.strip()) | Q(description__icontains=query.strip()))
     if cursor is not None:
         anchor = videos.filter(pk=UUID(cursor)).first()
         if anchor is None:
@@ -265,7 +271,7 @@ def media_api(request, operation):
             "complete": {"creator_id", "video_id"}, "status": {"creator_id", "video_id"},
             "playback": {"video_id"}, "watch": {"video_id"}, "watch-check": {"video_id"},
         }
-        optional = FIELDS if operation in {"draft", "edit"} else {"state"} if operation == "library" else set()
+        optional = FIELDS if operation in {"draft", "edit"} else {"state", "q"} if operation == "library" else set()
         if (operation not in fields or not isinstance(data, dict)
                 or not fields[operation] <= set(data) or set(data) - fields[operation] - optional):
             raise ValueError("Invalid media request")
@@ -275,7 +281,7 @@ def media_api(request, operation):
         if operation == "draft":
             return _draft(creator_id, data)
         if operation == "library":
-            return _library(creator_id, data["cursor"], data.get("state", "all"))
+            return _library(creator_id, data["cursor"], data.get("state", "all"), data.get("q"))
         video_id = UUID(data["video_id"])
         if operation in ("edit", "delete", "publish", "unpublish"):
             return _manage(video_id, creator_id, data, operation)

@@ -1146,6 +1146,15 @@ paths:
           - removed
           - failed
         description: in_progress groups uploading and processing. Reuse the same state when following a cursor.
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description: Case-insensitive match on the title or description of the caller's own non-deleted videos, with the
+          same rules as public search. Additive and optional. Reuse the same q (and state) when following a cursor.
       responses:
         '200':
           description: Up to twenty owned videos, newest first
