@@ -1,20 +1,21 @@
 {% extends 'base_admin.html' %}
 {% block title %}{{ title }} · KoloVibe{% endblock %}
 {% block content %}
-<section class="panel"><h1>{{ title }}</h1>
+<div class="page-heading"><div class="detail-header"><p class="eyebrow">Review item</p><h1>{{ title }}</h1>
+{% if kind == 'videos' %}<span class="status-chip" data-state="{{ detail.video.state }}">{{ detail.video.state|title }}</span>{% else %}<span class="status-chip" data-state="{{ item.status }}">{{ item.status|title }}</span>{% endif %}
+<span class="status-chip">Rights: {{ detail.video.rights_status }}</span></div>
+<a class="button button-outline" href="{% url 'moderation-'|add:kind %}"><span class="icon-flip">{% include 'icon.html' with name='arrow' %}</span>Back to queue</a></div>
+<section class="panel"><div class="section-heading"><div><p class="eyebrow">Record</p><h2>Summary</h2></div></div>
 <dl><dt>Record</dt><dd>{{ item.id }}</dd>
-{% if kind == 'videos' %}<dt>Title</dt><dd>{{ item.title }}</dd>{% else %}<dt>Video</dt><dd>{{ item.video_id }}</dd><dt>Status</dt><dd>{{ item.status }}</dd><dt>Created</dt><dd>{{ item.created_at }}</dd><dt>Reason</dt><dd>{{ item.reason }}</dd>{% if kind == 'reports' %}<dt>Details</dt><dd>{{ item.details }}</dd>{% endif %}{% endif %}</dl>
-<h2>Content metadata</h2><dl><dt>Description</dt><dd>{{ detail.video.description }}</dd><dt>State</dt><dd>{{ detail.video.state }}</dd><dt>Rights status</dt><dd>{{ detail.video.rights_status }}</dd><dt>Duration (seconds)</dt><dd>{{ detail.video.duration_seconds|default_if_none:"Unknown" }}</dd></dl>
-{% if detail.preview %}<p><a href="{% url 'reviewer-preview' detail.preview.id %}" referrerpolicy="no-referrer">Open authorized preview</a> · Expires {{ detail.preview.expires_at }}</p>{% else %}<p>Preview is unavailable for this content.</p>{% endif %}
-<h2>Report history</h2><ul>{% for report in detail.reports %}<li>{{ report.created_at }} · {{ report.status }} · {{ report.reason }} · {{ report.details }}</li>{% empty %}<li>No reports in your authorized scope.</li>{% endfor %}</ul>
-<h2>Decision history</h2><ul>{% for decision in detail.decisions %}<li>{{ decision.created_at }} · {{ decision.action }} · {{ decision.status }} · {{ decision.reason }}</li>{% empty %}<li>No decisions in your authorized scope.</li>{% endfor %}</ul>
-{% if detail.history_truncated.reports or detail.history_truncated.decisions %}<p>Showing the most recent 20 entries in each history.</p>{% endif %}
-<form method="post">{% csrf_token %}<input type="hidden" name="intent" value="{{ intent }}">
-  <label>Decision<select name="action" required><option value="">Select a decision</option>{% for action in actions %}<option value="{{ action }}">{{ action|title }}</option>{% endfor %}</select></label>
-  <label>Reason<textarea name="reason" minlength="10" maxlength="2000" rows="5" required aria-describedby="reason-help"></textarea></label>
-  <p id="reason-help">Give a reason of 10 to 2,000 characters. This decision is recorded.</p>
-  <button type="submit">Submit decision</button>
-</form></section>
+{% if kind == 'videos' %}<dt>Title</dt><dd>{{ item.title }}</dd>{% else %}<dt>Video</dt><dd>{{ item.video_id }}</dd><dt>Status</dt><dd>{{ item.status }}</dd><dt>Created</dt><dd>{{ item.created_at }}</dd><dt>Reason</dt><dd>{{ item.reason }}</dd>{% if kind == 'reports' %}<dt>Details</dt><dd>{{ item.details }}</dd>{% endif %}{% endif %}</dl></section>
+<section class="panel"><div class="section-heading"><div><p class="eyebrow">Evidence</p><h2>Content metadata</h2></div></div>
+<dl><dt>Description</dt><dd>{{ detail.video.description }}</dd><dt>State</dt><dd>{{ detail.video.state }}</dd><dt>Rights status</dt><dd>{{ detail.video.rights_status }}</dd><dt>Duration (seconds)</dt><dd>{{ detail.video.duration_seconds|default_if_none:"Unknown" }}</dd></dl>
+{% if detail.preview %}<p><a class="button button-tonal" href="{% url 'reviewer-preview' detail.preview.id %}" referrerpolicy="no-referrer">{% include 'icon.html' with name='videos' %}Open authorized preview</a></p><p class="supporting-text">Expires {{ detail.preview.expires_at }}</p>{% else %}<p class="supporting-text">Preview is unavailable for this content.</p>{% endif %}</section>
+<div class="dashboard-grid">
+<section class="panel"><div class="section-heading"><div><p class="eyebrow">Context</p><h2>Report history</h2></div></div><ul class="activity-list">{% for report in detail.reports %}<li><span class="activity-icon">{% include 'icon.html' with name='reports' %}</span><div><strong>{{ report.reason }} · {{ report.status }}</strong><time datetime="{{ report.created_at }}">{{ report.created_at }}</time><small>{{ report.details }}</small></div></li>{% empty %}<li class="empty-state"><div><p>No reports in your authorized scope.</p></div></li>{% endfor %}</ul></section>
+<section class="panel"><div class="section-heading"><div><p class="eyebrow">Context</p><h2>Decision history</h2></div></div><ul class="activity-list">{% for decision in detail.decisions %}<li><span class="activity-icon">{% include 'icon.html' with name='shield' %}</span><div><strong>{{ decision.action }} · {{ decision.status }}</strong><time datetime="{{ decision.created_at }}">{{ decision.created_at }}</time><small>{{ decision.reason }}</small></div></li>{% empty %}<li class="empty-state"><div><p>No decisions in your authorized scope.</p></div></li>{% endfor %}</ul></section>
+</div>
+{% if detail.history_truncated.reports or detail.history_truncated.decisions %}<p class="supporting-text">Showing the most recent 20 entries in each history.</p>{% endif %}
 {% if assignments %}
 <section class="panel" id="assignments" aria-labelledby="assignments-title"><div class="section-heading"><div><p class="eyebrow">Access</p><h2 id="assignments-title">Moderator assignments</h2></div>{% if assignments.available %}<span class="status-chip">{{ assignments.assigned|length }} assigned</span>{% endif %}</div>
 {% if assignments.notice == 'assigned' %}<p class="notice" role="status">Moderator assigned. They can now review this item.</p>{% elif assignments.notice == 'revoked' %}<p class="notice" role="status">Assignment revoked. Access ends immediately.</p>{% endif %}
@@ -32,4 +33,11 @@
 {% else %}<p class="supporting-text">{% if assignments.assigned %}Every invited moderator is already assigned.{% else %}No moderators have joined yet. <a href="{% url 'team' %}">Invite a moderator</a>.{% endif %}</p>{% endif %}
 {% endif %}</section>
 {% endif %}
+<section class="panel" aria-labelledby="decision-title"><div class="section-heading"><div><p class="eyebrow">Action</p><h2 id="decision-title">Record a decision</h2></div><span class="status-chip">Audited</span></div>
+<form method="post">{% csrf_token %}<input type="hidden" name="intent" value="{{ intent }}">
+  <label>Decision<select name="action" required><option value="">Select a decision</option>{% for action in actions %}<option value="{{ action }}">{{ action|title }}</option>{% endfor %}</select></label>
+  <label>Reason<textarea name="reason" minlength="10" maxlength="2000" rows="5" required aria-describedby="reason-help"></textarea></label>
+  <p id="reason-help" class="supporting-text">Give a reason of 10 to 2,000 characters. This decision is recorded.</p>
+  <p><button type="submit">Submit decision</button></p>
+</form></section>
 {% endblock %}

@@ -1,12 +1,12 @@
 {% extends 'base_admin.html' %}{% load admin_display %}
 {% block title %}Audit · KoloVibe{% endblock %}
-{% block content %}<h1>Audit</h1><p>Read-only events within your authorized scope. Sensitive identifiers and payloads are redacted. Times are shown in UTC.</p>
+{% block content %}<div class="page-heading"><div><p class="eyebrow">Accountability</p><h1>Audit</h1><p class="supporting-text">Read-only events within your authorized scope. Sensitive identifiers and payloads are redacted. Times are shown in UTC.</p></div></div>
 <form method="get" class="filters">
 <label>Event kind<input name="kind" value="{{ filters.kind }}" placeholder="e.g. mfa.failed" maxlength="64"></label>
 <label>Producer<select name="producer"><option value="">All authorized producers</option>{% for producer in producers %}<option value="{{ producer }}"{% if producer == filters.producer %} selected{% endif %}>{{ producer|title }}</option>{% endfor %}</select></label>
 <label>Since (UTC)<input type="datetime-local" name="since" value="{{ filters.since }}"></label>
 <label>Until (UTC)<input type="datetime-local" name="until" value="{{ filters.until }}"></label>
 <button type="submit">Apply filters</button></form>
-<div class="table-scroll" role="region" aria-label="Audit events" tabindex="0"><table><caption>Authorized audit events</caption><thead><tr><th scope="col">Time</th><th scope="col">Event</th><th scope="col">Producer</th><th scope="col">Subject type</th></tr></thead><tbody>{% for item in items %}<tr><td><time datetime="{{ item.occurred_at }}">{{ item.occurred_at|utc_stamp }}</time></td><td title="{{ item.kind }}">{{ item.kind|human_label }}</td><td>{{ item.producer|title }}</td><td>{{ item.subject_type|default_if_none:"Redacted" }}</td></tr>{% empty %}<tr><td colspan="4">No events match these filters.</td></tr>{% endfor %}</tbody></table></div>
-{% if next_query %}<a rel="next" href="?{{ next_query }}">Next page</a>{% endif %}
+<div class="table-scroll" role="region" aria-label="Audit events" tabindex="0"><table><caption>Authorized audit events</caption><thead><tr><th scope="col">Time</th><th scope="col">Event</th><th scope="col">Producer</th><th scope="col">Subject type</th></tr></thead><tbody>{% for item in items %}<tr><td data-label="Time"><time datetime="{{ item.occurred_at }}">{{ item.occurred_at|utc_stamp }}</time></td><td data-label="Event" title="{{ item.kind }}">{{ item.kind|human_label }}</td><td data-label="Producer">{{ item.producer|title }}</td><td data-label="Subject type">{{ item.subject_type|default_if_none:"Redacted" }}</td></tr>{% empty %}<tr><td colspan="4">No events match these filters.</td></tr>{% endfor %}</tbody></table></div>
+{% if next_query %}<nav class="pagination" aria-label="Audit pages"><a rel="next" href="?{{ next_query }}">Next page</a></nav>{% endif %}
 {% endblock %}
