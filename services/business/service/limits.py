@@ -18,8 +18,15 @@ BUDGETS = {
     "staff_redeem": (10, timedelta(hours=1)),
     "read": (600, timedelta(hours=1)),
     "verification_submit": (5, timedelta(days=1)),
+    "profile_edit": (60, timedelta(hours=1)),
 }
 PAGE_SIZE = 20
 MIN_EVIDENCE_ITEMS = 1                   # technical minimum so a case is never empty; the checklist is the owner's
 MAX_EVIDENCE_ITEMS = 5
+# DR-BZ-11 (approved: pre-moderate material fields, post-moderate free text). WHICH fields are material is the
+# owner's call; these are the register's own examples, recorded as configuration for confirmation.
+MATERIAL_FIELDS = ("display_name", "category", "address_line", "contacts")
+MAX_CONTACTS = 10
+MAX_HOURS_RULES = 28
+MAX_HOURS_EXCEPTIONS = 60
 REVIEWER_DECISIONS = ("verify", "reject", "request_info", "revoke")

@@ -132,6 +132,7 @@ class ReviewerGrant(models.Model):
     class Scope(models.TextChoices):
         VERIFICATION = "verification", "Verification"
         REVIEW_QUEUE = "review_queue", "Review queue"
+        PROFILE_REVIEW = "profile_review", "Profile review"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     reviewer_account_id = models.UUIDField()
@@ -147,7 +148,7 @@ class ReviewerGrant(models.Model):
                                     condition=Q(target_business_id__isnull=False), name="biz_grant_unique_target"),
             models.UniqueConstraint(fields=["reviewer_account_id", "scope"],
                                     condition=Q(target_business_id__isnull=True), name="biz_grant_unique_all"),
-            models.CheckConstraint(condition=Q(scope__in=["verification", "review_queue"]), name="biz_grant_scope"),
+            models.CheckConstraint(condition=Q(scope__in=["verification", "review_queue", "profile_review"]), name="biz_grant_scope"),
         ]
         indexes = [models.Index(fields=["reviewer_account_id", "scope", "active"], name="biz_grant_lookup_idx")]
 
@@ -202,3 +203,110 @@ class VerificationDecision(models.Model):
     reason_code = models.CharField(max_length=40)
     note = models.CharField(max_length=500, blank=True, default="")
     created_at = models.DateTimeField(default=timezone.now)
+
+
+class BusinessCategory(models.Model):
+    """Administrator-managed controlled vocabulary, at most two levels (DR-BZ-10). Owners cannot create categories."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    slug = models.SlugField(max_length=60, unique=True)
+    name = models.CharField(max_length=80)
+    parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.PROTECT, related_name="children")
+    active = models.BooleanField(default=True)
+
+
+class ProfileRevision(models.Model):
+    """What the owner edits. The public sees only the last approved revision (BZ-R-010)."""
+
+    class State(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        PENDING_REVIEW = "pending_review", "Pending review"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+        SUPERSEDED = "superseded", "Superseded"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    business = models.ForeignKey(Business, on_delete=models.PROTECT, related_name="revisions")
+    revision_no = models.PositiveIntegerField()
+    state = models.CharField(max_length=16, choices=State.choices, default=State.DRAFT)
+    display_name = models.CharField(max_length=80)
+    category = models.ForeignKey(BusinessCategory, null=True, blank=True, on_delete=models.PROTECT)
+    description = models.TextField(max_length=2000, blank=True, default="")
+    county_code = models.CharField(max_length=40, blank=True, default="")
+    city = models.CharField(max_length=80, blank=True, default="")
+    address_line = models.CharField(max_length=200, blank=True, default="")
+    address_public = models.BooleanField(default=False)
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    coordinates_public = models.BooleanField(default=False)
+    time_zone = models.CharField(max_length=64, default="Africa/Monrovia")
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by_account_id = models.UUIDField(null=True, blank=True)
+    submitted_by_account_id = models.UUIDField(null=True, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reason_code = models.CharField(max_length=40, blank=True, default="")
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["business", "revision_no"], name="biz_revision_no_unique"),
+            models.UniqueConstraint(fields=["business"], condition=Q(state__in=["draft", "pending_review"]),
+                                    name="biz_one_working_revision"),
+            models.UniqueConstraint(fields=["business"], condition=Q(state="approved"), name="biz_one_approved_revision"),
+            models.CheckConstraint(condition=Q(state__in=["draft", "pending_review", "approved", "rejected",
+                                                           "superseded"]), name="biz_revision_state"),
+            models.CheckConstraint(condition=(Q(latitude__isnull=True, longitude__isnull=True)
+                                              | Q(latitude__isnull=False, longitude__isnull=False)),
+                                   name="biz_revision_coordinates_paired"),
+        ]
+        indexes = [models.Index(fields=["state", "submitted_at", "id"], name="biz_revision_queue_idx")]
+
+
+class ContactChannel(models.Model):
+    class Kind(models.TextChoices):
+        PHONE = "phone", "Phone"
+        EMAIL = "email", "Email"
+        WEBSITE = "website", "Website"
+        SOCIAL = "social", "Social"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    revision = models.ForeignKey(ProfileRevision, on_delete=models.CASCADE, related_name="contacts")
+    kind = models.CharField(max_length=8, choices=Kind.choices)
+    value = models.CharField(max_length=300)
+    is_public = models.BooleanField(default=False)  # private unless the owner opts in (DR-BZ-09)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["revision", "kind", "value"], name="biz_contact_unique")]
+
+
+class HoursRule(models.Model):
+    """Minutes since local midnight so that 24:00 (closing at midnight) is representable."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name="hours_rules")
+    weekday = models.PositiveSmallIntegerField()
+    opens_minute = models.PositiveSmallIntegerField()
+    closes_minute = models.PositiveSmallIntegerField()
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=Q(weekday__lte=6), name="biz_hours_weekday"),
+            models.CheckConstraint(condition=Q(opens_minute__lt=models.F("closes_minute"), closes_minute__lte=1440),
+                                   name="biz_hours_interval"),
+        ]
+
+
+class HoursException(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name="hours_exceptions")
+    on_date = models.DateField()
+    closed = models.BooleanField(default=True)
+    opens_minute = models.PositiveSmallIntegerField(null=True, blank=True)
+    closes_minute = models.PositiveSmallIntegerField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["business", "on_date"], name="biz_hours_exception_unique"),
+            models.CheckConstraint(condition=(Q(closed=True, opens_minute__isnull=True, closes_minute__isnull=True)
+                                              | Q(closed=False, opens_minute__isnull=False, closes_minute__isnull=False,
+                                                  opens_minute__lt=models.F("closes_minute"), closes_minute__lte=1440)),
+                                   name="biz_hours_exception_shape"),
+        ]

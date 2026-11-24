@@ -40,6 +40,15 @@ OPERATIONS = {
     "verification_claim": (("POST",), "privileged", False, ()),
     "verification_decide": (("POST",), "privileged", False, ()),
     "reviewer_grant": (("PUT",), "privileged", False, ()),
+    "profile_get": (("GET",), "customer", False, ()),
+    "profile_edit": (("PATCH",), "customer", False, ()),
+    "profile_submit": (("POST",), "customer", False, ()),
+    "hours_replace": (("PUT",), "customer", False, ()),
+    "category_list": (("GET",), "customer", False, ()),
+    "category_put": (("PUT",), "privileged", False, ()),
+    "profile_queue": (("GET",), "privileged", False, ("cursor", "limit")),
+    "profile_revision": (("GET",), "privileged", False, ()),
+    "profile_decide": (("POST",), "privileged", False, ()),
 }
 
 

@@ -25,8 +25,8 @@ def tests():
     from django.test import RequestFactory
     from service import limits
     from service.api import dispatch
-    from service.models import (Business, BusinessMembership, RegistrationGrant, VerificationCase,
-                                VerificationDecision)
+    from service.models import (Business, BusinessMembership, HoursRule, ProfileRevision, RegistrationGrant,
+                                VerificationCase, VerificationDecision)
 
     def call(operation, data, actor, key, role="viewer", mfa=False):
         body = {"actor_id": str(actor), "role": role, "mfa_verified": mfa, "email_verified": True,
@@ -109,6 +109,29 @@ def tests():
                                   for i, d in enumerate(("verify", "reject", "verify", "reject"))])
             self.assertEqual([status for status, _ in decisions].count(200), 1)
             self.assertEqual(VerificationDecision.objects.filter(case=case).count(), 1)
+
+        def test_concurrent_first_edits_create_exactly_one_working_revision(self):
+            owner = uuid4()
+            RegistrationGrant.objects.create(account_id=owner, granted_by_account_id=uuid4())
+            _, business = call("register", {"display_name": "Edit Shop", "legal_name": "Edit Shop Ltd"}, owner, "edit-owner-0123456789")
+            results = parallel([lambda i=i: call("profile_edit", {"business_id": business["id"], "city": f"City {i}"},
+                                                 owner, f"edit-key-{i:010d}") for i in range(4)])
+            self.assertEqual({status for status, _ in results}, {200})
+            self.assertEqual(ProfileRevision.objects.filter(business_id=business["id"]).count(), 1)
+
+        def test_the_database_enforces_revision_and_hours_invariants(self):
+            owner = uuid4()
+            RegistrationGrant.objects.create(account_id=owner, granted_by_account_id=uuid4())
+            _, business = call("register", {"display_name": "Rule Shop", "legal_name": "Rule Shop Ltd"}, owner, "rule-owner-0123456789")
+            ProfileRevision.objects.create(business_id=business["id"], revision_no=1, display_name="A")
+            for make in (lambda: ProfileRevision.objects.create(business_id=business["id"], revision_no=2, display_name="B"),
+                         lambda: ProfileRevision.objects.create(business_id=business["id"], revision_no=1, state="rejected", display_name="C"),
+                         lambda: ProfileRevision.objects.create(business_id=business["id"], revision_no=3, state="rejected",
+                                                                display_name="D", latitude=1),
+                         lambda: HoursRule.objects.create(business_id=business["id"], weekday=9, opens_minute=1, closes_minute=2),
+                         lambda: HoursRule.objects.create(business_id=business["id"], weekday=1, opens_minute=600, closes_minute=600)):
+                with self.assertRaises(IntegrityError), transaction.atomic():
+                    make()
 
         def test_the_database_refuses_a_second_active_membership_and_a_bad_role(self):
             owner = uuid4()

@@ -5621,6 +5621,407 @@ paths:
           $ref: '#/components/responses/RateLimited'
         '503':
           description: Business service unavailable
+  /me/businesses/{business_id}/profile:
+    get:
+      tags:
+      - Business
+      summary: Read the approved, working and last rejected profile revisions (owner or staff)
+      operationId: get_my_business_profile
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-17
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileOverview'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+    patch:
+      tags:
+      - Business
+      summary: Edit the working profile revision (owner only)
+      operationId: patch_my_business_profile
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-18
+      description: Creates the working revision from the approved one. Changing a live contact set requires step-up
+        and fails closed (403 step_up_unavailable) until Identity provides it (P6B-04). Address and coordinates are
+        private unless the owner sets the public flags.
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileEdit'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileRevisionView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/profile/submit:
+    post:
+      tags:
+      - Business
+      summary: Submit the working revision (owner only)
+      operationId: post_my_business_profile_submit
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-19
+      description: Material changes (name, category, address, contacts) go to review; other changes apply immediately
+        (response field applied).
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileRevisionView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/hours:
+    put:
+      tags:
+      - Business
+      summary: Replace weekly hours and dated exceptions (owner or staff)
+      operationId: put_my_business_hours
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-20
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HoursReplace'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HoursView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /business-categories:
+    get:
+      tags:
+      - Business
+      summary: List active business categories
+      operationId: get_business_categories
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      - moderator
+      - administrator
+      x-authz-ref: BZ-AZ-01
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryList'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /admin/business-categories/{slug}:
+    put:
+      tags:
+      - Business
+      summary: Create or update a category (administrator, MFA)
+      operationId: put_business_category
+      x-implementation: local
+      x-capability: business_review_admin
+      x-required-roles:
+      - administrator
+      x-mfa-required: true
+      x-authz-ref: BZ-AZ-48
+      parameters:
+      - name: slug
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: ^[a-z0-9-]{2,60}$
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryPut'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /moderation/business-profile-revisions:
+    get:
+      tags:
+      - Business
+      summary: List pending profile revisions within the reviewer's profile_review grants
+      operationId: get_business_profile_queue
+      x-implementation: local
+      x-capability: business_review_admin
+      x-required-roles:
+      - moderator
+      - administrator
+      x-mfa-required: true
+      x-authz-ref: BZ-AZ-40
+      parameters:
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 20
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileQueuePage'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /moderation/business-profile-revisions/{revision_id}:
+    get:
+      tags:
+      - Business
+      summary: Read one pending revision with its changed fields (audited)
+      operationId: get_business_profile_revision
+      x-implementation: local
+      x-capability: business_review_admin
+      x-required-roles:
+      - moderator
+      - administrator
+      x-mfa-required: true
+      x-authz-ref: BZ-AZ-41
+      parameters:
+      - name: revision_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileRevisionReviewView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /moderation/business-profile-revisions/{revision_id}/decision:
+    post:
+      tags:
+      - Business
+      summary: Approve or reject a pending revision
+      operationId: post_business_profile_decision
+      x-implementation: local
+      x-capability: business_review_admin
+      x-required-roles:
+      - moderator
+      - administrator
+      x-mfa-required: true
+      x-authz-ref: BZ-AZ-42
+      description: 404 for a revision outside the grant, one the reviewer submitted, or a business they are affiliated
+        with.
+      parameters:
+      - name: revision_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileDecision'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileDecisionView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
 components:
   securitySchemes:
     bearerAuth:
@@ -7922,6 +8323,443 @@ components:
           type: string
         active:
           type: boolean
+    ProfileEdit:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        display_name:
+          type: string
+          minLength: 2
+          maxLength: 80
+        category:
+          type: string
+          pattern: ^[a-z0-9-]{2,60}$
+        description:
+          type: string
+          maxLength: 2000
+        county_code:
+          type: string
+          pattern: ^[a-z0-9_]{2,40}$
+        city:
+          type: string
+          minLength: 1
+          maxLength: 80
+        address_line:
+          type: string
+          maxLength: 200
+        address_public:
+          type: boolean
+        latitude:
+          type:
+          - number
+          - 'null'
+          minimum: -90
+          maximum: 90
+        longitude:
+          type:
+          - number
+          - 'null'
+          minimum: -180
+          maximum: 180
+        coordinates_public:
+          type: boolean
+        time_zone:
+          type: string
+          maxLength: 64
+        contacts:
+          type: array
+          maxItems: 10
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - kind
+            - value
+            properties:
+              kind:
+                type: string
+                enum:
+                - phone
+                - email
+                - website
+                - social
+              value:
+                type: string
+                minLength: 3
+                maxLength: 300
+              is_public:
+                type: boolean
+                default: false
+    ProfileRevisionView:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - revision_no
+      - state
+      properties:
+        id:
+          type: string
+          format: uuid
+        revision_no:
+          type: integer
+        state:
+          type: string
+          enum:
+          - draft
+          - pending_review
+          - approved
+          - rejected
+          - superseded
+        display_name:
+          type: string
+        category:
+          type:
+          - string
+          - 'null'
+        description:
+          type: string
+        county_code:
+          type: string
+        city:
+          type: string
+        address_line:
+          type: string
+        address_public:
+          type: boolean
+        latitude:
+          type:
+          - string
+          - 'null'
+        longitude:
+          type:
+          - string
+          - 'null'
+        coordinates_public:
+          type: boolean
+        time_zone:
+          type: string
+        contacts:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - kind
+            - value
+            properties:
+              kind:
+                type: string
+                enum:
+                - phone
+                - email
+                - website
+                - social
+              value:
+                type: string
+                minLength: 3
+                maxLength: 300
+              is_public:
+                type: boolean
+                default: false
+        reason_code:
+          type:
+          - string
+          - 'null'
+        changed_fields:
+          type: array
+          items:
+            type: string
+        applied:
+          type: boolean
+          description: 'Present on submit: true when the change took effect without review.'
+    ProfileRevisionReviewView:
+      type: object
+      additionalProperties: false
+      required:
+      - business_id
+      - id
+      - revision_no
+      - state
+      properties:
+        business_id:
+          type: string
+          format: uuid
+        id:
+          type: string
+          format: uuid
+        revision_no:
+          type: integer
+        state:
+          type: string
+          enum:
+          - draft
+          - pending_review
+          - approved
+          - rejected
+          - superseded
+        display_name:
+          type: string
+        category:
+          type:
+          - string
+          - 'null'
+        description:
+          type: string
+        county_code:
+          type: string
+        city:
+          type: string
+        address_line:
+          type: string
+        address_public:
+          type: boolean
+        latitude:
+          type:
+          - string
+          - 'null'
+        longitude:
+          type:
+          - string
+          - 'null'
+        coordinates_public:
+          type: boolean
+        time_zone:
+          type: string
+        contacts:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - kind
+            - value
+            properties:
+              kind:
+                type: string
+                enum:
+                - phone
+                - email
+                - website
+                - social
+              value:
+                type: string
+                minLength: 3
+                maxLength: 300
+              is_public:
+                type: boolean
+                default: false
+        reason_code:
+          type:
+          - string
+          - 'null'
+        changed_fields:
+          type: array
+          items:
+            type: string
+        applied:
+          type: boolean
+          description: 'Present on submit: true when the change took effect without review.'
+    HoursRule:
+      type: object
+      additionalProperties: false
+      required:
+      - weekday
+      - opens
+      - closes
+      properties:
+        weekday:
+          type: integer
+          minimum: 0
+          maximum: 6
+        opens:
+          type: string
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+        closes:
+          type: string
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$|^24:00$
+    HoursExceptionItem:
+      type: object
+      additionalProperties: false
+      required:
+      - on_date
+      - closed
+      properties:
+        on_date:
+          type: string
+          format: date
+        closed:
+          type: boolean
+        opens:
+          type: string
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+        closes:
+          type: string
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$|^24:00$
+    HoursReplace:
+      type: object
+      additionalProperties: false
+      required:
+      - rules
+      properties:
+        rules:
+          type: array
+          maxItems: 28
+          items:
+            $ref: '#/components/schemas/HoursRule'
+        exceptions:
+          type: array
+          maxItems: 60
+          items:
+            $ref: '#/components/schemas/HoursExceptionItem'
+    HoursView:
+      type: object
+      additionalProperties: false
+      required:
+      - rules
+      - exceptions
+      properties:
+        rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/HoursRule'
+        exceptions:
+          type: array
+          items:
+            $ref: '#/components/schemas/HoursExceptionItem'
+    ProfileOverview:
+      type: object
+      additionalProperties: false
+      required:
+      - approved
+      - working
+      - last_rejected
+      - hours
+      properties:
+        approved:
+          oneOf:
+          - $ref: '#/components/schemas/ProfileRevisionView'
+          - type: 'null'
+        working:
+          oneOf:
+          - $ref: '#/components/schemas/ProfileRevisionView'
+          - type: 'null'
+        last_rejected:
+          oneOf:
+          - $ref: '#/components/schemas/ProfileRevisionView'
+          - type: 'null'
+        hours:
+          $ref: '#/components/schemas/HoursView'
+    CategoryView:
+      type: object
+      additionalProperties: false
+      required:
+      - slug
+      - name
+      - active
+      - parent
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+        active:
+          type: boolean
+        parent:
+          type:
+          - string
+          - 'null'
+    CategoryList:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryView'
+    CategoryPut:
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      - active
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 80
+        parent:
+          type:
+          - string
+          - 'null'
+        active:
+          type: boolean
+    ProfileQueuePage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - revision_id
+            - business_id
+            - display_name
+            - submitted_at
+            properties:
+              revision_id:
+                type: string
+                format: uuid
+              business_id:
+                type: string
+                format: uuid
+              display_name:
+                type: string
+              submitted_at:
+                type: string
+                format: date-time
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          format: uuid
+    ProfileDecision:
+      type: object
+      additionalProperties: false
+      required:
+      - decision
+      - reason_code
+      properties:
+        decision:
+          type: string
+          enum:
+          - approve
+          - reject
+        reason_code:
+          type: string
+          pattern: ^[a-z][a-z_]{2,39}$
+          description: Vocabulary pending owner approval.
+    ProfileDecisionView:
+      type: object
+      additionalProperties: false
+      required:
+      - revision_id
+      - state
+      properties:
+        revision_id:
+          type: string
+          format: uuid
+        state:
+          type: string
   responses:
     VideoUploadStatus:
       description: Current owner-visible upload or processing state

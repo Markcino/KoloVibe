@@ -233,7 +233,7 @@ def reviewer_grant(ctx, data):
     fields = parse(data, {"reviewer_account_id": (uuid_text, True), "scope": (lambda v: v, True),
                           "target_business_id": (lambda v: None if v is None else uuid_text(v), False),
                           "active": (boolean, True)})
-    if fields["scope"] not in ("verification", "review_queue"):
+    if fields["scope"] not in ("verification", "review_queue", "profile_review"):
         raise ApiError(400, "Invalid request")
     if fields["reviewer_account_id"] == ctx.actor_id:
         raise ApiError(409, "Administrators cannot grant themselves", "self_grant")

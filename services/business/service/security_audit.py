@@ -8,7 +8,10 @@ KINDS = {"business.registered", "business.membership_granted", "business.members
          "business.registration_grant_changed",
          "business.reviewer_grant_changed", "business.verification_submitted", "business.verification_responded",
          "business.verification_claimed", "business.verification_decided", "business.verification_queue_read",
-         "business.verification_case_read"}
+         "business.verification_case_read",
+         "business.profile_edited", "business.profile_submitted", "business.profile_applied", "business.profile_decided",
+         "business.profile_queue_read", "business.profile_revision_read", "business.hours_replaced",
+         "business.category_changed"}
 
 
 def record(kind, actor_id, subject_type, subject_id):
