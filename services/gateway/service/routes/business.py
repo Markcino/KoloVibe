@@ -56,6 +56,22 @@ def patterns():
             inquiry("me/businesses/<uuid:business_id>/inquiries/<uuid:thread_id>/confirm", POST="inquiry_confirm_business"),
             inquiry("me/businesses/<uuid:business_id>/inquiries/<uuid:thread_id>/block", POST="inquiry_block"),
         ]
+    if enabled("business_reviews"):
+        from ..business import business_endpoint
+
+        def review(url, **operations):
+            return path("api/v1/" + url, business_endpoint, {"operations": operations})
+
+        routes += [
+            review("businesses/<uuid:business_id>/reviews", GET="review_list_public", POST="review_create"),
+            review("me/reviews", GET="review_list_mine"),
+            review("me/reviews/<uuid:review_id>", PATCH="review_edit_mine", DELETE="review_withdraw_mine"),
+            review("me/businesses/<uuid:business_id>/reviews/<uuid:review_id>/response", PUT="review_respond",
+                   DELETE="review_response_delete"),
+            review("me/businesses/<uuid:business_id>/review-invitations", POST="review_invite_create"),
+            review("me/businesses/<uuid:business_id>/review-invitations/<uuid:invitation_id>", DELETE="review_invite_revoke"),
+            review("business-reports", POST="report_create"),
+        ]
     if enabled("business_review_admin"):
         from ..business import business_endpoint
 
@@ -66,6 +82,9 @@ def patterns():
             route("admin/business-registration-grants/<uuid:account_id>", PUT="registration_grant"),
             route("admin/business-reviewer-grants", PUT="reviewer_grant"),
             route("admin/business-categories/<slug:slug>", PUT="category_put"),
+            route("moderation/business-reports", GET="report_queue"),
+            route("moderation/business-reports/<uuid:report_id>", GET="report_case"),
+            route("moderation/business-reports/<uuid:report_id>/decision", POST="report_decide"),
             route("moderation/business-profile-revisions", GET="profile_queue"),
             route("moderation/business-profile-revisions/<uuid:revision_id>", GET="profile_revision"),
             route("moderation/business-profile-revisions/<uuid:revision_id>/decision", POST="profile_decide"),

@@ -139,7 +139,7 @@ class PublicViewTests(ListingBase):
         status, body = self.public("public_detail", {"business_id": self.bid})
         self.assertEqual(status, 200)
         self.assertEqual(set(body), {"id", "display_name", "category", "county_code", "city", "summary", "verified",
-                                     "open_now", "description", "address_line", "time_zone", "hours", "contacts",
+                                     "open_now", "rating", "description", "address_line", "time_zone", "hours", "contacts",
                                      "contacts_access"})
         self.assertEqual((body["contacts"], body["contacts_access"], body["address_line"]), (None, "sign_in_required", None))
         text = str(body)

@@ -298,7 +298,8 @@ def public_detail(ctx, data):
         else:
             access = "limit_reached"
     item = _item(listing, timezone.now())
-    return Result(200, {**item, "description": listing.description,
+    from .reviews import rating_view
+    return Result(200, {**item, "rating": rating_view(listing.business), "description": listing.description,
                         "address_line": listing.address_line or None, "time_zone": listing.time_zone,
                         "hours": {"rules": [{"weekday": w, "opens": hours.clock(o), "closes": hours.clock(c)}
                                             for w, o, c in snapshot.get("rules", [])],

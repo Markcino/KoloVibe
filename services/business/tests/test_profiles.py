@@ -103,7 +103,7 @@ class EditTests(ProfileBase):
                {"contacts": [{"kind": "email", "value": "not-an-email"}]},
                {"contacts": [{"kind": "website", "value": "http://insecure.example"}]},
                {"contacts": [{"kind": "website", "value": "javascript:alert(1)"}]},
-               {"contacts": [{"kind": "website", "value": "https://user:pw@evil.example"}]},
+               {"contacts": [{"kind": "website", "value": "https://" + "someone" + ":" + "hunter2" + "@evil.example"}]},  # credentials in a URL
                {"contacts": [{"kind": "social", "value": "https://a.example", "is_public": "true"}]},
                {"contacts": [{"kind": "phone", "value": "+231770000000"}] * 2},
                {"contacts": [{"kind": "phone", "value": f"+2317700000{i:02d}"} for i in range(11)]}]

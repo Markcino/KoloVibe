@@ -23,11 +23,23 @@ BUDGETS = {
     "inquiry_create": (10, timedelta(days=1)),       # per customer
     "inquiry_business": (30, timedelta(hours=1)),    # new threads per business, so one business cannot be flooded
     "inquiry_message": (60, timedelta(hours=1)),
+    "review_create": (5, timedelta(days=1)),        # per author
+    "review_edit": (10, timedelta(days=1)),
+    "review_invite": (20, timedelta(days=1)),
+    "report_create": (20, timedelta(days=1)),
     "public_read": (1200, timedelta(hours=1)),      # per signed-in account, or per client address
     "contact_reveal": (100, timedelta(days=1)),     # signed-in verified accounts only (DR-BZ-12)
 }
 PAGE_SIZE = 20
 MAX_MESSAGES_PER_THREAD = 100
+REVIEW_INVITATION_TTL = timedelta(days=30)
+MAX_PENDING_REVIEW_INVITATIONS = 50
+# Fraud-hold signals (DR-BZ-16 "hold on fraud signals"; thresholds are DR-BZ-22 starting values).
+HOLD_BUSINESS_BURST = (10, timedelta(hours=24))   # this many new reviews for one business inside the window
+HOLD_AUTHOR_BURST = (3, timedelta(hours=24))      # this many reviews by one author inside the window
+HOLD_DUPLICATE_WINDOW = timedelta(days=30)        # identical text anywhere on the platform inside the window
+# Hidden until the owner sets a minimum (DR-BZ-16): with None the average is never shown, only the count.
+MIN_REVIEWS_FOR_AVERAGE = None
 SEARCH_CHUNK = 50
 SEARCH_SCAN_CAP = 500                   # rows examined per request when a filter is applied after the query (open now)
 MIN_EVIDENCE_ITEMS = 1                   # technical minimum so a case is never empty; the checklist is the owner's

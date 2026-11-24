@@ -395,3 +395,107 @@ class InquiryBlock(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["business", "customer_account_id"], name="biz_one_block")]
+
+
+class Review(models.Model):
+    class State(models.TextChoices):
+        PUBLISHED = "published", "Published"
+        HELD = "held", "Held for review"
+        REMOVED = "removed", "Removed"
+        WITHDRAWN = "withdrawn", "Withdrawn"
+
+    class Basis(models.TextChoices):
+        INTERACTION_CONFIRMED = "interaction_confirmed", "Interaction confirmed by both sides"
+        INVITED = "invited", "Invited by the business"
+        OPEN = "open", "Unconfirmed"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    business = models.ForeignKey(Business, on_delete=models.PROTECT, related_name="reviews")
+    author_account_id = models.UUIDField()  # private: never serialized
+    author_label = models.CharField(max_length=40)  # pseudonymous ("Reviewer 3") until an author-display policy is approved
+    rating = models.PositiveSmallIntegerField()
+    title = models.CharField(max_length=100, blank=True, default="")
+    body = models.CharField(max_length=2000, blank=True, default="")
+    body_digest = models.CharField(max_length=64, blank=True, default="", db_index=True)  # duplicate detection only
+    state = models.CharField(max_length=10, choices=State.choices, default=State.PUBLISHED)
+    basis = models.CharField(max_length=24, choices=Basis.choices)
+    interaction_thread = models.ForeignKey(InquiryThread, null=True, blank=True, on_delete=models.PROTECT)
+    hold_reasons = models.JSONField(default=list)
+    created_at = models.DateTimeField(default=timezone.now)
+    edited_at = models.DateTimeField(null=True, blank=True)
+    published_at = models.DateTimeField(null=True, blank=True)
+    removed_by_account_id = models.UUIDField(null=True, blank=True)
+    removed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            # One review per author per business, ever: withdrawing does not allow a fresh one (no approved re-review rule).
+            models.UniqueConstraint(fields=["business", "author_account_id"], name="biz_one_review_per_author"),
+            models.CheckConstraint(condition=Q(rating__gte=1, rating__lte=5), name="biz_review_rating"),
+            models.CheckConstraint(condition=Q(state__in=["published", "held", "removed", "withdrawn"]), name="biz_review_state"),
+            models.CheckConstraint(condition=Q(basis__in=["interaction_confirmed", "invited", "open"]), name="biz_review_basis"),
+        ]
+        indexes = [models.Index(fields=["business", "state", "published_at", "id"], name="biz_review_public_idx"),
+                   models.Index(fields=["author_account_id", "created_at"], name="biz_review_author_idx")]
+
+
+class ReviewResponse(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    review = models.OneToOneField(Review, on_delete=models.CASCADE, related_name="response")
+    author_account_id = models.UUIDField()
+    body = models.CharField(max_length=1000)
+    removed = models.BooleanField(default=False)
+    removed_by_account_id = models.UUIDField(null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+
+
+class ReviewInvitation(models.Model):
+    """Business-issued single-use code; reviews written with one are labelled `invited`, never `interaction_confirmed`."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    business = models.ForeignKey(Business, on_delete=models.PROTECT, related_name="review_invitations")
+    code_digest = models.CharField(max_length=64, unique=True)
+    created_by_account_id = models.UUIDField()
+    created_at = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField()
+    redeemed_by_account_id = models.UUIDField(null=True, blank=True)
+    redeemed_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+
+class ReviewAggregate(models.Model):
+    """Recomputed from published reviews in the same transaction as any change; never accepted from a client."""
+    business = models.OneToOneField(Business, primary_key=True, on_delete=models.CASCADE, related_name="review_aggregate")
+    count = models.PositiveIntegerField(default=0)
+    rating_sum = models.PositiveIntegerField(default=0)
+    updated_at = models.DateTimeField(default=timezone.now)
+
+
+class BusinessReport(models.Model):
+    """Abuse reports and system fraud holds awaiting a reviewer. Interim Business-local queue (see B5 results)."""
+
+    class Subject(models.TextChoices):
+        REVIEW = "review", "Review"
+        REVIEW_RESPONSE = "review_response", "Review response"
+        INQUIRY_MESSAGE = "inquiry_message", "Inquiry message"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    reporter_account_id = models.UUIDField()  # the nil UUID marks a system fraud hold
+    subject_type = models.CharField(max_length=20, choices=Subject.choices)
+    subject_id = models.UUIDField()
+    business = models.ForeignKey(Business, on_delete=models.PROTECT, related_name="reports")
+    reason_code = models.CharField(max_length=40)
+    details = models.CharField(max_length=1000, blank=True, default="")
+    state = models.CharField(max_length=8, default="open")
+    created_at = models.DateTimeField(default=timezone.now)
+    decided_by_account_id = models.UUIDField(null=True, blank=True)
+    decision = models.CharField(max_length=8, blank=True, default="")
+    decision_reason_code = models.CharField(max_length=40, blank=True, default="")
+    decided_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["reporter_account_id", "subject_type", "subject_id"],
+                                    condition=Q(state="open"), name="biz_one_open_report"),
+            models.CheckConstraint(condition=Q(state__in=["open", "decided"]), name="biz_report_state"),
+        ]
+        indexes = [models.Index(fields=["state", "created_at", "id"], name="biz_report_queue_idx")]

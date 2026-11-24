@@ -153,6 +153,47 @@ def tests():
             self.assertEqual(len(search(county="pgtest", open_now="true", limit=20)[1]["items"]) >= 0, True)
             BusinessListing.objects.filter(county_code="pgtest").delete()
 
+        def listed_business(self, name):
+            from service.models import BusinessListing
+            business = Business.objects.create(created_by_account_id=uuid4(), display_name=name, legal_name=name + " Ltd",
+                                               state="verified", owner_listed=True)
+            BusinessListing.objects.create(business=business, display_name=name, name_sort=name.casefold(), category_slug="food",
+                                           category_name="Food", county_code="pgreview", city="Pgville", time_zone="UTC")
+            return business
+
+        def test_one_author_cannot_review_a_business_twice_under_concurrency(self):
+            from service.models import Review, ReviewAggregate
+            business = self.listed_business("Review Race Shop")
+            author = uuid4()
+            results = parallel([lambda i=i: call("review_create", {"business_id": str(business.id), "rating": 5,
+                                                                    "body": f"Concurrent attempt number {i} at a review."},
+                                                 author, f"review-key-{i:09d}x") for i in range(4)])
+            self.assertEqual(sorted(status for status, _ in results), [201, 409, 409, 409])
+            self.assertEqual(Review.objects.filter(business=business).count(), 1)
+            self.assertEqual(ReviewAggregate.objects.get(business=business).count, 1)
+
+        def test_concurrent_reviews_keep_the_aggregate_exact_and_one_invitation_is_used_once(self):
+            from service.models import Review, ReviewAggregate, ReviewInvitation
+            business = self.listed_business("Aggregate Shop")
+            results = parallel([lambda i=i: call("review_create", {"business_id": str(business.id), "rating": 1 + i % 5,
+                                                                    "body": f"Independent opinion number {i} about this shop."},
+                                                 uuid4(), f"agg-key-{i:012d}") for i in range(5)])
+            self.assertEqual({status for status, _ in results}, {201})
+            published = list(Review.objects.filter(business=business, state="published").values_list("rating", flat=True))
+            row = ReviewAggregate.objects.get(business=business)
+            self.assertEqual((row.count, row.rating_sum), (len(published), sum(published)))
+            code = "pg-review-invite-code-0123456789"
+            import hashlib, hmac
+            from django.conf import settings
+            ReviewInvitation.objects.create(business=business, created_by_account_id=uuid4(),
+                                            code_digest=hmac.new(settings.SECRET_KEY.encode(), ("review-invite:" + code).encode(),
+                                                                 hashlib.sha256).hexdigest(),
+                                            expires_at=__import__("django.utils.timezone", fromlist=["now"]).now() + __import__("datetime").timedelta(days=1))
+            used = parallel([lambda i=i: call("review_create", {"business_id": str(business.id), "rating": 4, "invitation_code": code,
+                                                                 "body": f"Invited opinion number {i} about this shop."},
+                                              uuid4(), f"inv-key-{i:012d}") for i in range(4)])
+            self.assertEqual(sorted(status for status, _ in used), [201, 404, 404, 404])
+
         def test_the_database_enforces_revision_and_hours_invariants(self):
             owner = uuid4()
             RegistrationGrant.objects.create(account_id=owner, granted_by_account_id=uuid4())
