@@ -219,7 +219,41 @@ def tests():
                 BusinessMembership.objects.create(business_id=business["id"], account_id=uuid4(), role="admin",
                                                   granted_by_account_id=owner)
 
-    suite = unittest.defaultTestLoader.loadTestsFromTestCase(BusinessPostgres)
+    class BusinessMigrations(unittest.TestCase):
+        """Tested upgrade and rollback of every Business migration, as the least-privilege login (disposable only)."""
+
+        def test_every_migration_applies_and_reverses_and_the_schema_round_trips(self):
+            from tests import migration_checks
+            migration_checks.round_trip(self, connection)
+
+        def test_rows_survive_an_upgrade_and_a_rollback_of_later_migrations(self):
+            from tests import migration_checks
+            migration_checks.data_survives(self, connection)
+
+    loader = unittest.defaultTestLoader
+    # Migrations run last: they drop and recreate later tables, so no other test may be mid-flight.
+    suite = unittest.TestSuite([loader.loadTestsFromTestCase(BusinessPostgres), loader.loadTestsFromTestCase(BusinessMigrations)])
+    sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
+
+
+def audit_tests():
+    """Audit 0006 on PostgreSQL: a CHECK constraint with a violating row must refuse the rollback and keep the row."""
+    sys.path.insert(0, str(ROOT / "services" / "audit"))
+    os.environ["DJANGO_SETTINGS_MODULE"] = "service.settings"
+    import django
+    django.setup()
+    from django.db import connection
+    from tests import migration_checks
+
+    class AuditBusinessProducer(unittest.TestCase):
+        def test_rolls_back_and_forward_over_existing_producers(self):
+            self.assertEqual(connection.vendor, "postgresql")
+            migration_checks.upgrade_and_rollback_over_existing_producers(self, connection)
+
+        def test_rollback_is_refused_and_loses_nothing_while_a_business_grant_exists(self):
+            migration_checks.rollback_refused_and_lossless_while_a_business_grant_exists(self, connection)
+
+    suite = unittest.defaultTestLoader.loadTestsFromTestCase(AuditBusinessProducer)
     sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
 
 
@@ -227,7 +261,8 @@ def main():
     from test_postgres_foundations import postgres_fixture
     with postgres_fixture() as (_, environments):
         subprocess.run([sys.executable, str(Path(__file__).resolve()), "--run"], check=True, env=environments["business"])
+        subprocess.run([sys.executable, str(Path(__file__).resolve()), "--audit"], check=True, env=environments["audit"])
 
 
 if __name__ == "__main__":
-    tests() if "--run" in sys.argv else main()
+    audit_tests() if "--audit" in sys.argv else tests() if "--run" in sys.argv else main()

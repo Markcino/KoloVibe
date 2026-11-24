@@ -122,6 +122,17 @@ Same columns and status key. Base `main` at `5e7eda7`, which is **70 commits ahe
 | Creator restriction/suspension write path | creators, moderation | n/a | none | none | enforcement and read exist; nothing sets the status | n/a | **Blocked by approval** | D-8 | Owner |
 | Remaining blocked items: post-approval re-review (D-1), M-045 (D-2), profile photos (D-3), M-078 (D-4), privacy export/deletion (D-5), points reversal (D-6), fraud-hold clearing (D-7), invite API roles (D-9), R2 lifecycle (D-10), audit retention and legal hold (D-11) | various | various | various | none | none added | n/a | **Blocked by approval** | [Decision register](Phase5F_Core_Completion_Results_2026-11-24.md#5-owner-decisions-required) | Owner |
 
+### Phase 6B hardening (24 November) — Business backend, second pass
+
+Same columns and status key. Base `main` at `09a5bc9`. **Nothing here is deployed** and every Business flag is closed; production is NO-GO. Evidence: [Phase 6B hardening results](phase6/Phase6B_Hardening_Results_2026-11-24.md). Business suite 178 (SQLite), 13 on disposable PostgreSQL 16; Audit 51 and 2; Gateway 218.
+
+| Feature | Service | Mobile | Web | API | Security | Tests | Status | Blocker | Next task |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Negative authorization for every Business operation | business | n/a | n/a | none changed | registry-driven gate matrix, 39-operation object matrix against real data, nested-id swap, coverage guard; 12 mutations caught | +12 | **Implemented, awaiting integration** | none | none |
+| Tested migration upgrade and rollback (Business 0001–0007, Audit 0006) | business, audit | n/a | n/a | none | schema round trip identical; rows survive; Audit rollback refused over a `business` grant | +4 SQLite, +4 PostgreSQL (in CI) | **Implemented, awaiting integration** | none | none |
+| Business routes are JSON-only (DR-BZ-21): no HTML, cookies, CORS, templates | gateway, business | n/a | n/a | JSON 405 with `Allow` (defect fixed) | middleware list pinned | +5 | **Implemented, awaiting integration** | none | AC-CLI-005…008 need client work |
+| B2 file evidence and suspension; B3 lists and copy; B6 policy values; B7 staff removal, closure, transfer; notification contracts | business | none | none | none | fail closed or absent | n/a | **Blocked by approval** | [Owner decisions required](../architecture/business/BIZ-Owner_Decisions_Required_PHASE6A.md) gate A | Owner |
+
 Local test run at HEAD and the full backlog, DRY analysis, risk register and Phase 1 acceptance criteria are in the [Phase 0 baseline](Phase0_Implementation_Baseline_2026-11-23.md#2-local-test-evidence-at-head).
 
 ## Earlier implementation and acceptance record

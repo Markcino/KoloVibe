@@ -165,7 +165,7 @@ Trace: [requirements BZ-R](../../requirements/DOC-020_Business_Requirements_and_
 
 ## 15. Client surfaces (DR-BZ-21)
 
-**None of these has been run.** AC-CLI-001…004 are cheap, repository-only tests that can protect the decision today; AC-CLI-005…008 need the console and Flutter work and cannot pass before it exists.
+**Status 24 November 2026:** AC-CLI-001…004 are now covered by tests that pass locally (Gateway `test_business_client_surface.py`, Business `test_client_surface.py`; see the [Phase 6B hardening results](Phase6B_Hardening_Results_2026-11-24.md)); the Gateway test also found and fixed an `text/html` label on Business 405 responses. AC-CLI-005…008 need the console and Flutter work and cannot pass before it exists. Local test evidence only, not acceptance.
 
 | ID | Criterion | Req | Verification |
 | --- | --- | --- | --- |
