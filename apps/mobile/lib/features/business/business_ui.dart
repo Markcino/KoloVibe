@@ -1,0 +1,386 @@
+import 'package:flutter/material.dart';
+
+import '../../core/theme/kolovibe_theme.dart';
+import '../../shared/widgets/kolo_components.dart';
+import '../../shared/widgets/live_state_view.dart';
+import 'business_lists.dart';
+import 'business_models.dart';
+
+/// Loads once, shows the shared loading / failure states, and lets the user retry. With [inline] the states are
+/// compact cards so one failing section never hides the rest of a screen.
+class BusinessLoader<T> extends StatefulWidget {
+  const BusinessLoader({
+    super.key,
+    required this.load,
+    required this.builder,
+    this.onSignIn,
+    this.inline = false,
+  });
+  final Future<T> Function() load;
+  final Widget Function(BuildContext context, T value, VoidCallback reload)
+      builder;
+  final VoidCallback? onSignIn;
+  final bool inline;
+
+  @override
+  State<BusinessLoader<T>> createState() => _BusinessLoaderState<T>();
+}
+
+class _BusinessLoaderState<T> extends State<BusinessLoader<T>> {
+  late Future<T> _future = widget.load();
+
+  void _reload() {
+    setState(() {
+      _future = widget.load();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<T>(
+        future: _future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return widget.inline
+                ? const KoloSkeleton(height: 72)
+                : const LiveStateView.loading();
+          }
+          if (snapshot.hasError) {
+            if (widget.inline) {
+              return KoloInlineState(
+                title: 'Could not load this',
+                message: 'Check your connection, then try again.',
+                icon: Icons.error_outline,
+                actionLabel: 'Try again',
+                onAction: _reload,
+              );
+            }
+            return LiveStateView.failure(snapshot.error!,
+                onRetry: _reload, onSignIn: widget.onSignIn);
+          }
+          return widget.builder(context, snapshot.data as T, _reload);
+        },
+      );
+}
+
+/// A list that loads page by page with an explicit "Show more" control. Give it a new [key] to start again.
+class BusinessPagedList<T> extends StatefulWidget {
+  const BusinessPagedList({
+    super.key,
+    required this.fetch,
+    required this.itemBuilder,
+    required this.empty,
+    this.header,
+    this.onSignIn,
+    this.padding = const EdgeInsets.fromLTRB(20, 8, 20, 24),
+  });
+  final Future<ResultPage<T>> Function(String? cursor) fetch;
+  final Widget Function(BuildContext context, T item) itemBuilder;
+  final Widget empty;
+  final Widget? header;
+  final VoidCallback? onSignIn;
+  final EdgeInsets padding;
+
+  @override
+  State<BusinessPagedList<T>> createState() => _BusinessPagedListState<T>();
+}
+
+class _BusinessPagedListState<T> extends State<BusinessPagedList<T>> {
+  final List<T> _items = [];
+  String? _cursor;
+  Object? _error;
+  bool _loading = true;
+  bool _moreFailed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final more = _items.isNotEmpty;
+    setState(() {
+      _loading = true;
+      _moreFailed = false;
+      if (!more) _error = null;
+    });
+    try {
+      final page = await widget.fetch(more ? _cursor : null);
+      if (!mounted) return;
+      setState(() {
+        _items.addAll(page.items);
+        _cursor = page.nextCursor;
+        _loading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        if (more) {
+          _moreFailed = true;
+        } else {
+          _error = error;
+        }
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_items.isEmpty && _loading) return const LiveStateView.loading();
+    if (_items.isEmpty && _error != null) {
+      return LiveStateView.failure(_error!,
+          onRetry: _load, onSignIn: widget.onSignIn);
+    }
+    return ListView(
+      padding: widget.padding,
+      children: [
+        if (widget.header != null) widget.header!,
+        if (_items.isEmpty) widget.empty,
+        for (final item in _items) widget.itemBuilder(context, item),
+        if (_moreFailed)
+          KoloInlineState(
+            title: 'Could not load more',
+            message: 'Check your connection, then try again.',
+            icon: Icons.error_outline,
+            actionLabel: 'Try again',
+            onAction: _load,
+          )
+        else if (_cursor != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Align(
+              child: _loading
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : KoloPillButton(label: 'Show more', onPressed: _load),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+// ---- wording ---------------------------------------------------------------------------------------------------
+
+String countyLabel(String code) => labelFor(counties, code);
+
+String openLabel(bool? openNow) => switch (openNow) {
+      true => 'Open now',
+      false => 'Closed now',
+      null => 'Opening hours not published',
+    };
+
+String ratingLabel(Rating rating) {
+  if (rating.count == 0) return 'No reviews yet';
+  final noun = rating.count == 1 ? 'review' : 'reviews';
+  final average = rating.average;
+  return average == null
+      ? '${rating.count} $noun'
+      : '${average.toStringAsFixed(1)} out of 5 · ${rating.count} $noun';
+}
+
+String starsLabel(int rating) => '$rating out of 5';
+
+String reviewBasisLabel(ReviewBasis basis) => switch (basis) {
+      ReviewBasis.interactionConfirmed => 'Interaction confirmed',
+      ReviewBasis.invited => 'Invited by the business',
+      ReviewBasis.open => 'Open review',
+    };
+
+const _months = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+
+String dateLabel(DateTime when) {
+  final local = when.toLocal();
+  return '${local.day} ${_months[local.month - 1]} ${local.year}';
+}
+
+// ---- shared pieces ---------------------------------------------------------------------------------------------
+
+/// One business in a list: name, verified mark, place, open state and summary. Plain text only.
+class BusinessCardTile extends StatelessWidget {
+  const BusinessCardTile({super.key, required this.card, required this.onTap});
+  final BusinessCard card;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final place = [card.city, countyLabel(card.countyCode)]
+        .where((part) => part.isNotEmpty)
+        .join(', ');
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Semantics(
+        button: true,
+        label: [
+          card.name,
+          if (card.verified) 'Verified',
+          card.category.name,
+          if (place.isNotEmpty) place,
+          openLabel(card.openNow),
+        ].join('. '),
+        excludeSemantics: true,
+        child: Material(
+          color: Colors.white,
+          shape: RoundedRectangleBorder(
+              side: const BorderSide(color: KoloVibeColors.line),
+              borderRadius: BorderRadius.circular(KoloVibeRadii.tile)),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(KoloVibeRadii.tile),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Expanded(
+                      child: Text(card.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: KoloVibeText.body(16,
+                              weight: FontWeight.w700,
+                              color: KoloVibeColors.navy)),
+                    ),
+                    if (card.verified) ...[
+                      const SizedBox(width: 8),
+                      const KoloBadge('Verified', filled: true),
+                    ],
+                  ]),
+                  const SizedBox(height: 4),
+                  Text(
+                      [card.category.name, if (place.isNotEmpty) place]
+                          .join(' · '),
+                      style: KoloVibeText.body(13)),
+                  const SizedBox(height: 4),
+                  Text(openLabel(card.openNow),
+                      style: KoloVibeText.body(12,
+                          weight: FontWeight.w600,
+                          color: card.openNow == true
+                              ? KoloVibeColors.green
+                              : KoloVibeColors.muted)),
+                  if (card.summary.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(card.summary,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: KoloVibeText.body(13, height: 1.4)),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Search words and filters carried between the Business results (M-111) and filter (M-112) screens in the
+/// route's one string. Decoding re-validates everything, so a hand-made route cannot inject anything.
+class BusinessFilters {
+  const BusinessFilters(
+      {this.query,
+      this.category,
+      this.county,
+      this.openNow = false,
+      this.verifiedOnly = false});
+  final String? query;
+  final String? category;
+  final String? county;
+  final bool openNow;
+  final bool verifiedOnly;
+
+  static final _slug = RegExp(r'^[a-z0-9-]{2,60}$');
+
+  bool get isEmpty => this == const BusinessFilters();
+
+  /// Filters other than the search words.
+  int get active =>
+      (category != null ? 1 : 0) +
+      (county != null ? 1 : 0) +
+      (openNow ? 1 : 0) +
+      (verifiedOnly ? 1 : 0);
+
+  String? encode() {
+    final params = {
+      if (query != null) 'q': query!,
+      if (category != null) 'category': category!,
+      if (county != null) 'county': county!,
+      if (openNow) 'open': '1',
+      if (verifiedOnly) 'verified': '1',
+    };
+    return params.isEmpty ? null : Uri(queryParameters: params).query;
+  }
+
+  factory BusinessFilters.decode(String? raw) {
+    if (raw == null || raw.isEmpty || raw.length > 400) {
+      return const BusinessFilters();
+    }
+    try {
+      final data = Uri.splitQueryString(raw);
+      final query = data['q']?.trim();
+      final category = data['category'];
+      final county = data['county'];
+      return BusinessFilters(
+        query:
+            query == null || query.isEmpty || query.length > 100 ? null : query,
+        category:
+            category != null && _slug.hasMatch(category) ? category : null,
+        county: counties.any((c) => c.code == county) ? county : null,
+        openNow: data['open'] == '1',
+        verifiedOnly: data['verified'] == '1',
+      );
+    } on FormatException {
+      return const BusinessFilters();
+    } on ArgumentError {
+      // Uri.splitQueryString reports bad percent-encoding this way.
+      return const BusinessFilters();
+    }
+  }
+
+  BusinessFilters copyWith(
+          {Object? query = _keep,
+          Object? category = _keep,
+          Object? county = _keep,
+          bool? openNow,
+          bool? verifiedOnly}) =>
+      BusinessFilters(
+        query: identical(query, _keep) ? this.query : query as String?,
+        category:
+            identical(category, _keep) ? this.category : category as String?,
+        county: identical(county, _keep) ? this.county : county as String?,
+        openNow: openNow ?? this.openNow,
+        verifiedOnly: verifiedOnly ?? this.verifiedOnly,
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      other is BusinessFilters &&
+      other.query == query &&
+      other.category == category &&
+      other.county == county &&
+      other.openNow == openNow &&
+      other.verifiedOnly == verifiedOnly;
+
+  @override
+  int get hashCode =>
+      Object.hash(query, category, county, openNow, verifiedOnly);
+
+  static const Object _keep = Object();
+}

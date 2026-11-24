@@ -130,8 +130,30 @@ class LiveBusinessRepository {
         BusinessCard.fromJson);
   }
 
-  Future<BusinessDetail> detail(String businessId) async =>
-      BusinessDetail.fromJson(await _public('/businesses/${_id(businessId)}'));
+  final Map<String, ({DateTime at, BusinessDetail value})> _details = {};
+
+  /// Always asks the service, and remembers the answer for [detailCached].
+  Future<BusinessDetail> detail(String businessId) async {
+    final value = BusinessDetail.fromJson(
+        await _public('/businesses/${_id(businessId)}'));
+    if (_details.length > 20) _details.clear();
+    _details['${account.signedInAccountId ?? 'anonymous'}:$businessId'] =
+        (at: DateTime.now(), value: value);
+    return value;
+  }
+
+  /// The hours and contact screens open straight after the detail screen. Reading contact details is limited per
+  /// person, so they reuse the answer fetched a moment ago (for the same signed-in account only) instead of asking
+  /// again and using up more of that limit.
+  Future<BusinessDetail> detailCached(String businessId,
+      {Duration maxAge = const Duration(minutes: 1)}) async {
+    final held =
+        _details['${account.signedInAccountId ?? 'anonymous'}:$businessId'];
+    if (held != null && DateTime.now().difference(held.at) < maxAge) {
+      return held.value;
+    }
+    return detail(businessId);
+  }
 
   Future<ResultPage<PublicReview>> reviews(String businessId,
           {String? cursor}) async =>

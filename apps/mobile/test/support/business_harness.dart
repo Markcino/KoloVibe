@@ -16,8 +16,13 @@ const otherId = '00000000-0000-4000-8000-0000000000e1';
 
 /// A real response captured from the Business service (see the drift test in services/business).
 ({int status, Map<String, dynamic> body}) fixture(String name) {
-  final data = jsonDecode(File('test/fixtures/business/$name.json').readAsStringSync()) as Map<String, dynamic>;
-  return (status: data['status'] as int, body: data['body'] as Map<String, dynamic>);
+  final data =
+      jsonDecode(File('test/fixtures/business/$name.json').readAsStringSync())
+          as Map<String, dynamic>;
+  return (
+    status: data['status'] as int,
+    body: data['body'] as Map<String, dynamic>
+  );
 }
 
 class MemoryCredentials implements CredentialStore {
@@ -41,11 +46,14 @@ class Recorded {
 
 /// The Business repository over a recording fake gateway. [answer] decides each business reply.
 class BusinessHarness {
-  BusinessHarness({this.signedIn = true, ({int status, Map<String, dynamic> body}) Function(Recorded)? answer})
+  BusinessHarness(
+      {this.signedIn = true,
+      ({int status, Map<String, dynamic> body}) Function(Recorded)? answer})
       : answer = answer ?? ((_) => (status: 503, body: <String, dynamic>{})) {
     final credentials = MemoryCredentials();
     if (!signedIn) credentials.value = null;
-    final api = ApiClient('https://api.example.test/api/v1', client: MockClient(_handle));
+    final api = ApiClient('https://api.example.test/api/v1',
+        client: MockClient(_handle));
     account = LiveAccountRepository(api, credentials);
     repository = LiveBusinessRepository(api, account);
   }
@@ -58,14 +66,26 @@ class BusinessHarness {
   Future<http.Response> _handle(http.Request request) async {
     final path = request.url.path.replaceFirst('/api/v1', '');
     if (path == '/auth/refresh') {
-      return http.Response(jsonEncode({'access_token': 'access', 'refresh_token': 'rotated'}), 200);
+      return http.Response(
+          jsonEncode({'access_token': 'access', 'refresh_token': 'rotated'}),
+          200);
     }
     if (path == '/me') {
       return http.Response(
-          jsonEncode({'id': '00000000-0000-4000-8000-000000000001', 'email': 'a@b.test', 'display_name': 'Ada', 'created_at': '2026-11-01T00:00:00Z', 'roles': ['viewer']}),
+          jsonEncode({
+            'id': '00000000-0000-4000-8000-000000000001',
+            'email': 'a@b.test',
+            'display_name': 'Ada',
+            'created_at': '2026-11-01T00:00:00Z',
+            'roles': ['viewer']
+          }),
           200);
     }
-    final recorded = Recorded(request.method, path, request.url.queryParameters, request.headers,
+    final recorded = Recorded(
+        request.method,
+        path,
+        request.url.queryParameters,
+        request.headers,
         request.body.isEmpty ? null : jsonDecode(request.body));
     requests.add(recorded);
     final reply = answer(recorded);
@@ -76,11 +96,13 @@ class BusinessHarness {
 }
 
 /// Replies with one fixture whatever is asked.
-({int status, Map<String, dynamic> body}) Function(Recorded) always(String name) =>
+({int status, Map<String, dynamic> body}) Function(Recorded) always(
+        String name) =>
     (_) => fixture(name);
 
 void expectKey(Recorded request) {
   final key = request.headers['Idempotency-Key'];
-  expect(key, isNotNull, reason: '${request.method} ${request.path} needs an idempotency key');
+  expect(key, isNotNull,
+      reason: '${request.method} ${request.path} needs an idempotency key');
   expect(RegExp(r'^[A-Za-z0-9_-]{16,128}$').hasMatch(key!), isTrue);
 }

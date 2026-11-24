@@ -7,6 +7,7 @@ import 'package:kolovibe/app/routes/business_routes.dart';
 import 'package:kolovibe/app/routes/route_context.dart';
 import 'package:kolovibe/app/screen_route.dart';
 import 'package:kolovibe/core/presentation/design_node.dart';
+import 'package:kolovibe/features/business/business_discovery_screens.dart';
 import 'package:kolovibe/features/business/business_pending_screen.dart';
 import 'package:kolovibe/features/business/business_screens.dart';
 import 'package:kolovibe/features/shell/main_shell.dart';
@@ -16,9 +17,9 @@ void main() {
   late DesignCatalog catalog;
   setUpAll(() async => catalog = await DesignCatalog.load());
 
-  Widget? build(int screen, AppDependencies dependencies) =>
+  Widget? build(int screen, AppDependencies dependencies, {String? id}) =>
       businessRoute(RouteContext(
-          route: ScreenRoute(screen),
+          route: ScreenRoute(screen, entityId: id),
           catalog: catalog,
           dependencies: dependencies,
           session: AppSession()));
@@ -56,6 +57,27 @@ void main() {
       expect(build(screen, live), isNotNull, reason: 'M-$screen');
       expect(build(screen, const AppDependencies.unavailable()), isNotNull,
           reason: 'M-$screen without a gateway');
+    }
+  });
+
+  test('discovery screens open, and ones about one business need its id', () {
+    final live = AppDependencies.live('https://api.example.test/api/v1');
+    const id = '13abeac8-1386-440a-b17c-aeafb48fe96f';
+    expect(build(109, live), isA<BusinessHomeScreen>());
+    expect(build(110, live), isA<BusinessCategoriesScreen>());
+    expect(build(111, live), isA<BusinessResultsScreen>());
+    expect(build(112, live), isA<BusinessFiltersScreen>());
+    expect(build(117, live), isA<BusinessPrivacyScreen>());
+    for (final entry in {
+      113: isA<BusinessDetailScreen>(),
+      114: isA<BusinessHoursScreen>(),
+      115: isA<BusinessContactScreen>(),
+      116: isA<BusinessReviewsScreen>(),
+    }.entries) {
+      expect(build(entry.key, live, id: id), entry.value,
+          reason: 'M-${entry.key}');
+      expect(build(entry.key, live), isA<BusinessPendingScreen>(),
+          reason: 'M-${entry.key} without a business');
     }
   });
 
