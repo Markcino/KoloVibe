@@ -548,3 +548,15 @@ Figma elements the current API or approved capabilities cannot support, and what
 - The rows marked Deviation and the not-audited states need per-screen reconstruction or captures; the largest are the upload flow steps, Manage video, Creator profile editing, the information screens (M-087 to M-094) and the player screens.
 - Designed content that needs new endpoints is not drawn: analytics, curated collections, recent searches, play counts and profile photos.
 - Visual conformity on a device (fonts, safe areas, keyboard) is checked by section H of the iPhone checklist.
+
+## Business (M-109 to M-144), implementation-led — 24 November 2026
+
+These 36 screens are **not part of the 108-entry design register above**, have **no Figma frame** and are **not visually approved**. By the owner's decision (24 November 2026, Phase 6D) they were built from the design system (existing tokens, components, fonts and system states) and are checked for behaviour, layout and authorization, not for visual conformity. The original 108 remain the creator-content set; `DesignCatalog.load` still requires exactly 108 and `check_mobile_design.py` still passes with 108 entries. Business route numbers are native routes handled by `app/routes/business_routes.dart`; the bottom bar has a sixth tab, **Businesses** (M-109), which has no designed icon and uses a Material one.
+
+Full inventory, operation list, test evidence and acceptance recipes: [Phase 6D results](engineering/phase6/Phase6D_Business_Mobile_Results_2026-11-24.md). Screens: M-109 home, 110 categories, 111 results, 112 filters, 113 detail, 114 hours, 115 contact, 116 reviews, 117 explainer; 118 ask, 119 my questions, 120 conversation, 121 write review, 122 my reviews, 123 edit review, 124 withdraw review, 125 report; 126 my businesses, 127 register, 128 manage, 129 details, 130 contacts, 131 hours, 132 profile review, 133 verification, 134 listing, 135 inbox, 136 inbox conversation, 137 reviews and replies, 138 review invitations, 139 team; 140 join a team, 141 switch business, 142 access removed, 143 leave, 144 staff home.
+
+| Check | Result |
+| --- | --- |
+| Visual conformity to an approved design | **None exists; not claimed** |
+| Layout at 390×844 and 375×667, text 1× and 2× | Automated audit passes for all 36 (`business_layout_audit_test`) |
+| Physical iPhone, VoiceOver | **Not done** (Phase 11) |

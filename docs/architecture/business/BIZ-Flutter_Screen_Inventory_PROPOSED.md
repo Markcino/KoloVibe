@@ -1,6 +1,6 @@
 # Business in the Flutter app — screen inventory and design approvals (Phase 6D)
 
-**Status: DECISIONS RECORDED 24 November 2026 (see section 6); the screens themselves are built from the design system and are "implementation-led, not visually approved".** Originally proposed for approval before any screen was built. 24 November 2026. Accountable owner: Mark Allen Gbalazeh (@Markcino). This follows DR-BZ-21 (decided: owners, staff and customers use Flutter; no public website or business portal) and is the "approved designs and route space" step of DR-BZ-27 (open). Nothing in `apps/mobile` is changed by this document.
+**Status: DECISIONS RECORDED 24 November 2026 (see section 6); the screens themselves are built from the design system and are "implementation-led, not visually approved".** Originally proposed for approval before any screen was built. 24 November 2026. Accountable owner: Mark Allen Gbalazeh (@Markcino). This follows DR-BZ-21 (decided: owners, staff and customers use Flutter; no public website or business portal) and is the "approved designs and route space" step of DR-BZ-27 (open). This document changes nothing by itself. **Built (24 November 2026):** all 36 screens as M-109 to M-144, with the results, operation list and test evidence in the [Phase 6D results](../../engineering/phase6/Phase6D_Business_Mobile_Results_2026-11-24.md). Still open: visual review of the screens (DR-BZ-27) and the owner's wording for the public-field explainer and review basis.
 
 ## 1. What was checked
 
