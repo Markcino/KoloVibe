@@ -200,7 +200,8 @@ void main() {
       expect(bed.last, 'M-143:$biz');
     });
 
-    testWidgets('a business that is not found is a plain state',
+    testWidgets(
+        'a business the service will not show is the access-removed state',
         (tester) async {
       final harness = gateway((r) => failure(404));
       final bed = ScreenBed(harness);
@@ -208,7 +209,9 @@ void main() {
           tester,
           (c) => BusinessManageScreen(
               repository: harness.repository, catalog: c, businessId: biz));
-      expect(find.text('Not found'), findsOneWidget);
+      expect(find.text('You no longer have access to this business.'),
+          findsOneWidget);
+      expect(find.text('Inbox'), findsNothing);
     });
   });
 
