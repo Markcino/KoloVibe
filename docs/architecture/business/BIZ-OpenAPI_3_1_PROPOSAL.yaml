@@ -9,6 +9,13 @@
 # (the authoritative contract). Where this proposal and DOC-205 differ, DOC-205 wins. See
 # docs/engineering/phase6/Phase6B_Business_Backend_Completion_Report_2026-11-24.md.
 #
+# CLIENT SURFACES (DR-BZ-21, decided 24 November 2026): every operation below that is not under /moderation or /admin is
+# called by the Flutter mobile app (visitors, customers, owners and staff); every /moderation and /admin Business operation
+# is called only by the protected Django console (moderators and administrators, MFA). There is no public website and no
+# business web portal. The anonymous reads (security: []) serve the mobile app only and authorize no web page. See
+# docs/architecture/business/BIZ-Client_Architecture_DR-BZ-21.md and the authoritative per-operation list in
+# docs/security/phase6/BIZ-API_Security_Matrix_PHASE6A.md.
+#
 # This file is deliberately NOT part of DOC-205 and is not read by any repository test. If the owner approves the
 # design, S1 merges the approved operations into DOC-205 so the existing route-contract test (every gateway route must be
 # declared; anonymous list exactly as declared) covers them.
@@ -33,6 +40,11 @@ info:
   description: PROPOSED design contract for owner review. No operation is implemented. Policies marked x-policy-pending are
     open owner decisions and are not decided here.
 x-default-implementation: none
+x-client-surfaces:
+  flutter-mobile: [visitor, customer, business-owner, business-staff]
+  protected-django-console: [moderator, administrator]
+  public-website: none
+  business-web-portal: none
 servers:
 - url: https://api.example.invalid/api/v1
   description: Placeholder; never use in production

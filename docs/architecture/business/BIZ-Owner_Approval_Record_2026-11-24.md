@@ -30,3 +30,7 @@ Registration is invitation-only for the pilot cohort; 3 open businesses per acco
 ## Unchanged restrictions
 
 Production remains NO-GO. No capability is enabled on staging or production; no AWS or staging change was made; no payments, ticketing, live streaming or advertising. Phase 6C must not begin without separate approval.
+
+## Addendum — DR-BZ-21 formal decision (Phase 6A reconciliation, 24 November 2026)
+
+The owner restated the client decision more strictly in the Phase 6A instruction and asked that it be recorded formally: **all business owners, customers and business staff use Flutter mobile; only administrators and moderators use the protected Django web dashboard; there is no public website and no business web portal.** This tightens the earlier "approved as recommended" entry for DR-BZ-21 (option A) and rejects options B and C. The record is in the [decision register](BIZ-Owner_Decision_Register_PROPOSED.md#dr-bz-21--where-business-owners-work) and the consequences are in the [client architecture](BIZ-Client_Architecture_DR-BZ-21.md). It adds no other approval; DR-BZ-27 and DR-BZ-28 are new and **open**.

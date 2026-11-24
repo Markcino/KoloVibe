@@ -66,6 +66,14 @@ Public reads are served from a **`business_listing` projection** holding only pu
 
 The first slices accept **no file uploads**. Verification evidence (S3) and images (S7) use private R2 with the existing size-bound, create-only grant pattern and the creator-photo rules; the image decode-and-re-encode pipeline is built **once** (for D-10 creator photos) and extended, not duplicated (DR-BZ-20).
 
+## Decision 6 — Client surfaces: Flutter for every non-privileged actor; console for moderators and administrators only
+
+Added in Phase 6A reconciliation, 24 November 2026, from the owner's decision DR-BZ-21. All business owners, business staff, customers and visitors use the Flutter app; only administrators and moderators use the protected Django console; **there is no public website and no business web portal**. The Business service and the Gateway therefore serve JSON to a bearer-token mobile client and to the Gateway-fronted console, and nothing else.
+
+**Why it needs recording here.** It fixes the trust boundaries the service is designed for (no browser origin, no cookie session, no CORS), it removes a whole class of attack surface and a duplicate UI to secure, and it means the anonymous API reads are a mobile convenience that must never be treated as a website.
+
+**Alternatives considered (original DR-BZ-21).** B: a separate owner web portal (rejected: second client to build and secure, browser attack classes, not wanted). C: admin-assisted pilot (rejected by the owner). **Consequences.** Client screens need approved designs and a route-space extension (DR-BZ-27); any outward link needs DR-BZ-28; console pages are required for every reviewer workflow. See [client architecture](../architecture/business/BIZ-Client_Architecture_DR-BZ-21.md).
+
 ## Consequences
 
 **Positive:** independent failure and release; private columns structurally separated from public queries; no second identity system; every R2 control can be tested at the gateway and service; dark by default.
@@ -83,6 +91,7 @@ The first slices accept **no file uploads**. Verification evidence (S3) and imag
 | Reuse existing audit, contract, validation | Audit producer addition; DOC-205 route-contract tests; allowlist validators |
 | Least privilege, explicit ownership | Membership predicate; assignment grants; 404 on non-entitlement |
 | No deferred features | No payments, tickets, live, ads, cash |
+| Two application types only | Decision 6: Flutter for non-privileged actors, console for moderators and administrators; no public website or business portal |
 | No migrations, no AWS change | Documentation only |
 
 ## Approval record

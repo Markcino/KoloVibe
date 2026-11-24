@@ -22,8 +22,8 @@ This is design only. No migrations, code, infrastructure or AWS changes are part
 ```mermaid
 flowchart LR
   subgraph Clients
-    M[Mobile app: customers and owners]
-    W[Admin web console: moderators and administrators]
+    M[Flutter mobile app: visitors, customers, business owners, business staff]
+    W[Protected Django console: moderators and administrators only]
   end
   GW[Gateway]
   ID[Identity]
@@ -43,7 +43,7 @@ flowchart LR
   BZ --- MQ
 ```
 
-Dotted lines are conditional: the Moderation link follows DR-BZ-17, the Content link follows DR-BZ-19 and DR-BZ-20. A fuller dependency view, including delivery dependencies, is in [BIZ-Dependencies](BIZ-Dependencies_PROPOSED.md).
+**No public website and no business web portal exist or are designed** (DR-BZ-21, decided 24 November 2026): every non-privileged Business actor uses the Flutter app and only moderators and administrators use the console. See [the client architecture](BIZ-Client_Architecture_DR-BZ-21.md). Dotted lines are conditional: the Moderation link follows DR-BZ-17, the Content link follows DR-BZ-19 and DR-BZ-20. A fuller dependency view, including delivery dependencies, is in [BIZ-Dependencies](BIZ-Dependencies_PROPOSED.md).
 
 **Rules.** Clients reach Business only through the Gateway. Business never reads another service's tables and no other service reads Business tables. Cross-service references are UUIDs without foreign keys. The Gateway is the only caller of customer, owner and public routes; Moderation is an allowed caller only for its own decision-application path. Business has no outbound path to Identity for authentication; it trusts the gateway-signed envelope exactly as Creators and Content do.
 
@@ -100,7 +100,7 @@ New route module `routes/business.py`, composed like the existing modules. **Ind
 | `business_reviews` | review and report routes |
 | `business_review_admin` | reviewer queues and decisions (also requires MFA role) |
 
-Each public route is declared in the API contract before it exists; the existing route-contract test (every route declared; anonymous list exactly as declared; protected routes 401 without credentials with zero internal calls) is extended, and the role-matrix test gains the reviewer and admin routes. Public endpoints that are anonymous are listed explicitly in the contract (`security: []`); the proposal makes **only** categories, search and detail public (and only if DR-BZ-12 allows).
+Each public route is declared in the API contract before it exists; the existing route-contract test (every route declared; anonymous list exactly as declared; protected routes 401 without credentials with zero internal calls) is extended, and the role-matrix test gains the reviewer and admin routes. Public endpoints that are anonymous are listed explicitly in the contract (`security: []`); the proposal makes **only** categories, search and detail public (and only if DR-BZ-12 allows). As built, the public reviews list is a fourth anonymous read (DOC-205: 4 anonymous Business operations). These endpoints serve the mobile app and are **not** authority to create a website: the Gateway and Business service define no templates, no CORS middleware and no cookie or HTML responses, and that is to stay true (AC-CLI-001…004).
 
 ## 6. State machines
 

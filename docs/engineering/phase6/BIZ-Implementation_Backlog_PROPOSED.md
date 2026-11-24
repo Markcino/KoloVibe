@@ -12,7 +12,7 @@
 | P6B-04 | **Purpose-bound step-up proof in Identity** designed and approved: Identity's reauthentication token is bound to account and session and can be consumed only inside Identity; Business needs a way to require a fresh proof for a named purpose without learning credentials | Design review (Identity change) | contact change, closure, transfer, staff removal |
 | P6B-05 | Privacy orchestration path for export and erase agreed, or the scope of S5/S6 limited so uncovered categories are not enabled (DR-BZ-18) | Decide | S5, S6 |
 | P6B-06 | Database privilege model for a new service agreed: migration owner separate from runtime login from the start; status of R-01 (26 owned tables) known | Confirm | first staging rollout |
-| P6B-07 | Figma designs for owner and customer screens approved (DR-BZ-21); the R1 web console stays admin-only | Approve designs | client slices |
+| P6B-07 | Figma designs for the Flutter Business screens approved and a route space agreed (DR-BZ-27); DR-BZ-21 is **decided** (mobile only; no public website or business portal); the console stays admin-only | Approve designs | client slices C1–C3 |
 | P6B-08 | Legal review scheduled and its owner named (DR-BZ-23) | Name reviewer | S3, S6 |
 | P6B-09 | Tracker row B-19 split into per-slice rows with their gates | Approve edit | tracking |
 
@@ -113,6 +113,25 @@ Public read-only discovery (S4) precedes inquiries and reviews so the least abus
 | BZ-B-048 | Claim of seeded listings | M | DR-BZ-06 | per policy |
 | BZ-B-049 | Services catalog | M | owner request | per policy |
 
+### Client slices (DR-BZ-21: Flutter for owners, staff and customers; console for moderators and administrators)
+
+Added in Phase 6A reconciliation. Each item reuses the existing client or console infrastructure ([client architecture](../../architecture/business/BIZ-Client_Architecture_DR-BZ-21.md)); none is authorized to start without approved designs (DR-BZ-27) and, for any link, DR-BZ-28. The older client items BZ-B-019, 033, 036 and 044 are the same work and are superseded by the slices below.
+
+| ID | Item | Size | Depends | Acceptance |
+| --- | --- | --- | --- | --- |
+| BZ-C-000 | Repository guards for the client decision: no HTML, CORS, cookies or templates on Business routes; console Business routes registered as privileged | S | none (backend exists) | AC-CLI-001…004 |
+| BZ-C-001 | Extend the Flutter route space and design audit for Business screens (approved numbering) | M | DR-BZ-27 | design audit passes with the new screens |
+| BZ-C-010 | Customer discovery: directory, filters, detail, published reviews, report sheet | L | BZ-C-001 | AC-CLI-006/007, AC-DIS-004 |
+| BZ-C-011 | Customer inquiries: start, list, thread, close, confirm | L | BZ-C-010 | AC-CLI-006/007 |
+| BZ-C-012 | Customer reviews: write (basis shown), my reviews, edit, withdraw | L | BZ-C-010 | AC-CLI-006/007 |
+| BZ-C-020 | Owner onboarding: register, my businesses, verification submit, answer request, status | L | BZ-C-001, DR-BZ-10 lists | AC-CLI-006/007 |
+| BZ-C-021 | Owner profile and listing: editor with public toggles, hours, submit, publish/unpublish; contact change only after step-up | L | BZ-C-020, P6B-04 | AC-CLI-006/007, AC-PRO-006 |
+| BZ-C-022 | Staff management: team, invite, redeem, leave, remove (after step-up) | L | BZ-C-020, P6B-04 | AC-CLI-006/008 |
+| BZ-C-023 | Owner and staff inbox; review responses; review-invitation codes | L | BZ-C-020 | AC-CLI-006/007/008 |
+| BZ-C-030 | Console: verification queue and case; profile-revision review | L | none (backend exists) | AC-CLI-005 |
+| BZ-C-031 | Console: business-report review; reviewer grants; registration grants; categories | L | BZ-C-030 | AC-CLI-005 |
+| BZ-C-032 | Console: suspension and restoration | M | DR-BZ-25 and its backend | AC-CLI-005, AC-MOD-003 |
+
 ### Cross-cutting
 
 | ID | Item | Size | Depends | Acceptance |
@@ -139,5 +158,5 @@ Production remains NO-GO. No Business capability is enabled on staging or produc
 - The Audit service's read-grant model has a producer check constraint; adding `business` is a migration in the Audit service (BZ-B-004).
 - Moderation's `Report`, `ModerationAction` and `Appeal` are keyed on `video_id`; any reuse is a deliberate, separately approved change (BZ-B-040).
 - Identity's reauthentication token is consumable only inside Identity (P6B-04).
-- The R1 web console is for moderators and administrators only; business owners have no client surface yet (DR-BZ-21).
+- The R1 web console is for moderators and administrators only. **DR-BZ-21 is decided: business owners, staff and customers use Flutter and there is no public website or business web portal.** No Business screen or console page exists yet (BZ-C slices).
 - Business has no analogue of the creator-photo pipeline; D-10 is written but disabled.

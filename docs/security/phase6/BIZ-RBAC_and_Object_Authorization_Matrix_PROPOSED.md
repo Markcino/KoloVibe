@@ -19,18 +19,19 @@ Rows are keyed **BZ-AZ-nn** and match `x-authz-ref` in the [OpenAPI proposal](..
 8. **Privileged accounts cannot hold memberships.** Moderators and administrators are refused at registration and invitation (conflict of interest; DR-BZ-07).
 9. **Separation of duties.** A reviewer cannot decide a case they submitted or are affiliated with; restoration needs a different reviewer than removal; an administrator cannot approve their own grant.
 10. **Every state change and privileged read is audited** with identifiers and decisions only.
+11. **The client surface is fixed by actor (DR-BZ-21, decided).** Visitors, customers, owners and staff use only the Flutter app; moderators and administrators use only the protected console. There is no public website and no business web portal, so no authorization rule may rely on a browser origin, cookie or CSRF token for Business routes. Client choice never grants authority: a request from the console or the app is authorized by the same server-side rules.
 
 ## 2. Actors and how each is established
 
-| Actor | Established by | Scope of authority |
-| --- | --- | --- |
-| Visitor | no credential | Public read only (if DR-BZ-12 allows anonymous) |
-| Customer | valid Identity session, role viewer or creator, verified email where required | Own inquiries, own reviews, reports |
-| Business owner | active `BusinessMembership(role=owner)` for that business | That business only |
-| Business staff | active `BusinessMembership(role=staff)` | That business only, owner-delegated subset |
-| Moderator | Identity role `moderator`, MFA-verified session, plus explicit `reviewer_grant` | Granted scope and target only |
-| Administrator | Identity role `administrator`, MFA-verified session | Administration; verification and moderation as granted; cannot approve own grant |
-| Internal caller | HMAC service identity | Exact paths in `CALLER_PATHS` only (Moderation → decision application) |
+| Actor | Client surface | Established by | Scope of authority |
+| --- | --- | --- | --- |
+| Visitor | Flutter app | no credential | Public read only (if DR-BZ-12 allows anonymous) |
+| Customer | Flutter app | valid Identity session, role viewer or creator, verified email where required | Own inquiries, own reviews, reports |
+| Business owner | Flutter app | active `BusinessMembership(role=owner)` for that business | That business only |
+| Business staff | Flutter app | active `BusinessMembership(role=staff)` | That business only, owner-delegated subset |
+| Moderator | Protected console | Identity role `moderator`, MFA-verified session, plus explicit `reviewer_grant` | Granted scope and target only |
+| Administrator | Protected console | Identity role `administrator`, MFA-verified session | Administration; verification and moderation as granted; cannot approve own grant |
+| Internal caller | none | HMAC service identity | Exact paths in `CALLER_PATHS` only (Moderation → decision application; **as built, the gateway is the only permitted caller**) |
 
 ## 3. Capability summary by role
 
