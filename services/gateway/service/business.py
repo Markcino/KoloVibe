@@ -32,6 +32,14 @@ OPERATIONS = {
     "member_remove": (("DELETE",), "customer", False, ()),
     "member_leave": (("POST",), "customer", False, ()),
     "registration_grant": (("PUT",), "privileged", False, ()),
+    "verification_submit": (("POST",), "customer", False, ()),
+    "verification_respond": (("POST",), "customer", False, ()),
+    "verification_status": (("GET",), "customer", False, ()),
+    "verification_queue": (("GET",), "privileged", False, ("cursor", "limit")),
+    "verification_case": (("GET",), "privileged", False, ()),
+    "verification_claim": (("POST",), "privileged", False, ()),
+    "verification_decide": (("POST",), "privileged", False, ()),
+    "reviewer_grant": (("PUT",), "privileged", False, ()),
 }
 
 

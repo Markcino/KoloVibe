@@ -11,6 +11,21 @@ from service import security_audit
 from service.models import AuditDelivery, AuditEvent
 
 
+class AuditContractTests(TestCase):
+    def test_every_kind_business_can_emit_is_accepted_by_the_audit_producer_list(self):
+        """The two services keep separate lists; this fails the build if they drift (Audit would reject with 400)."""
+        import ast
+        from pathlib import Path
+        events = Path(__file__).resolve().parents[2] / "audit" / "service" / "events.py"
+        tree = ast.parse(events.read_text())
+        accepted = None
+        for node in tree.body:
+            if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") == "PRODUCER_KINDS":
+                accepted = {key.value: ast.literal_eval(value) for key, value in zip(node.value.keys, node.value.values)
+                            if isinstance(value, (ast.Set, ast.Dict))}
+        self.assertTrue(security_audit.KINDS <= accepted["business"], security_audit.KINDS - accepted["business"])
+
+
 class AuditDeliveryTests(TestCase):
     def setUp(self):
         from django.db import transaction

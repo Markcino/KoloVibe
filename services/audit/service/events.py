@@ -39,7 +39,10 @@ PRODUCER_KINDS = {
                 "video.unpublished", "video.moderated"},
     "business": {"business.registered", "business.membership_granted", "business.membership_revoked",
                  "business.invitation_created", "business.invitation_redeemed", "business.invitation_revoked",
-                 "business.registration_grant_changed"},
+                 "business.registration_grant_changed", "business.reviewer_grant_changed",
+                 "business.verification_submitted", "business.verification_responded",
+                 "business.verification_claimed", "business.verification_decided",
+                 "business.verification_queue_read", "business.verification_case_read"},
     "points": {"points.awarded", "points.withheld", "points.reversed", "points.adjusted", "points.review_read", "points.review_denied"},
 }
 SUBJECT_TYPES = {"account", "creator", "video", "report", "appeal", "moderation_action", "points_entry", "business"}

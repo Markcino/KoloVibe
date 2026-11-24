@@ -17,5 +17,9 @@ BUDGETS = {
     "staff_invite": (20, timedelta(days=1)),
     "staff_redeem": (10, timedelta(hours=1)),
     "read": (600, timedelta(hours=1)),
+    "verification_submit": (5, timedelta(days=1)),
 }
 PAGE_SIZE = 20
+MIN_EVIDENCE_ITEMS = 1                   # technical minimum so a case is never empty; the checklist is the owner's
+MAX_EVIDENCE_ITEMS = 5
+REVIEWER_DECISIONS = ("verify", "reject", "request_info", "revoke")

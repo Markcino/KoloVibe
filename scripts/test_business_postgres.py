@@ -25,10 +25,11 @@ def tests():
     from django.test import RequestFactory
     from service import limits
     from service.api import dispatch
-    from service.models import Business, BusinessMembership, RegistrationGrant
+    from service.models import (Business, BusinessMembership, RegistrationGrant, VerificationCase,
+                                VerificationDecision)
 
-    def call(operation, data, actor, key, role="viewer"):
-        body = {"actor_id": str(actor), "role": role, "mfa_verified": False, "email_verified": True,
+    def call(operation, data, actor, key, role="viewer", mfa=False):
+        body = {"actor_id": str(actor), "role": role, "mfa_verified": mfa, "email_verified": True,
                 "idempotency_key": key, "data": data}
         request = RequestFactory().post("/internal/business/" + operation, json.dumps(body), content_type="application/json")
         request.service_caller = "gateway"
@@ -85,6 +86,29 @@ def tests():
             results = parallel(jobs)
             self.assertEqual(sorted(status for status, _ in results), [200] + [404] * 5)
             self.assertEqual(BusinessMembership.objects.filter(business_id=business["id"], role="staff").count(), 1)
+
+        def test_one_reviewer_wins_a_claim_race_and_a_case_is_decided_once(self):
+            owner, first, second, admin = uuid4(), uuid4(), uuid4(), uuid4()
+            RegistrationGrant.objects.create(account_id=owner, granted_by_account_id=admin)
+            _, business = call("register", {"display_name": "Claim Shop", "legal_name": "Claim Shop Ltd"}, owner, "claim-owner-0123456789")
+            for reviewer in (first, second):
+                call("reviewer_grant", {"reviewer_account_id": str(reviewer), "scope": "verification", "active": True},
+                     admin, f"grant-{reviewer.hex[:16]}-key", role="administrator", mfa=True)
+            call("verification_submit", {"business_id": business["id"], "method": "manual_review", "declaration": True,
+                                         "evidence": [{"kind": "registration_number", "value": "LBR-1"}]}, owner, "submit-key-0123456789")
+            case = VerificationCase.objects.get(business_id=business["id"])
+            results = parallel([lambda r=r, i=i: call("verification_claim", {"case_id": str(case.id)}, r, f"claim-key-{i:09d}x",
+                                                      role="moderator", mfa=True) for i, r in enumerate((first, second) * 2)])
+            self.assertEqual(sorted(status for status, _ in results), [200, 409, 409, 409])  # one winner; every other claim conflicts
+            case.refresh_from_db()
+            winner = case.assigned_reviewer_account_id
+            self.assertIn(winner, (first, second))
+            self.assertEqual(Business.objects.get(pk=business["id"]).state, "under_review")
+            decisions = parallel([lambda i=i: call("verification_decide", {"case_id": str(case.id), "decision": d, "reason_code": "documents_checked"},
+                                                   winner, f"decide-key-{i:09d}x", role="moderator", mfa=True)
+                                  for i, d in enumerate(("verify", "reject", "verify", "reject"))])
+            self.assertEqual([status for status, _ in decisions].count(200), 1)
+            self.assertEqual(VerificationDecision.objects.filter(case=case).count(), 1)
 
         def test_the_database_refuses_a_second_active_membership_and_a_bad_role(self):
             owner = uuid4()

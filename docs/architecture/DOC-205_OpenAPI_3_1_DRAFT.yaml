@@ -5255,6 +5255,372 @@ paths:
           $ref: '#/components/responses/RateLimited'
         '503':
           description: Business service unavailable
+  /me/businesses/{business_id}/verification:
+    get:
+      tags:
+      - Business
+      summary: Read the business's verification status (owner only)
+      operationId: get_my_business_verification
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-24
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationOwnerView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+    post:
+      tags:
+      - Business
+      summary: Submit an ownership verification case with text evidence (owner only)
+      operationId: post_my_business_verification
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-23
+      description: Text-only evidence. File evidence is not part of this contract version (awaits the owner's checklist
+        and approved private storage).
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificationSubmit'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationOwnerView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/verification/evidence:
+    post:
+      tags:
+      - Business
+      summary: Answer a request for information with more evidence (owner only)
+      operationId: post_my_business_verification_evidence
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-23
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificationRespond'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationOwnerView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /moderation/business-verifications:
+    get:
+      tags:
+      - Business
+      summary: List open verification cases within the reviewer's grants
+      operationId: get_business_verification_queue
+      x-implementation: local
+      x-capability: business_review_admin
+      x-required-roles:
+      - moderator
+      - administrator
+      x-mfa-required: true
+      x-authz-ref: BZ-AZ-40
+      parameters:
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 20
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationQueuePage'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /moderation/business-verifications/{case_id}:
+    get:
+      tags:
+      - Business
+      summary: Read one verification case (audited)
+      operationId: get_business_verification_case
+      x-implementation: local
+      x-capability: business_review_admin
+      x-required-roles:
+      - moderator
+      - administrator
+      x-mfa-required: true
+      x-authz-ref: BZ-AZ-41
+      description: Shows the private legal name and the evidence. 404 for a case outside the reviewer's grants or
+        one they submitted or are affiliated with.
+      parameters:
+      - name: case_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationCaseView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /moderation/business-verifications/{case_id}/claim:
+    post:
+      tags:
+      - Business
+      summary: Claim a submitted case
+      operationId: post_business_verification_claim
+      x-implementation: local
+      x-capability: business_review_admin
+      x-required-roles:
+      - moderator
+      - administrator
+      x-mfa-required: true
+      x-authz-ref: BZ-AZ-42
+      parameters:
+      - name: case_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationClaimView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /moderation/business-verifications/{case_id}/decision:
+    post:
+      tags:
+      - Business
+      summary: Decide a claimed case, or revoke a verified one
+      operationId: post_business_verification_decision
+      x-implementation: local
+      x-capability: business_review_admin
+      x-required-roles:
+      - moderator
+      - administrator
+      x-mfa-required: true
+      x-authz-ref: BZ-AZ-42
+      parameters:
+      - name: case_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificationDecision'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationDecisionView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /admin/business-reviewer-grants:
+    put:
+      tags:
+      - Business
+      summary: Grant or withdraw a scoped business reviewer assignment (administrator, MFA)
+      operationId: put_business_reviewer_grant
+      x-implementation: local
+      x-capability: business_review_admin
+      x-required-roles:
+      - administrator
+      x-mfa-required: true
+      x-authz-ref: BZ-AZ-50
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BusinessReviewerGrant'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessReviewerGrantView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
 components:
   securitySchemes:
     bearerAuth:
@@ -7264,6 +7630,296 @@ components:
         account_id:
           type: string
           format: uuid
+        active:
+          type: boolean
+    VerificationSubmit:
+      type: object
+      additionalProperties: false
+      required:
+      - method
+      - declaration
+      - evidence
+      properties:
+        method:
+          type: string
+          pattern: ^[a-z][a-z_]{2,39}$
+          description: Vocabulary pending owner approval.
+        declaration:
+          type: boolean
+          const: true
+        evidence:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - kind
+            - value
+            properties:
+              kind:
+                type: string
+                pattern: ^[a-z][a-z_]{2,39}$
+                description: Vocabulary pending owner approval.
+              value:
+                type: string
+                minLength: 2
+                maxLength: 300
+    VerificationRespond:
+      type: object
+      additionalProperties: false
+      required:
+      - evidence
+      properties:
+        evidence:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - kind
+            - value
+            properties:
+              kind:
+                type: string
+                pattern: ^[a-z][a-z_]{2,39}$
+                description: Vocabulary pending owner approval.
+              value:
+                type: string
+                minLength: 2
+                maxLength: 300
+    VerificationOwnerView:
+      type: object
+      additionalProperties: false
+      required:
+      - state
+      - submitted_at
+      - decided_at
+      - reason_code
+      properties:
+        state:
+          type: string
+          enum:
+          - none
+          - submitted
+          - under_review
+          - needs_info
+          - verified
+          - rejected
+          - revoked
+        submitted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        decided_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        reason_code:
+          type:
+          - string
+          - 'null'
+    VerificationQueueItem:
+      type: object
+      additionalProperties: false
+      required:
+      - case_id
+      - business_id
+      - display_name
+      - state
+      - submitted_at
+      - assigned_to_you
+      properties:
+        case_id:
+          type: string
+          format: uuid
+        business_id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+        state:
+          type: string
+        submitted_at:
+          type: string
+          format: date-time
+        assigned_to_you:
+          type: boolean
+    VerificationQueuePage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/VerificationQueueItem'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          format: uuid
+    VerificationCaseView:
+      type: object
+      additionalProperties: false
+      required:
+      - case_id
+      - business_id
+      - state
+      - method
+      - display_name
+      - legal_name
+      - submitted_at
+      - assigned_to_you
+      - evidence
+      - duplicate_candidates
+      properties:
+        case_id:
+          type: string
+          format: uuid
+        business_id:
+          type: string
+          format: uuid
+        state:
+          type: string
+        method:
+          type: string
+        display_name:
+          type: string
+        legal_name:
+          type: string
+        submitted_at:
+          type: string
+          format: date-time
+        assigned_to_you:
+          type: boolean
+        evidence:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - id
+            - kind
+            - value
+            properties:
+              id:
+                type: string
+                format: uuid
+              kind:
+                type: string
+              value:
+                type: string
+        duplicate_candidates:
+          type: array
+          maxItems: 10
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - business_id
+            - display_name
+            - state
+            properties:
+              business_id:
+                type: string
+                format: uuid
+              display_name:
+                type: string
+              state:
+                type: string
+    VerificationClaimView:
+      type: object
+      additionalProperties: false
+      required:
+      - case_id
+      - state
+      properties:
+        case_id:
+          type: string
+          format: uuid
+        state:
+          type: string
+    VerificationDecision:
+      type: object
+      additionalProperties: false
+      required:
+      - decision
+      - reason_code
+      properties:
+        decision:
+          type: string
+          enum:
+          - verify
+          - reject
+          - request_info
+          - revoke
+        reason_code:
+          type: string
+          pattern: ^[a-z][a-z_]{2,39}$
+          description: Vocabulary pending owner approval.
+        note:
+          type: string
+          maxLength: 500
+    VerificationDecisionView:
+      type: object
+      additionalProperties: false
+      required:
+      - case_id
+      - state
+      - business_state
+      properties:
+        case_id:
+          type: string
+          format: uuid
+        state:
+          type: string
+        business_state:
+          type: string
+    BusinessReviewerGrant:
+      type: object
+      additionalProperties: false
+      required:
+      - reviewer_account_id
+      - scope
+      - active
+      properties:
+        reviewer_account_id:
+          type: string
+          format: uuid
+        scope:
+          type: string
+          enum:
+          - verification
+          - review_queue
+        target_business_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        active:
+          type: boolean
+    BusinessReviewerGrantView:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - scope
+      - active
+      properties:
+        id:
+          type: string
+          format: uuid
+        scope:
+          type: string
         active:
           type: boolean
   responses:

@@ -21,10 +21,21 @@ def patterns():
             route("me/businesses/<uuid:business_id>/members/<uuid:member_id>", DELETE="member_remove"),
             route("me/businesses/<uuid:business_id>/leave", POST="member_leave"),
             route("me/business-invitations/redeem", POST="staff_redeem"),
+            route("me/businesses/<uuid:business_id>/verification", GET="verification_status", POST="verification_submit"),
+            route("me/businesses/<uuid:business_id>/verification/evidence", POST="verification_respond"),
         ]
     if enabled("business_review_admin"):
         from ..business import business_endpoint
 
-        routes.append(path("api/v1/admin/business-registration-grants/<uuid:account_id>", business_endpoint,
-                           {"operations": {"PUT": "registration_grant"}}))
+        def route(url, **operations):
+            return path("api/v1/" + url, business_endpoint, {"operations": operations})
+
+        routes += [
+            route("admin/business-registration-grants/<uuid:account_id>", PUT="registration_grant"),
+            route("admin/business-reviewer-grants", PUT="reviewer_grant"),
+            route("moderation/business-verifications", GET="verification_queue"),
+            route("moderation/business-verifications/<uuid:case_id>", GET="verification_case"),
+            route("moderation/business-verifications/<uuid:case_id>/claim", POST="verification_claim"),
+            route("moderation/business-verifications/<uuid:case_id>/decision", POST="verification_decide"),
+        ]
     return routes

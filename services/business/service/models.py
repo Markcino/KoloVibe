@@ -124,3 +124,81 @@ class AuditDelivery(models.Model):
     attempts = models.PositiveIntegerField(default=0)
     delivered_at = models.DateTimeField(null=True)
     next_attempt_at = models.DateTimeField(default=timezone.now)
+
+
+class ReviewerGrant(models.Model):
+    """Explicit, scoped reviewer authority (pattern: Moderation's ModeratorAssignment). A null target means all businesses."""
+
+    class Scope(models.TextChoices):
+        VERIFICATION = "verification", "Verification"
+        REVIEW_QUEUE = "review_queue", "Review queue"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    reviewer_account_id = models.UUIDField()
+    scope = models.CharField(max_length=16, choices=Scope.choices)
+    target_business_id = models.UUIDField(null=True, blank=True)
+    active = models.BooleanField(default=True)
+    granted_by_account_id = models.UUIDField()
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["reviewer_account_id", "scope", "target_business_id"],
+                                    condition=Q(target_business_id__isnull=False), name="biz_grant_unique_target"),
+            models.UniqueConstraint(fields=["reviewer_account_id", "scope"],
+                                    condition=Q(target_business_id__isnull=True), name="biz_grant_unique_all"),
+            models.CheckConstraint(condition=Q(scope__in=["verification", "review_queue"]), name="biz_grant_scope"),
+        ]
+        indexes = [models.Index(fields=["reviewer_account_id", "scope", "active"], name="biz_grant_lookup_idx")]
+
+
+class VerificationCase(models.Model):
+    class State(models.TextChoices):
+        SUBMITTED = "submitted", "Submitted"
+        UNDER_REVIEW = "under_review", "Under review"
+        NEEDS_INFO = "needs_info", "Needs information"
+        VERIFIED = "verified", "Verified"
+        REJECTED = "rejected", "Rejected"
+        REVOKED = "revoked", "Revoked"
+
+    OPEN = ("submitted", "under_review")
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    business = models.ForeignKey(Business, on_delete=models.PROTECT, related_name="verification_cases")
+    state = models.CharField(max_length=16, choices=State.choices, default=State.SUBMITTED)
+    method = models.CharField(max_length=40)
+    submitted_by_account_id = models.UUIDField()
+    submitted_at = models.DateTimeField(default=timezone.now)
+    assigned_reviewer_account_id = models.UUIDField(null=True, blank=True)
+    decided_at = models.DateTimeField(null=True, blank=True)
+    reason_code = models.CharField(max_length=40, blank=True, default="")
+    duplicate_candidates = models.JSONField(default=list)  # business ids only; shown to the assigned reviewer
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["business"], condition=Q(state__in=["submitted", "under_review"]),
+                                    name="biz_one_open_case"),
+            models.CheckConstraint(condition=Q(state__in=["submitted", "under_review", "needs_info", "verified",
+                                                           "rejected", "revoked"]), name="biz_case_state"),
+        ]
+        indexes = [models.Index(fields=["state", "submitted_at", "id"], name="biz_case_queue_idx")]
+
+
+class VerificationEvidence(models.Model):
+    """Text-only evidence (for example a registration number or a page to check). File evidence waits for the
+    owner's checklist and approved private storage (DR-BZ-04, DR-BZ-19)."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    case = models.ForeignKey(VerificationCase, on_delete=models.PROTECT, related_name="evidence")
+    kind = models.CharField(max_length=40)
+    value = models.CharField(max_length=300)
+    created_at = models.DateTimeField(default=timezone.now)
+
+
+class VerificationDecision(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    case = models.ForeignKey(VerificationCase, on_delete=models.PROTECT, related_name="decisions")
+    decided_by_account_id = models.UUIDField()
+    decision = models.CharField(max_length=16)
+    reason_code = models.CharField(max_length=40)
+    note = models.CharField(max_length=500, blank=True, default="")
+    created_at = models.DateTimeField(default=timezone.now)
