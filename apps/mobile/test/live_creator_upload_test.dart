@@ -110,6 +110,35 @@ void main() {
         'pending');
   });
 
+  test(
+      'a withdrawn invitation reads as no application, other failures stay errors',
+      () async {
+    // The service answers an applicant whose invitation was revoked exactly as
+    // it answers one who was never invited (404), so the app shows "invitation
+    // required" and never learns an administrator withdrew it.
+    var status = 404;
+    final account = LiveAccountRepository(
+        ApiClient('https://api.example.test/api/v1',
+            client: MockClient((request) async {
+          if (request.url.path.endsWith('/auth/refresh')) {
+            return http.Response(
+                jsonEncode({
+                  'access_token': 'access',
+                  'refresh_token': 'refresh',
+                  'token_type': 'Bearer',
+                  'expires_in': 300,
+                }),
+                200);
+          }
+          return http.Response(jsonEncode({'detail': 'x'}), status);
+        })),
+        _Credentials());
+    final repository = LiveCreatorOnboardingRepository(account);
+    expect(await repository.application(), isNull);
+    status = 503;
+    await expectLater(repository.application(), throwsA(isA<ApiFailure>()));
+  });
+
   test('approved eligibility refreshes me before offering Studio', () async {
     for (final role in ['viewer', 'creator']) {
       final paths = <String>[];
