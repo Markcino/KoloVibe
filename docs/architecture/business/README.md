@@ -25,9 +25,15 @@
 | 11 | Acceptance criteria | [BIZ-Acceptance_Criteria_PROPOSED.md](../../engineering/phase6/BIZ-Acceptance_Criteria_PROPOSED.md) |
 | 12 | Owner decision register (26 original decisions approved as written; DR-BZ-21 decided formally; DR-BZ-27 and 28 open) | [BIZ-Owner_Decision_Register_PROPOSED.md](BIZ-Owner_Decision_Register_PROPOSED.md) |
 | 13 | **Client architecture (DR-BZ-21): Flutter for owners, staff and customers; console for administrators and moderators only** | [BIZ-Client_Architecture_DR-BZ-21.md](BIZ-Client_Architecture_DR-BZ-21.md) |
+| 14 | Architecture validation against the code, contracts and infrastructure (Phase 6A) | [BIZ-Architecture_Validation_PHASE6A.md](BIZ-Architecture_Validation_PHASE6A.md) |
+| 15 | Requirements reconciliation: approval state, as-built state, what the owner owes | [BIZ-Requirements_Reconciliation_PHASE6A.md](../../requirements/BIZ-Requirements_Reconciliation_PHASE6A.md) |
+| 16 | Security design completion: staff model, verification transitions, fraud controls, evidence, retention | [BIZ-Security_Design_Completion_PHASE6A.md](../../security/phase6/BIZ-Security_Design_Completion_PHASE6A.md) |
+| 17 | API security matrix by client surface (57 operations, from DOC-205) | [BIZ-API_Security_Matrix_PHASE6A.md](../../security/phase6/BIZ-API_Security_Matrix_PHASE6A.md) |
+| 18 | **Exact owner decisions required (gates A, B, C)** | [BIZ-Owner_Decisions_Required_PHASE6A.md](BIZ-Owner_Decisions_Required_PHASE6A.md) |
 
 ## Reading order for the approver
 
+0. [Owner decisions required](BIZ-Owner_Decisions_Required_PHASE6A.md) — the short list.
 1. Decision register — what only the owner can decide.
 2. ADR-BIZ-001 — the three structural decisions (service boundary, membership-based authorization, moderation placement).
 3. Requirements — scope, exclusions, what is reused.

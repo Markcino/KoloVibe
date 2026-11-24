@@ -2,6 +2,8 @@
 
 **Status: PROPOSED — for owner approval. Nothing is collected; the module does not exist.** Phase 6A, 24 November 2026. This document gives requirements, data inventory and *mechanisms*. It deliberately **proposes no retention periods and makes no legal or jurisdictional claim**: those are open owner and legal decisions (DR-BZ-18 retention, DR-BZ-19 evidence, DR-BZ-23 legal review; platform-wide ADR-020, OD-05 and OD-08). Compare the creator-photo rules ([D-10](creator-profile-photos.md)) and the [recent searches note](recent-searches.md) for the house style.
 
+> **Status update, 24 November 2026 (Phase 6A reconciliation).** This is supporting design for decisions the owner approved as written (DR-BZ-01…26, [approval record](../architecture/business/BIZ-Owner_Approval_Record_2026-11-24.md)); no separate approval of this document is recorded, and the banner above is the original wording. DR-BZ-21 was decided formally (Flutter only; no public website or business portal). The backend was built in Phase 6B (PR #219, closed flags, **not deployed**; production NO-GO). Where this document and the as-built system differ, see the [architecture validation](../architecture/business/BIZ-Architecture_Validation_PHASE6A.md); what the owner must still decide is in [owner decisions required](../architecture/business/BIZ-Owner_Decisions_Required_PHASE6A.md).
+
 ## 1. What is and is not decided
 
 | Item | State |

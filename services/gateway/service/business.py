@@ -8,7 +8,7 @@ session (never from the request), sign the call, and return a bounded JSON objec
 import json
 from urllib.error import HTTPError
 
-from django.http import HttpResponse, HttpResponseNotAllowed, JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.views.decorators.cache import never_cache
 
 from uuid import UUID
@@ -163,7 +163,10 @@ def business_endpoint(request, operations, **ids):
     """`operations` maps an HTTP method to an operation name for this route."""
     operation = operations.get(request.method)
     if operation is None:
-        return HttpResponseNotAllowed(sorted(operations))
+        # JSON like every other Business answer: Django's stock 405 labels its empty body text/html (DR-BZ-21).
+        response = _error("Method not allowed", 405)
+        response["Allow"] = ", ".join(sorted(operations))
+        return response
     _, who, verified, query = OPERATIONS[operation]
     key = request.headers.get("Idempotency-Key")
     if key is not None and not 16 <= len(key) <= 128:
