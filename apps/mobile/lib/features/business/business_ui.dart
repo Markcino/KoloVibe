@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../core/network/api_client.dart';
 import '../../core/theme/kolovibe_theme.dart';
 import '../../shared/widgets/kolo_components.dart';
 import '../../shared/widgets/live_state_view.dart';
 import 'business_lists.dart';
 import 'business_models.dart';
+import 'live_business_repository.dart';
 
 /// Loads once, shows the shared loading / failure states, and lets the user retry. With [inline] the states are
 /// compact cards so one failing section never hides the rest of a screen.
@@ -384,3 +386,127 @@ class BusinessFilters {
 
   static const Object _keep = Object();
 }
+
+// ---- sending things --------------------------------------------------------------------------------------------
+
+/// One idempotency key per attempt. Retrying the same content re-sends the same key, so a request that did reach the
+/// service but whose answer was lost is replayed, not applied twice; changed content gets a new key.
+class AttemptKey {
+  String? _fingerprint;
+  String? _key;
+  String forContent(String fingerprint) {
+    if (_fingerprint != fingerprint || _key == null) {
+      _fingerprint = fingerprint;
+      _key = LiveBusinessRepository.newKey();
+    }
+    return _key!;
+  }
+
+  void reset() {
+    _fingerprint = null;
+    _key = null;
+  }
+}
+
+/// What a refused or failed send says, in words a customer can act on. Known service reason codes get their own
+/// sentence; everything else is generic and never shows raw service text for server errors.
+String failureText(Object error) {
+  if (error is FormatException || error is ArgumentError) {
+    return 'Check what you entered and try again.';
+  }
+  if (error is! ApiFailure) return 'Something went wrong. Please try again.';
+  switch (error.code) {
+    case 'thread_full':
+      return 'This conversation has reached its message limit.';
+    case 'thread_exists':
+      return 'You already have an open conversation with this business.';
+    case 'thread_closed':
+      return 'This conversation is closed.';
+    case 'no_exchange':
+      return 'You and the business both need to have written before this can be confirmed.';
+    case 'interaction_not_confirmed':
+      return 'That conversation has not been confirmed by both you and the business.';
+    case 'already_reviewed':
+      return 'You have already reviewed this business.';
+    case 'not_editable':
+      return 'This review can no longer be changed.';
+    case 'own_content':
+      return 'You cannot report your own content.';
+    case 'already_reported':
+      return 'You have already reported this.';
+    case 'invitation_redeemed':
+      return 'This invitation code has already been used.';
+  }
+  switch (error.kind) {
+    case FailureKind.offline:
+      return 'You are offline. Nothing was sent. Try again when you are connected.';
+    case FailureKind.expired:
+      return 'Your session has expired. Sign in again to continue.';
+    case FailureKind.rateLimited:
+      return 'Too many attempts. Wait a moment, then try again.';
+    case FailureKind.notFound:
+      return 'This is no longer available.';
+    case FailureKind.forbidden:
+      return error.message.toLowerCase().contains('verified email')
+          ? 'Verify your email address in your profile settings to do this.'
+          : 'You do not have access to do this.';
+    case FailureKind.conflict:
+      return 'This has changed since you opened it. Go back and try again.';
+    case FailureKind.invalid:
+      return 'Check what you entered and try again.';
+    default:
+      return 'The service is unavailable right now. Please try again.';
+  }
+}
+
+bool needsSignIn(Object error) =>
+    error is ApiFailure && error.kind == FailureKind.expired;
+
+/// The review or report target a route carries as one string.
+class ReviewTarget {
+  const ReviewTarget(this.businessId, [this.threadId]);
+  final String businessId;
+  final String? threadId;
+
+  String get encoded => threadId == null ? businessId : '$businessId/$threadId';
+
+  static ReviewTarget? decode(String? raw) {
+    if (raw == null) return null;
+    final parts = raw.split('/');
+    if (parts.length > 2 || !parts.every(isApiId)) return null;
+    return ReviewTarget(parts[0], parts.length == 2 ? parts[1] : null);
+  }
+}
+
+class ReportTarget {
+  const ReportTarget(this.type, this.id);
+  final String type;
+  final String id;
+  String get encoded => '$type:$id';
+
+  static ReportTarget? decode(String? raw) {
+    if (raw == null) return null;
+    final parts = raw.split(':');
+    if (parts.length != 2 ||
+        !const {'review', 'review_response', 'inquiry_message'}
+            .contains(parts[0]) ||
+        !isApiId(parts[1])) {
+      return null;
+    }
+    return ReportTarget(parts[0], parts[1]);
+  }
+}
+
+String inquiryStateLabel(InquiryState state) => switch (state) {
+      InquiryState.open => 'Open',
+      InquiryState.closedByCustomer => 'Closed by you',
+      InquiryState.closedByBusiness => 'Closed by the business',
+      InquiryState.blocked => 'Closed',
+    };
+
+String reviewStateLabel(ReviewState state) => switch (state) {
+      ReviewState.published => 'Published',
+      ReviewState.held => 'Waiting for a check',
+      ReviewState.removed => 'Removed',
+      ReviewState.withdrawn => 'Withdrawn',
+    };

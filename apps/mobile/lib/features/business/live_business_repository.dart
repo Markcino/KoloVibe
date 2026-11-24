@@ -244,9 +244,36 @@ class LiveBusinessRepository {
         }));
   }
 
-  Future<ResultPage<OwnReview>> myReviews({String? cursor}) async =>
-      ResultPage.parse(await _send('/me/reviews', query: _page(cursor)),
-          'reviews', OwnReview.fromJson);
+  final Map<String, OwnReview> _ownReviews = {};
+  String _mine(String reviewId) => '${account.signedInAccountId}:$reviewId';
+
+  Future<ResultPage<OwnReview>> myReviews({String? cursor}) async {
+    final page = ResultPage.parse(
+        await _send('/me/reviews', query: _page(cursor)),
+        'reviews',
+        OwnReview.fromJson);
+    for (final review in page.items) {
+      _ownReviews[_mine(review.id)] = review;
+    }
+    return page;
+  }
+
+  /// The service has no "read one of my reviews" operation, so the edit and withdraw screens find it in the list
+  /// (remembered from the list screen, else by paging through it).
+  Future<OwnReview?> findOwnReview(String reviewId) async {
+    _id(reviewId);
+    final held = _ownReviews[_mine(reviewId)];
+    if (held != null) return held;
+    String? cursor;
+    for (var page = 0; page < 10; page++) {
+      final result = await myReviews(cursor: cursor);
+      final found = _ownReviews[_mine(reviewId)];
+      if (found != null) return found;
+      cursor = result.nextCursor;
+      if (cursor == null) break;
+    }
+    return null;
+  }
 
   Future<OwnReview> editReview(String reviewId,
       {int? rating, String? title, String? body, required String key}) async {
@@ -260,14 +287,24 @@ class LiveBusinessRepository {
         'body': _clean(body, 'review', min: 10, max: 2000, multiline: true),
     };
     if (changes.isEmpty) throw const FormatException('Nothing to change');
-    return OwnReview.fromJson(await _send('/me/reviews/${_id(reviewId)}',
-        method: 'PATCH', key: key, body: changes));
+    final updated = OwnReview.fromJson(await _send(
+        '/me/reviews/${_id(reviewId)}',
+        method: 'PATCH',
+        key: key,
+        body: changes));
+    _ownReviews[_mine(updated.id)] = updated;
+    return updated;
   }
 
   Future<OwnReview> withdrawReview(String reviewId,
-          {required String key}) async =>
-      OwnReview.fromJson(await _send('/me/reviews/${_id(reviewId)}',
-          method: 'DELETE', key: key));
+      {required String key}) async {
+    final updated = OwnReview.fromJson(await _send(
+        '/me/reviews/${_id(reviewId)}',
+        method: 'DELETE',
+        key: key));
+    _ownReviews[_mine(updated.id)] = updated;
+    return updated;
+  }
 
   /// Only a review, an owner response or an inquiry message can be reported; the service has no report on a
   /// business listing.

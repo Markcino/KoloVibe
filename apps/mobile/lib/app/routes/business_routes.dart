@@ -1,8 +1,10 @@
 import 'package:flutter/widgets.dart';
 
+import '../../features/business/business_customer_screens.dart';
 import '../../features/business/business_discovery_screens.dart';
 import '../../features/business/business_pending_screen.dart';
 import '../../features/business/business_screens.dart';
+import '../../features/business/business_ui.dart';
 import 'route_context.dart';
 
 /// Business discovery, customer, owner and staff screens (M-109–M-144). These are native screens built from the design
@@ -37,6 +39,29 @@ Widget? businessRoute(RouteContext context) {
     BusinessScreens.reviews when id != null => BusinessReviewsScreen(
         repository: repository, catalog: catalog, businessId: id),
     BusinessScreens.privacy => BusinessPrivacyScreen(catalog: catalog),
+    BusinessScreens.ask when id != null => BusinessAskScreen(
+        repository: repository, catalog: catalog, businessId: id),
+    BusinessScreens.myInquiries =>
+      BusinessMyInquiriesScreen(repository: repository, catalog: catalog),
+    BusinessScreens.conversation when id != null => BusinessConversationScreen(
+        repository: repository, catalog: catalog, threadId: id),
+    BusinessScreens.writeReview when ReviewTarget.decode(id) != null =>
+      BusinessWriteReviewScreen(
+          repository: repository,
+          catalog: catalog,
+          target: ReviewTarget.decode(id)!),
+    BusinessScreens.myReviews =>
+      BusinessMyReviewsScreen(repository: repository, catalog: catalog),
+    BusinessScreens.editReview when id != null => BusinessEditReviewScreen(
+        repository: repository, catalog: catalog, reviewId: id),
+    BusinessScreens.withdrawReview when id != null =>
+      BusinessWithdrawReviewScreen(
+          repository: repository, catalog: catalog, reviewId: id),
+    BusinessScreens.report when ReportTarget.decode(id) != null =>
+      BusinessReportScreen(
+          repository: repository,
+          catalog: catalog,
+          target: ReportTarget.decode(id)!),
     _ => BusinessPendingScreen(route: route, catalog: catalog),
   };
 }

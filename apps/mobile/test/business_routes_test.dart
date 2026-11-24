@@ -7,6 +7,7 @@ import 'package:kolovibe/app/routes/business_routes.dart';
 import 'package:kolovibe/app/routes/route_context.dart';
 import 'package:kolovibe/app/screen_route.dart';
 import 'package:kolovibe/core/presentation/design_node.dart';
+import 'package:kolovibe/features/business/business_customer_screens.dart';
 import 'package:kolovibe/features/business/business_discovery_screens.dart';
 import 'package:kolovibe/features/business/business_pending_screen.dart';
 import 'package:kolovibe/features/business/business_screens.dart';
@@ -79,6 +80,37 @@ void main() {
       expect(build(entry.key, live), isA<BusinessPendingScreen>(),
           reason: 'M-${entry.key} without a business');
     }
+  });
+
+  test('customer screens open, and refuse a missing or malformed target', () {
+    final live = AppDependencies.live('https://api.example.test/api/v1');
+    const id = '13abeac8-1386-440a-b17c-aeafb48fe96f';
+    expect(build(119, live), isA<BusinessMyInquiriesScreen>());
+    expect(build(122, live), isA<BusinessMyReviewsScreen>());
+    for (final entry in {
+      118: isA<BusinessAskScreen>(),
+      120: isA<BusinessConversationScreen>(),
+      121: isA<BusinessWriteReviewScreen>(),
+      123: isA<BusinessEditReviewScreen>(),
+      124: isA<BusinessWithdrawReviewScreen>(),
+    }.entries) {
+      expect(build(entry.key, live, id: id), entry.value,
+          reason: 'M-${entry.key}');
+      expect(build(entry.key, live), isA<BusinessPendingScreen>(),
+          reason: 'M-${entry.key} without a target');
+    }
+    expect(build(125, live, id: 'review:$id'), isA<BusinessReportScreen>());
+    for (final bad in [
+      null,
+      id,
+      'business:$id',
+      'review:../me',
+      'review:$id:x'
+    ]) {
+      expect(build(125, live, id: bad), isA<BusinessPendingScreen>(),
+          reason: '$bad');
+    }
+    expect(build(121, live, id: '$id/../x'), isA<BusinessPendingScreen>());
   });
 
   group('bottom navigation', () {

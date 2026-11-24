@@ -74,7 +74,7 @@ class ScreenBed {
   /// Goes back from the last destination page.
   Future<void> back(WidgetTester tester) async {
     tester.state<NavigatorState>(find.byType(Navigator).first).pop();
-    await tester.pumpAndSettle();
+    await settleAsync(tester);
   }
 
   /// The last screen navigated to, as `M-nnn` plus its entity.
