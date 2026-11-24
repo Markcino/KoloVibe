@@ -48,7 +48,8 @@ def main():
     os.chdir(directory)
     os.environ.update(KOLOVIBE_ENV="local", DJANGO_SETTINGS_MODULE="service.settings",
                       DJANGO_SECRET_KEY="x" * 48, KOLOVIBE_LOCAL_MEDIA_ENABLED="1",
-                      KOLOVIBE_LOCAL_POINTS_ENABLED="1", KOLOVIBE_LOCAL_MODERATION_ENABLED="1")
+                      KOLOVIBE_LOCAL_POINTS_ENABLED="1", KOLOVIBE_LOCAL_MODERATION_ENABLED="1",
+                      KOLOVIBE_LOCAL_BUSINESS_ENABLED="1")
     import django
 
     django.setup()

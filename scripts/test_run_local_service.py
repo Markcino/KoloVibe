@@ -142,7 +142,7 @@ class LocalEnvironmentTests(unittest.TestCase):
             path = Path(directory) / ".env"
             create_local_env(path)
             values = read_local_env(path)
-            self.assertEqual(len(values), 22)
+            self.assertEqual(len(values), 23)
             self.assertNotIn("KOLOVIBE_GATEWAY_OUTBOUND_KEY", values)
             gateway = environment_for("gateway", values)
             engagement = environment_for("engagement", values)

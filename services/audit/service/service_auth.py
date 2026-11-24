@@ -22,6 +22,7 @@ CALLER_PATHS = {
     "creators": ('/internal/security-events',),
     "content": ('/internal/security-events',),
     "points": ('/internal/security-events',),
+    "business": ('/internal/security-events',),
 }
 
 # BEGIN shared service-identity verifier (identical in every service; see scripts/test_service_identity_drift.py)

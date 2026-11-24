@@ -21,6 +21,7 @@ tags:
 - name: Moderation
 - name: Operations
 - name: Internal Events
+- name: Business
 security:
 - bearerAuth: []
 paths:
@@ -4803,6 +4804,457 @@ paths:
             schema:
               $ref: '#/components/schemas/ModeratorInvitationComplete'
       description: Consumes the invitation atomically, creates an email-verified moderator with encrypted TOTP and hashed one-use recovery codes, and records enrollment and acceptance audit events. Only the current server-aligned 30-second TOTP period is accepted; its step is consumed. This creates no login session and grants no queue assignments. Expiry, revocation, replay, wrong mailbox and inactive/non-administrator inviter fail closed. Recovery codes are returned once only.
+  /me/businesses:
+    get:
+      tags:
+      - Business
+      summary: List businesses where the caller holds an active membership
+      operationId: get_my_businesses
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-16
+      parameters:
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 20
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessPage'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+    post:
+      tags:
+      - Business
+      summary: Register a draft business; the caller becomes its first owner
+      operationId: post_my_business
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-15
+      description: Requires a verified email and, during the pilot, an administrator-issued registration grant (DR-BZ-03).
+        Capped per account.
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BusinessRegister'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}:
+    get:
+      tags:
+      - Business
+      summary: Read a business the caller belongs to
+      operationId: get_my_business
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-17
+      description: Staff receive no legal_name. A caller with no active membership gets 404 identical to an unknown
+        id.
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/members:
+    get:
+      tags:
+      - Business
+      summary: List members and pending staff invitations (owner only)
+      operationId: get_my_business_members
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-33
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessMembers'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/members/invitations:
+    post:
+      tags:
+      - Business
+      summary: Create a single-use staff invitation code (owner only)
+      operationId: post_my_business_staff_invitation
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-34
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffInvitationCreate'
+      responses:
+        '201':
+          description: Created; the code is shown once and never replayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffInvitationReceipt'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/members/invitations/{invitation_id}:
+    delete:
+      tags:
+      - Business
+      summary: Revoke a pending staff invitation (owner only)
+      operationId: delete_my_business_staff_invitation
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-34
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: invitation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffInvitationView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/members/{member_id}:
+    delete:
+      tags:
+      - Business
+      summary: Remove a staff member (owner only; requires step-up)
+      operationId: delete_my_business_member
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-35
+      description: Fails closed with 403 code step_up_unavailable until Identity provides a purpose-bound step-up
+        proof (prerequisite P6B-04).
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: member_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusOk'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/leave:
+    post:
+      tags:
+      - Business
+      summary: Staff member ends their own membership
+      operationId: post_my_business_leave
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-35
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusOk'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/business-invitations/redeem:
+    post:
+      tags:
+      - Business
+      summary: Redeem a staff invitation code
+      operationId: post_business_invitation_redeem
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-34
+      description: Unknown, used, revoked and expired codes return the same 404. Attempts are throttled per account.
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffInvitationRedeem'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /admin/business-registration-grants/{account_id}:
+    put:
+      tags:
+      - Business
+      summary: Grant or withdraw business registration for an account (administrator, MFA)
+      operationId: put_business_registration_grant
+      x-implementation: local
+      x-capability: business_review_admin
+      x-required-roles:
+      - administrator
+      x-mfa-required: true
+      x-authz-ref: BZ-AZ-50
+      parameters:
+      - name: account_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BusinessRegistrationGrant'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessRegistrationGrantView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
 components:
   securitySchemes:
     bearerAuth:
@@ -6598,6 +7050,222 @@ components:
         key and kind allow-list. Existing four-field identity events remain valid and keep their digest/idempotency
         contract. Optional subject fields must be paired non-null or absent/null; no arbitrary metadata or secrets are
         accepted.
+    BusinessRegister:
+      type: object
+      additionalProperties: false
+      required:
+      - display_name
+      - legal_name
+      properties:
+        display_name:
+          type: string
+          minLength: 2
+          maxLength: 80
+        legal_name:
+          type: string
+          minLength: 2
+          maxLength: 160
+    BusinessView:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - state
+      - my_role
+      - verified
+      - listed
+      - display_name
+      - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        state:
+          type: string
+          enum:
+          - draft
+          - submitted
+          - under_review
+          - needs_info
+          - verified
+          - rejected
+          - suspended
+          - revoked
+          - closed
+        my_role:
+          type: string
+          enum:
+          - owner
+          - staff
+        verified:
+          type: boolean
+        listed:
+          type: boolean
+        display_name:
+          type: string
+          maxLength: 80
+        created_at:
+          type: string
+          format: date-time
+        legal_name:
+          type: string
+          maxLength: 160
+          description: Present for owners only.
+    BusinessPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/BusinessView'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          format: uuid
+    StaffInvitationCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - label
+      properties:
+        label:
+          type: string
+          minLength: 1
+          maxLength: 40
+          description: Owner-assigned name for the invitee; no account profile data is stored.
+    StaffInvitationView:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - label
+      - state
+      - expires_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        label:
+          type: string
+        state:
+          type: string
+          enum:
+          - pending
+          - redeemed
+          - revoked
+          - expired
+        expires_at:
+          type: string
+          format: date-time
+    StaffInvitationReceipt:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - label
+      - state
+      - expires_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        label:
+          type: string
+        state:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        code:
+          type: string
+          minLength: 16
+          maxLength: 64
+          description: Returned once on creation; absent on an idempotent replay.
+    StaffInvitationRedeem:
+      type: object
+      additionalProperties: false
+      required:
+      - code
+      properties:
+        code:
+          type: string
+          minLength: 16
+          maxLength: 64
+    BusinessMember:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - role
+      - label
+      - since
+      - is_you
+      properties:
+        id:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum:
+          - owner
+          - staff
+        label:
+          type: string
+        since:
+          type: string
+          format: date-time
+        is_you:
+          type: boolean
+    BusinessMembers:
+      type: object
+      additionalProperties: false
+      required:
+      - members
+      - invitations
+      properties:
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/BusinessMember'
+        invitations:
+          type: array
+          items:
+            $ref: '#/components/schemas/StaffInvitationView'
+    StatusOk:
+      type: object
+      additionalProperties: false
+      required:
+      - status
+      properties:
+        status:
+          type: string
+          const: ok
+    BusinessRegistrationGrant:
+      type: object
+      additionalProperties: false
+      required:
+      - active
+      properties:
+        active:
+          type: boolean
+    BusinessRegistrationGrantView:
+      type: object
+      additionalProperties: false
+      required:
+      - account_id
+      - active
+      properties:
+        account_id:
+          type: string
+          format: uuid
+        active:
+          type: boolean
   responses:
     VideoUploadStatus:
       description: Current owner-visible upload or processing state

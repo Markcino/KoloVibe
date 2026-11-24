@@ -5,7 +5,7 @@ REVOKE ALL ON SCHEMA public FROM PUBLIC;
 DO $do$
 DECLARE svc text; rolename text;
 BEGIN
-  FOREACH svc IN ARRAY ARRAY['gateway','identity','creators','content','engagement','points','moderation','audit'] LOOP
+  FOREACH svc IN ARRAY ARRAY['gateway','identity','creators','content','engagement','points','moderation','audit','business'] LOOP
     rolename := 'kolovibe_' || svc;
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = rolename) THEN
       EXECUTE format('CREATE ROLE %I NOLOGIN', rolename);

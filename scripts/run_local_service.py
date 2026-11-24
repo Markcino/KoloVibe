@@ -11,7 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SERVICES = (
     "gateway", "identity", "creators", "content", "engagement",
-    "points", "moderation", "audit",
+    "points", "moderation", "audit", "business",
 )
 
 

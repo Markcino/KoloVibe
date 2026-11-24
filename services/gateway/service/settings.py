@@ -7,6 +7,7 @@ ENVIRONMENT = os.environ.get("KOLOVIBE_ENV")
 LOCAL_POINTS_ENABLED = ENVIRONMENT == "local" and os.environ.get("KOLOVIBE_LOCAL_POINTS_ENABLED") == "1"
 LOCAL_MODERATION_ENABLED = ENVIRONMENT == "local" and os.environ.get("KOLOVIBE_LOCAL_MODERATION_ENABLED") == "1"
 LOCAL_MEDIA_ENABLED = ENVIRONMENT == "local" and os.environ.get("KOLOVIBE_LOCAL_MEDIA_ENABLED") == "1"
+LOCAL_BUSINESS_ENABLED = ENVIRONMENT == "local" and os.environ.get("KOLOVIBE_LOCAL_BUSINESS_ENABLED") == "1"
 if ENVIRONMENT not in ("local", "staging"):
     raise RuntimeError("Production settings are not authorized; explicit local or staging profile required.")
 if ENVIRONMENT == "staging":

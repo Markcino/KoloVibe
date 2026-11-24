@@ -67,6 +67,7 @@ jobs:
           set -euo pipefail
           export PATH="$(pg_config --bindir):$PATH"
           python scripts/test_postgres_foundations.py
+          python scripts/test_business_postgres.py
       - name: Isolated gateway, mail and web contract journeys
         run: |
           set -euo pipefail
@@ -94,7 +95,7 @@ jobs:
           python -m unittest discover -s scripts -p 'test_*.py'
           export KOLOVIBE_ENV=local
           export DJANGO_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
-          for service in gateway identity creators content engagement points moderation audit; do
+          for service in gateway identity creators content engagement points moderation audit business; do
             (cd "services/$service" && python manage.py makemigrations --check --dry-run && python manage.py test tests --verbosity 1)
           done
           export KOLOVIBE_GATEWAY_URL=http://127.0.0.1:8000

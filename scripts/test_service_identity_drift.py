@@ -5,8 +5,8 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SERVICES = ("gateway", "identity", "creators", "content", "engagement", "points", "moderation", "audit")
-PRODUCERS = {"identity", "moderation", "creators", "content", "points"}
+SERVICES = ("gateway", "identity", "creators", "content", "engagement", "points", "moderation", "audit", "business")
+PRODUCERS = {"identity", "moderation", "creators", "content", "points", "business"}
 
 
 def shared(path, kind):
@@ -42,6 +42,7 @@ class ServiceIdentityDriftTests(unittest.TestCase):
             self.assertEqual(set(policies[service]), {"gateway"}, service)
         self.assertEqual(set(policies["content"]), {"gateway", "moderation"})
         self.assertEqual(policies["content"]["moderation"], ("/internal/videos/moderation/",))
+        self.assertEqual(policies["business"], {"gateway": ("/internal/probe", "/internal/business/")})
         self.assertEqual(set(policies["audit"]), PRODUCERS | {"gateway"})
         self.assertEqual(policies["audit"]["gateway"], ("/internal/probe", "/internal/audit/read"))
         for producer in PRODUCERS:

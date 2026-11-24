@@ -15,6 +15,8 @@ CAPABILITIES = frozenset({
     "engagement",
     "points",
     "watch",
+    "business_owner",
+    "business_review_admin",
 })
 
 
@@ -30,6 +32,8 @@ def _local(name):
         "engagement": True,
         "points": points,
         "watch": points and media,
+        "business_owner": getattr(settings, "LOCAL_BUSINESS_ENABLED", False),
+        "business_review_admin": getattr(settings, "LOCAL_BUSINESS_ENABLED", False),
     }[name]
 
 

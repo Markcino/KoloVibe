@@ -19,7 +19,7 @@ from django.test import RequestFactory, TestCase
 from service.service_auth import CALLER_PATHS, ServiceAuthMiddleware
 
 SERVICE = Path(__file__).resolve().parents[1].name
-EVERY_SERVICE = ("gateway", "identity", "creators", "content", "engagement", "points", "moderation", "audit")
+EVERY_SERVICE = ("gateway", "identity", "creators", "content", "engagement", "points", "moderation", "audit", "business")
 ALLOWED = sorted(CALLER_PATHS)
 FORBIDDEN_BODY = b'{"detail": "Forbidden"}'
 
