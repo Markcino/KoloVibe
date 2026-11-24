@@ -2,6 +2,8 @@
 
 **Status: PROPOSED — Draft for owner review. Not approved.** Phase 6A, 24 November 2026. Accountable owner: Mark Allen Gbalazeh (@Markcino).
 
+> **Status update, 24 November 2026 (Phase 6A reconciliation).** The owner approved this document's design as written (decisions DR-BZ-01…26, [approval record](../architecture/business/BIZ-Owner_Approval_Record_2026-11-24.md)); the banner above and the file name are the original wording and have not been rewritten. DR-BZ-21 was then decided formally (Flutter only; no public website or business portal). The backend was built in Phase 6B (PR #219, closed flags, **not deployed**; production NO-GO). Where this document and the as-built system differ, see the [architecture validation](../architecture/business/BIZ-Architecture_Validation_PHASE6A.md); what the owner must still decide is in [owner decisions required](../architecture/business/BIZ-Owner_Decisions_Required_PHASE6A.md).
+
 [DOC-020](platform_documentation_register_and_DEC001.md) is registered as *Deferred — outside R1; no standalone specification found*. This document is proposed content for it. It does not change the register, DEC-001, the PRD or the SRS. Promotion from Proposed to Approved needs a change request under [DOC-023](DOC-023_Change_Control_Proposed.md) and decision [DR-BZ-01](../architecture/business/BIZ-Owner_Decision_Register_PROPOSED.md).
 
 ## 1. What is approved, what is proposed
@@ -13,7 +15,7 @@
 | The platform uses independently deployable Django/DRF services with a gateway. | **Approved (inherited)** | ADR-001 |
 | Client authentication, sessions and privileged MFA are Django-native in Identity. | **Design approved**; implementation and verification open | ADR-013 v1.0 |
 | Release sequencing keeps business verification in R2. | **Accepted — inherited** | ADR-010 |
-| Everything else in this document and its companions. | **Proposed** | this package |
+| Everything else in this document and its companions. | **Approved as written** on 24 November 2026 (DR-BZ-01…26); BZ-R-049…051 follow the formal DR-BZ-21 decision; **BZ-R-052…054 are new and not approved**; values and content the owner still owes are in the [reconciliation](BIZ-Requirements_Reconciliation_PHASE6A.md) | [approval record](../architecture/business/BIZ-Owner_Approval_Record_2026-11-24.md), PR #218 |
 
 “Policy-pending” below means the requirement's *mechanism* is proposed but a policy it depends on is an open owner decision (DR-BZ-nn). Those policies are **not invented here**.
 

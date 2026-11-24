@@ -1,6 +1,6 @@
 # Business module (R2) — owner decision register
 
-**Status update, 24 November 2026: the owner approved all 26 recommendations as written; see the [approval record](BIZ-Owner_Approval_Record_2026-11-24.md), which also lists what that approval does not supply.** The original proposal text follows unchanged, except that **DR-BZ-21 now carries a formal owner decision with stricter wording** (no public website, no business web portal; see below and the [client architecture](BIZ-Client_Architecture_DR-BZ-21.md)), and section G adds two open decisions (DR-BZ-27, DR-BZ-28) that follow from it.
+**Status update, 24 November 2026: the owner approved all 26 recommendations as written; see the [approval record](BIZ-Owner_Approval_Record_2026-11-24.md), which also lists what that approval does not supply.** The original proposal text follows unchanged, except that **DR-BZ-21 now carries a formal owner decision with stricter wording** (no public website, no business web portal; see below and the [client architecture](BIZ-Client_Architecture_DR-BZ-21.md)), section G adds two open decisions (DR-BZ-27, DR-BZ-28) that follow from it, and section H adds five open decisions (DR-BZ-29 to DR-BZ-33) found by the Phase 6A validation of the as-built backend.
 
 **Original status: PROPOSED for owner review. Nothing here is approved.** Phase 6A, 24 November 2026. Accountable owner: Mark Allen Gbalazeh (@Markcino).
 
@@ -209,6 +209,46 @@ Legend — **Blocks**: the first slice in the [backlog](../../engineering/phase6
 - **Blocks.** Any share control in the Business screens. Not a blocker for the backend.
 - **Status.** **Open.**
 
+## H. Added by the Phase 6A validation (24 November 2026) — as-built deviations and prerequisites
+
+These arise because the Phase 6B backend (merged in PR #219, closed flags, not deployed) differs from the approved design in five places, or depends on a change the design only named. **Each is Open.** Evidence: the [architecture validation](BIZ-Architecture_Validation_PHASE6A.md).
+
+### DR-BZ-29 — Moderation placement as built
+- **Question.** DR-BZ-17 was approved as recommended (option C: verification in Business; user reports and appeals reuse Moderation after a separately approved, additive generalization). As built, Moderation is untouched and Business has a **local report queue** with remove or keep only; restoration by a different reviewer, appeals and listing reports are missing. Accept that as the pilot design, or approve the Moderation generalization?
+- **Options.** (A) Keep the local queue and build restoration, appeals and listing reports inside Business. (B) Approve the Moderation generalization (subject type and a decision-application port) as its own task. (C) Do neither: no review removal until decided.
+- **Recommendation.** A for the pilot. It leaves a service that is in R1 acceptance untouched; record the duplicated reviewer logic as accepted debt and revisit if a second subject type needs Moderation.
+- **Blocks.** Restoration, appeals, listing reports, suspension workflow (with DR-BZ-25).
+- **Status.** **Open.**
+
+### DR-BZ-30 — Search technology
+- **Question.** The ADR proposed PostgreSQL full-text and trigram indexes. As built: case-insensitive substring matching with two relevance tiers, because local development uses SQLite, the least-privilege role cannot create the trigram extension and no data volume justifies an index. Accept?
+- **Options.** (A) Accept for the pilot and set a measured trigger (listing count or response time) for an index migration. (B) Require full-text and trigram now (needs PostgreSQL-specific migrations and an extension decision). (C) Reject substring search.
+- **Recommendation.** A, with the owner choosing the trigger; no extension may be created by the runtime login.
+- **Blocks.** Nothing before the pilot; a performance gate before wider use.
+- **Status.** **Open.**
+
+### DR-BZ-31 — Gateway validation of Business responses
+- **Question.** The design requires the Gateway to re-validate every Business response against exact allowlists (503 on any extra field). As built, the Gateway forwards bounded JSON objects and refusals and exact shapes are tested only inside the Business service. Accept, or require edge allowlists?
+- **Options.** (A) Accept pass-through everywhere. (B) Exact allowlists for the four anonymous reads only (the most exposed), pass-through elsewhere. (C) Exact allowlists for all 57 operations (duplicates the Business response shapes at the edge).
+- **Recommendation.** B: the public reads are the scraping and leakage surface and a second allowlist there is cheap; keep shape tests against DOC-205 inside Business for the rest.
+- **Blocks.** Opening `business_discovery` and `business_reviews` public reads.
+- **Status.** **Open.**
+
+### DR-BZ-32 — Database ownership model for the Business schema (P6B-06)
+- **Question.** The provisioning SQL and tests make the service role own the schema and tables and grant it to the login that runs migrations: the pattern behind the R-01 finding on staging. The architecture promised migration-owner separation from the start. Which model governs the first rollout?
+- **Options.** (A) Same as the R1 services (accept the debt, remediate with them). (B) For Business only: a migration-owner role owns the objects; the runtime login has DML privileges only. (C) Hold Business rollout until R-01 is remediated platform-wide.
+- **Recommendation.** B. A new schema has no legacy to migrate; the change is confined to Business provisioning SQL and its PostgreSQL test. It is **not** applied to any shared database without an approved operations plan.
+- **Blocks.** The first staging rollout (with DR-BZ-24).
+- **Status.** **Open.**
+
+### DR-BZ-33 — Purpose-bound step-up proof in Identity (P6B-04)
+- **Question.** Approve designing a way for another service to require a fresh, single-use, purpose-named re-authentication proof from Identity without learning credentials?
+- **Why it matters.** Until it exists, four owner actions **refuse for every caller**: live contact change, staff removal, closure, ownership transfer. It is also the main defence against account takeover (BZ-T-015).
+- **Options.** (A) Approve an Identity design task (security-critical, separately reviewed). (B) Keep the four actions disabled for the pilot and handle them by administrator-assisted process. (C) Weaker confirmation (not recommended).
+- **Recommendation.** A, designed and reviewed separately; B until it ships.
+- **Blocks.** BZ-R-036, BZ-R-002 (closure), BZ-R-008 (transfer), owner staff-removal and contact-change screens.
+- **Status.** **Open.**
+
 ## Summary table
 
 | ID | Topic | Blocks | Status |
@@ -241,6 +281,11 @@ Legend — **Blocks**: the first slice in the [backlog](../../engineering/phase6
 | DR-BZ-26 | Ownership disputes | S3/S8 | Open |
 | DR-BZ-27 | Business screen designs and route space | Flutter slices | Open |
 | DR-BZ-28 | Sharing and links outside the app | share controls | Open |
+| DR-BZ-29 | Moderation placement as built | restoration, appeals | Open |
+| DR-BZ-30 | Search technology | wider use | Open |
+| DR-BZ-31 | Gateway validation of Business responses | public reads | Open |
+| DR-BZ-32 | Database ownership model (P6B-06) | first rollout | Open |
+| DR-BZ-33 | Step-up proof in Identity (P6B-04) | four owner actions | Open |
 
 ## Decision record template (use when the owner decides)
 

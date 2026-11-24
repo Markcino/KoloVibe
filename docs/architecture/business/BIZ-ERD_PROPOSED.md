@@ -2,6 +2,8 @@
 
 **Status: PROPOSED — illustrative design, not DDL. No migration is created or implied by Phase 6A.** Phase 6A, 24 November 2026. Conventions follow [DOC-204](../DOC-204_ERD.mmd): UUID primary keys, cross-service references are plain UUID columns with **no foreign keys**, and the service owns its schema (`business`).
 
+> **Status update, 24 November 2026 (Phase 6A reconciliation).** This is supporting design for decisions the owner approved as written (DR-BZ-01…26, [approval record](BIZ-Owner_Approval_Record_2026-11-24.md)); no separate approval of this document is recorded, and the banner above is the original wording. DR-BZ-21 was decided formally (Flutter only; no public website or business portal). The backend was built in Phase 6B (PR #219, closed flags, **not deployed**; production NO-GO). Where this document and the as-built system differ, see the [architecture validation](BIZ-Architecture_Validation_PHASE6A.md); what the owner must still decide is in [owner decisions required](BIZ-Owner_Decisions_Required_PHASE6A.md).
+
 ## 1. Entity-relationship diagram
 
 ```mermaid
@@ -120,3 +122,19 @@ Detailed treatment is in the [privacy document](../../privacy/business-data-priv
 ## 5. Not modelled (deliberately)
 
 Payments, prices, bookings, tickets, advertising, sponsorship or promotion, push tokens, device identifiers, IP addresses, precise customer location, full identity documents (unless DR-BZ-19 allows), social graph, analytics counters.
+
+## 6. As-built reconciliation (Phase 6A, against `main` `5e7eda7`)
+
+The Phase 6B models (`services/business/service/models.py`, migrations 0001–0007) were compared with the tables above. The Business app's label is `service`, so Django names tables `service_<model>` inside the `business` schema (the audit event table sets `business_audit_event`); the names below are the logical names used in this ERD.
+
+| Status | Tables |
+| --- | --- |
+| **Built as designed** | `business`, `business_membership`, `business_category`, `reviewer_grant`, `profile_revision`, `contact_channel`, `hours_rule`, `hours_exception`, `business_listing`, `verification_case`, `verification_evidence`, `verification_decision`, `inquiry_thread`, `inquiry_message`, `inquiry_block`, `review`, `review_response`, `business_audit_event`, `business_audit_delivery`, `throttle_counter`, plus the per-schema nonce, outbox and inbox tables from `schema_isolation.sql` |
+| **Built but not in this ERD** | `StaffInvitation` (single-use code, keyed digest, expiry), `RegistrationGrant` (pilot invitation to register), `IdempotencyRecord` (key and payload digest), `ReviewInvitation` (business-issued review code), `ReviewAggregate` (server-computed rating and count), `BusinessReport` (the Business-local report and fraud-hold queue) |
+| **In this ERD, not built** | `business_service` (S8), `ownership_dispute` (S8), `review_revision` (edit history: no edit window or history policy yet), `review_hold` (as built, hold reason codes are a JSON field on `review`), `moderation_receipt` (no Moderation port; see DR-BZ-29) |
+| **Changed** | `reviewer_grant.scope` also has `profile_review`; business and case state sets are as in the [security completion record](../../security/phase6/BIZ-Security_Design_Completion_PHASE6A.md#4-verification-state-transitions) (no `withdrawn` case state; `suspended` and `closed` have no inbound transition); a review is created `published` or `held` (no stored `pending`) |
+
+Integrity rules actually enforced in the database (6B, tested on PostgreSQL 16): one open verification case per business; one working revision and unique revision numbers; coordinates set as a pair; weekday and interval checks; one active membership per (business, account); one open thread per customer and business; one review per author per business; one open report per reporter and subject; rating between 1 and 5.
+
+No client-surface change: DR-BZ-21 adds no table, column or migration.
+

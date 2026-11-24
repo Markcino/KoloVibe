@@ -2,6 +2,8 @@
 
 **Status: PROPOSED — Draft for owner review. Not approved; nothing is implemented.** Phase 6A, 24 November 2026. Decision basis: [ADR-BIZ-001](../../adr/ADR-BIZ-001_Business_Bounded_Context_PROPOSED.md). Requirements: [BZ-R-001…048](../../requirements/DOC-020_Business_Requirements_and_Scope_PROPOSED.md). Open policies: [decision register](BIZ-Owner_Decision_Register_PROPOSED.md).
 
+> **Status update, 24 November 2026 (Phase 6A reconciliation).** This is supporting design for decisions the owner approved as written (DR-BZ-01…26, [approval record](BIZ-Owner_Approval_Record_2026-11-24.md)); no separate approval of this document is recorded, and the banner above is the original wording. DR-BZ-21 was decided formally (Flutter only; no public website or business portal). The backend was built in Phase 6B (PR #219, closed flags, **not deployed**; production NO-GO). Where this document and the as-built system differ, see the [architecture validation](BIZ-Architecture_Validation_PHASE6A.md); what the owner must still decide is in [owner decisions required](BIZ-Owner_Decisions_Required_PHASE6A.md).
+
 This is design only. No migrations, code, infrastructure or AWS changes are part of Phase 6A.
 
 ## 1. Existing platform (observed at `main` 1b72139)

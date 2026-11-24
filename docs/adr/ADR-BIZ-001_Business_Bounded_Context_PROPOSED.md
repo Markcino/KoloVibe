@@ -2,6 +2,8 @@
 
 **Status: PROPOSED — needs owner approval. Not an approved ADR.** Phase 6A, 24 November 2026.
 
+> **Status update, 24 November 2026 (Phase 6A reconciliation).** The owner approved this document's design as written (decisions DR-BZ-01…26, [approval record](../architecture/business/BIZ-Owner_Approval_Record_2026-11-24.md)); the banner above and the file name are the original wording and have not been rewritten. DR-BZ-21 was then decided formally (Flutter only; no public website or business portal). The backend was built in Phase 6B (PR #219, closed flags, **not deployed**; production NO-GO). Where this document and the as-built system differ, see the [architecture validation](../architecture/business/BIZ-Architecture_Validation_PHASE6A.md); what the owner must still decide is in [owner decisions required](../architecture/business/BIZ-Owner_Decisions_Required_PHASE6A.md).
+
 **Identifier.** `ADR-BIZ-001` is provisional. The DOC-207 register already uses ADR-001 to ADR-022, so a register number is assigned only if the owner approves ([docs/adr/README.md](README.md): approved ADRs are recorded individually and drafts are not silently approved). This file lives here so reviewers find it with the other ADRs; it does not alter the register.
 
 **Decision-makers.** Mark Allen Gbalazeh (@Markcino). **Related.** ADR-001 (microservices), ADR-010 (release sequencing), ADR-013 (identity), ADR-011/012 (gateway and service identity, proposed), ADR-020 (privacy retention, open), DEC-001, [requirements](../requirements/DOC-020_Business_Requirements_and_Scope_PROPOSED.md), [decision register](../architecture/business/BIZ-Owner_Decision_Register_PROPOSED.md).
@@ -96,4 +98,4 @@ Added in Phase 6A reconciliation, 24 November 2026, from the owner's decision DR
 
 ## Approval record
 
-Not approved. Owner decision, exact revision, date and conditions: _to be recorded per DOC-023 when decided._
+**Approved as written by the owner on 24 November 2026** (decisions DR-BZ-01 and DR-BZ-02 and the rest of the package), recorded in the [approval record](../architecture/business/BIZ-Owner_Approval_Record_2026-11-24.md); the Phase 6A design was merged in PR #218 at 10:08:56 UTC the same day. **Not yet done:** the DOC-023 change request, an ADR register number in DOC-207, and the DEC-001 interpretation amendment (backlog BZ-B-000). Decision 6 (client surfaces) was added from the owner's formal DR-BZ-21 decision. Deviations of the as-built backend from Decisions 1, 3 and 4 are listed in the [architecture validation](../architecture/business/BIZ-Architecture_Validation_PHASE6A.md) and are **not** approved.
