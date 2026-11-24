@@ -17,6 +17,15 @@
 <label>Email address<input type="email" name="email" maxlength="254" autocomplete="off" required placeholder="name@example.com"></label>
 <button type="submit">Find account</button></form>
 {% endif %}</section>
+<section class="panel table-panel" aria-labelledby="invited-title"><div class="section-heading"><div><p class="eyebrow">Waiting to apply</p><h2 id="invited-title">Outstanding invitations</h2></div>{% if invitations.available %}<span class="status-chip">{{ invitations.rows|length }} shown</span>{% endif %}</div>
+{% if not invitations.available %}<p class="notice error" role="alert">Outstanding invitations are unavailable right now.</p>
+{% else %}<div class="table-scroll" role="region" aria-label="Outstanding creator invitations" tabindex="0"><table><caption class="visually-hidden">Accounts invited to become creators who have not applied</caption>
+<thead><tr><th scope="col">Account</th><th scope="col">Invited</th><th scope="col">Action</th></tr></thead><tbody>
+{% for row in invitations.rows %}<tr><td data-label="Account"><code title="{{ row.account_id }}">{{ row.account_id|slice:':8' }}</code></td><td data-label="Invited"><time datetime="{{ row.invited_at }}" title="{{ row.invited_at|utc_stamp }}">{{ row.invited_at|age }}</time></td>
+<td data-label="Action"><form method="post" class="status-actions">{% csrf_token %}<input type="hidden" name="operation" value="revoke"><input type="hidden" name="account_id" value="{{ row.account_id }}"><input type="hidden" name="intent" value="{{ row.intent }}">
+<button type="submit" class="button-outline" aria-label="Revoke invitation for account {{ row.account_id|slice:':8' }}">Revoke</button></form></td></tr>
+{% empty %}<tr><td colspan="3">No invitations are waiting for a response.</td></tr>{% endfor %}</tbody></table></div>
+{% if invitations.next_query %}<nav class="pagination" aria-label="Invitation pages"><a rel="next" href="?{{ invitations.next_query }}">Next page</a></nav>{% endif %}{% endif %}</section>
 <section class="panel table-panel" aria-labelledby="apps-title"><div class="section-heading"><div><p class="eyebrow">Step 2</p><h2 id="apps-title">Applications awaiting review</h2></div>{% if applications_available %}<span class="status-chip">{{ applications|length }} waiting</span>{% endif %}</div>
 {% if not applications_available %}<p class="notice error" role="alert">Applications are unavailable right now. Creator onboarding may not be enabled in this environment.</p>
 {% else %}<div class="table-scroll" role="region" aria-label="Pending creator applications" tabindex="0"><table><caption class="visually-hidden">Creator applications awaiting a decision</caption>

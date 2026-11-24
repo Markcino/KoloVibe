@@ -11,6 +11,8 @@ def patterns():
 
         routes += [
             path("api/v1/creator-invitations", creator_onboarding, {"operation": "invite"}, name="creator-invite"),
+            path("api/v1/creator-invitations/<uuid:account_id>/revoke", creator_onboarding,
+                 {"operation": "revoke"}, name="creator-invitation-revoke"),
             path("api/v1/creator-applications", creator_onboarding, {"operation": "pending"}, name="creator-queue"),
             path("api/v1/creator-applications/<uuid:account_id>/decision", creator_onboarding,
                  {"operation": "review"}, name="creator-review"),

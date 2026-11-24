@@ -10,9 +10,9 @@ logger = logging.getLogger(__name__)
 UUID = r"[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}"
 PUBLIC = re.compile(rf"/(?:videos|api/v1/videos(?:/{UUID})?|api/v1/creators/(?:{UUID}|search))")
 CREATOR_ONBOARDING_PUBLIC = re.compile(
-    rf"/api/v1/(?:creator-invitations|creator-applications(?:/{UUID}/decision)?|creators/me/(?:application|upload-eligibility))"
+    rf"/api/v1/(?:creator-invitations(?:/{UUID}/revoke)?|creator-applications(?:/{UUID}/decision)?|creators/me/(?:application|upload-eligibility))"
 )
-CREATOR_ONBOARDING_INTERNAL = re.compile(r"/internal/creators/onboarding/(?:invite|pending|review|status|submit|eligibility)")
+CREATOR_ONBOARDING_INTERNAL = re.compile(r"/internal/creators/onboarding/(?:invite|pending|outstanding|revoke|review|status|submit|eligibility)")
 ACCOUNTS = {
     "gateway": {"/api/v1/auth/" + name for name in
                 ("register", "verify", "login", "refresh", "logout")} | {"/api/v1/me"},

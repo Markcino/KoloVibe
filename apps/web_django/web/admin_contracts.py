@@ -133,7 +133,7 @@ def valid_candidate(value):
 
 def valid_creator_summary(value, account_id=None):
     return (isinstance(value, dict) and set(value) == {"account_id", "status", "creator_id"}
-            and value["status"] in ("invited", "pending", "approved", "rejected") and _uuid(value["account_id"])
+            and value["status"] in ("invited", "pending", "approved", "rejected", "revoked") and _uuid(value["account_id"])
             and (account_id is None or value["account_id"] == account_id)
             and (value["creator_id"] is None or _uuid(value["creator_id"])))
 
@@ -147,6 +147,22 @@ def valid_pending_applications(value, cursor=None):
                     or item["status"] != "pending" or not _uuid(item["account_id"]) or not _uuid(item["creator_id"])
                     or not isinstance(item["handle"], str) or not re.fullmatch(r"[a-z0-9_]{3,30}", item["handle"])
                     or datetime.fromisoformat(item["submitted_at"]).tzinfo is None):
+                return False
+        ids = [item["account_id"] for item in value["items"]]
+        return (ids == sorted(set(ids)) and (cursor is None or all(i > cursor for i in ids))
+                and (value["next_cursor"] is None or len(ids) == 20 and value["next_cursor"] == ids[-1]))
+    except (ValueError, TypeError, KeyError):
+        return False
+
+
+def valid_outstanding_invitations(value, cursor=None):
+    try:
+        if not isinstance(value, dict) or set(value) != {"items", "next_cursor"} or not isinstance(value["items"], list) or len(value["items"]) > 20:
+            return False
+        for item in value["items"]:
+            if (not isinstance(item, dict) or set(item) != {"account_id", "status", "creator_id", "invited_at"}
+                    or item["status"] != "invited" or not _uuid(item["account_id"]) or item["creator_id"] is not None
+                    or datetime.fromisoformat(item["invited_at"]).tzinfo is None):
                 return False
         ids = [item["account_id"] for item in value["items"]]
         return (ids == sorted(set(ids)) and (cursor is None or all(i > cursor for i in ids))
