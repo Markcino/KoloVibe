@@ -30,6 +30,9 @@ An applicant sees a revoked invitation as **404** on `GET /creators/me/applicati
 ## Tests (all local, disposable SQLite test databases)
 Creators 84 (8 new), Gateway 215 (+6), Web 138 (+7 and updated mocks), script tests 446 (matrix now includes the revoke route). Other six services unchanged and passing. OpenAPI validates. Each control was removed in turn and the matching test failed: Creators role gate, state guard, applicant 404, revoked-cannot-apply; Gateway administrator gate; console intent check.
 
+## PostgreSQL evidence
+On a disposable PostgreSQL 16 cluster (Unix socket, trust auth, destroyed afterwards) Creators migrations `0001`–`0006` applied, `sqlmigrate 0006` is a single `CREATE TABLE "service_onboardingevent"` plus the `creator_event_account_idx` index (the status-choices change is a no-op), `makemigrations --check` reports no changes, and the whole Creators suite (84 tests) passes there. The runtime login needs INSERT and SELECT on the new table.
+
 ## Not done
 - **Deployment:** migration `0006` must be applied by the owner on staging under an approved operations plan; the capability stays behind `KOLOVIBE_STAGING_CREATOR_ONBOARDING`.
 - **Audit service delivery and a DB append-only trigger** for `OnboardingEvent` (needs an Audit credential for Creators and an ops-approved migration). Recommended: reuse the Points outbox pattern.
