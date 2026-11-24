@@ -50,7 +50,7 @@ Source: [Phase 0 baseline](Phase0_Implementation_Baseline_2026-11-23.md), which 
 | CI and supply-chain controls | CI | Flutter job | web image | n/a | SHA-pinned actions, secrets scan, audit, Bandit, OSV, Grype, SBOM | no coverage metric | **Partial** | No required checks on `main` (#142); OpenSSL exception ends 2026-11-28 (#143) | B-15 |
 | Database role separation | PostgreSQL | n/a | n/a | n/a | 26 tables + 8 sequences owned by runtime roles | `r1_readonly_preflight.sql` in CI | **Partial** (open High risk R-01) | Needs read-only role/grant report, then owner-approved plan | P1-06 |
 | Backup, restore, RTO/RPO, monitoring | infra | n/a | n/a | n/a | none evidenced | none | **Blocked by approval** | ADR-016, INF-05/INF-10 | B-16 |
-| Business listings and verification (R2) | none | none | none | none | none | none | **Missing**; **Blocked by approval** | Outside R1 (DEC-001); PRD/SRS detail unapproved (#133) | B-19 |
+| Business listings and verification (R2) | none | none | none | none | none | none | **Missing**; **Blocked by approval** | Outside R1 (DEC-001); PRD/SRS detail unapproved (#133). Phase 6A design **proposals only** (not approved, nothing implemented): [package index](../architecture/business/README.md) | B-19 |
 | Events and ticketing (R3) | none | none | none | none | none | none | **Missing**; **Blocked by approval** | Outside R1; payment and legal approvals | B-19 |
 | Advertising and sponsorship | none | none | none | none | none | none | **Missing**; **Blocked by approval** | Advertising policy and approvals | B-19 |
 | Payments, payouts, settlement | none | none | none | none | disabled | none | **Missing**; **Blocked by approval** | Provider, financial-control and legal approvals; sandbox only when authorised | B-19 |
