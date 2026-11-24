@@ -6262,6 +6262,576 @@ paths:
           $ref: '#/components/responses/RateLimited'
         '503':
           description: Business service unavailable
+  /businesses/{business_id}/inquiries:
+    post:
+      tags:
+      - Business
+      summary: Start an inquiry with a listed business (verified email)
+      operationId: post_business_inquiry
+      x-implementation: local
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-05
+      description: Unlisted, unknown, own-business and blocked all answer the same 404. One open conversation per
+        customer and business.
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InquiryCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadCustomerView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/inquiries:
+    get:
+      tags:
+      - Business
+      summary: List the caller's own inquiry threads
+      operationId: get_my_inquiries
+      x-implementation: local
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-06
+      parameters:
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 20
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadCustomerPage'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/inquiries/{thread_id}:
+    get:
+      tags:
+      - Business
+      summary: Read one of the caller's own inquiry threads
+      operationId: get_my_inquiry
+      x-implementation: local
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-07
+      parameters:
+      - name: thread_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadCustomerView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/inquiries/{thread_id}/messages:
+    post:
+      tags:
+      - Business
+      summary: Add a message to the caller's open thread
+      operationId: post_my_inquiry_message
+      x-implementation: local
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-08
+      parameters:
+      - name: thread_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InquiryMessageCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadCustomerView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/inquiries/{thread_id}/close:
+    post:
+      tags:
+      - Business
+      summary: Close the caller's own thread
+      operationId: post_my_inquiry_close
+      x-implementation: local
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-09
+      parameters:
+      - name: thread_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadCustomerView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/inquiries/{thread_id}/confirm:
+    post:
+      tags:
+      - Business
+      summary: Confirm the interaction as completed (customer side)
+      operationId: post_my_inquiry_confirm
+      x-implementation: local
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-09
+      description: Requires both sides to have written. Both confirmations make the thread usable as review eligibility
+        proof (DR-BZ-15).
+      parameters:
+      - name: thread_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadCustomerView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/inquiries:
+    get:
+      tags:
+      - Business
+      summary: List inquiry threads addressed to the business (owner or staff)
+      operationId: get_my_business_inquiries
+      x-implementation: local
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-26
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 20
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadBusinessPage'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/inquiries/{thread_id}:
+    get:
+      tags:
+      - Business
+      summary: Read one inquiry thread of the business (owner or staff)
+      operationId: get_my_business_inquiry
+      x-implementation: local
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-27
+      description: The thread must belong to the path business. The customer is shown only as a pseudonymous label.
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: thread_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadBusinessView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/inquiries/{thread_id}/messages:
+    post:
+      tags:
+      - Business
+      summary: Reply as the business (owner or staff)
+      operationId: post_my_business_inquiry_reply
+      x-implementation: local
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-28
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: thread_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InquiryMessageCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadBusinessView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/inquiries/{thread_id}/close:
+    post:
+      tags:
+      - Business
+      summary: Close a thread as the business (owner or staff)
+      operationId: post_my_business_inquiry_close
+      x-implementation: local
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-29
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: thread_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadBusinessView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/inquiries/{thread_id}/confirm:
+    post:
+      tags:
+      - Business
+      summary: Confirm the interaction as completed (business side)
+      operationId: post_my_business_inquiry_confirm
+      x-implementation: local
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-29
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: thread_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadBusinessView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/inquiries/{thread_id}/block:
+    post:
+      tags:
+      - Business
+      summary: Block the thread's customer for this business (owner only)
+      operationId: post_my_business_inquiry_block
+      x-implementation: local
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-30
+      description: The customer is never identified; the block is never disclosed to them.
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: thread_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadBusinessView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
 components:
   securitySchemes:
     bearerAuth:
@@ -9162,6 +9732,186 @@ components:
             enum:
             - not_verified
             - no_approved_profile
+    InquiryCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - subject_code
+      - body
+      properties:
+        subject_code:
+          type: string
+          pattern: ^[a-z][a-z_]{2,39}$
+          description: Vocabulary pending owner approval.
+        body:
+          type: string
+          minLength: 1
+          maxLength: 1000
+    InquiryMessageCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - body
+      properties:
+        body:
+          type: string
+          minLength: 1
+          maxLength: 1000
+    InquiryMessage:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - author_kind
+      - body
+      - removed
+      - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        author_kind:
+          type: string
+          enum:
+          - customer
+          - business
+        body:
+          type:
+          - string
+          - 'null'
+          maxLength: 1000
+        removed:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+    InquiryThreadCustomerView:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - business_id
+      - business_name
+      - state
+      - subject_code
+      - created_at
+      - confirmed
+      properties:
+        id:
+          type: string
+          format: uuid
+        business_id:
+          type: string
+          format: uuid
+        business_name:
+          type: string
+        state:
+          type: string
+          enum:
+          - open
+          - closed_by_customer
+          - closed_by_business
+          - blocked
+        subject_code:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        confirmed:
+          type: object
+          additionalProperties: false
+          required:
+          - customer
+          - business
+          properties:
+            customer:
+              type: boolean
+            business:
+              type: boolean
+        messages:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/InquiryMessage'
+    InquiryThreadCustomerPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/InquiryThreadCustomerView'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          format: uuid
+    InquiryThreadBusinessView:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - customer_label
+      - state
+      - subject_code
+      - created_at
+      - confirmed
+      properties:
+        id:
+          type: string
+          format: uuid
+        customer_label:
+          type: string
+          description: Pseudonymous; never an account id or name.
+        state:
+          type: string
+          enum:
+          - open
+          - closed_by_customer
+          - closed_by_business
+          - blocked
+        subject_code:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        confirmed:
+          type: object
+          additionalProperties: false
+          required:
+          - customer
+          - business
+          properties:
+            customer:
+              type: boolean
+            business:
+              type: boolean
+        messages:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/InquiryMessage'
+    InquiryThreadBusinessPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/InquiryThreadBusinessView'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          format: uuid
   responses:
     VideoUploadStatus:
       description: Current owner-visible upload or processing state

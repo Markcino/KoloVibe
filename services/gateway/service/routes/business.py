@@ -36,6 +36,26 @@ def patterns():
         routes += [path("api/v1/business-categories", business_endpoint, {"operations": {"GET": "category_list"}}),
                    path("api/v1/businesses", business_endpoint, {"operations": {"GET": "public_search"}}),
                    path("api/v1/businesses/<uuid:business_id>", business_endpoint, {"operations": {"GET": "public_detail"}})]
+    if enabled("business_inquiries"):
+        from ..business import business_endpoint
+
+        def inquiry(url, **operations):
+            return path("api/v1/" + url, business_endpoint, {"operations": operations})
+
+        routes += [
+            inquiry("businesses/<uuid:business_id>/inquiries", POST="inquiry_create"),
+            inquiry("me/inquiries", GET="inquiry_list_mine"),
+            inquiry("me/inquiries/<uuid:thread_id>", GET="inquiry_get_mine"),
+            inquiry("me/inquiries/<uuid:thread_id>/messages", POST="inquiry_message_customer"),
+            inquiry("me/inquiries/<uuid:thread_id>/close", POST="inquiry_close_customer"),
+            inquiry("me/inquiries/<uuid:thread_id>/confirm", POST="inquiry_confirm_customer"),
+            inquiry("me/businesses/<uuid:business_id>/inquiries", GET="inquiry_inbox"),
+            inquiry("me/businesses/<uuid:business_id>/inquiries/<uuid:thread_id>", GET="inquiry_inbox_get"),
+            inquiry("me/businesses/<uuid:business_id>/inquiries/<uuid:thread_id>/messages", POST="inquiry_reply"),
+            inquiry("me/businesses/<uuid:business_id>/inquiries/<uuid:thread_id>/close", POST="inquiry_close_business"),
+            inquiry("me/businesses/<uuid:business_id>/inquiries/<uuid:thread_id>/confirm", POST="inquiry_confirm_business"),
+            inquiry("me/businesses/<uuid:business_id>/inquiries/<uuid:thread_id>/block", POST="inquiry_block"),
+        ]
     if enabled("business_review_admin"):
         from ..business import business_endpoint
 

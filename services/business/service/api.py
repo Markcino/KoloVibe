@@ -164,4 +164,4 @@ def dispatch(request, operation):
         return _error(503, "Business service unavailable")
 
 
-from . import listings, ownership, profiles, verification  # noqa: E402,F401  (registers the operations)
+from . import inquiries, listings, ownership, profiles, verification  # noqa: E402,F401  (registers the operations)

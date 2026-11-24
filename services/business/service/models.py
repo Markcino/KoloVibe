@@ -337,3 +337,61 @@ class BusinessListing(models.Model):
     class Meta:
         indexes = [models.Index(fields=["name_sort", "business"], name="biz_listing_order_idx"),
                    models.Index(fields=["county_code", "category_slug"], name="biz_listing_filter_idx")]
+
+
+class InquiryThread(models.Model):
+    """A customer-opened conversation with a listed business. The business never receives the customer's account id."""
+
+    class State(models.TextChoices):
+        OPEN = "open", "Open"
+        CLOSED_BY_CUSTOMER = "closed_by_customer", "Closed by customer"
+        CLOSED_BY_BUSINESS = "closed_by_business", "Closed by business"
+        BLOCKED = "blocked", "Blocked"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    business = models.ForeignKey(Business, on_delete=models.PROTECT, related_name="inquiry_threads")
+    customer_account_id = models.UUIDField()  # private to the service; never serialized to the business
+    customer_label = models.CharField(max_length=40)  # pseudonymous ("Customer 7"); no profile data is copied
+    subject_code = models.CharField(max_length=40)
+    state = models.CharField(max_length=24, choices=State.choices, default=State.OPEN)
+    created_at = models.DateTimeField(default=timezone.now)
+    last_message_at = models.DateTimeField(default=timezone.now)
+    message_count = models.PositiveIntegerField(default=0)
+    customer_confirmed_at = models.DateTimeField(null=True, blank=True)
+    business_confirmed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["business", "customer_account_id"], condition=Q(state="open"),
+                                    name="biz_one_open_thread"),
+            models.CheckConstraint(condition=Q(state__in=["open", "closed_by_customer", "closed_by_business",
+                                                           "blocked"]), name="biz_thread_state"),
+        ]
+        indexes = [models.Index(fields=["customer_account_id", "id"], name="biz_thread_customer_idx"),
+                   models.Index(fields=["business", "last_message_at", "id"], name="biz_thread_inbox_idx")]
+
+
+class InquiryMessage(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    thread = models.ForeignKey(InquiryThread, on_delete=models.PROTECT, related_name="messages")
+    author_kind = models.CharField(max_length=8)
+    author_account_id = models.UUIDField()
+    body = models.CharField(max_length=1000)
+    removed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [models.CheckConstraint(condition=Q(author_kind__in=["customer", "business"]),
+                                              name="biz_message_author_kind")]
+        indexes = [models.Index(fields=["thread", "created_at", "id"], name="biz_message_order_idx")]
+
+
+class InquiryBlock(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    business = models.ForeignKey(Business, on_delete=models.PROTECT, related_name="inquiry_blocks")
+    customer_account_id = models.UUIDField()
+    blocked_by_account_id = models.UUIDField()
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["business", "customer_account_id"], name="biz_one_block")]

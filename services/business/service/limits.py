@@ -20,10 +20,14 @@ BUDGETS = {
     "verification_submit": (5, timedelta(days=1)),
     "profile_edit": (60, timedelta(hours=1)),
     "listing_change": (30, timedelta(hours=1)),
+    "inquiry_create": (10, timedelta(days=1)),       # per customer
+    "inquiry_business": (30, timedelta(hours=1)),    # new threads per business, so one business cannot be flooded
+    "inquiry_message": (60, timedelta(hours=1)),
     "public_read": (1200, timedelta(hours=1)),      # per signed-in account, or per client address
     "contact_reveal": (100, timedelta(days=1)),     # signed-in verified accounts only (DR-BZ-12)
 }
 PAGE_SIZE = 20
+MAX_MESSAGES_PER_THREAD = 100
 SEARCH_CHUNK = 50
 SEARCH_SCAN_CAP = 500                   # rows examined per request when a filter is applied after the query (open now)
 MIN_EVIDENCE_ITEMS = 1                   # technical minimum so a case is never empty; the checklist is the owner's
