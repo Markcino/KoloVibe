@@ -4,6 +4,7 @@ import '../../features/business/business_customer_screens.dart';
 import '../../features/business/business_discovery_screens.dart';
 import '../../features/business/business_inbox_screens.dart';
 import '../../features/business/business_owner_screens.dart';
+import '../../features/business/business_staff_screens.dart';
 import '../../features/business/business_pending_screen.dart';
 import '../../features/business/business_screens.dart';
 import '../../features/business/business_ui.dart';
@@ -71,7 +72,32 @@ Widget? businessRoute(RouteContext context) {
     BusinessScreens.register =>
       BusinessRegisterScreen(repository: repository, catalog: catalog),
     BusinessScreens.manage when id != null => BusinessManageScreen(
-        repository: repository, catalog: catalog, businessId: id),
+        repository: repository,
+        catalog: catalog,
+        businessId: id,
+        businessContext: context.dependencies.businessContext),
+    BusinessScreens.staffHome when id != null => BusinessManageScreen(
+        repository: repository,
+        catalog: catalog,
+        businessId: id,
+        businessContext: context.dependencies.businessContext,
+        screen: BusinessScreens.staffHome,
+        title: 'Your business'),
+    BusinessScreens.redeem => BusinessRedeemScreen(
+        repository: repository,
+        catalog: catalog,
+        context: context.dependencies.businessContext),
+    BusinessScreens.switcher => BusinessSwitcherScreen(
+        repository: repository,
+        catalog: catalog,
+        context: context.dependencies.businessContext),
+    BusinessScreens.accessRemoved => BusinessAccessRemovedScreen(
+        catalog: catalog, context: context.dependencies.businessContext),
+    BusinessScreens.leave when id != null => BusinessLeaveScreen(
+        repository: repository,
+        catalog: catalog,
+        businessId: id,
+        context: context.dependencies.businessContext),
     BusinessScreens.editProfile when id != null => BusinessEditProfileScreen(
         repository: repository, catalog: catalog, businessId: id),
     BusinessScreens.editContacts when id != null => BusinessEditContactsScreen(

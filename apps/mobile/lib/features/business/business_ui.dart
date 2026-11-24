@@ -17,8 +17,12 @@ class BusinessLoader<T> extends StatefulWidget {
     required this.builder,
     this.onSignIn,
     this.inline = false,
+    this.errorBuilder,
   });
   final Future<T> Function() load;
+
+  /// Lets a screen replace the standard failure view for a particular error; return null to keep the standard one.
+  final Widget? Function(BuildContext context, Object error)? errorBuilder;
   final Widget Function(BuildContext context, T value, VoidCallback reload)
       builder;
   final VoidCallback? onSignIn;
@@ -56,8 +60,9 @@ class _BusinessLoaderState<T> extends State<BusinessLoader<T>> {
                 onAction: _reload,
               );
             }
-            return LiveStateView.failure(snapshot.error!,
-                onRetry: _reload, onSignIn: widget.onSignIn);
+            return widget.errorBuilder?.call(context, snapshot.error!) ??
+                LiveStateView.failure(snapshot.error!,
+                    onRetry: _reload, onSignIn: widget.onSignIn);
           }
           return widget.builder(context, snapshot.data as T, _reload);
         },
@@ -621,3 +626,15 @@ class OneTimeCodeCard extends StatelessWidget {
         ),
       );
 }
+
+/// Whether a failure means the person no longer has access to a business (it was removed, closed or never theirs).
+/// The service answers an unknown business and one the person has no right to the same way, on purpose.
+bool accessLost(Object error) =>
+    error is ApiFailure &&
+    (error.kind == FailureKind.notFound || error.kind == FailureKind.forbidden);
+
+/// The service's single answer to something it will not accept without saying why (404, no reason code).
+bool isNotFoundFailure(Object error) =>
+    error is ApiFailure &&
+    error.kind == FailureKind.notFound &&
+    error.code == null;

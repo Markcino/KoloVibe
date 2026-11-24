@@ -7,6 +7,7 @@ import '../../core/presentation/design_node.dart';
 import '../../core/theme/kolovibe_theme.dart';
 import '../../shared/widgets/kolo_components.dart';
 import '../system/system_ui.dart';
+import 'business_access.dart';
 import 'business_context.dart';
 import 'business_lists.dart';
 import 'business_models.dart';
@@ -249,11 +250,13 @@ class BusinessManageScreen extends StatelessWidget {
       required this.repository,
       required this.catalog,
       required this.businessId,
+      this.businessContext,
       this.screen = BusinessScreens.manage,
       this.title = 'Manage business'});
   final LiveBusinessRepository repository;
   final DesignCatalog catalog;
   final String businessId;
+  final BusinessContext? businessContext;
   final int screen;
   final String title;
 
@@ -264,7 +267,20 @@ class BusinessManageScreen extends StatelessWidget {
         title: title,
         child: BusinessLoader<HomeData>(
           onSignIn: () => _signIn(context, BusinessScreens.myBusinesses),
-          load: () => loadHome(repository, businessId),
+          load: () async {
+            try {
+              return await loadHome(repository, businessId);
+            } catch (error) {
+              // Access that is gone is not "something went wrong": forget the choice and say so.
+              if (accessLost(error) &&
+                  businessContext?.businessId == businessId) {
+                await businessContext?.clear();
+              }
+              rethrow;
+            }
+          },
+          errorBuilder: (context, error) =>
+              accessLost(error) ? const AccessRemovedBody() : null,
           builder: (context, data, reload) => BusinessHomeBody(data: data),
         ),
       );
@@ -335,6 +351,9 @@ class BusinessHomeBody extends StatelessWidget {
               title: 'Leave this business',
               destructive: true,
               onTap: () => open(BusinessScreens.leave)),
+        KoloListRow(
+            title: 'Switch business',
+            onTap: () => _go(context, BusinessScreens.switcher)),
         KoloListRow(
             title: 'My businesses',
             divider: false,

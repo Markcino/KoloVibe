@@ -12,6 +12,7 @@ import 'package:kolovibe/features/business/business_discovery_screens.dart';
 import 'package:kolovibe/features/business/business_inbox_screens.dart';
 import 'package:kolovibe/features/business/business_owner_screens.dart';
 import 'package:kolovibe/features/business/business_pending_screen.dart';
+import 'package:kolovibe/features/business/business_staff_screens.dart';
 import 'package:kolovibe/features/business/business_screens.dart';
 import 'package:kolovibe/features/shell/main_shell.dart';
 
@@ -144,6 +145,33 @@ void main() {
     expect(build(136, live, id: id), isA<BusinessPendingScreen>(),
         reason: 'a thread screen needs a thread');
     expect(build(136, live), isA<BusinessPendingScreen>());
+  });
+
+  test('staff screens open, and the ones about one business need its id', () {
+    final live = AppDependencies.live('https://api.example.test/api/v1');
+    const id = '13abeac8-1386-440a-b17c-aeafb48fe96f';
+    expect(build(140, live), isA<BusinessRedeemScreen>());
+    expect(build(141, live), isA<BusinessSwitcherScreen>());
+    expect(build(142, live), isA<BusinessAccessRemovedScreen>());
+    expect(build(143, live, id: id), isA<BusinessLeaveScreen>());
+    expect(build(143, live), isA<BusinessPendingScreen>());
+    expect(build(144, live, id: id), isA<BusinessManageScreen>());
+    expect(build(144, live), isA<BusinessPendingScreen>());
+  });
+
+  test('no Business screen is left as a placeholder', () {
+    final live = AppDependencies.live('https://api.example.test/api/v1');
+    const id = '13abeac8-1386-440a-b17c-aeafb48fe96f';
+    for (var screen = 109; screen <= 144; screen++) {
+      final entity = screen == 136
+          ? '$id/$id'
+          : screen == 125
+              ? 'review:$id'
+              : id;
+      expect(
+          build(screen, live, id: entity), isNot(isA<BusinessPendingScreen>()),
+          reason: 'M-$screen');
+    }
   });
 
   group('bottom navigation', () {
