@@ -5,6 +5,10 @@
 # docs/security/phase6/BIZ-RBAC_and_Object_Authorization_Matrix_PROPOSED.md (BZ-AZ-nn rows),
 # docs/architecture/business/BIZ-Owner_Decision_Register_PROPOSED.md (DR-BZ-nn open policies).
 #
+# UPDATE 24 November 2026: Phase 6B implemented most of these operations, with changes, and merged them into DOC-205
+# (the authoritative contract). Where this proposal and DOC-205 differ, DOC-205 wins. See
+# docs/engineering/phase6/Phase6B_Business_Backend_Completion_Report_2026-11-24.md.
+#
 # This file is deliberately NOT part of DOC-205 and is not read by any repository test. If the owner approves the
 # design, S1 merges the approved operations into DOC-205 so the existing route-contract test (every gateway route must be
 # declared; anonymous list exactly as declared) covers them.

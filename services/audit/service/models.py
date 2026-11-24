@@ -20,9 +20,9 @@ class SecurityEvent(models.Model):
 
 class AuditReadGrant(models.Model):
     administrator_id = models.UUIDField()
-    producer = models.CharField(max_length=32, choices=[(name, name) for name in ("identity", "moderation", "creators", "content", "points", "audit")])
+    producer = models.CharField(max_length=32, choices=[(name, name) for name in ("identity", "moderation", "creators", "content", "points", "audit", "business")])
     active = models.BooleanField(default=True)
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["administrator_id", "producer"], name="audit_read_grant_unique"),
-                       models.CheckConstraint(condition=models.Q(producer__in=["identity", "moderation", "creators", "content", "points", "audit"]), name="audit_read_grant_producer")]
+                       models.CheckConstraint(condition=models.Q(producer__in=["identity", "moderation", "creators", "content", "points", "audit", "business"]), name="audit_read_grant_producer")]

@@ -21,6 +21,7 @@ tags:
 - name: Moderation
 - name: Operations
 - name: Internal Events
+- name: Business
 security:
 - bearerAuth: []
 paths:
@@ -4803,6 +4804,2653 @@ paths:
             schema:
               $ref: '#/components/schemas/ModeratorInvitationComplete'
       description: Consumes the invitation atomically, creates an email-verified moderator with encrypted TOTP and hashed one-use recovery codes, and records enrollment and acceptance audit events. Only the current server-aligned 30-second TOTP period is accepted; its step is consumed. This creates no login session and grants no queue assignments. Expiry, revocation, replay, wrong mailbox and inactive/non-administrator inviter fail closed. Recovery codes are returned once only.
+  /me/businesses:
+    get:
+      tags:
+      - Business
+      summary: List businesses where the caller holds an active membership
+      operationId: get_my_businesses
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-16
+      parameters:
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 20
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessPage'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+    post:
+      tags:
+      - Business
+      summary: Register a draft business; the caller becomes its first owner
+      operationId: post_my_business
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-15
+      description: Requires a verified email and, during the pilot, an administrator-issued registration grant (DR-BZ-03).
+        Capped per account.
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BusinessRegister'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}:
+    get:
+      tags:
+      - Business
+      summary: Read a business the caller belongs to
+      operationId: get_my_business
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-17
+      description: Staff receive no legal_name. A caller with no active membership gets 404 identical to an unknown
+        id.
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/members:
+    get:
+      tags:
+      - Business
+      summary: List members and pending staff invitations (owner only)
+      operationId: get_my_business_members
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-33
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessMembers'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/members/invitations:
+    post:
+      tags:
+      - Business
+      summary: Create a single-use staff invitation code (owner only)
+      operationId: post_my_business_staff_invitation
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-34
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffInvitationCreate'
+      responses:
+        '201':
+          description: Created; the code is shown once and never replayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffInvitationReceipt'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/members/invitations/{invitation_id}:
+    delete:
+      tags:
+      - Business
+      summary: Revoke a pending staff invitation (owner only)
+      operationId: delete_my_business_staff_invitation
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-34
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: invitation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffInvitationView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/members/{member_id}:
+    delete:
+      tags:
+      - Business
+      summary: Remove a staff member (owner only; requires step-up)
+      operationId: delete_my_business_member
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-35
+      description: Fails closed with 403 code step_up_unavailable until Identity provides a purpose-bound step-up
+        proof (prerequisite P6B-04).
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: member_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusOk'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/leave:
+    post:
+      tags:
+      - Business
+      summary: Staff member ends their own membership
+      operationId: post_my_business_leave
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-35
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusOk'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/business-invitations/redeem:
+    post:
+      tags:
+      - Business
+      summary: Redeem a staff invitation code
+      operationId: post_business_invitation_redeem
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-34
+      description: Unknown, used, revoked and expired codes return the same 404. Attempts are throttled per account.
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffInvitationRedeem'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /admin/business-registration-grants/{account_id}:
+    put:
+      tags:
+      - Business
+      summary: Grant or withdraw business registration for an account (administrator, MFA)
+      operationId: put_business_registration_grant
+      x-implementation: local
+      x-capability: business_review_admin
+      x-required-roles:
+      - administrator
+      x-mfa-required: true
+      x-authz-ref: BZ-AZ-50
+      parameters:
+      - name: account_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BusinessRegistrationGrant'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessRegistrationGrantView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/verification:
+    get:
+      tags:
+      - Business
+      summary: Read the business's verification status (owner only)
+      operationId: get_my_business_verification
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-24
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationOwnerView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+    post:
+      tags:
+      - Business
+      summary: Submit an ownership verification case with text evidence (owner only)
+      operationId: post_my_business_verification
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-23
+      description: Text-only evidence. File evidence is not part of this contract version (awaits the owner's checklist
+        and approved private storage).
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificationSubmit'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationOwnerView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/verification/evidence:
+    post:
+      tags:
+      - Business
+      summary: Answer a request for information with more evidence (owner only)
+      operationId: post_my_business_verification_evidence
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-23
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificationRespond'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationOwnerView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /moderation/business-verifications:
+    get:
+      tags:
+      - Business
+      summary: List open verification cases within the reviewer's grants
+      operationId: get_business_verification_queue
+      x-implementation: local
+      x-capability: business_review_admin
+      x-required-roles:
+      - moderator
+      - administrator
+      x-mfa-required: true
+      x-authz-ref: BZ-AZ-40
+      parameters:
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 20
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationQueuePage'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /moderation/business-verifications/{case_id}:
+    get:
+      tags:
+      - Business
+      summary: Read one verification case (audited)
+      operationId: get_business_verification_case
+      x-implementation: local
+      x-capability: business_review_admin
+      x-required-roles:
+      - moderator
+      - administrator
+      x-mfa-required: true
+      x-authz-ref: BZ-AZ-41
+      description: Shows the private legal name and the evidence. 404 for a case outside the reviewer's grants or
+        one they submitted or are affiliated with.
+      parameters:
+      - name: case_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationCaseView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /moderation/business-verifications/{case_id}/claim:
+    post:
+      tags:
+      - Business
+      summary: Claim a submitted case
+      operationId: post_business_verification_claim
+      x-implementation: local
+      x-capability: business_review_admin
+      x-required-roles:
+      - moderator
+      - administrator
+      x-mfa-required: true
+      x-authz-ref: BZ-AZ-42
+      parameters:
+      - name: case_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationClaimView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /moderation/business-verifications/{case_id}/decision:
+    post:
+      tags:
+      - Business
+      summary: Decide a claimed case, or revoke a verified one
+      operationId: post_business_verification_decision
+      x-implementation: local
+      x-capability: business_review_admin
+      x-required-roles:
+      - moderator
+      - administrator
+      x-mfa-required: true
+      x-authz-ref: BZ-AZ-42
+      parameters:
+      - name: case_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificationDecision'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationDecisionView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /admin/business-reviewer-grants:
+    put:
+      tags:
+      - Business
+      summary: Grant or withdraw a scoped business reviewer assignment (administrator, MFA)
+      operationId: put_business_reviewer_grant
+      x-implementation: local
+      x-capability: business_review_admin
+      x-required-roles:
+      - administrator
+      x-mfa-required: true
+      x-authz-ref: BZ-AZ-50
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BusinessReviewerGrant'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessReviewerGrantView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/profile:
+    get:
+      tags:
+      - Business
+      summary: Read the approved, working and last rejected profile revisions (owner or staff)
+      operationId: get_my_business_profile
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-17
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileOverview'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+    patch:
+      tags:
+      - Business
+      summary: Edit the working profile revision (owner only)
+      operationId: patch_my_business_profile
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-18
+      description: Creates the working revision from the approved one. Changing a live contact set requires step-up
+        and fails closed (403 step_up_unavailable) until Identity provides it (P6B-04). Address and coordinates are
+        private unless the owner sets the public flags.
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileEdit'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileRevisionView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/profile/submit:
+    post:
+      tags:
+      - Business
+      summary: Submit the working revision (owner only)
+      operationId: post_my_business_profile_submit
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-19
+      description: Material changes (name, category, address, contacts) go to review; other changes apply immediately
+        (response field applied).
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileRevisionView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/hours:
+    put:
+      tags:
+      - Business
+      summary: Replace weekly hours and dated exceptions (owner or staff)
+      operationId: put_my_business_hours
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-20
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HoursReplace'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HoursView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /business-categories:
+    get:
+      tags:
+      - Business
+      summary: List active business categories (public)
+      operationId: get_business_categories
+      x-implementation: local
+      x-capability: business_discovery
+      x-required-roles:
+      - viewer
+      - creator
+      - moderator
+      - administrator
+      x-authz-ref: BZ-AZ-01
+      security: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryList'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /admin/business-categories/{slug}:
+    put:
+      tags:
+      - Business
+      summary: Create or update a category (administrator, MFA)
+      operationId: put_business_category
+      x-implementation: local
+      x-capability: business_review_admin
+      x-required-roles:
+      - administrator
+      x-mfa-required: true
+      x-authz-ref: BZ-AZ-48
+      parameters:
+      - name: slug
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: ^[a-z0-9-]{2,60}$
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryPut'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /moderation/business-profile-revisions:
+    get:
+      tags:
+      - Business
+      summary: List pending profile revisions within the reviewer's profile_review grants
+      operationId: get_business_profile_queue
+      x-implementation: local
+      x-capability: business_review_admin
+      x-required-roles:
+      - moderator
+      - administrator
+      x-mfa-required: true
+      x-authz-ref: BZ-AZ-40
+      parameters:
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 20
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileQueuePage'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /moderation/business-profile-revisions/{revision_id}:
+    get:
+      tags:
+      - Business
+      summary: Read one pending revision with its changed fields (audited)
+      operationId: get_business_profile_revision
+      x-implementation: local
+      x-capability: business_review_admin
+      x-required-roles:
+      - moderator
+      - administrator
+      x-mfa-required: true
+      x-authz-ref: BZ-AZ-41
+      parameters:
+      - name: revision_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileRevisionReviewView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /moderation/business-profile-revisions/{revision_id}/decision:
+    post:
+      tags:
+      - Business
+      summary: Approve or reject a pending revision
+      operationId: post_business_profile_decision
+      x-implementation: local
+      x-capability: business_review_admin
+      x-required-roles:
+      - moderator
+      - administrator
+      x-mfa-required: true
+      x-authz-ref: BZ-AZ-42
+      description: 404 for a revision outside the grant, one the reviewer submitted, or a business they are affiliated
+        with.
+      parameters:
+      - name: revision_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileDecision'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileDecisionView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /businesses:
+    get:
+      tags:
+      - Business
+      summary: Search and filter listed businesses (public)
+      operationId: get_businesses
+      x-implementation: local
+      x-capability: business_discovery
+      x-authz-ref: BZ-AZ-02
+      description: Reads only the public listing projection. Unknown parameters are rejected (400). No distance search
+        and no paid placement. Anonymous callers are allowed; a bearer token, if sent, must be valid.
+      parameters:
+      - name: q
+        in: query
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 100
+      - name: category
+        in: query
+        schema:
+          type: string
+          pattern: ^[a-z0-9-]{2,60}$
+      - name: county
+        in: query
+        schema:
+          type: string
+          pattern: ^[a-z0-9_]{2,40}$
+      - name: city
+        in: query
+        schema:
+          type: string
+          maxLength: 80
+      - name: open_now
+        in: query
+        schema:
+          type: boolean
+        description: Computed in the business's own time zone; businesses with no recorded hours match neither value.
+      - name: verified
+        in: query
+        schema:
+          type: boolean
+      - name: sort
+        in: query
+        schema:
+          type: string
+          enum:
+          - relevance
+          - name
+        description: relevance requires q
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          maxLength: 512
+        description: Opaque, tamper-evident, bound to the filters it was issued for.
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 20
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessSearchPage'
+        '400':
+          description: Invalid request
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+      security: []
+      x-public: true
+  /businesses/{business_id}:
+    get:
+      tags:
+      - Business
+      summary: Read one listed business (public)
+      operationId: get_business
+      x-implementation: local
+      x-capability: business_discovery
+      x-authz-ref: BZ-AZ-03
+      description: Contacts are returned only to signed-in verified-email accounts, within a daily reveal budget;
+        otherwise null with a contacts_access reason. An unknown id and an unlisted, revoked or closed business are
+        indistinguishable (404).
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessPublicDetail'
+        '400':
+          description: Invalid request
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+      security: []
+      x-public: true
+  /me/businesses/{business_id}/listing:
+    get:
+      tags:
+      - Business
+      summary: Read listing status and eligibility (owner or staff)
+      operationId: get_my_business_listing
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-17
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListingStatus'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/listing/publish:
+    post:
+      tags:
+      - Business
+      summary: List the business publicly (owner only)
+      operationId: post_my_business_listing_publish
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-21
+      description: Succeeds only while the eligibility predicate holds (verified and an approved profile); otherwise
+        409 code not_eligible.
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListingStatus'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/listing/unpublish:
+    post:
+      tags:
+      - Business
+      summary: Remove the business from public listing (owner only)
+      operationId: post_my_business_listing_unpublish
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-22
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListingStatus'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /businesses/{business_id}/inquiries:
+    post:
+      tags:
+      - Business
+      summary: Start an inquiry with a listed business (verified email)
+      operationId: post_business_inquiry
+      x-implementation: local
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-05
+      description: Unlisted, unknown, own-business and blocked all answer the same 404. One open conversation per
+        customer and business.
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InquiryCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadCustomerView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/inquiries:
+    get:
+      tags:
+      - Business
+      summary: List the caller's own inquiry threads
+      operationId: get_my_inquiries
+      x-implementation: local
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-06
+      parameters:
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 20
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadCustomerPage'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/inquiries/{thread_id}:
+    get:
+      tags:
+      - Business
+      summary: Read one of the caller's own inquiry threads
+      operationId: get_my_inquiry
+      x-implementation: local
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-07
+      parameters:
+      - name: thread_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadCustomerView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/inquiries/{thread_id}/messages:
+    post:
+      tags:
+      - Business
+      summary: Add a message to the caller's open thread
+      operationId: post_my_inquiry_message
+      x-implementation: local
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-08
+      parameters:
+      - name: thread_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InquiryMessageCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadCustomerView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/inquiries/{thread_id}/close:
+    post:
+      tags:
+      - Business
+      summary: Close the caller's own thread
+      operationId: post_my_inquiry_close
+      x-implementation: local
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-09
+      parameters:
+      - name: thread_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadCustomerView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/inquiries/{thread_id}/confirm:
+    post:
+      tags:
+      - Business
+      summary: Confirm the interaction as completed (customer side)
+      operationId: post_my_inquiry_confirm
+      x-implementation: local
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-09
+      description: Requires both sides to have written. Both confirmations make the thread usable as review eligibility
+        proof (DR-BZ-15).
+      parameters:
+      - name: thread_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadCustomerView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/inquiries:
+    get:
+      tags:
+      - Business
+      summary: List inquiry threads addressed to the business (owner or staff)
+      operationId: get_my_business_inquiries
+      x-implementation: local
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-26
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 20
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadBusinessPage'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/inquiries/{thread_id}:
+    get:
+      tags:
+      - Business
+      summary: Read one inquiry thread of the business (owner or staff)
+      operationId: get_my_business_inquiry
+      x-implementation: local
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-27
+      description: The thread must belong to the path business. The customer is shown only as a pseudonymous label.
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: thread_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadBusinessView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/inquiries/{thread_id}/messages:
+    post:
+      tags:
+      - Business
+      summary: Reply as the business (owner or staff)
+      operationId: post_my_business_inquiry_reply
+      x-implementation: local
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-28
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: thread_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InquiryMessageCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadBusinessView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/inquiries/{thread_id}/close:
+    post:
+      tags:
+      - Business
+      summary: Close a thread as the business (owner or staff)
+      operationId: post_my_business_inquiry_close
+      x-implementation: local
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-29
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: thread_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadBusinessView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/inquiries/{thread_id}/confirm:
+    post:
+      tags:
+      - Business
+      summary: Confirm the interaction as completed (business side)
+      operationId: post_my_business_inquiry_confirm
+      x-implementation: local
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-29
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: thread_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadBusinessView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/inquiries/{thread_id}/block:
+    post:
+      tags:
+      - Business
+      summary: Block the thread's customer for this business (owner only)
+      operationId: post_my_business_inquiry_block
+      x-implementation: local
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-30
+      description: The customer is never identified; the block is never disclosed to them.
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: thread_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadBusinessView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /businesses/{business_id}/reviews:
+    get:
+      tags:
+      - Business
+      summary: List published reviews of a listed business (public)
+      operationId: get_business_reviews
+      x-implementation: local
+      x-capability: business_reviews
+      x-authz-ref: BZ-AZ-04
+      description: Newest first. Authors are pseudonymous labels; every review shows its eligibility basis. Held,
+        removed and withdrawn reviews never appear.
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 20
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewPage'
+        '400':
+          description: Invalid request
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+      security: []
+      x-public: true
+    post:
+      tags:
+      - Business
+      summary: Review a listed business (verified email)
+      operationId: post_business_review
+      x-implementation: local
+      x-capability: business_reviews
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-10
+      description: Ineligible callers (unknown, unlisted, own business, affiliated) get one indistinguishable 404.
+        The basis is derived from the proof supplied, never from the body. Fraud signals place the review in state
+        held.
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewOwnView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/reviews:
+    get:
+      tags:
+      - Business
+      summary: List the caller's own reviews
+      operationId: get_my_reviews
+      x-implementation: local
+      x-capability: business_reviews
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-11
+      parameters:
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 20
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewOwnPage'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/reviews/{review_id}:
+    patch:
+      tags:
+      - Business
+      summary: Edit the caller's own review (re-enters the fraud checks)
+      operationId: patch_my_review
+      x-implementation: local
+      x-capability: business_reviews
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-12
+      parameters:
+      - name: review_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewEdit'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewOwnView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+    delete:
+      tags:
+      - Business
+      summary: Withdraw the caller's own review; the text is blanked immediately
+      operationId: delete_my_review
+      x-implementation: local
+      x-capability: business_reviews
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-13
+      description: 'One review per author per business, ever: withdrawing does not allow a second one.'
+      parameters:
+      - name: review_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewOwnView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/reviews/{review_id}/response:
+    put:
+      tags:
+      - Business
+      summary: Post or replace the business's one response to a published review (owner only)
+      operationId: put_my_business_review_response
+      x-implementation: local
+      x-capability: business_reviews
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-31
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: review_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewResponse'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewResponseView'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+    delete:
+      tags:
+      - Business
+      summary: Delete the business's response (owner only)
+      operationId: delete_my_business_review_response
+      x-implementation: local
+      x-capability: business_reviews
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-32
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: review_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusOk'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/review-invitations:
+    post:
+      tags:
+      - Business
+      summary: Create a single-use review invitation code (owner only)
+      operationId: post_my_business_review_invitation
+      x-implementation: local
+      x-capability: business_reviews
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-34
+      description: Reviews written with the code are labelled invited, never interaction_confirmed.
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      responses:
+        '201':
+          description: Created; the code is shown once
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewInvitationReceipt'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/review-invitations/{invitation_id}:
+    delete:
+      tags:
+      - Business
+      summary: Revoke an unused review invitation (owner only)
+      operationId: delete_my_business_review_invitation
+      x-implementation: local
+      x-capability: business_reviews
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-34
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: invitation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewInvitationRevoked'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /business-reports:
+    post:
+      tags:
+      - Business
+      summary: Report a review, a response or an inquiry message (verified email)
+      operationId: post_business_report
+      x-implementation: local
+      x-capability: business_reviews
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-14
+      description: Only content the reporter can see may be reported (404 otherwise); not your own content; one open
+        report per subject.
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BusinessReportCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessReportReceipt'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /moderation/business-reports:
+    get:
+      tags:
+      - Business
+      summary: List open business reports and fraud holds within the reviewer's review_queue grants
+      operationId: get_business_report_queue
+      x-implementation: local
+      x-capability: business_review_admin
+      x-required-roles:
+      - moderator
+      - administrator
+      x-mfa-required: true
+      x-authz-ref: BZ-AZ-44
+      parameters:
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 20
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessReportQueuePage'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /moderation/business-reports/{report_id}:
+    get:
+      tags:
+      - Business
+      summary: Read one report with the reported content (audited)
+      operationId: get_business_report
+      x-implementation: local
+      x-capability: business_review_admin
+      x-required-roles:
+      - moderator
+      - administrator
+      x-mfa-required: true
+      x-authz-ref: BZ-AZ-44
+      parameters:
+      - name: report_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessReportCase'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /moderation/business-reports/{report_id}/decision:
+    post:
+      tags:
+      - Business
+      summary: Remove the reported content or keep it (releases a fraud hold)
+      operationId: post_business_report_decision
+      x-implementation: local
+      x-capability: business_review_admin
+      x-required-roles:
+      - moderator
+      - administrator
+      x-mfa-required: true
+      x-authz-ref: BZ-AZ-45
+      description: 404 for a report outside the grant, one the reviewer filed, or a business they are affiliated with.
+        Restoration and appeals are not part of this contract version.
+      parameters:
+      - name: report_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BusinessReportDecision'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessReportDecided'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
 components:
   securitySchemes:
     bearerAuth:
@@ -6598,6 +9246,1688 @@ components:
         key and kind allow-list. Existing four-field identity events remain valid and keep their digest/idempotency
         contract. Optional subject fields must be paired non-null or absent/null; no arbitrary metadata or secrets are
         accepted.
+    BusinessRegister:
+      type: object
+      additionalProperties: false
+      required:
+      - display_name
+      - legal_name
+      properties:
+        display_name:
+          type: string
+          minLength: 2
+          maxLength: 80
+        legal_name:
+          type: string
+          minLength: 2
+          maxLength: 160
+    BusinessView:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - state
+      - my_role
+      - verified
+      - listed
+      - display_name
+      - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        state:
+          type: string
+          enum:
+          - draft
+          - submitted
+          - under_review
+          - needs_info
+          - verified
+          - rejected
+          - suspended
+          - revoked
+          - closed
+        my_role:
+          type: string
+          enum:
+          - owner
+          - staff
+        verified:
+          type: boolean
+        listed:
+          type: boolean
+        display_name:
+          type: string
+          maxLength: 80
+        created_at:
+          type: string
+          format: date-time
+        legal_name:
+          type: string
+          maxLength: 160
+          description: Present for owners only.
+    BusinessPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/BusinessView'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          format: uuid
+    StaffInvitationCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - label
+      properties:
+        label:
+          type: string
+          minLength: 1
+          maxLength: 40
+          description: Owner-assigned name for the invitee; no account profile data is stored.
+    StaffInvitationView:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - label
+      - state
+      - expires_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        label:
+          type: string
+        state:
+          type: string
+          enum:
+          - pending
+          - redeemed
+          - revoked
+          - expired
+        expires_at:
+          type: string
+          format: date-time
+    StaffInvitationReceipt:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - label
+      - state
+      - expires_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        label:
+          type: string
+        state:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        code:
+          type: string
+          minLength: 16
+          maxLength: 64
+          description: Returned once on creation; absent on an idempotent replay.
+    StaffInvitationRedeem:
+      type: object
+      additionalProperties: false
+      required:
+      - code
+      properties:
+        code:
+          type: string
+          minLength: 16
+          maxLength: 64
+    BusinessMember:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - role
+      - label
+      - since
+      - is_you
+      properties:
+        id:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum:
+          - owner
+          - staff
+        label:
+          type: string
+        since:
+          type: string
+          format: date-time
+        is_you:
+          type: boolean
+    BusinessMembers:
+      type: object
+      additionalProperties: false
+      required:
+      - members
+      - invitations
+      properties:
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/BusinessMember'
+        invitations:
+          type: array
+          items:
+            $ref: '#/components/schemas/StaffInvitationView'
+    StatusOk:
+      type: object
+      additionalProperties: false
+      required:
+      - status
+      properties:
+        status:
+          type: string
+          const: ok
+    BusinessRegistrationGrant:
+      type: object
+      additionalProperties: false
+      required:
+      - active
+      properties:
+        active:
+          type: boolean
+    BusinessRegistrationGrantView:
+      type: object
+      additionalProperties: false
+      required:
+      - account_id
+      - active
+      properties:
+        account_id:
+          type: string
+          format: uuid
+        active:
+          type: boolean
+    VerificationSubmit:
+      type: object
+      additionalProperties: false
+      required:
+      - method
+      - declaration
+      - evidence
+      properties:
+        method:
+          type: string
+          pattern: ^[a-z][a-z_]{2,39}$
+          description: Vocabulary pending owner approval.
+        declaration:
+          type: boolean
+          const: true
+        evidence:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - kind
+            - value
+            properties:
+              kind:
+                type: string
+                pattern: ^[a-z][a-z_]{2,39}$
+                description: Vocabulary pending owner approval.
+              value:
+                type: string
+                minLength: 2
+                maxLength: 300
+    VerificationRespond:
+      type: object
+      additionalProperties: false
+      required:
+      - evidence
+      properties:
+        evidence:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - kind
+            - value
+            properties:
+              kind:
+                type: string
+                pattern: ^[a-z][a-z_]{2,39}$
+                description: Vocabulary pending owner approval.
+              value:
+                type: string
+                minLength: 2
+                maxLength: 300
+    VerificationOwnerView:
+      type: object
+      additionalProperties: false
+      required:
+      - state
+      - submitted_at
+      - decided_at
+      - reason_code
+      properties:
+        state:
+          type: string
+          enum:
+          - none
+          - submitted
+          - under_review
+          - needs_info
+          - verified
+          - rejected
+          - revoked
+        submitted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        decided_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        reason_code:
+          type:
+          - string
+          - 'null'
+    VerificationQueueItem:
+      type: object
+      additionalProperties: false
+      required:
+      - case_id
+      - business_id
+      - display_name
+      - state
+      - submitted_at
+      - assigned_to_you
+      properties:
+        case_id:
+          type: string
+          format: uuid
+        business_id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+        state:
+          type: string
+        submitted_at:
+          type: string
+          format: date-time
+        assigned_to_you:
+          type: boolean
+    VerificationQueuePage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/VerificationQueueItem'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          format: uuid
+    VerificationCaseView:
+      type: object
+      additionalProperties: false
+      required:
+      - case_id
+      - business_id
+      - state
+      - method
+      - display_name
+      - legal_name
+      - submitted_at
+      - assigned_to_you
+      - evidence
+      - duplicate_candidates
+      properties:
+        case_id:
+          type: string
+          format: uuid
+        business_id:
+          type: string
+          format: uuid
+        state:
+          type: string
+        method:
+          type: string
+        display_name:
+          type: string
+        legal_name:
+          type: string
+        submitted_at:
+          type: string
+          format: date-time
+        assigned_to_you:
+          type: boolean
+        evidence:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - id
+            - kind
+            - value
+            properties:
+              id:
+                type: string
+                format: uuid
+              kind:
+                type: string
+              value:
+                type: string
+        duplicate_candidates:
+          type: array
+          maxItems: 10
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - business_id
+            - display_name
+            - state
+            properties:
+              business_id:
+                type: string
+                format: uuid
+              display_name:
+                type: string
+              state:
+                type: string
+    VerificationClaimView:
+      type: object
+      additionalProperties: false
+      required:
+      - case_id
+      - state
+      properties:
+        case_id:
+          type: string
+          format: uuid
+        state:
+          type: string
+    VerificationDecision:
+      type: object
+      additionalProperties: false
+      required:
+      - decision
+      - reason_code
+      properties:
+        decision:
+          type: string
+          enum:
+          - verify
+          - reject
+          - request_info
+          - revoke
+        reason_code:
+          type: string
+          pattern: ^[a-z][a-z_]{2,39}$
+          description: Vocabulary pending owner approval.
+        note:
+          type: string
+          maxLength: 500
+    VerificationDecisionView:
+      type: object
+      additionalProperties: false
+      required:
+      - case_id
+      - state
+      - business_state
+      properties:
+        case_id:
+          type: string
+          format: uuid
+        state:
+          type: string
+        business_state:
+          type: string
+    BusinessReviewerGrant:
+      type: object
+      additionalProperties: false
+      required:
+      - reviewer_account_id
+      - scope
+      - active
+      properties:
+        reviewer_account_id:
+          type: string
+          format: uuid
+        scope:
+          type: string
+          enum:
+          - verification
+          - review_queue
+        target_business_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        active:
+          type: boolean
+    BusinessReviewerGrantView:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - scope
+      - active
+      properties:
+        id:
+          type: string
+          format: uuid
+        scope:
+          type: string
+        active:
+          type: boolean
+    ProfileEdit:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        display_name:
+          type: string
+          minLength: 2
+          maxLength: 80
+        category:
+          type: string
+          pattern: ^[a-z0-9-]{2,60}$
+        description:
+          type: string
+          maxLength: 2000
+        county_code:
+          type: string
+          pattern: ^[a-z0-9_]{2,40}$
+        city:
+          type: string
+          minLength: 1
+          maxLength: 80
+        address_line:
+          type: string
+          maxLength: 200
+        address_public:
+          type: boolean
+        latitude:
+          type:
+          - number
+          - 'null'
+          minimum: -90
+          maximum: 90
+        longitude:
+          type:
+          - number
+          - 'null'
+          minimum: -180
+          maximum: 180
+        coordinates_public:
+          type: boolean
+        time_zone:
+          type: string
+          maxLength: 64
+        contacts:
+          type: array
+          maxItems: 10
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - kind
+            - value
+            properties:
+              kind:
+                type: string
+                enum:
+                - phone
+                - email
+                - website
+                - social
+              value:
+                type: string
+                minLength: 3
+                maxLength: 300
+              is_public:
+                type: boolean
+                default: false
+    ProfileRevisionView:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - revision_no
+      - state
+      properties:
+        id:
+          type: string
+          format: uuid
+        revision_no:
+          type: integer
+        state:
+          type: string
+          enum:
+          - draft
+          - pending_review
+          - approved
+          - rejected
+          - superseded
+        display_name:
+          type: string
+        category:
+          type:
+          - string
+          - 'null'
+        description:
+          type: string
+        county_code:
+          type: string
+        city:
+          type: string
+        address_line:
+          type: string
+        address_public:
+          type: boolean
+        latitude:
+          type:
+          - string
+          - 'null'
+        longitude:
+          type:
+          - string
+          - 'null'
+        coordinates_public:
+          type: boolean
+        time_zone:
+          type: string
+        contacts:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - kind
+            - value
+            properties:
+              kind:
+                type: string
+                enum:
+                - phone
+                - email
+                - website
+                - social
+              value:
+                type: string
+                minLength: 3
+                maxLength: 300
+              is_public:
+                type: boolean
+                default: false
+        reason_code:
+          type:
+          - string
+          - 'null'
+        changed_fields:
+          type: array
+          items:
+            type: string
+        applied:
+          type: boolean
+          description: 'Present on submit: true when the change took effect without review.'
+    ProfileRevisionReviewView:
+      type: object
+      additionalProperties: false
+      required:
+      - business_id
+      - id
+      - revision_no
+      - state
+      properties:
+        business_id:
+          type: string
+          format: uuid
+        id:
+          type: string
+          format: uuid
+        revision_no:
+          type: integer
+        state:
+          type: string
+          enum:
+          - draft
+          - pending_review
+          - approved
+          - rejected
+          - superseded
+        display_name:
+          type: string
+        category:
+          type:
+          - string
+          - 'null'
+        description:
+          type: string
+        county_code:
+          type: string
+        city:
+          type: string
+        address_line:
+          type: string
+        address_public:
+          type: boolean
+        latitude:
+          type:
+          - string
+          - 'null'
+        longitude:
+          type:
+          - string
+          - 'null'
+        coordinates_public:
+          type: boolean
+        time_zone:
+          type: string
+        contacts:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - kind
+            - value
+            properties:
+              kind:
+                type: string
+                enum:
+                - phone
+                - email
+                - website
+                - social
+              value:
+                type: string
+                minLength: 3
+                maxLength: 300
+              is_public:
+                type: boolean
+                default: false
+        reason_code:
+          type:
+          - string
+          - 'null'
+        changed_fields:
+          type: array
+          items:
+            type: string
+        applied:
+          type: boolean
+          description: 'Present on submit: true when the change took effect without review.'
+    HoursRule:
+      type: object
+      additionalProperties: false
+      required:
+      - weekday
+      - opens
+      - closes
+      properties:
+        weekday:
+          type: integer
+          minimum: 0
+          maximum: 6
+        opens:
+          type: string
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+        closes:
+          type: string
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$|^24:00$
+    HoursExceptionItem:
+      type: object
+      additionalProperties: false
+      required:
+      - on_date
+      - closed
+      properties:
+        on_date:
+          type: string
+          format: date
+        closed:
+          type: boolean
+        opens:
+          type: string
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+        closes:
+          type: string
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$|^24:00$
+    HoursReplace:
+      type: object
+      additionalProperties: false
+      required:
+      - rules
+      properties:
+        rules:
+          type: array
+          maxItems: 28
+          items:
+            $ref: '#/components/schemas/HoursRule'
+        exceptions:
+          type: array
+          maxItems: 60
+          items:
+            $ref: '#/components/schemas/HoursExceptionItem'
+    HoursView:
+      type: object
+      additionalProperties: false
+      required:
+      - rules
+      - exceptions
+      properties:
+        rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/HoursRule'
+        exceptions:
+          type: array
+          items:
+            $ref: '#/components/schemas/HoursExceptionItem'
+    ProfileOverview:
+      type: object
+      additionalProperties: false
+      required:
+      - approved
+      - working
+      - last_rejected
+      - hours
+      properties:
+        approved:
+          oneOf:
+          - $ref: '#/components/schemas/ProfileRevisionView'
+          - type: 'null'
+        working:
+          oneOf:
+          - $ref: '#/components/schemas/ProfileRevisionView'
+          - type: 'null'
+        last_rejected:
+          oneOf:
+          - $ref: '#/components/schemas/ProfileRevisionView'
+          - type: 'null'
+        hours:
+          $ref: '#/components/schemas/HoursView'
+    CategoryView:
+      type: object
+      additionalProperties: false
+      required:
+      - slug
+      - name
+      - active
+      - parent
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+        active:
+          type: boolean
+        parent:
+          type:
+          - string
+          - 'null'
+    CategoryList:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryView'
+    CategoryPut:
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      - active
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 80
+        parent:
+          type:
+          - string
+          - 'null'
+        active:
+          type: boolean
+    ProfileQueuePage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - revision_id
+            - business_id
+            - display_name
+            - submitted_at
+            properties:
+              revision_id:
+                type: string
+                format: uuid
+              business_id:
+                type: string
+                format: uuid
+              display_name:
+                type: string
+              submitted_at:
+                type: string
+                format: date-time
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          format: uuid
+    ProfileDecision:
+      type: object
+      additionalProperties: false
+      required:
+      - decision
+      - reason_code
+      properties:
+        decision:
+          type: string
+          enum:
+          - approve
+          - reject
+        reason_code:
+          type: string
+          pattern: ^[a-z][a-z_]{2,39}$
+          description: Vocabulary pending owner approval.
+    ProfileDecisionView:
+      type: object
+      additionalProperties: false
+      required:
+      - revision_id
+      - state
+      properties:
+        revision_id:
+          type: string
+          format: uuid
+        state:
+          type: string
+    BusinessSearchItem:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - display_name
+      - category
+      - county_code
+      - city
+      - summary
+      - verified
+      - open_now
+      properties:
+        id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+        category:
+          type: object
+          additionalProperties: false
+          required:
+          - slug
+          - name
+          properties:
+            slug:
+              type: string
+            name:
+              type: string
+        county_code:
+          type: string
+        city:
+          type: string
+        summary:
+          type: string
+          maxLength: 200
+        verified:
+          type: boolean
+        open_now:
+          type:
+          - boolean
+          - 'null'
+    BusinessSearchPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/BusinessSearchItem'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+    BusinessPublicDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - rating
+      - id
+      - display_name
+      - category
+      - county_code
+      - city
+      - summary
+      - verified
+      - open_now
+      - description
+      - address_line
+      - time_zone
+      - hours
+      - contacts
+      - contacts_access
+      properties:
+        id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+        category:
+          type: object
+          additionalProperties: false
+          required:
+          - slug
+          - name
+          properties:
+            slug:
+              type: string
+            name:
+              type: string
+        county_code:
+          type: string
+        city:
+          type: string
+        summary:
+          type: string
+          maxLength: 200
+        verified:
+          type: boolean
+        open_now:
+          type:
+          - boolean
+          - 'null'
+        rating:
+          type: object
+          additionalProperties: false
+          required:
+          - count
+          - average
+          properties:
+            count:
+              type: integer
+              minimum: 0
+            average:
+              type:
+              - number
+              - 'null'
+              description: Null until the owner sets a minimum review count (DR-BZ-16).
+        description:
+          type: string
+        address_line:
+          type:
+          - string
+          - 'null'
+          description: Present only when the owner opted in.
+        time_zone:
+          type: string
+        hours:
+          $ref: '#/components/schemas/HoursView'
+        contacts:
+          type:
+          - array
+          - 'null'
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - kind
+            - value
+            properties:
+              kind:
+                type: string
+              value:
+                type: string
+        contacts_access:
+          type: string
+          enum:
+          - available
+          - none
+          - sign_in_required
+          - verified_email_required
+          - limit_reached
+    ListingStatus:
+      type: object
+      additionalProperties: false
+      required:
+      - listed
+      - owner_wants_listing
+      - eligible
+      - reasons
+      properties:
+        listed:
+          type: boolean
+        owner_wants_listing:
+          type: boolean
+        eligible:
+          type: boolean
+        reasons:
+          type: array
+          items:
+            type: string
+            enum:
+            - not_verified
+            - no_approved_profile
+    InquiryCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - subject_code
+      - body
+      properties:
+        subject_code:
+          type: string
+          pattern: ^[a-z][a-z_]{2,39}$
+          description: Vocabulary pending owner approval.
+        body:
+          type: string
+          minLength: 1
+          maxLength: 1000
+    InquiryMessageCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - body
+      properties:
+        body:
+          type: string
+          minLength: 1
+          maxLength: 1000
+    InquiryMessage:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - author_kind
+      - body
+      - removed
+      - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        author_kind:
+          type: string
+          enum:
+          - customer
+          - business
+        body:
+          type:
+          - string
+          - 'null'
+          maxLength: 1000
+        removed:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+    InquiryThreadCustomerView:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - business_id
+      - business_name
+      - state
+      - subject_code
+      - created_at
+      - confirmed
+      properties:
+        id:
+          type: string
+          format: uuid
+        business_id:
+          type: string
+          format: uuid
+        business_name:
+          type: string
+        state:
+          type: string
+          enum:
+          - open
+          - closed_by_customer
+          - closed_by_business
+          - blocked
+        subject_code:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        confirmed:
+          type: object
+          additionalProperties: false
+          required:
+          - customer
+          - business
+          properties:
+            customer:
+              type: boolean
+            business:
+              type: boolean
+        messages:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/InquiryMessage'
+    InquiryThreadCustomerPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/InquiryThreadCustomerView'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          format: uuid
+    InquiryThreadBusinessView:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - customer_label
+      - state
+      - subject_code
+      - created_at
+      - confirmed
+      properties:
+        id:
+          type: string
+          format: uuid
+        customer_label:
+          type: string
+          description: Pseudonymous; never an account id or name.
+        state:
+          type: string
+          enum:
+          - open
+          - closed_by_customer
+          - closed_by_business
+          - blocked
+        subject_code:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        confirmed:
+          type: object
+          additionalProperties: false
+          required:
+          - customer
+          - business
+          properties:
+            customer:
+              type: boolean
+            business:
+              type: boolean
+        messages:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/InquiryMessage'
+    InquiryThreadBusinessPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/InquiryThreadBusinessView'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          format: uuid
+    ReviewCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - rating
+      - body
+      properties:
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        title:
+          type: string
+          maxLength: 100
+        body:
+          type: string
+          minLength: 10
+          maxLength: 2000
+        interaction_thread_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: A thread both sides confirmed; gives basis interaction_confirmed.
+        invitation_code:
+          type:
+          - string
+          - 'null'
+          minLength: 16
+          maxLength: 64
+          description: A business-issued code; gives basis invited. Not combinable with interaction_thread_id.
+    ReviewEdit:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        title:
+          type: string
+          maxLength: 100
+        body:
+          type: string
+          minLength: 10
+          maxLength: 2000
+    ReviewOwnView:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - business_id
+      - rating
+      - title
+      - body
+      - state
+      - basis
+      - created_at
+      - edited_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        business_id:
+          type: string
+          format: uuid
+        rating:
+          type: integer
+        title:
+          type:
+          - string
+          - 'null'
+        body:
+          type: string
+        state:
+          type: string
+          enum:
+          - published
+          - held
+          - removed
+          - withdrawn
+        basis:
+          type: string
+          enum:
+          - interaction_confirmed
+          - invited
+          - open
+        created_at:
+          type: string
+          format: date-time
+        edited_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    ReviewOwnPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/ReviewOwnView'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+    ReviewPublicView:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - rating
+      - title
+      - body
+      - author_label
+      - basis
+      - created_at
+      - edited_at
+      - response
+      properties:
+        id:
+          type: string
+          format: uuid
+        rating:
+          type: integer
+        title:
+          type:
+          - string
+          - 'null'
+        body:
+          type: string
+        author_label:
+          type: string
+          description: Pseudonymous (Reviewer N); never an account id or name.
+        basis:
+          type: string
+          enum:
+          - interaction_confirmed
+          - invited
+          - open
+        created_at:
+          type: string
+          format: date-time
+        edited_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        response:
+          oneOf:
+          - type: object
+            additionalProperties: false
+            required:
+            - body
+            - created_at
+            properties:
+              body:
+                type: string
+              created_at:
+                type: string
+                format: date-time
+          - type: 'null'
+    ReviewPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/ReviewPublicView'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+    ReviewResponse:
+      type: object
+      additionalProperties: false
+      required:
+      - body
+      properties:
+        body:
+          type: string
+          minLength: 2
+          maxLength: 1000
+    ReviewResponseView:
+      type: object
+      additionalProperties: false
+      required:
+      - review_id
+      - body
+      - created_at
+      properties:
+        review_id:
+          type: string
+          format: uuid
+        body:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    ReviewInvitationReceipt:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - expires_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        expires_at:
+          type: string
+          format: date-time
+        code:
+          type: string
+          description: Shown once; absent on an idempotent replay.
+    ReviewInvitationRevoked:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - state
+      properties:
+        id:
+          type: string
+          format: uuid
+        state:
+          type: string
+          const: revoked
+    BusinessReportCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - subject_type
+      - subject_id
+      - reason_code
+      properties:
+        subject_type:
+          type: string
+          enum:
+          - review
+          - review_response
+          - inquiry_message
+        subject_id:
+          type: string
+          format: uuid
+        reason_code:
+          type: string
+          pattern: ^[a-z][a-z_]{2,39}$
+          description: Vocabulary pending owner approval.
+        details:
+          type: string
+          maxLength: 1000
+    BusinessReportReceipt:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - state
+      properties:
+        id:
+          type: string
+          format: uuid
+        state:
+          type: string
+    BusinessReportQueuePage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - report_id
+            - subject_type
+            - business_id
+            - reason_code
+            - system_hold
+            - created_at
+            properties:
+              report_id:
+                type: string
+                format: uuid
+              subject_type:
+                type: string
+              business_id:
+                type: string
+                format: uuid
+              reason_code:
+                type: string
+              system_hold:
+                type: boolean
+              created_at:
+                type: string
+                format: date-time
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          format: uuid
+    BusinessReportCase:
+      type: object
+      additionalProperties: false
+      required:
+      - report_id
+      - subject_type
+      - subject_id
+      - business_id
+      - reason_code
+      - details
+      - system_hold
+      - content
+      properties:
+        report_id:
+          type: string
+          format: uuid
+        subject_type:
+          type: string
+        subject_id:
+          type: string
+          format: uuid
+        business_id:
+          type: string
+          format: uuid
+        reason_code:
+          type: string
+        details:
+          type: string
+        system_hold:
+          type: boolean
+        content:
+          type:
+          - object
+          - 'null'
+    BusinessReportDecision:
+      type: object
+      additionalProperties: false
+      required:
+      - decision
+      - reason_code
+      properties:
+        decision:
+          type: string
+          enum:
+          - remove
+          - keep
+        reason_code:
+          type: string
+          pattern: ^[a-z][a-z_]{2,39}$
+          description: Vocabulary pending owner approval.
+    BusinessReportDecided:
+      type: object
+      additionalProperties: false
+      required:
+      - report_id
+      - state
+      - decision
+      properties:
+        report_id:
+          type: string
+          format: uuid
+        state:
+          type: string
+        decision:
+          type: string
   responses:
     VideoUploadStatus:
       description: Current owner-visible upload or processing state

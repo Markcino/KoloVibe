@@ -1,6 +1,8 @@
 # Business module (R2) — owner decision register
 
-**Status: PROPOSED for owner review. Nothing here is approved.** Phase 6A, 24 November 2026. Accountable owner: Mark Allen Gbalazeh (@Markcino).
+**Status update, 24 November 2026: the owner approved all 26 recommendations as written; see the [approval record](BIZ-Owner_Approval_Record_2026-11-24.md), which also lists what that approval does not supply.** The original proposal text follows unchanged.
+
+**Original status: PROPOSED for owner review. Nothing here is approved.** Phase 6A, 24 November 2026. Accountable owner: Mark Allen Gbalazeh (@Markcino).
 
 This register lists every policy the Phase 6A design deliberately does **not** decide. Each entry gives the question, why it matters, the realistic options, a recommendation (a recommendation is a proposal, not a decision) and what it blocks. Per [DOC-023](../../requirements/DOC-023_Change_Control_Proposed.md), a decision is recorded only when the owner decides against an exact document revision, with a link and actual date. Until then the status stays **Open**.
 

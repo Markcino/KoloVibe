@@ -36,6 +36,15 @@ class ProducerTests(TestCase):
             self.assertEqual(self.send(producer, other)[0].status_code, 400)
         self.assertEqual(self.send("gateway", "account.registered")[0].status_code, 403)
 
+    def test_business_events_are_producer_bound_and_carry_a_business_subject(self):
+        response, payload = self.send("business", "business.registered", subject_type="business", subject_id=str(uuid4()))
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(SecurityEvent.objects.get(pk=payload["id"]).producer, "business")
+        self.assertEqual(self.send("identity", "business.registered")[0].status_code, 400)
+        self.assertEqual(self.send("business", "account.registered")[0].status_code, 400)
+        self.assertEqual(self.send("business", "business.verification_decided")[0].status_code, 201)
+        self.assertEqual(self.send("business", "business.payment_taken")[0].status_code, 400)
+
     def test_points_ledger_decision_payload_is_ingested_with_null_actor_and_is_producer_bound(self):
         # Exact shape emitted by the Points deliver_audit_events command.
         for kind in ("points.awarded", "points.withheld"):
