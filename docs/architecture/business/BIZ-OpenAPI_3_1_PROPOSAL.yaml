@@ -1,0 +1,3634 @@
+# Business module (R2) — OpenAPI 3.1 PROPOSAL
+#
+# STATUS: PROPOSED. Not approved, not implemented, not deployed. Every operation is x-implementation: none.
+# Phase 6A, 24 November 2026. Companion documents: docs/requirements/DOC-020_Business_Requirements_and_Scope_PROPOSED.md,
+# docs/security/phase6/BIZ-RBAC_and_Object_Authorization_Matrix_PROPOSED.md (BZ-AZ-nn rows),
+# docs/architecture/business/BIZ-Owner_Decision_Register_PROPOSED.md (DR-BZ-nn open policies).
+#
+# This file is deliberately NOT part of DOC-205 and is not read by any repository test. If the owner approves the
+# design, S1 merges the approved operations into DOC-205 so the existing route-contract test (every gateway route must be
+# declared; anonymous list exactly as declared) covers them.
+#
+# Vendor extensions:
+#   x-implementation   none (every operation here)
+#   x-slice            backlog slice that would introduce the route (S2..S8)
+#   x-capability       gateway flag that keeps the route closed by default
+#   x-required-roles   Identity roles allowed through the gateway (DOC-205 convention)
+#   x-business-roles   per-business membership roles allowed (owner, staff); checked by the Business service per object
+#   x-requires-mfa     true when the live session must be MFA-verified (existing principal() behaviour)
+#   x-authz-ref        row in the authorization matrix
+#   x-requirements     BZ-R requirement ids
+#   x-policy-pending   open owner decisions that change this operation's behaviour
+#
+# Conventions: errors use the gateway shape {"detail": "..."}; a caller without entitlement to an object gets 404, never 403,
+# so existence is not disclosed; all request bodies reject unknown fields; text is plain text; cursors are opaque.
+openapi: 3.1.0
+info:
+  title: KoloVibe Business module (R2) — API PROPOSAL
+  version: 0.1.0-proposal
+  description: PROPOSED design contract for owner review. No operation is implemented. Policies marked x-policy-pending are
+    open owner decisions and are not decided here.
+x-default-implementation: none
+servers:
+- url: https://api.example.invalid/api/v1
+  description: Placeholder; never use in production
+tags:
+- name: Public
+- name: Customer
+- name: Owner
+- name: Reviewer
+- name: Admin
+security:
+- bearerAuth: []
+paths:
+  /business-categories:
+    get:
+      tags:
+      - Public
+      summary: List active business categories
+      operationId: business_list_categories
+      x-implementation: none
+      x-slice: S4
+      x-capability: business_discovery
+      x-authz-ref: BZ-AZ-01
+      x-requirements:
+      - BZ-R-011
+      x-policy-pending:
+      - DR-BZ-10
+      - DR-BZ-12
+      security: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryList'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /businesses:
+    get:
+      tags:
+      - Public
+      summary: Search and filter listed businesses
+      operationId: business_search
+      description: Reads only the public listing projection. Unknown query parameters are rejected with 400.
+      x-implementation: none
+      x-slice: S4
+      x-capability: business_discovery
+      x-authz-ref: BZ-AZ-02
+      x-requirements:
+      - BZ-R-016
+      - BZ-R-017
+      - BZ-R-018
+      - BZ-R-019
+      - BZ-R-020
+      x-policy-pending:
+      - DR-BZ-05
+      - DR-BZ-12
+      - DR-BZ-13
+      security: []
+      parameters:
+      - name: q
+        in: query
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 100
+      - name: category
+        in: query
+        schema:
+          type: string
+          pattern: ^[a-z0-9-]{2,60}$
+      - name: county
+        in: query
+        schema:
+          type: string
+          pattern: ^[a-z0-9_]{2,40}$
+        description: Controlled region value; list pending DR-BZ-10.
+      - name: open_now
+        in: query
+        schema:
+          type: boolean
+      - name: verified
+        in: query
+        schema:
+          type: boolean
+      - name: sort
+        in: query
+        schema:
+          type: string
+          enum:
+          - relevance
+          - name
+          default: relevance
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /businesses/{business_id}:
+    get:
+      tags:
+      - Public
+      summary: Read one listed business
+      operationId: business_get_public
+      x-implementation: none
+      x-slice: S4
+      x-capability: business_discovery
+      x-authz-ref: BZ-AZ-03
+      x-requirements:
+      - BZ-R-016
+      - BZ-R-019
+      - BZ-R-020
+      x-policy-pending:
+      - DR-BZ-05
+      - DR-BZ-09
+      - DR-BZ-12
+      security: []
+      parameters:
+      - $ref: '#/components/parameters/BusinessId'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /businesses/{business_id}/reviews:
+    get:
+      tags:
+      - Public
+      summary: List published reviews of a listed business
+      operationId: business_list_reviews
+      x-implementation: none
+      x-slice: S6
+      x-capability: business_reviews
+      x-authz-ref: BZ-AZ-04
+      x-requirements:
+      - BZ-R-028
+      - BZ-R-030
+      x-policy-pending:
+      - DR-BZ-15
+      - DR-BZ-16
+      security: []
+      parameters:
+      - $ref: '#/components/parameters/BusinessId'
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+    post:
+      tags:
+      - Customer
+      summary: Review a listed business
+      operationId: review_create
+      description: Eligibility is decided by the approved authenticity policy; the basis is stored with the review.
+      x-implementation: none
+      x-slice: S6
+      x-capability: business_reviews
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-10
+      x-requirements:
+      - BZ-R-026
+      - BZ-R-027
+      - BZ-R-028
+      - BZ-R-042
+      x-policy-pending:
+      - DR-BZ-15
+      - DR-BZ-16
+      - DR-BZ-22
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/BusinessId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewOwn'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /businesses/{business_id}/inquiries:
+    post:
+      tags:
+      - Customer
+      summary: Start an inquiry with a listed business
+      operationId: inquiry_create
+      description: Requires a verified email. The business never receives the caller's account id or email.
+      x-implementation: none
+      x-slice: S5
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-05
+      x-requirements:
+      - BZ-R-021
+      - BZ-R-022
+      - BZ-R-024
+      - BZ-R-042
+      x-policy-pending:
+      - DR-BZ-14
+      - DR-BZ-22
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/BusinessId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InquiryCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadCustomer'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /me/inquiries:
+    get:
+      tags:
+      - Customer
+      summary: List the caller's own inquiry threads
+      operationId: inquiry_list_mine
+      x-implementation: none
+      x-slice: S5
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-06
+      x-requirements:
+      - BZ-R-021
+      - BZ-R-033
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /me/inquiries/{thread_id}:
+    get:
+      tags:
+      - Customer
+      summary: Read one of the caller's own inquiry threads
+      operationId: inquiry_get_mine
+      x-implementation: none
+      x-slice: S5
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-07
+      x-requirements:
+      - BZ-R-034
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/ThreadId'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadCustomer'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /me/inquiries/{thread_id}/messages:
+    post:
+      tags:
+      - Customer
+      summary: Add a customer message to an open thread
+      operationId: inquiry_customer_message
+      x-implementation: none
+      x-slice: S5
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-08
+      x-requirements:
+      - BZ-R-022
+      - BZ-R-042
+      x-policy-pending:
+      - DR-BZ-14
+      - DR-BZ-22
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/ThreadId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadCustomer'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /me/inquiries/{thread_id}/close:
+    post:
+      tags:
+      - Customer
+      summary: Close the caller's own thread
+      operationId: inquiry_customer_close
+      x-implementation: none
+      x-slice: S5
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-09
+      x-requirements:
+      - BZ-R-024
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/ThreadId'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadCustomer'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /me/reviews:
+    get:
+      tags:
+      - Customer
+      summary: List the caller's own reviews
+      operationId: review_list_mine
+      x-implementation: none
+      x-slice: S6
+      x-capability: business_reviews
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-11
+      x-requirements:
+      - BZ-R-031
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewOwnPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /me/reviews/{review_id}:
+    patch:
+      tags:
+      - Customer
+      summary: Edit the caller's own review
+      operationId: review_edit_mine
+      x-implementation: none
+      x-slice: S6
+      x-capability: business_reviews
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-12
+      x-requirements:
+      - BZ-R-031
+      - BZ-R-034
+      x-policy-pending:
+      - DR-BZ-16
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/ReviewId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewEdit'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewOwn'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+    delete:
+      tags:
+      - Customer
+      summary: Withdraw the caller's own review
+      operationId: review_withdraw_mine
+      x-implementation: none
+      x-slice: S6
+      x-capability: business_reviews
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-13
+      x-requirements:
+      - BZ-R-031
+      - BZ-R-034
+      x-policy-pending:
+      - DR-BZ-16
+      - DR-BZ-18
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/ReviewId'
+      responses:
+        '204':
+          description: Withdrawn
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /business-reports:
+    post:
+      tags:
+      - Customer
+      summary: Report a listing, review, response or inquiry message
+      operationId: business_report_create
+      description: Any signed-in account; one open report per reporter and subject. Routed to the moderation workflow.
+      x-implementation: none
+      x-slice: S6
+      x-capability: business_reviews
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-14
+      x-requirements:
+      - BZ-R-025
+      - BZ-R-032
+      - BZ-R-042
+      x-policy-pending:
+      - DR-BZ-17
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportReceipt'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /me/reviews/{review_id}/appeals:
+    post:
+      tags:
+      - Customer
+      summary: Appeal removal of the caller's own review
+      operationId: review_appeal_create
+      x-implementation: none
+      x-slice: S6
+      x-capability: business_reviews
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-53
+      x-requirements:
+      - BZ-R-032
+      x-policy-pending:
+      - DR-BZ-16
+      - DR-BZ-17
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/ReviewId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppealCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportReceipt'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /me/businesses:
+    post:
+      tags:
+      - Owner
+      summary: Register a draft business; caller becomes its first owner
+      operationId: business_register
+      x-implementation: none
+      x-slice: S2
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-15
+      x-requirements:
+      - BZ-R-001
+      - BZ-R-003
+      - BZ-R-042
+      x-policy-pending:
+      - DR-BZ-03
+      - DR-BZ-09
+      - DR-BZ-10
+      - DR-BZ-22
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BusinessRegister'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerBusiness'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+    get:
+      tags:
+      - Owner
+      summary: List businesses where the caller holds an active membership
+      operationId: business_list_mine
+      x-implementation: none
+      x-slice: S2
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-business-roles:
+      - owner
+      - staff
+      x-authz-ref: BZ-AZ-16
+      x-requirements:
+      - BZ-R-033
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerBusinessPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /me/businesses/{business_id}:
+    get:
+      tags:
+      - Owner
+      summary: Read a business the caller belongs to
+      operationId: business_get_mine
+      x-implementation: none
+      x-slice: S2
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-business-roles:
+      - owner
+      - staff
+      x-authz-ref: BZ-AZ-17
+      x-requirements:
+      - BZ-R-033
+      - BZ-R-034
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/BusinessId'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerBusiness'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /me/businesses/{business_id}/profile:
+    patch:
+      tags:
+      - Owner
+      summary: Edit the working profile revision
+      operationId: business_profile_edit
+      description: Creates or updates the working revision only; what is public does not change until approval where required.
+      x-implementation: none
+      x-slice: S2
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-business-roles:
+      - owner
+      x-authz-ref: BZ-AZ-18
+      x-requirements:
+      - BZ-R-007
+      - BZ-R-010
+      - BZ-R-011
+      - BZ-R-012
+      - BZ-R-014
+      - BZ-R-015
+      x-policy-pending:
+      - DR-BZ-09
+      - DR-BZ-10
+      - DR-BZ-11
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/BusinessId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileEdit'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileRevision'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /me/businesses/{business_id}/profile/submit:
+    post:
+      tags:
+      - Owner
+      summary: Submit the working revision for review
+      operationId: business_profile_submit
+      x-implementation: none
+      x-slice: S2
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-business-roles:
+      - owner
+      x-authz-ref: BZ-AZ-19
+      x-requirements:
+      - BZ-R-007
+      - BZ-R-010
+      x-policy-pending:
+      - DR-BZ-11
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/BusinessId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileRevision'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /me/businesses/{business_id}/hours:
+    put:
+      tags:
+      - Owner
+      summary: Replace weekly hours and exceptions
+      operationId: business_hours_replace
+      x-implementation: none
+      x-slice: S2
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-business-roles:
+      - owner
+      - staff
+      x-authz-ref: BZ-AZ-20
+      x-requirements:
+      - BZ-R-013
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/BusinessId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HoursReplace'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Hours'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /me/businesses/{business_id}/listing/publish:
+    post:
+      tags:
+      - Owner
+      summary: Ask to list the business publicly
+      operationId: business_listing_publish
+      description: Succeeds only when the eligibility predicate allows listing; otherwise 409 with a non-sensitive reason
+        code.
+      x-implementation: none
+      x-slice: S4
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-business-roles:
+      - owner
+      x-authz-ref: BZ-AZ-21
+      x-requirements:
+      - BZ-R-016
+      - BZ-R-006
+      x-policy-pending:
+      - DR-BZ-05
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/BusinessId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerBusiness'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /me/businesses/{business_id}/listing/unpublish:
+    post:
+      tags:
+      - Owner
+      summary: Remove the business from public listing
+      operationId: business_listing_unpublish
+      x-implementation: none
+      x-slice: S4
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-business-roles:
+      - owner
+      x-authz-ref: BZ-AZ-22
+      x-requirements:
+      - BZ-R-020
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/BusinessId'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerBusiness'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /me/businesses/{business_id}/verification:
+    post:
+      tags:
+      - Owner
+      summary: Submit an ownership verification case
+      operationId: verification_submit
+      x-implementation: none
+      x-slice: S3
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-business-roles:
+      - owner
+      x-authz-ref: BZ-AZ-23
+      x-requirements:
+      - BZ-R-003
+      - BZ-R-004
+      - BZ-R-042
+      x-policy-pending:
+      - DR-BZ-04
+      - DR-BZ-19
+      - DR-BZ-22
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/BusinessId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificationSubmit'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationStatus'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+    get:
+      tags:
+      - Owner
+      summary: Read the verification status
+      operationId: verification_status_mine
+      x-implementation: none
+      x-slice: S3
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-business-roles:
+      - owner
+      x-authz-ref: BZ-AZ-24
+      x-requirements:
+      - BZ-R-004
+      - BZ-R-034
+      x-policy-pending:
+      - DR-BZ-04
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/BusinessId'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationStatus'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /me/businesses/{business_id}/close:
+    post:
+      tags:
+      - Owner
+      summary: Close the business
+      operationId: business_close
+      x-implementation: none
+      x-slice: S2
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-business-roles:
+      - owner
+      x-authz-ref: BZ-AZ-25
+      x-requirements:
+      - BZ-R-002
+      - BZ-R-009
+      x-policy-pending:
+      - DR-BZ-25
+      - DR-BZ-18
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/BusinessId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerBusiness'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /me/businesses/{business_id}/appeals:
+    post:
+      tags:
+      - Owner
+      summary: Appeal a suspension or verification rejection
+      operationId: business_appeal_create
+      x-implementation: none
+      x-slice: S3
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-business-roles:
+      - owner
+      x-authz-ref: BZ-AZ-52
+      x-requirements:
+      - BZ-R-009
+      x-policy-pending:
+      - DR-BZ-25
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/BusinessId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppealCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportReceipt'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /me/businesses/{business_id}/inquiries:
+    get:
+      tags:
+      - Owner
+      summary: List inquiry threads addressed to the business
+      operationId: inquiry_inbox_list
+      x-implementation: none
+      x-slice: S5
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-business-roles:
+      - owner
+      - staff
+      x-authz-ref: BZ-AZ-26
+      x-requirements:
+      - BZ-R-023
+      - BZ-R-034
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/BusinessId'
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryOwnerPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /me/businesses/{business_id}/inquiries/{thread_id}:
+    get:
+      tags:
+      - Owner
+      summary: Read one inquiry thread of the business
+      operationId: inquiry_inbox_get
+      x-implementation: none
+      x-slice: S5
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-business-roles:
+      - owner
+      - staff
+      x-authz-ref: BZ-AZ-27
+      x-requirements:
+      - BZ-R-023
+      - BZ-R-034
+      - BZ-R-044
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/BusinessId'
+      - $ref: '#/components/parameters/ThreadId'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadOwner'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /me/businesses/{business_id}/inquiries/{thread_id}/messages:
+    post:
+      tags:
+      - Owner
+      summary: Reply as the business
+      operationId: inquiry_business_reply
+      x-implementation: none
+      x-slice: S5
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-business-roles:
+      - owner
+      - staff
+      x-authz-ref: BZ-AZ-28
+      x-requirements:
+      - BZ-R-022
+      - BZ-R-042
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/BusinessId'
+      - $ref: '#/components/parameters/ThreadId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadOwner'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /me/businesses/{business_id}/inquiries/{thread_id}/close:
+    post:
+      tags:
+      - Owner
+      summary: Close a thread as the business
+      operationId: inquiry_business_close
+      x-implementation: none
+      x-slice: S5
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-business-roles:
+      - owner
+      - staff
+      x-authz-ref: BZ-AZ-29
+      x-requirements:
+      - BZ-R-024
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/BusinessId'
+      - $ref: '#/components/parameters/ThreadId'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadOwner'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /me/businesses/{business_id}/inquiries/{thread_id}/block:
+    post:
+      tags:
+      - Owner
+      summary: Block the thread's customer from messaging this business
+      operationId: inquiry_block_customer
+      description: The customer is identified only through the thread; no customer identifier is exposed.
+      x-implementation: none
+      x-slice: S5
+      x-capability: business_inquiries
+      x-required-roles:
+      - viewer
+      - creator
+      x-business-roles:
+      - owner
+      x-authz-ref: BZ-AZ-30
+      x-requirements:
+      - BZ-R-024
+      - BZ-R-023
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/BusinessId'
+      - $ref: '#/components/parameters/ThreadId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryThreadOwner'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /me/businesses/{business_id}/reviews/{review_id}/response:
+    put:
+      tags:
+      - Owner
+      summary: Post or replace the business's one response to a review
+      operationId: review_response_put
+      x-implementation: none
+      x-slice: S6
+      x-capability: business_reviews
+      x-required-roles:
+      - viewer
+      - creator
+      x-business-roles:
+      - owner
+      x-authz-ref: BZ-AZ-31
+      x-requirements:
+      - BZ-R-029
+      x-policy-pending:
+      - DR-BZ-16
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/BusinessId'
+      - $ref: '#/components/parameters/ReviewId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewResponse'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewResponseView'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+    delete:
+      tags:
+      - Owner
+      summary: Delete the business's response
+      operationId: review_response_delete
+      x-implementation: none
+      x-slice: S6
+      x-capability: business_reviews
+      x-required-roles:
+      - viewer
+      - creator
+      x-business-roles:
+      - owner
+      x-authz-ref: BZ-AZ-32
+      x-requirements:
+      - BZ-R-029
+      x-policy-pending:
+      - DR-BZ-16
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/BusinessId'
+      - $ref: '#/components/parameters/ReviewId'
+      responses:
+        '204':
+          description: Deleted
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /me/businesses/{business_id}/members:
+    get:
+      tags:
+      - Owner
+      summary: List members of the business
+      operationId: member_list
+      x-implementation: none
+      x-slice: S8
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-business-roles:
+      - owner
+      x-authz-ref: BZ-AZ-33
+      x-requirements:
+      - BZ-R-002
+      - BZ-R-033
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/BusinessId'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+    post:
+      tags:
+      - Owner
+      summary: Invite a staff member
+      operationId: member_invite
+      x-implementation: none
+      x-slice: S8
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-business-roles:
+      - owner
+      x-authz-ref: BZ-AZ-34
+      x-requirements:
+      - BZ-R-002
+      - BZ-R-036
+      x-policy-pending:
+      - DR-BZ-08
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/BusinessId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberInvite'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberInvitation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /me/businesses/{business_id}/members/{member_id}:
+    delete:
+      tags:
+      - Owner
+      summary: Remove a member
+      operationId: member_remove
+      description: The last active owner cannot be removed.
+      x-implementation: none
+      x-slice: S8
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-business-roles:
+      - owner
+      x-authz-ref: BZ-AZ-35
+      x-requirements:
+      - BZ-R-002
+      - BZ-R-035
+      - BZ-R-036
+      x-policy-pending:
+      - DR-BZ-08
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/BusinessId'
+      - $ref: '#/components/parameters/MemberId'
+      responses:
+        '204':
+          description: Removed
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /me/businesses/{business_id}/ownership-transfer:
+    post:
+      tags:
+      - Owner
+      summary: Transfer ownership to an existing member
+      operationId: ownership_transfer
+      x-implementation: none
+      x-slice: S8
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-business-roles:
+      - owner
+      x-authz-ref: BZ-AZ-36
+      x-requirements:
+      - BZ-R-008
+      - BZ-R-036
+      x-policy-pending:
+      - DR-BZ-04
+      - DR-BZ-08
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/BusinessId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OwnershipTransfer'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerBusiness'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /moderation/business-verifications:
+    get:
+      tags:
+      - Reviewer
+      summary: List verification cases the reviewer may decide
+      operationId: verification_queue
+      x-implementation: none
+      x-slice: S3
+      x-capability: business_review_admin
+      x-required-roles:
+      - moderator
+      - administrator
+      x-requires-mfa: true
+      x-authz-ref: BZ-AZ-40
+      x-requirements:
+      - BZ-R-004
+      - BZ-R-005
+      - BZ-R-044
+      x-policy-pending:
+      - DR-BZ-07
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationQueuePage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /moderation/business-verifications/{case_id}:
+    get:
+      tags:
+      - Reviewer
+      summary: Read one verification case
+      operationId: verification_case_get
+      description: Includes the private legal name and evidence metadata; every read is audited.
+      x-implementation: none
+      x-slice: S3
+      x-capability: business_review_admin
+      x-required-roles:
+      - moderator
+      - administrator
+      x-requires-mfa: true
+      x-authz-ref: BZ-AZ-41
+      x-requirements:
+      - BZ-R-005
+      - BZ-R-044
+      x-policy-pending:
+      - DR-BZ-07
+      - DR-BZ-19
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/CaseId'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationCase'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /moderation/business-verifications/{case_id}/decision:
+    post:
+      tags:
+      - Reviewer
+      summary: Decide a verification case
+      operationId: verification_decide
+      description: Idempotent. The reviewer cannot be the submitter or an affiliated account. A repeated key returns the recorded
+        result.
+      x-implementation: none
+      x-slice: S3
+      x-capability: business_review_admin
+      x-required-roles:
+      - moderator
+      - administrator
+      x-requires-mfa: true
+      x-authz-ref: BZ-AZ-42
+      x-requirements:
+      - BZ-R-004
+      - BZ-R-005
+      - BZ-R-044
+      x-policy-pending:
+      - DR-BZ-04
+      - DR-BZ-07
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/CaseId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificationDecision'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationCase'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /moderation/business-verifications/{case_id}/evidence/{evidence_id}/read-grant:
+    post:
+      tags:
+      - Reviewer
+      summary: Obtain a short-lived read grant for one evidence object
+      operationId: evidence_read_grant
+      description: Narrow grant scope; every issue is audited; the object is never publicly addressable.
+      x-implementation: none
+      x-slice: S3
+      x-capability: business_review_admin
+      x-required-roles:
+      - moderator
+      - administrator
+      x-requires-mfa: true
+      x-authz-ref: BZ-AZ-43
+      x-requirements:
+      - BZ-R-045
+      - BZ-R-044
+      x-policy-pending:
+      - DR-BZ-07
+      - DR-BZ-19
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/CaseId'
+      - $ref: '#/components/parameters/EvidenceId'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvidenceReadGrant'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /moderation/business-reports:
+    get:
+      tags:
+      - Reviewer
+      summary: List business reports assigned to the reviewer
+      operationId: business_report_queue
+      x-implementation: none
+      x-slice: S6
+      x-capability: business_review_admin
+      x-required-roles:
+      - moderator
+      - administrator
+      x-requires-mfa: true
+      x-authz-ref: BZ-AZ-44
+      x-requirements:
+      - BZ-R-032
+      - BZ-R-005
+      x-policy-pending:
+      - DR-BZ-17
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportQueuePage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /moderation/business-reports/{report_id}/decision:
+    post:
+      tags:
+      - Reviewer
+      summary: Decide a business report
+      operationId: business_report_decide
+      x-implementation: none
+      x-slice: S6
+      x-capability: business_review_admin
+      x-required-roles:
+      - moderator
+      - administrator
+      x-requires-mfa: true
+      x-authz-ref: BZ-AZ-45
+      x-requirements:
+      - BZ-R-032
+      - BZ-R-005
+      - BZ-R-044
+      x-policy-pending:
+      - DR-BZ-16
+      - DR-BZ-17
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/ReportId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportDecision'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportReceipt'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /admin/businesses/{business_id}/suspension:
+    post:
+      tags:
+      - Admin
+      summary: Suspend a business
+      operationId: business_suspend
+      x-implementation: none
+      x-slice: S3
+      x-capability: business_review_admin
+      x-required-roles:
+      - moderator
+      - administrator
+      x-requires-mfa: true
+      x-authz-ref: BZ-AZ-46
+      x-requirements:
+      - BZ-R-009
+      - BZ-R-044
+      x-policy-pending:
+      - DR-BZ-25
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/BusinessId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Suspension'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerBusiness'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /admin/businesses/{business_id}/restoration:
+    post:
+      tags:
+      - Admin
+      summary: Restore a suspended business
+      operationId: business_restore
+      description: Must be performed by a different reviewer than the one who suspended.
+      x-implementation: none
+      x-slice: S3
+      x-capability: business_review_admin
+      x-required-roles:
+      - administrator
+      x-requires-mfa: true
+      x-authz-ref: BZ-AZ-47
+      x-requirements:
+      - BZ-R-009
+      - BZ-R-005
+      x-policy-pending:
+      - DR-BZ-25
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/BusinessId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Suspension'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerBusiness'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /admin/business-categories:
+    post:
+      tags:
+      - Admin
+      summary: Create a business category
+      operationId: category_create
+      x-implementation: none
+      x-slice: S2
+      x-capability: business_review_admin
+      x-required-roles:
+      - administrator
+      x-requires-mfa: true
+      x-authz-ref: BZ-AZ-48
+      x-requirements:
+      - BZ-R-011
+      x-policy-pending:
+      - DR-BZ-10
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryInput'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /admin/business-categories/{category_id}:
+    patch:
+      tags:
+      - Admin
+      summary: Rename or deactivate a category
+      operationId: category_update
+      x-implementation: none
+      x-slice: S2
+      x-capability: business_review_admin
+      x-required-roles:
+      - administrator
+      x-requires-mfa: true
+      x-authz-ref: BZ-AZ-49
+      x-requirements:
+      - BZ-R-011
+      x-policy-pending:
+      - DR-BZ-10
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/CategoryId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryInput'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /admin/business-reviewer-grants:
+    put:
+      tags:
+      - Admin
+      summary: Grant a reviewer a scoped business review assignment
+      operationId: reviewer_grant_put
+      x-implementation: none
+      x-slice: S3
+      x-capability: business_review_admin
+      x-required-roles:
+      - administrator
+      x-requires-mfa: true
+      x-authz-ref: BZ-AZ-50
+      x-requirements:
+      - BZ-R-005
+      - BZ-R-044
+      x-policy-pending:
+      - DR-BZ-07
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewerGrantInput'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewerGrant'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /admin/business-reviewer-grants/{grant_id}:
+    delete:
+      tags:
+      - Admin
+      summary: Revoke a reviewer grant
+      operationId: reviewer_grant_revoke
+      x-implementation: none
+      x-slice: S3
+      x-capability: business_review_admin
+      x-required-roles:
+      - administrator
+      x-requires-mfa: true
+      x-authz-ref: BZ-AZ-51
+      x-requirements:
+      - BZ-R-005
+      - BZ-R-035
+      - BZ-R-044
+      x-policy-pending:
+      - DR-BZ-07
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/GrantId'
+      responses:
+        '204':
+          description: Revoked
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Django-signed
+  parameters:
+    BusinessId:
+      name: business_id
+      in: path
+      required: true
+      schema: &id001
+        type: string
+        format: uuid
+    ThreadId:
+      name: thread_id
+      in: path
+      required: true
+      schema: *id001
+    ReviewId:
+      name: review_id
+      in: path
+      required: true
+      schema: *id001
+    ReportId:
+      name: report_id
+      in: path
+      required: true
+      schema: *id001
+    CaseId:
+      name: case_id
+      in: path
+      required: true
+      schema: *id001
+    EvidenceId:
+      name: evidence_id
+      in: path
+      required: true
+      schema: *id001
+    CategoryId:
+      name: category_id
+      in: path
+      required: true
+      schema: *id001
+    MemberId:
+      name: member_id
+      in: path
+      required: true
+      schema: *id001
+    GrantId:
+      name: grant_id
+      in: path
+      required: true
+      schema: *id001
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+        maxLength: 512
+      description: Opaque, tamper-evident cursor.
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 20
+        default: 20
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        pattern: ^[A-Za-z0-9_-]{16,128}$
+  responses:
+    BadRequest:
+      description: 'Invalid request: unknown field, wrong type, out of bounds or malformed cursor'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Missing, expired or revoked session
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Role, MFA or verified-email requirement not met, or a policy refusal that may be disclosed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Object does not exist OR the caller is not entitled to it (indistinguishable by design)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: State conflict, duplicate, idempotency-key reuse with a different payload, or policy refusal
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Throttled
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unavailable:
+      description: Service unavailable; no detail
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Error:
+      type: object
+      additionalProperties: false
+      properties:
+        detail:
+          type: string
+      required:
+      - detail
+    Category:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id001
+        slug:
+          type: string
+          pattern: ^[a-z0-9-]{2,60}$
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        parent_slug:
+          type:
+          - string
+          - 'null'
+        active:
+          type: boolean
+      required:
+      - id
+      - slug
+      - name
+    CategoryList:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          maxItems: 500
+          items:
+            $ref: '#/components/schemas/Category'
+      required:
+      - items
+    CategoryInput:
+      type: object
+      additionalProperties: false
+      properties:
+        slug:
+          type: string
+          pattern: ^[a-z0-9-]{2,60}$
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        parent_slug:
+          type:
+          - string
+          - 'null'
+        active:
+          type: boolean
+    Rating:
+      type: object
+      additionalProperties: false
+      properties:
+        count:
+          type: integer
+          minimum: 0
+        average:
+          type:
+          - number
+          - 'null'
+          minimum: 1
+          maximum: 5
+          description: Null below the owner-approved minimum review count.
+      required:
+      - count
+      - average
+    PublicContact:
+      type: object
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          enum:
+          - phone
+          - email
+          - website
+          - social
+        value:
+          type: string
+          minLength: 1
+          maxLength: 254
+      required:
+      - kind
+      - value
+    BusinessSummary:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id001
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        category:
+          $ref: '#/components/schemas/Category'
+        county_code:
+          type: string
+          minLength: 1
+          maxLength: 40
+        city:
+          type: string
+          minLength: 1
+          maxLength: 80
+        summary:
+          type: string
+          maxLength: 200
+        verified:
+          type: boolean
+        rating:
+          $ref: '#/components/schemas/Rating'
+        open_now:
+          type:
+          - boolean
+          - 'null'
+      required:
+      - id
+      - display_name
+      - category
+      - county_code
+      - verified
+      - rating
+    HoursRule:
+      type: object
+      additionalProperties: false
+      properties:
+        weekday:
+          type: integer
+          minimum: 0
+          maximum: 6
+        opens:
+          type: string
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+        closes:
+          type: string
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$|^24:00$
+      required:
+      - weekday
+      - opens
+      - closes
+    HoursException:
+      type: object
+      additionalProperties: false
+      properties:
+        on_date:
+          type: string
+          format: date
+        closed:
+          type: boolean
+        opens:
+          type:
+          - string
+          - 'null'
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+        closes:
+          type:
+          - string
+          - 'null'
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$|^24:00$
+      required:
+      - on_date
+      - closed
+    Hours:
+      type: object
+      additionalProperties: false
+      properties:
+        time_zone:
+          type: string
+          default: Africa/Monrovia
+          maxLength: 64
+        rules:
+          type: array
+          maxItems: 28
+          items:
+            $ref: '#/components/schemas/HoursRule'
+        exceptions:
+          type: array
+          maxItems: 60
+          items:
+            $ref: '#/components/schemas/HoursException'
+      required:
+      - time_zone
+      - rules
+    HoursReplace:
+      type: object
+      additionalProperties: false
+      properties:
+        time_zone:
+          type: string
+          maxLength: 64
+        rules:
+          type: array
+          maxItems: 28
+          items:
+            $ref: '#/components/schemas/HoursRule'
+        exceptions:
+          type: array
+          maxItems: 60
+          items:
+            $ref: '#/components/schemas/HoursException'
+      required:
+      - rules
+    BusinessDetail:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id001
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        category:
+          $ref: '#/components/schemas/Category'
+        description:
+          type: string
+          maxLength: 2000
+        county_code:
+          type: string
+          minLength: 1
+          maxLength: 40
+        city:
+          type: string
+          minLength: 1
+          maxLength: 80
+        address_line:
+          type:
+          - string
+          - 'null'
+          maxLength: 200
+          description: Present only when the owner opted in (DR-BZ-09).
+        verified:
+          type: boolean
+        rating:
+          $ref: '#/components/schemas/Rating'
+        hours:
+          $ref: '#/components/schemas/Hours'
+        contacts:
+          type:
+          - array
+          - 'null'
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/PublicContact'
+          description: Null when the contact-reveal policy withholds contacts from this caller (DR-BZ-12).
+      required:
+      - id
+      - display_name
+      - category
+      - county_code
+      - verified
+      - rating
+      - hours
+      - contacts
+    BusinessPage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/BusinessSummary'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          maxLength: 512
+      required:
+      - items
+      - next_cursor
+    ContactInput:
+      type: object
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          enum:
+          - phone
+          - email
+          - website
+          - social
+        value:
+          type: string
+          minLength: 1
+          maxLength: 254
+        is_public:
+          type: boolean
+      required:
+      - kind
+      - value
+      - is_public
+    BusinessRegister:
+      type: object
+      additionalProperties: false
+      properties:
+        display_name:
+          type: string
+          minLength: 2
+          maxLength: 80
+        legal_name:
+          type: string
+          minLength: 2
+          maxLength: 160
+        category_slug:
+          type: string
+          pattern: ^[a-z0-9-]{2,60}$
+        county_code:
+          type: string
+          minLength: 1
+          maxLength: 40
+        city:
+          type: string
+          minLength: 1
+          maxLength: 80
+      required:
+      - display_name
+      - legal_name
+      - category_slug
+      - county_code
+      - city
+    ProfileEdit:
+      type: object
+      additionalProperties: false
+      properties:
+        display_name:
+          type: string
+          minLength: 2
+          maxLength: 80
+        legal_name:
+          type: string
+          minLength: 2
+          maxLength: 160
+        category_slug:
+          type: string
+          pattern: ^[a-z0-9-]{2,60}$
+        description:
+          type: string
+          maxLength: 2000
+        county_code:
+          type: string
+          minLength: 1
+          maxLength: 40
+        city:
+          type: string
+          minLength: 1
+          maxLength: 80
+        address_line:
+          type:
+          - string
+          - 'null'
+          maxLength: 200
+        latitude:
+          type:
+          - number
+          - 'null'
+          minimum: -90
+          maximum: 90
+        longitude:
+          type:
+          - number
+          - 'null'
+          minimum: -180
+          maximum: 180
+        time_zone:
+          type: string
+          maxLength: 64
+        contacts:
+          type: array
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/ContactInput'
+      minProperties: 1
+    ProfileRevision:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id001
+        business_id: *id001
+        revision_no:
+          type: integer
+          minimum: 1
+        state:
+          type: string
+          enum:
+          - draft
+          - pending_review
+          - approved
+          - rejected
+          - superseded
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        legal_name:
+          type: string
+          minLength: 1
+          maxLength: 160
+        category_slug:
+          type: string
+        description:
+          type: string
+          maxLength: 2000
+        county_code:
+          type: string
+          minLength: 1
+          maxLength: 40
+        city:
+          type: string
+          minLength: 1
+          maxLength: 80
+        address_line:
+          type:
+          - string
+          - 'null'
+        contacts:
+          type: array
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/ContactInput'
+        reason_code:
+          type:
+          - string
+          - 'null'
+      required:
+      - id
+      - business_id
+      - revision_no
+      - state
+    VerificationStatus:
+      type: object
+      additionalProperties: false
+      properties:
+        state:
+          type: string
+          enum:
+          - none
+          - submitted
+          - under_review
+          - needs_info
+          - verified
+          - rejected
+          - withdrawn
+          - revoked
+        submitted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        decided_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        reason_code:
+          type:
+          - string
+          - 'null'
+          description: Only reason codes the policy allows the applicant to see.
+        expires_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+      required:
+      - state
+    VerificationSubmit:
+      type: object
+      additionalProperties: false
+      properties:
+        method:
+          type: string
+          pattern: ^[a-z][a-z_]{2,39}$
+          description: Allowed methods are defined by the approved verification policy (DR-BZ-04).
+        evidence_ids:
+          type: array
+          maxItems: 10
+          items: *id001
+          description: Only from the slice that enables evidence uploads.
+        declaration:
+          type: boolean
+          const: true
+          description: Owner declares authority to act for the business.
+      required:
+      - method
+      - declaration
+    OwnerBusiness:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id001
+        state:
+          type: string
+          enum:
+          - draft
+          - submitted
+          - under_review
+          - needs_info
+          - verified
+          - rejected
+          - suspended
+          - revoked
+          - closed
+        my_role:
+          type: string
+          enum:
+          - owner
+          - staff
+        verified:
+          type: boolean
+        listed:
+          type: boolean
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        current_revision_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        working_revision_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        verification:
+          $ref: '#/components/schemas/VerificationStatus'
+      required:
+      - id
+      - state
+      - my_role
+      - verified
+      - listed
+      - display_name
+    OwnerBusinessPage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/OwnerBusiness'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          maxLength: 512
+      required:
+      - items
+      - next_cursor
+    InquiryCreate:
+      type: object
+      additionalProperties: false
+      properties:
+        subject_code:
+          type: string
+          pattern: ^[a-z][a-z_]{2,39}$
+        body:
+          type: string
+          minLength: 1
+          maxLength: 1000
+      required:
+      - subject_code
+      - body
+    MessageCreate:
+      type: object
+      additionalProperties: false
+      properties:
+        body:
+          type: string
+          minLength: 1
+          maxLength: 1000
+      required:
+      - body
+    Message:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id001
+        author_kind:
+          type: string
+          enum:
+          - customer
+          - business
+        body:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - author_kind
+      - body
+      - created_at
+    InquiryThreadCustomer:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id001
+        business_id: *id001
+        business_name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        state:
+          type: string
+          enum:
+          - open
+          - closed_by_customer
+          - closed_by_business
+          - blocked
+          - removed
+        subject_code:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        messages:
+          type: array
+          maxItems: 200
+          items:
+            $ref: '#/components/schemas/Message'
+      required:
+      - id
+      - business_id
+      - state
+      - messages
+    InquiryThreadPage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/InquiryThreadCustomer'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          maxLength: 512
+      required:
+      - items
+      - next_cursor
+    InquiryThreadOwner:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id001
+        customer_label:
+          type: string
+          minLength: 1
+          maxLength: 80
+        state:
+          type: string
+          enum:
+          - open
+          - closed_by_customer
+          - closed_by_business
+          - blocked
+          - removed
+        subject_code:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        messages:
+          type: array
+          maxItems: 200
+          items:
+            $ref: '#/components/schemas/Message'
+      required:
+      - id
+      - customer_label
+      - state
+      - messages
+    InquiryOwnerPage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/InquiryThreadOwner'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          maxLength: 512
+      required:
+      - items
+      - next_cursor
+    ReviewCreate:
+      type: object
+      additionalProperties: false
+      properties:
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        title:
+          type:
+          - string
+          - 'null'
+          maxLength: 100
+        body:
+          type: string
+          minLength: 10
+          maxLength: 2000
+        interaction_thread_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: Optional proof input for interaction-based eligibility (DR-BZ-15).
+      required:
+      - rating
+      - body
+    ReviewEdit:
+      type: object
+      additionalProperties: false
+      properties:
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        title:
+          type:
+          - string
+          - 'null'
+          maxLength: 100
+        body:
+          type: string
+          minLength: 10
+          maxLength: 2000
+      minProperties: 1
+    ReviewResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        body:
+          type: string
+          minLength: 2
+          maxLength: 1000
+      required:
+      - body
+    ReviewResponseView:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id001
+        body:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        state:
+          type: string
+          enum:
+          - pending
+          - published
+          - removed
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - body
+      - state
+    Review:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id001
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        title:
+          type:
+          - string
+          - 'null'
+        body:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        author_label:
+          type: string
+          maxLength: 80
+          description: Display form chosen by policy (DR-BZ-16); never an account id.
+        basis:
+          type: string
+          pattern: ^[a-z][a-z_]{2,39}$
+        created_at:
+          type: string
+          format: date-time
+        edited_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        response:
+          oneOf:
+          - $ref: '#/components/schemas/ReviewResponseView'
+          - type: 'null'
+      required:
+      - id
+      - rating
+      - body
+      - author_label
+      - basis
+    ReviewPage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/Review'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          maxLength: 512
+      required:
+      - items
+      - next_cursor
+    ReviewOwn:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id001
+        business_id: *id001
+        rating:
+          type: integer
+        title:
+          type:
+          - string
+          - 'null'
+        body:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        state:
+          type: string
+          enum:
+          - pending
+          - published
+          - held
+          - removed
+          - withdrawn
+        basis:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - business_id
+      - rating
+      - state
+    ReviewOwnPage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/ReviewOwn'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          maxLength: 512
+      required:
+      - items
+      - next_cursor
+    ReportCreate:
+      type: object
+      additionalProperties: false
+      properties:
+        subject_type:
+          type: string
+          enum:
+          - listing
+          - review
+          - review_response
+          - inquiry_message
+        subject_id: *id001
+        reason_code: &id002
+          type: string
+          pattern: ^[a-z][a-z_]{2,39}$
+          description: Reason-code vocabulary is pending owner approval (see the decision register).
+        details:
+          type: string
+          maxLength: 1000
+      required:
+      - subject_type
+      - subject_id
+      - reason_code
+    AppealCreate:
+      type: object
+      additionalProperties: false
+      properties:
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 1000
+      required:
+      - reason
+    ReportReceipt:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id001
+        state:
+          type: string
+          enum:
+          - open
+          - decided
+      required:
+      - id
+      - state
+    VerificationQueueItem:
+      type: object
+      additionalProperties: false
+      properties:
+        case_id: *id001
+        business_id: *id001
+        state:
+          type: string
+        submitted_at:
+          type: string
+          format: date-time
+      required:
+      - case_id
+      - business_id
+      - state
+    VerificationQueuePage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/VerificationQueueItem'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          maxLength: 512
+      required:
+      - items
+      - next_cursor
+    EvidenceMeta:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id001
+        kind:
+          type: string
+        size_bytes:
+          type: integer
+        content_type:
+          type: string
+        state:
+          type: string
+          enum:
+          - pending
+          - accepted
+          - quarantined
+          - purged
+      required:
+      - id
+      - kind
+      - state
+    VerificationCase:
+      type: object
+      additionalProperties: false
+      properties:
+        case_id: *id001
+        business_id: *id001
+        state:
+          type: string
+        legal_name:
+          type: string
+          minLength: 1
+          maxLength: 160
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        duplicate_candidates:
+          type: array
+          maxItems: 10
+          items: *id001
+        evidence:
+          type: array
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/EvidenceMeta'
+        submitted_at:
+          type: string
+          format: date-time
+      required:
+      - case_id
+      - business_id
+      - state
+    VerificationDecision:
+      type: object
+      additionalProperties: false
+      properties:
+        decision:
+          type: string
+          enum:
+          - verify
+          - reject
+          - request_info
+          - revoke
+        reason_code: *id002
+        note:
+          type: string
+          maxLength: 500
+      required:
+      - decision
+      - reason_code
+    EvidenceReadGrant:
+      type: object
+      additionalProperties: false
+      properties:
+        url:
+          type: string
+          format: uri
+          maxLength: 2048
+        expires_at:
+          type: string
+          format: date-time
+      required:
+      - url
+      - expires_at
+    ReportQueueItem:
+      type: object
+      additionalProperties: false
+      properties:
+        report_id: *id001
+        subject_type:
+          type: string
+        subject_id: *id001
+        reason_code:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - report_id
+      - subject_type
+      - subject_id
+    ReportQueuePage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/ReportQueueItem'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+          maxLength: 512
+      required:
+      - items
+      - next_cursor
+    ReportDecision:
+      type: object
+      additionalProperties: false
+      properties:
+        decision:
+          type: string
+          enum:
+          - remove
+          - keep
+          - hold
+          - restore
+        reason_code: *id002
+        note:
+          type: string
+          maxLength: 500
+      required:
+      - decision
+      - reason_code
+    Suspension:
+      type: object
+      additionalProperties: false
+      properties:
+        reason_code: *id002
+        note:
+          type: string
+          maxLength: 500
+      required:
+      - reason_code
+    ReviewerGrantInput:
+      type: object
+      additionalProperties: false
+      properties:
+        reviewer_account_id: *id001
+        scope:
+          type: string
+          enum:
+          - verification
+          - review_queue
+          - disputes
+        target_business_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+      required:
+      - reviewer_account_id
+      - scope
+    ReviewerGrant:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id001
+        scope:
+          type: string
+        active:
+          type: boolean
+      required:
+      - id
+      - scope
+      - active
+    MemberList:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/Member'
+      required:
+      - items
+    Member:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id001
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        role:
+          type: string
+          enum:
+          - owner
+          - staff
+        status:
+          type: string
+          enum:
+          - invited
+          - active
+          - revoked
+      required:
+      - id
+      - role
+      - status
+    MemberInvite:
+      type: object
+      additionalProperties: false
+      properties:
+        role:
+          type: string
+          enum:
+          - staff
+        channel_note:
+          type: string
+          maxLength: 200
+          description: Invitation delivery channel is pending DR-BZ-08.
+      required:
+      - role
+    MemberInvitation:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id001
+        expires_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - expires_at
+    OwnershipTransfer:
+      type: object
+      additionalProperties: false
+      properties:
+        to_member_id: *id001
+        reauth_proof:
+          type: string
+          minLength: 32
+          maxLength: 128
+          description: Purpose-bound step-up proof (prerequisite P6B-04).
+      required:
+      - to_member_id
+      - reauth_proof
