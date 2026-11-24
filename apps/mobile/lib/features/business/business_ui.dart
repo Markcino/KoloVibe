@@ -436,6 +436,42 @@ String failureText(Object error) {
       return 'You have already reported this.';
     case 'invitation_redeemed':
       return 'This invitation code has already been used.';
+    case 'invitation_required':
+      return 'Registering a business is by invitation only during the pilot, and your account has not been invited.';
+    case 'business_limit':
+      return 'You have reached the most businesses one account can register.';
+    case 'business_closed':
+      return 'This business is closed, so it cannot be changed.';
+    case 'staff_limit':
+      return 'This business has reached its limit of team members and invitations.';
+    case 'already_member':
+      return 'You are already a member of this business.';
+    case 'owner_protected':
+      return 'An owner cannot be removed from or leave a business.';
+    case 'revision_pending':
+      return 'A change is already waiting for review. Wait for the decision before changing the profile again.';
+    case 'unknown_category':
+      return 'That category is not available. Choose another.';
+    case 'no_draft':
+      return 'There is no saved change to submit. Edit the profile first.';
+    case 'no_changes':
+      return 'Nothing has changed since the last approved profile.';
+    case 'incomplete_profile':
+      return 'The profile is incomplete. Fill in every required field, then submit again.';
+    case 'step_up_unavailable':
+      return 'This change needs an extra security check that is not available yet.';
+    case 'use_respond':
+      return 'KoloVibe has asked for more information. Answer that request instead.';
+    case 'no_open_request':
+      return 'There is no open request for information.';
+    case 'invalid_transition':
+      return 'That is not possible at this stage of verification.';
+    case 'invitation_limit':
+      return 'There are too many open invitations. Revoke one first.';
+    case 'response_removed':
+      return 'KoloVibe reviewers removed this reply, so it cannot be changed.';
+    case 'not_published':
+      return 'Only a published review can be answered.';
   }
   switch (error.kind) {
     case FailureKind.offline:
@@ -510,3 +546,78 @@ String reviewStateLabel(ReviewState state) => switch (state) {
       ReviewState.removed => 'Removed',
       ReviewState.withdrawn => 'Withdrawn',
     };
+
+String businessStateLabel(String state) => switch (state) {
+      'draft' => 'Draft',
+      'submitted' => 'Submitted for review',
+      'under_review' => 'Under review',
+      'needs_info' => 'More information needed',
+      'verified' => 'Verified',
+      'rejected' => 'Not approved',
+      'suspended' => 'Suspended',
+      'revoked' => 'Verification withdrawn',
+      'closed' => 'Closed',
+      _ => state.replaceAll('_', ' '),
+    };
+
+String roleLabel(BusinessRole role) =>
+    role == BusinessRole.owner ? 'Owner' : 'Staff';
+
+/// Why a business cannot be listed yet, from the service's reason codes.
+String listingReasonLabel(String code) => switch (code) {
+      'not_verified' => 'The business is not verified yet.',
+      'no_approved_profile' => 'The profile has not been approved yet.',
+      _ => code.replaceAll('_', ' '),
+    };
+
+/// A reviewer's reason code, shown as the service sent it. The wording of these reasons is not yet approved.
+String reasonText(String code) => code.replaceAll('_', ' ');
+
+/// A code the service shows once. It lives only in this widget's memory while the screen is open: it is never
+/// written to storage or logged, and "Done" removes it.
+class OneTimeCodeCard extends StatelessWidget {
+  const OneTimeCodeCard({
+    super.key,
+    required this.title,
+    required this.code,
+    required this.expiresAt,
+    required this.onCopy,
+    required this.onDone,
+    this.onRevoke,
+  });
+  final String title, code;
+  final DateTime expiresAt;
+  final VoidCallback onCopy, onDone;
+  final VoidCallback? onRevoke;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+            color: KoloVibeColors.softBlue,
+            borderRadius: BorderRadius.circular(KoloVibeRadii.tile)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(title, style: KoloVibeText.body(15, weight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            SelectableText(code,
+                key: const ValueKey('one-time-code'),
+                style: KoloVibeText.body(18, weight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            Text(
+                'Shown once. KoloVibe cannot show this code again and the app does not keep it. It expires on ${dateLabel(expiresAt)}.',
+                style: KoloVibeText.body(12, height: 1.4)),
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, children: [
+              OutlinedButton(onPressed: onCopy, child: const Text('Copy code')),
+              if (onRevoke != null)
+                TextButton(
+                    onPressed: onRevoke,
+                    child: const Text('Revoke invitation')),
+              TextButton(onPressed: onDone, child: const Text('Done')),
+            ]),
+          ],
+        ),
+      );
+}

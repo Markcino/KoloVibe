@@ -2,6 +2,8 @@ import 'package:flutter/widgets.dart';
 
 import '../../features/business/business_customer_screens.dart';
 import '../../features/business/business_discovery_screens.dart';
+import '../../features/business/business_inbox_screens.dart';
+import '../../features/business/business_owner_screens.dart';
 import '../../features/business/business_pending_screen.dart';
 import '../../features/business/business_screens.dart';
 import '../../features/business/business_ui.dart';
@@ -62,6 +64,42 @@ Widget? businessRoute(RouteContext context) {
           repository: repository,
           catalog: catalog,
           target: ReportTarget.decode(id)!),
+    BusinessScreens.myBusinesses => BusinessMyBusinessesScreen(
+        repository: repository,
+        catalog: catalog,
+        context: context.dependencies.businessContext),
+    BusinessScreens.register =>
+      BusinessRegisterScreen(repository: repository, catalog: catalog),
+    BusinessScreens.manage when id != null => BusinessManageScreen(
+        repository: repository, catalog: catalog, businessId: id),
+    BusinessScreens.editProfile when id != null => BusinessEditProfileScreen(
+        repository: repository, catalog: catalog, businessId: id),
+    BusinessScreens.editContacts when id != null => BusinessEditContactsScreen(
+        repository: repository, catalog: catalog, businessId: id),
+    BusinessScreens.editHours when id != null => BusinessEditHoursScreen(
+        repository: repository, catalog: catalog, businessId: id),
+    BusinessScreens.profileStatus when id != null =>
+      BusinessProfileStatusScreen(
+          repository: repository, catalog: catalog, businessId: id),
+    BusinessScreens.verification when id != null => BusinessVerificationScreen(
+        repository: repository, catalog: catalog, businessId: id),
+    BusinessScreens.listing when id != null => BusinessListingScreen(
+        repository: repository, catalog: catalog, businessId: id),
+    BusinessScreens.inbox when id != null => BusinessInboxScreen(
+        repository: repository, catalog: catalog, businessId: id),
+    BusinessScreens.inboxThread
+        when ReviewTarget.decode(id)?.threadId != null =>
+      BusinessInboxThreadScreen(
+          repository: repository,
+          catalog: catalog,
+          target: ReviewTarget.decode(id)!),
+    BusinessScreens.ownerReviews when id != null => BusinessOwnerReviewsScreen(
+        repository: repository, catalog: catalog, businessId: id),
+    BusinessScreens.reviewInvitations when id != null =>
+      BusinessReviewInvitationsScreen(
+          repository: repository, catalog: catalog, businessId: id),
+    BusinessScreens.team when id != null => BusinessTeamScreen(
+        repository: repository, catalog: catalog, businessId: id),
     _ => BusinessPendingScreen(route: route, catalog: catalog),
   };
 }

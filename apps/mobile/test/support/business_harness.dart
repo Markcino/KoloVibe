@@ -67,7 +67,11 @@ class BusinessHarness {
     final path = request.url.path.replaceFirst('/api/v1', '');
     if (path == '/auth/refresh') {
       return http.Response(
-          jsonEncode({'access_token': 'access', 'refresh_token': 'rotated'}),
+          jsonEncode({
+            'access_token': 'access',
+            'refresh_token': 'rotated',
+            'user': {'id': '00000000-0000-4000-8000-000000000001'}
+          }),
           200);
     }
     if (path == '/me') {

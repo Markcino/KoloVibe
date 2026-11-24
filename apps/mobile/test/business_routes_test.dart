@@ -9,6 +9,8 @@ import 'package:kolovibe/app/screen_route.dart';
 import 'package:kolovibe/core/presentation/design_node.dart';
 import 'package:kolovibe/features/business/business_customer_screens.dart';
 import 'package:kolovibe/features/business/business_discovery_screens.dart';
+import 'package:kolovibe/features/business/business_inbox_screens.dart';
+import 'package:kolovibe/features/business/business_owner_screens.dart';
 import 'package:kolovibe/features/business/business_pending_screen.dart';
 import 'package:kolovibe/features/business/business_screens.dart';
 import 'package:kolovibe/features/shell/main_shell.dart';
@@ -111,6 +113,37 @@ void main() {
           reason: '$bad');
     }
     expect(build(121, live, id: '$id/../x'), isA<BusinessPendingScreen>());
+  });
+
+  test(
+      'owner screens open, and each needs the business (or thread) it is about',
+      () {
+    final live = AppDependencies.live('https://api.example.test/api/v1');
+    const id = '13abeac8-1386-440a-b17c-aeafb48fe96f';
+    expect(build(126, live), isA<BusinessMyBusinessesScreen>());
+    expect(build(127, live), isA<BusinessRegisterScreen>());
+    for (final entry in {
+      128: isA<BusinessManageScreen>(),
+      129: isA<BusinessEditProfileScreen>(),
+      130: isA<BusinessEditContactsScreen>(),
+      131: isA<BusinessEditHoursScreen>(),
+      132: isA<BusinessProfileStatusScreen>(),
+      133: isA<BusinessVerificationScreen>(),
+      134: isA<BusinessListingScreen>(),
+      135: isA<BusinessInboxScreen>(),
+      137: isA<BusinessOwnerReviewsScreen>(),
+      138: isA<BusinessReviewInvitationsScreen>(),
+      139: isA<BusinessTeamScreen>(),
+    }.entries) {
+      expect(build(entry.key, live, id: id), entry.value,
+          reason: 'M-${entry.key}');
+      expect(build(entry.key, live), isA<BusinessPendingScreen>(),
+          reason: 'M-${entry.key} without a business');
+    }
+    expect(build(136, live, id: '$id/$id'), isA<BusinessInboxThreadScreen>());
+    expect(build(136, live, id: id), isA<BusinessPendingScreen>(),
+        reason: 'a thread screen needs a thread');
+    expect(build(136, live), isA<BusinessPendingScreen>());
   });
 
   group('bottom navigation', () {
