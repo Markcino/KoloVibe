@@ -52,14 +52,15 @@ class BusinessHarness {
       : answer = answer ?? ((_) => (status: 503, body: <String, dynamic>{})) {
     final credentials = MemoryCredentials();
     if (!signedIn) credentials.value = null;
-    final api = ApiClient('https://api.example.test/api/v1',
-        client: MockClient(_handle));
+    client = MockClient(_handle);
+    final api = ApiClient('https://api.example.test/api/v1', client: client);
     account = LiveAccountRepository(api, credentials);
     repository = LiveBusinessRepository(api, account);
   }
   final bool signedIn;
   ({int status, Map<String, dynamic> body}) Function(Recorded) answer;
   final List<Recorded> requests = [];
+  late final http.Client client;
   late final LiveAccountRepository account;
   late final LiveBusinessRepository repository;
 

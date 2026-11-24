@@ -276,13 +276,12 @@ class _BusinessResultsScreenState extends State<BusinessResultsScreen> {
             onSubmitted: (value) => _apply(_filters.copyWith(
                 query: value.trim().isEmpty ? null : value.trim())),
           ),
-          Row(children: [
+          Wrap(spacing: 8, runSpacing: 8, children: [
             KoloPillButton(
                 label: _filters.active == 0
                     ? 'Filters'
                     : 'Filters (${_filters.active})',
                 onPressed: _openFilters),
-            const SizedBox(width: 8),
             if (!_filters.isEmpty)
               KoloPillButton(
                   label: 'Clear',
