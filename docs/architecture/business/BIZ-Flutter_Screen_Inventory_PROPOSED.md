@@ -1,6 +1,6 @@
 # Business in the Flutter app — screen inventory and design approvals (Phase 6D)
 
-**Status: PROPOSED — requested for owner approval before any screen is built.** 24 November 2026. Accountable owner: Mark Allen Gbalazeh (@Markcino). This follows DR-BZ-21 (decided: owners, staff and customers use Flutter; no public website or business portal) and is the "approved designs and route space" step of DR-BZ-27 (open). Nothing in `apps/mobile` is changed by this document.
+**Status: DECISIONS RECORDED 24 November 2026 (see section 6); the screens themselves are built from the design system and are "implementation-led, not visually approved".** Originally proposed for approval before any screen was built. 24 November 2026. Accountable owner: Mark Allen Gbalazeh (@Markcino). This follows DR-BZ-21 (decided: owners, staff and customers use Flutter; no public website or business portal) and is the "approved designs and route space" step of DR-BZ-27 (open). Nothing in `apps/mobile` is changed by this document.
 
 ## 1. What was checked
 
@@ -113,3 +113,28 @@ Every PR runs `flutter analyze` and the full suite on the CI-pinned SDK 3.47.8, 
 
 ## 5. Not decided here
 Final visual design (A1), notifications (DR-BZ-14), images (DR-BZ-20), sharing links (DR-BZ-28), step-up actions (DR-BZ-33), and every policy value the owner still owes (see the [owner decisions required](BIZ-Owner_Decisions_Required_PHASE6A.md)).
+
+## 6. Owner decisions recorded (24 November 2026)
+
+Answered by Mark Allen Gbalazeh in the Phase 6D working session, against this document as merged in PR #225 (`7fb3427`). Where an answer differs from the recommendation, the answer governs and the inventory below is amended to follow it.
+
+| # | Decision | Owner's answer | Effect on this inventory |
+| --- | --- | --- | --- |
+| A1 | Design source | **Build from the design system** (recommended) | Every Business screen is labelled "implementation-led, not visually approved" in code, tests and the completion record. Visual approval stays open until designs or screenshot review |
+| A2/A3 | Route space and entry points (DR-BZ-27) | **Extend the numbering from M-109 and add a new bottom-bar tab** (not the recommendation) | The `MB` namespace is **replaced by M-109 onward** (mapping below). The 108-screen assertions that bind the original catalog are kept for the catalog and the route range is extended; a sixth tab, **Businesses**, is added to the shell. The proposed Home tile and Profile entries were part of the declined option and are **not built**; "My businesses" and "Join a business" live inside the Businesses tab |
+| A4 | Scope | **All of D1–D4**, five focused pull requests in order | as section 4 |
+| A5 | Fixed lists | **Approved as proposed** | The lists in section 3 are app policy |
+| A6 | Unavailable actions | **Approved as proposed** | Hide what a role cannot do; one explanatory row each for contact change on a live profile and removing staff |
+| A7 | Copy | **Approved as proposed** | Neutral, flagged placeholder copy until the owner writes the public-field explainer and review-basis wording |
+| A8 | Review edits | **Approved as proposed** | Edit and withdraw are both shown |
+
+### Screen numbers (MB working IDs to route numbers)
+
+| Group | Screens |
+| --- | --- |
+| D1 discovery | MB-001…009 → **M-109…M-117** |
+| D2 customer | MB-010…017 → **M-118…M-125** |
+| D3 owner | MB-020…033 → **M-126…M-139** |
+| D4 staff | MB-040…044 → **M-140…M-144** |
+
+These numbers do **not** appear in the Figma file or in the 108-entry design register, and the original 108 are still the creator-content set. The coverage register gains a separate "Business (M-109–M-144), implementation-led" section when the screens land.
