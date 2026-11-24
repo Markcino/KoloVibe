@@ -1,0 +1,13 @@
+{
+  "body": {
+    "created_at": "2026-11-24T14:58:58.536543+00:00",
+    "display_name": "Fixture Bakery",
+    "id": "479d3836-798b-4b72-a8a1-183c07549c93",
+    "legal_name": "Fixture Bakery Ltd",
+    "listed": false,
+    "my_role": "owner",
+    "state": "draft",
+    "verified": false
+  },
+  "status": 201
+}

@@ -1,0 +1,10 @@
+{
+  "body": {
+    "code": "REDACTED-ONE-TIME-CODE",
+    "expires_at": "2026-11-27T14:58:58.482256+00:00",
+    "id": "5bcf6d0e-bb3e-4c6d-a8e6-06c914bcc368",
+    "label": "Counter",
+    "state": "pending"
+  },
+  "status": 201
+}

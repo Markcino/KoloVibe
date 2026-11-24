@@ -28,6 +28,8 @@ APPLICABLE = {
     "points": frozenset({"points"}),
     "moderation": frozenset({"moderation"}),
     "audit": frozenset({"audit_read"}),
+    # Business carries no Gateway capability yet: its own flags stay closed and nothing is reachable through it.
+    "business": frozenset(),
 }
 
 # A capability cannot be on without the ones it needs (checked on the whole set, on every service).

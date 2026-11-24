@@ -1,0 +1,65 @@
+{
+  "body": {
+    "address_line": null,
+    "category": {
+      "name": "Food and drink",
+      "slug": "food"
+    },
+    "city": "Monrovia",
+    "contacts": null,
+    "contacts_access": "sign_in_required",
+    "county_code": "montserrado",
+    "description": "Fixture Cafe sells good things.",
+    "display_name": "Fixture Cafe",
+    "hours": {
+      "exceptions": [],
+      "rules": [
+        {
+          "closes": "24:00",
+          "opens": "00:00",
+          "weekday": 0
+        },
+        {
+          "closes": "24:00",
+          "opens": "00:00",
+          "weekday": 1
+        },
+        {
+          "closes": "24:00",
+          "opens": "00:00",
+          "weekday": 2
+        },
+        {
+          "closes": "24:00",
+          "opens": "00:00",
+          "weekday": 3
+        },
+        {
+          "closes": "24:00",
+          "opens": "00:00",
+          "weekday": 4
+        },
+        {
+          "closes": "24:00",
+          "opens": "00:00",
+          "weekday": 5
+        },
+        {
+          "closes": "24:00",
+          "opens": "00:00",
+          "weekday": 6
+        }
+      ]
+    },
+    "id": "13abeac8-1386-440a-b17c-aeafb48fe96f",
+    "open_now": true,
+    "rating": {
+      "average": null,
+      "count": 0
+    },
+    "summary": "Fixture Cafe sells good things.",
+    "time_zone": "Africa/Monrovia",
+    "verified": true
+  },
+  "status": 200
+}

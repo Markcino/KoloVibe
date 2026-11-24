@@ -1,0 +1,19 @@
+{
+  "body": {
+    "items": [
+      {
+        "author_label": "Reviewer 1",
+        "basis": "open",
+        "body": "The bread was fresh and the service was friendly.",
+        "created_at": "2026-11-24T14:58:58.376636+00:00",
+        "edited_at": null,
+        "id": "61604c4b-22e7-4b06-980f-af57ec9cf597",
+        "rating": 5,
+        "response": null,
+        "title": null
+      }
+    ],
+    "next_cursor": null
+  },
+  "status": 200
+}

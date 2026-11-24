@@ -181,7 +181,7 @@ R1_APPLICABLE = {
     'gateway': R1_CAPABILITIES, 'identity': frozenset({'account_management', 'moderation'}),
     'creators': frozenset({'media'}), 'content': frozenset({'analytics', 'engagement', 'media', 'moderation'}),
     'engagement': frozenset({'analytics', 'engagement', 'points', 'watch'}), 'points': frozenset({'points'}),
-    'moderation': frozenset({'moderation'}), 'audit': frozenset()}
+    'moderation': frozenset({'moderation'}), 'audit': frozenset(), 'business': frozenset()}
 R1_REQUIRES = {'analytics': frozenset({'engagement', 'media'}), 'points': frozenset({'engagement'}),
                'watch': frozenset({'media', 'points'})}
 MESSAGING_NETWORK = 'kolovibe_messaging'

@@ -14,6 +14,7 @@ import 'app_dependencies.dart';
 import 'app_session.dart';
 import 'screen_route.dart';
 import 'routes/account_routes.dart';
+import 'routes/business_routes.dart';
 import 'routes/creator_routes.dart';
 import 'routes/discovery_routes.dart';
 import 'routes/route_context.dart';
@@ -173,6 +174,7 @@ class _KoloVibeAppState extends State<KoloVibeApp> {
     creatorRoute,
     trustRoute,
     settingsRoute,
+    businessRoute,
   ];
 
   Widget featureScreen(ScreenRoute route, DesignCatalog catalog) {

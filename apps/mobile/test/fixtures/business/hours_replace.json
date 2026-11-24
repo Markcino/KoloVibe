@@ -1,0 +1,29 @@
+{
+  "body": {
+    "exceptions": [
+      {
+        "closed": true,
+        "on_date": "2026-12-25"
+      },
+      {
+        "closed": false,
+        "closes": "12:00",
+        "on_date": "2026-12-31",
+        "opens": "09:00"
+      }
+    ],
+    "rules": [
+      {
+        "closes": "17:00",
+        "opens": "08:00",
+        "weekday": 0
+      },
+      {
+        "closes": "13:00",
+        "opens": "09:00",
+        "weekday": 5
+      }
+    ]
+  },
+  "status": 200
+}

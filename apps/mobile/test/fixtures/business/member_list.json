@@ -1,0 +1,29 @@
+{
+  "body": {
+    "invitations": [
+      {
+        "expires_at": "2026-11-27T14:58:58.477811+00:00",
+        "id": "d35dd3c6-d739-40d3-8359-3999e8bf1ae0",
+        "label": "Cashier",
+        "state": "pending"
+      }
+    ],
+    "members": [
+      {
+        "id": "d781e33c-77f6-46fc-942a-99c7a8669790",
+        "is_you": true,
+        "label": "",
+        "role": "owner",
+        "since": "2026-11-24T14:58:58.221688+00:00"
+      },
+      {
+        "id": "3bee5959-a32f-4af1-8d01-f7b030972d6e",
+        "is_you": false,
+        "label": "Counter",
+        "role": "staff",
+        "since": "2026-11-24T14:58:58.488549+00:00"
+      }
+    ]
+  },
+  "status": 200
+}

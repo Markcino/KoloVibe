@@ -30,6 +30,8 @@
 | 16 | Security design completion: staff model, verification transitions, fraud controls, evidence, retention | [BIZ-Security_Design_Completion_PHASE6A.md](../../security/phase6/BIZ-Security_Design_Completion_PHASE6A.md) |
 | 17 | API security matrix by client surface (57 operations, from DOC-205) | [BIZ-API_Security_Matrix_PHASE6A.md](../../security/phase6/BIZ-API_Security_Matrix_PHASE6A.md) |
 | 18 | **Exact owner decisions required (gates A, B, C)** | [BIZ-Owner_Decisions_Required_PHASE6A.md](BIZ-Owner_Decisions_Required_PHASE6A.md) |
+| 19 | **Flutter Business screen inventory and design approvals (Phase 6D; owner decisions recorded 24 November 2026)** | [BIZ-Flutter_Screen_Inventory_PROPOSED.md](BIZ-Flutter_Screen_Inventory_PROPOSED.md) |
+| 20 | **Phase 6D results: the 36 Flutter Business screens (M-109 to M-144), operation list, test evidence, device recipes** | [Phase6D_Business_Mobile_Results_2026-11-24.md](../../engineering/phase6/Phase6D_Business_Mobile_Results_2026-11-24.md) |
 
 ## Reading order for the approver
 

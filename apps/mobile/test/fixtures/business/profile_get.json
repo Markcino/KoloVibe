@@ -1,0 +1,29 @@
+{
+  "body": {
+    "approved": {
+      "address_line": "",
+      "address_public": false,
+      "category": "food",
+      "city": "Monrovia",
+      "contacts": [],
+      "coordinates_public": false,
+      "county_code": "montserrado",
+      "description": "Alpha Bakery sells good things.",
+      "display_name": "Alpha Bakery",
+      "id": "a3cac5f7-ac23-4498-a34c-6fec3e263edb",
+      "latitude": null,
+      "longitude": null,
+      "reason_code": "looks_correct",
+      "revision_no": 1,
+      "state": "approved",
+      "time_zone": "Africa/Monrovia"
+    },
+    "hours": {
+      "exceptions": [],
+      "rules": []
+    },
+    "last_rejected": null,
+    "working": null
+  },
+  "status": 200
+}

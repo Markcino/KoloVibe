@@ -7,7 +7,7 @@ import re
 import ssl
 
 SERVICES = {"gateway", "identity", "content", "creators", "engagement", "points",
-            "moderation", "audit"}
+            "moderation", "audit", "business"}
 
 
 def required(name):

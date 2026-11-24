@@ -1,0 +1,14 @@
+{
+  "body": {
+    "confirmed": {
+      "business": false,
+      "customer": false
+    },
+    "created_at": "2026-11-24T14:58:58.506073+00:00",
+    "customer_label": "Customer 3",
+    "id": "c85a7306-96a8-4b8c-a527-d289293a817a",
+    "state": "blocked",
+    "subject_code": "order_question"
+  },
+  "status": 200
+}

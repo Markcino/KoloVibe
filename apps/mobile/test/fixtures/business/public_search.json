@@ -1,0 +1,47 @@
+{
+  "body": {
+    "items": [
+      {
+        "category": {
+          "name": "Food and drink",
+          "slug": "food"
+        },
+        "city": "Monrovia",
+        "county_code": "montserrado",
+        "display_name": "Alpha Bakery",
+        "id": "ff74369a-051e-4b9d-ba3f-3f419b1f493f",
+        "open_now": null,
+        "summary": "Alpha Bakery sells good things.",
+        "verified": true
+      },
+      {
+        "category": {
+          "name": "Food and drink",
+          "slug": "food"
+        },
+        "city": "Monrovia",
+        "county_code": "montserrado",
+        "display_name": "Beta Cafe",
+        "id": "ab686ef2-00b1-45d5-b4e4-a9b6f9bce3da",
+        "open_now": null,
+        "summary": "Beta Cafe sells good things.",
+        "verified": true
+      },
+      {
+        "category": {
+          "name": "Food and drink",
+          "slug": "food"
+        },
+        "city": "Monrovia",
+        "county_code": "montserrado",
+        "display_name": "Fixture Cafe",
+        "id": "13abeac8-1386-440a-b17c-aeafb48fe96f",
+        "open_now": true,
+        "summary": "Fixture Cafe sells good things.",
+        "verified": true
+      }
+    ],
+    "next_cursor": null
+  },
+  "status": 200
+}

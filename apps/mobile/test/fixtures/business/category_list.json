@@ -1,0 +1,19 @@
+{
+  "body": {
+    "items": [
+      {
+        "active": true,
+        "name": "Fabric and tailoring",
+        "parent": null,
+        "slug": "fabric"
+      },
+      {
+        "active": true,
+        "name": "Food and drink",
+        "parent": null,
+        "slug": "food"
+      }
+    ]
+  },
+  "status": 200
+}

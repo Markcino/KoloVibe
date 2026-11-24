@@ -1,0 +1,7 @@
+{
+  "body": {
+    "code": "invitation_required",
+    "detail": "Business registration is by invitation during the pilot"
+  },
+  "status": 403
+}

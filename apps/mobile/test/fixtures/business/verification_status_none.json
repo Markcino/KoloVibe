@@ -1,0 +1,9 @@
+{
+  "body": {
+    "decided_at": null,
+    "reason_code": null,
+    "state": "none",
+    "submitted_at": null
+  },
+  "status": 200
+}
