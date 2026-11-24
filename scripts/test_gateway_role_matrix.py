@@ -23,6 +23,7 @@ DELEGATED = {
     "/api/v1/admin/moderator-invitations",
     "/api/v1/admin/moderator-invitations/{id}/revoke",
     "/api/v1/creator-invitations",
+    "/api/v1/creator-invitations/{id}/revoke",
     "/api/v1/creator-applications",
     "/api/v1/creator-applications/{id}/decision",
 }

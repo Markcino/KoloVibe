@@ -15,12 +15,13 @@ from .internal_client import signed_internal_request
 
 
 METHODS = {
-    "invite": ("POST",), "pending": ("GET",), "review": ("POST",),
+    "invite": ("GET", "POST"), "pending": ("GET",), "review": ("POST",), "revoke": ("POST",),
     "application": ("GET", "POST"), "eligibility": ("GET",),
 }
 SELF_OPERATIONS = {"application", "eligibility"}
+ADMINISTRATOR_OPERATIONS = {"outstanding", "revoke"}  # also enforced by Creators; the gateway refuses first
 SUMMARY_FIELDS = {"account_id", "status", "creator_id"}
-STATUSES = {"invited", "pending", "approved", "rejected"}
+STATUSES = {"invited", "pending", "approved", "rejected", "revoked"}
 
 
 def _valid_summary(item, *, account_id=None):
@@ -41,7 +42,23 @@ def _valid_pending(item):
         return False
 
 
+def _valid_outstanding(item):
+    try:
+        return (isinstance(item, dict) and set(item) == SUMMARY_FIELDS | {"invited_at"}
+                and _valid_summary({key: item[key] for key in SUMMARY_FIELDS}) and item["status"] == "invited"
+                and item["creator_id"] is None
+                and isinstance(item["invited_at"], str) and datetime.fromisoformat(item["invited_at"]).tzinfo is not None)
+    except (ValueError, TypeError, KeyError):
+        return False
+
+
 def _valid_response(operation, data, target):
+    if operation == "outstanding":
+        return (isinstance(data, dict) and set(data) == {"items", "next_cursor"}
+                and isinstance(data["items"], list) and len(data["items"]) <= 20
+                and all(_valid_outstanding(item) for item in data["items"])
+                and (data["next_cursor"] is None or
+                     bool(data["items"]) and data["next_cursor"] == data["items"][-1]["account_id"]))
     if operation == "review_policy":
         return (isinstance(data, dict) and set(data) == {"account_id", "creator_id", "trusted", "sample_percent", "policy_version"}
                 and data["account_id"] == target and (data["creator_id"] is None or str(UUID(data["creator_id"])) == data["creator_id"])
@@ -169,6 +186,8 @@ def creator_eligibility(request):
 def creator_onboarding(request, operation, account_id=None):
     if request.method not in METHODS[operation]:
         return HttpResponseNotAllowed(METHODS[operation])
+    if operation == "invite" and request.method == "GET":
+        operation = "outstanding"
     if operation == "eligibility":
         if request.GET or request.body:
             return _error("Invalid creator request", 400)
@@ -176,9 +195,11 @@ def creator_onboarding(request, operation, account_id=None):
     actor = authenticated_actor(request, require_verified_email=operation in SELF_OPERATIONS)
     if isinstance(actor, JsonResponse):
         return actor
+    if operation in ADMINISTRATOR_OPERATIONS and actor[1] != "administrator":
+        return _error("Forbidden", 403)
 
     try:
-        if operation == "pending":
+        if operation in ("pending", "outstanding"):
             if request.body or set(request.GET) - {"cursor"} or len(request.GET.getlist("cursor")) > 1:
                 raise ValueError("Invalid query")
             cursor = request.GET.get("cursor")
@@ -196,6 +217,10 @@ def creator_onboarding(request, operation, account_id=None):
             if operation == "review":
                 if set(data) != {"decision"}:
                     raise ValueError("Invalid decision")
+                data["account_id"] = str(account_id)
+            if operation == "revoke":
+                if data:
+                    raise ValueError("Invalid revocation")
                 data["account_id"] = str(account_id)
         if operation == "application":
             operation = "submit" if request.method == "POST" else "status"

@@ -38,6 +38,7 @@ class CreatorApplication(models.Model):
         PENDING = "pending", "Pending"
         APPROVED = "approved", "Approved"
         REJECTED = "rejected", "Rejected"
+        REVOKED = "revoked", "Revoked"
 
     account_id = models.UUIDField(primary_key=True)
     invited_by = models.UUIDField()
@@ -51,6 +52,28 @@ class CreatorApplication(models.Model):
 
     class Meta:
         indexes = [models.Index(fields=["status", "account_id"], name="creator_app_queue_idx")]
+
+
+class OnboardingEvent(models.Model):
+    """Service-owned record of each administrative onboarding change; rows are only ever added.
+
+    Creators has no Audit delivery credential, so this is the durable who/what/when until one is provisioned.
+    """
+    class Action(models.TextChoices):
+        INVITED = "invited", "Invited"
+        REINVITED = "reinvited", "Re-invited"
+        REVOKED = "revoked", "Revoked"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    account_id = models.UUIDField()
+    actor_id = models.UUIDField()
+    action = models.CharField(max_length=16, choices=Action.choices)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["account_id", "created_at"], name="creator_event_account_idx")]
 
 
 class CopyrightReviewPolicy(models.Model):

@@ -42,7 +42,7 @@ class ContractCopiesTests(unittest.TestCase):
         gateway, web = functions(GATEWAY / SHARED_FUNCTIONS_MODULE), functions(WEB / SHARED_FUNCTIONS_MODULE)
         self.assertEqual(set(gateway) - set(web), set())
         self.assertEqual(set(web) - set(gateway),
-                         {"valid_candidate", "valid_creator_summary", "valid_pending_applications", "_uuid"})
+                         {"valid_candidate", "valid_creator_summary", "valid_pending_applications", "valid_outstanding_invitations", "_uuid"})
 
 
 if __name__ == "__main__":

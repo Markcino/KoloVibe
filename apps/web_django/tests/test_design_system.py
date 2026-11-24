@@ -138,12 +138,19 @@ class RenderedPageStructureTests(TestCase):
         row = {"account_id": str(_uuid.uuid4()), "status": "pending", "creator_id": str(_uuid.uuid4()), "handle": "ada_eze",
                "submitted_at": "2026-11-23T10:00:00+00:00"}
         page = (200, {"items": [row], "next_cursor": None})
-        with patch("web.views._api", side_effect=[(200, self.account), page]):
+        invited = {"account_id": str(_uuid.uuid4()), "status": "invited", "creator_id": None,
+                   "invited_at": "2026-11-24T10:00:00+00:00"}
+        invitations = (200, {"items": [invited], "next_cursor": None})
+        with patch("web.views._api", side_effect=[(200, self.account), page, invitations]):
             response = self.client.get("/admin/creators/")
         self.check("creators", response)
         found = (200, {"account_id": str(_uuid.uuid4()), "display_name": "Ada Eze", "role": "viewer", "email_verified": False})
-        with patch("web.views._api", side_effect=[(200, self.account), found, page]):
+        with patch("web.views._api", side_effect=[(200, self.account), found, page, invitations]):
             self.check("creator candidate", self.client.post("/admin/creators/", {"operation": "lookup", "email": "ada@example.test"}))
+        revoke_intent = response.context["invitations"]["rows"][0]["intent"]
+        with patch("web.views._api", side_effect=[(200, self.account)]):
+            self.check("creator revoke confirm", self.client.post("/admin/creators/", {
+                "operation": "revoke", "account_id": invited["account_id"], "intent": revoke_intent}))
         intent = response.context["applications"][0]["intent"]
         with patch("web.views._api", side_effect=[(200, self.account)]):
             self.check("creator confirm", self.client.post("/admin/creators/", {

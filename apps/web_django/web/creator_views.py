@@ -13,7 +13,8 @@ from django.urls import reverse
 from django.views.decorators.debug import sensitive_post_parameters
 
 from . import views
-from .admin_contracts import valid_candidate, valid_creator_summary, valid_pending_applications
+from .admin_contracts import (valid_candidate, valid_creator_summary, valid_outstanding_invitations,
+                             valid_pending_applications)
 from .api_contracts import valid_id
 
 SALT = "admin-creators"
@@ -36,11 +37,28 @@ def _valid_intent(request, operation, account_id):
         return False
 
 
+def _outstanding(request):
+    """Invited-but-not-applied accounts, with a signed revoke intent each. Unavailable never hides the rest of the page."""
+    cursor = request.GET.get("invited")
+    code, page = views._api("/creator-invitations" + ("?" + urlencode({"cursor": cursor}) if cursor else ""),
+                            token=request.gateway_token)
+    if code == 401:
+        return None
+    available = (code == 200 and valid_outstanding_invitations(page, cursor)
+                 and (page["next_cursor"] is None or page["next_cursor"] != cursor))
+    rows = [{**row, "intent": _intent(request, "revoke", row["account_id"])} for row in page["items"]] if available else []
+    return {"available": available, "rows": rows,
+            "next_query": urlencode({"invited": page["next_cursor"]}) if available and page["next_cursor"] else None}
+
+
 def _page(request, *, candidate=None, error=None, status=200):
     cursor = request.GET.get("cursor")
     query = "?" + urlencode({"cursor": cursor}) if cursor else ""
     code, page = views._api("/creator-applications" + query, token=request.gateway_token)
     if code == 401:
+        return views._expired(request)
+    invitations = _outstanding(request)
+    if invitations is None:
         return views._expired(request)
     available = (code == 200 and valid_pending_applications(page, cursor)
                  and (page["next_cursor"] is None or page["next_cursor"] != cursor))
@@ -48,7 +66,7 @@ def _page(request, *, candidate=None, error=None, status=200):
     return views._render(request, "creators.html", {
         "applications": applications, "applications_available": available,
         "next_query": urlencode({"cursor": page["next_cursor"]}) if available and page["next_cursor"] else None,
-        "candidate": candidate, "error": error, "notice": request.session.pop(NOTICE, None)}, status=status)
+        "invitations": invitations, "candidate": candidate, "error": error, "notice": request.session.pop(NOTICE, None)}, status=status)
 
 
 @views.privileged
@@ -58,8 +76,8 @@ def creators(request):
         return HttpResponseNotAllowed(["GET", "POST"])
     if request.admin_account["roles"] != ["administrator"]:
         return views.error_page(request, status=403)
-    if set(request.GET) - {"cursor"} or any(len(request.GET.getlist(k)) != 1 for k in request.GET) \
-            or "cursor" in request.GET and not valid_id(request.GET["cursor"]):
+    if set(request.GET) - {"cursor", "invited"} or any(len(request.GET.getlist(k)) != 1 for k in request.GET) \
+            or any(k in request.GET and not valid_id(request.GET[k]) for k in ("cursor", "invited")):
         return views.error_page(request, status=400)
     if request.method == "GET":
         return _page(request)
@@ -70,6 +88,8 @@ def creators(request):
         return _invite(request)
     if operation == "decide":
         return _decide(request)
+    if operation == "revoke":
+        return _revoke(request)
     return views.error_page(request, status=400)
 
 
@@ -125,4 +145,26 @@ def _decide(request):
     if code in (403, 404, 409):
         return _page(request, error={403: "You can't review your own application.", 404: "That application no longer exists.",
                                      409: "That application has already been decided."}[code], status=code)
+    return _page(request, error=UNAVAILABLE, status=503)
+
+
+def _revoke(request):
+    account = request.POST.get("account_id", "")
+    if not valid_id(account) or not _valid_intent(request, "revoke", account):
+        return views.error_page(request, status=400)
+    if request.POST.get("confirmed") != "1":
+        return views._render(request, "creator_revoke_confirm.html", {
+            "account_id": account, "intent": request.POST["intent"]})
+    code, result = views._api(f"/creator-invitations/{account}/revoke", method="POST", data={},
+                              token=request.gateway_token)
+    if code == 401:
+        return views._expired(request)
+    if code == 200 and valid_creator_summary(result, account) and result["status"] == "revoked":
+        request.session[NOTICE] = "Invitation revoked. The person can no longer apply until you invite them again."
+        return redirect(reverse("creators"))
+    if code in (403, 404, 409):
+        return _page(request, error={403: "Only administrators can revoke an invitation, and not their own.",
+                                     404: "That invitation no longer exists.",
+                                     409: "That person has already applied, so the invitation can't be revoked. Review the application instead."}[code],
+                     status=code)
     return _page(request, error=UNAVAILABLE, status=503)

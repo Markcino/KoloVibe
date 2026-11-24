@@ -9,11 +9,12 @@ from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from .models import CreatorApplication as Application, CreatorProfile, CopyrightReviewPolicy
+from .models import CreatorApplication as Application, CreatorProfile, CopyrightReviewPolicy, OnboardingEvent
 
 
 POLICY_VERSION = "DEC-004-pilot-v1"
 REVIEWER_ROLES = {"moderator", "administrator"}
+ADMIN_OPERATIONS = {"outstanding", "revoke"}  # least privilege: only administrators see or withdraw invitations
 APPLICANT_ROLES = {"viewer", "creator"}
 PAGE_SIZE = 20
 
@@ -27,13 +28,62 @@ def _summary(application):
             "creator_id": str(application.profile_id) if application.profile_id else None}
 
 
-def _invite(actor, account_id):
+def _record(account_id, actor, action):
+    OnboardingEvent.objects.create(account_id=account_id, actor_id=actor, action=action)
+
+
+def _invite(actor, role, account_id):
     if actor == account_id:
         return _error("Self-review is forbidden", 403)
-    application, created = Application.objects.get_or_create(
-        account_id=account_id, defaults={"invited_by": actor},
-    )
+    with transaction.atomic():
+        application, created = Application.objects.select_for_update().get_or_create(
+            account_id=account_id, defaults={"invited_by": actor},
+        )
+        if created:
+            _record(account_id, actor, OnboardingEvent.Action.INVITED)
+        elif application.status == Application.Status.REVOKED:
+            # Undoing a withdrawal is as privileged as making it.
+            if role != "administrator":
+                return _error("Forbidden", 403)
+            application.status = Application.Status.INVITED
+            application.invited_by = actor
+            application.invited_at = timezone.now()
+            application.reviewed_by = None
+            application.reviewed_at = None
+            application.save(update_fields=["status", "invited_by", "invited_at", "reviewed_by", "reviewed_at"])
+            _record(account_id, actor, OnboardingEvent.Action.REINVITED)
     return JsonResponse(_summary(application), status=201 if created else 200)
+
+
+def _revoke(actor, account_id):
+    """invited -> revoked only. A submitted application is decided by review; a decided one is never undone here."""
+    if actor == account_id:
+        return _error("Self-review is forbidden", 403)
+    with transaction.atomic():
+        application = Application.objects.select_for_update().filter(account_id=account_id).first()
+        if application is None:
+            return _error("Creator invitation not found", 404)
+        if application.status == Application.Status.REVOKED:
+            return JsonResponse(_summary(application))  # repeat is a no-op: one event per revocation
+        if application.status != Application.Status.INVITED:
+            return _error("Only an outstanding invitation can be revoked", 409)
+        application.status = Application.Status.REVOKED
+        application.reviewed_by = actor
+        application.reviewed_at = timezone.now()
+        application.save(update_fields=["status", "reviewed_by", "reviewed_at"])
+        _record(account_id, actor, OnboardingEvent.Action.REVOKED)
+    return JsonResponse(_summary(application))
+
+
+def _outstanding(cursor):
+    query = Application.objects.filter(status=Application.Status.INVITED).order_by("account_id")
+    if cursor is not None:
+        query = query.filter(account_id__gt=UUID(cursor))
+    applications = list(query[:PAGE_SIZE + 1])
+    items = [{**_summary(application), "invited_at": application.invited_at.isoformat()}
+             for application in applications[:PAGE_SIZE]]
+    return JsonResponse({"items": items,
+                         "next_cursor": items[-1]["account_id"] if len(applications) > PAGE_SIZE else None})
 
 
 def _submit(actor, data):
@@ -45,7 +95,7 @@ def _submit(actor, data):
 
     with transaction.atomic():
         application = Application.objects.select_for_update().filter(account_id=actor).first()
-        if application is None:
+        if application is None or application.status == Application.Status.REVOKED:
             return _error("Creator invitation required", 403)
         if application.status == Application.Status.PENDING and application.profile.handle.lower() == handle.lower():
             return JsonResponse(_summary(application))
@@ -96,6 +146,7 @@ def _review(actor, account_id, decision):
         application.reviewed_by = actor
         application.reviewed_at = timezone.now()
         application.save(update_fields=["status", "reviewed_by", "reviewed_at"])
+        _record(account_id, actor, decision)
     return JsonResponse(_summary(application))
 
 
@@ -144,8 +195,8 @@ def _status(actor, operation):
         )
         return JsonResponse({"upload_eligible": eligible,
                              "creator_id": str(application.profile_id) if eligible else None})
-    if application is None:
-        return _error("Creator application not found", 404)
+    if application is None or application.status == Application.Status.REVOKED:
+        return _error("Creator application not found", 404)  # a withdrawn invitation looks like none to the applicant
     return JsonResponse(_summary(application))
 
 
@@ -163,16 +214,21 @@ def onboarding(request, operation):
         if not isinstance(role, str) or not isinstance(data, dict):
             raise ValueError("Invalid envelope")
         required = {
-            "invite": {"account_id"}, "pending": {"cursor"}, "review": {"account_id", "decision"},
+            "invite": {"account_id"}, "pending": {"cursor"}, "outstanding": {"cursor"}, "revoke": {"account_id"}, "review": {"account_id", "decision"},
             "submit": {"handle", "adult_attested", "rights_attested"}, "status": set(), "eligibility": set(), "ownership": set(), "standing": set(), "review_policy": set(),
         }
         if operation not in required or set(data) != required[operation]:
             raise ValueError("Invalid creator operation")
-        allowed = REVIEWER_ROLES | APPLICANT_ROLES if operation == "standing" else REVIEWER_ROLES if operation in ("invite", "pending", "review") else APPLICANT_ROLES
+        allowed = (APPLICANT_ROLES | REVIEWER_ROLES if operation == "standing" else {"administrator"} if operation in ADMIN_OPERATIONS
+                   else REVIEWER_ROLES if operation in ("invite", "pending", "review") else APPLICANT_ROLES)
         if role not in allowed:
             return _error("Forbidden", 403)
         if operation == "invite":
-            return _invite(actor, UUID(data["account_id"]))
+            return _invite(actor, role, UUID(data["account_id"]))
+        if operation == "revoke":
+            return _revoke(actor, UUID(data["account_id"]))
+        if operation == "outstanding":
+            return _outstanding(data["cursor"])
         if operation == "submit":
             return _submit(actor, data)
         if operation == "review":

@@ -604,6 +604,38 @@ paths:
         '500':
           description: Unexpected server error; no internal details exposed
   /creator-invitations:
+    get:
+      tags: [Creators]
+      summary: List outstanding creator invitations; administrators only
+      operationId: get_creator_invitations
+      description: >-
+        Accounts invited but not yet applied, ordered by account id. Revoked, submitted and decided
+        applications are not listed. Never includes an email address.
+      x-implementation: staging-gated
+      x-required-roles: [administrator]
+      parameters:
+      - name: cursor
+        in: query
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Page of outstanding invitations
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_cursor]
+                additionalProperties: false
+                properties:
+                  items:
+                    type: array
+                    maxItems: 20
+                    items: {$ref: '#/components/schemas/PilotOutstandingCreatorInvitation'}
+                  next_cursor: {type: [string, 'null'], format: uuid}
+        '400': {description: Invalid cursor}
+        '401': {description: Missing or invalid session}
+        '403': {description: Administrator role with fresh MFA required}
+        '503': {description: Required service unavailable}
     post:
       tags: [Creators]
       summary: Invite a pilot account
@@ -626,6 +658,37 @@ paths:
         '400': {description: Invalid account identifier or request}
         '401': {description: Missing or invalid session}
         '403': {description: Role or creator eligibility requirements not met}
+        '503': {description: Required service unavailable}
+  /creator-invitations/{account_id}/revoke:
+    parameters:
+    - name: account_id
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    post:
+      tags: [Creators]
+      summary: Revoke an outstanding creator invitation; administrators only
+      operationId: post_creator_invitation_revoke
+      description: >-
+        Allowed only for an invitation that has not been used (status `invited`); the transition is
+        invited to revoked and a repeat is a no-op. A submitted application is decided through the
+        decision route, and an approved creator is never changed here. A revoked account cannot
+        apply until an administrator invites it again (POST /creator-invitations), which restores
+        `invited`. Every change is recorded as an onboarding event with actor and time.
+      x-implementation: staging-gated
+      x-required-roles: [administrator]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: false, maxProperties: 0}
+      responses:
+        '200': {$ref: '#/components/responses/PilotCreatorApplication'}
+        '400': {description: Invalid request}
+        '401': {description: Missing or invalid session}
+        '403': {description: 'Administrator role with fresh MFA required, or self-revocation'}
+        '404': {description: No invitation exists for the account}
+        '409': {description: The invitation was already used; only an outstanding invitation can be revoked}
         '503': {description: Required service unavailable}
   /creator-applications:
     get:
@@ -7940,8 +8003,21 @@ components:
       required: [account_id, status, creator_id]
       properties:
         account_id: {type: string, format: uuid}
-        status: {type: string, enum: [invited, pending, approved, rejected]}
+        status:
+          type: string
+          enum: [invited, pending, approved, rejected, revoked]
+          description: '`revoked` appears only in the administrator revocation response; the applicant sees a revoked invitation as 404.'
         creator_id: {type: [string, 'null'], format: uuid}
+    PilotOutstandingCreatorInvitation:
+      description: An invited account that has not applied, as shown to administrators.
+      type: object
+      additionalProperties: false
+      required: [account_id, status, creator_id, invited_at]
+      properties:
+        account_id: {type: string, format: uuid}
+        status: {type: string, enum: [invited]}
+        creator_id: {type: 'null'}
+        invited_at: {type: string, format: date-time}
     PilotPendingCreatorApplication:
       description: A submitted application as shown to reviewers, with the handle and submission time needed to decide.
       type: object

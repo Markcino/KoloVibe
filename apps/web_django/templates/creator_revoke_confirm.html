@@ -1,0 +1,9 @@
+{% extends 'base_admin.html' %}
+{% block title %}Revoke invitation · KoloVibe{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Creators</p><h1>Revoke this invitation?</h1><p class="supporting-text">The person will no longer be able to apply to become a creator. You can invite them again later. This does not affect anyone who has already applied.</p></div></div>
+<section class="panel"><div class="section-heading"><div><p class="eyebrow">Invitation</p><h2>Outstanding invitation</h2></div><span class="status-chip" data-state="removed">Revoke</span></div>
+<dl><dt>Account</dt><dd>{{ account_id }}</dd></dl>
+<form method="post" class="status-actions">{% csrf_token %}<input type="hidden" name="operation" value="revoke"><input type="hidden" name="account_id" value="{{ account_id }}"><input type="hidden" name="intent" value="{{ intent }}"><input type="hidden" name="confirmed" value="1">
+<button type="submit" class="button-danger">Confirm revocation</button><a class="button button-outline" href="{% url 'creators' %}">Cancel</a></form></section>
+{% endblock %}
