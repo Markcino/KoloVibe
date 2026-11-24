@@ -2,6 +2,8 @@
 
 **Status: PROPOSED — Draft for owner review. Nothing here is authorized to start.** Phase 6A, 24 November 2026. Per AGENTS.md, each item is one independently testable task, reuses existing implementations, avoids deferred features and preserves security checks. Sizes are **relative** (S/M/L) and are not time estimates; no capacity or schedule is claimed. Slice names match the [decision register](../../architecture/business/BIZ-Owner_Decision_Register_PROPOSED.md) and [dependency diagram](../../architecture/business/BIZ-Dependencies_PROPOSED.md).
 
+> **Status update, 24 November 2026 (Phase 6A reconciliation).** This is supporting design for decisions the owner approved as written (DR-BZ-01…26, [approval record](../../architecture/business/BIZ-Owner_Approval_Record_2026-11-24.md)); no separate approval of this document is recorded, and the banner above is the original wording. DR-BZ-21 was decided formally (Flutter only; no public website or business portal). The backend was built in Phase 6B (PR #219, closed flags, **not deployed**; production NO-GO). Where this document and the as-built system differ, see the [architecture validation](../../architecture/business/BIZ-Architecture_Validation_PHASE6A.md); what the owner must still decide is in [owner decisions required](../../architecture/business/BIZ-Owner_Decisions_Required_PHASE6A.md).
+
 ## 1. Phase 6B prerequisites (must be true before any code)
 
 | ID | Prerequisite | Owner action | Blocks |
@@ -142,6 +144,29 @@ Added in Phase 6A reconciliation. Each item reuses the existing client or consol
 | BZ-B-053 | Merge threat rows into DOC-203 and controls into DOC-206 after approval | S | owner approval | register consistency |
 | BZ-B-054 | Operations: monitoring, alerting, kill-switch procedure, runbook entry | M | ADR-017 | operator-run evidence |
 | BZ-B-055 | Tracker and documentation updates per slice | S | each slice | tracker rows reflect actual state |
+
+## 2b. Delivery status after Phase 6B (Phase 6A reconciliation, 24 November 2026)
+
+Phase 6B (merged PR #219, closed flags, **not deployed**) delivered most backend items in a different grouping (B1–B5). Status below is from the [6B completion report](Phase6B_Business_Backend_Completion_Report_2026-11-24.md) and the code; *Done* means implemented and locally tested, not accepted.
+
+| Backlog items | Status | Note |
+| --- | --- | --- |
+| BZ-B-001…006 foundation | Done | Service, schema SQL, flags, Audit producer and migration, contract merged into DOC-205, identity verifier copy. **Not done:** deployment tooling still lists eight services; migration-owner separation (P6B-06, DR-BZ-32) |
+| BZ-B-010…018 registration, profiles, hours | Done | Registration is invitation-only (grant); live contact change refuses until step-up (BZ-B-019a open) |
+| BZ-B-019, 033, 036, 044 client screens | Not started | Superseded by BZ-C slices (DR-BZ-21, DR-BZ-27) |
+| BZ-B-020…023 reviewer grants, verification, queues, duplicates | Done | Console pages not built (BZ-C-030, 031) |
+| BZ-B-024 suspension, BZ-B-026 appeals | **Not built** | DR-BZ-25 inputs owed |
+| BZ-B-025 evidence upload | **Not built** | Text evidence only; DR-BZ-19, OD-07 |
+| BZ-B-030…032 projection, search, public routes | Done with deviation | Substring search, not full-text (DR-BZ-30); gateway validation weaker than designed (DR-BZ-31) |
+| BZ-B-034 inquiries | Done | Notifications deferred (DR-BZ-14) |
+| BZ-B-035 reporting of messages; BZ-B-040 Moderation generalisation | Business-local queue; generalisation **not done** | DR-BZ-29 |
+| BZ-B-041…043 reviews, holds, responses, reports | Done except appeals | Policy numbers owed |
+| BZ-B-045 images | **Not built** | DR-BZ-20 |
+| BZ-B-046 staff | Partly done: invite, redeem, list, leave; removal refuses until step-up | DR-BZ-33 |
+| BZ-B-047 transfer and disputes; BZ-B-048 claim of seeded listings; BZ-B-049 services catalog | **Not built** | DR-BZ-26, 06 |
+| BZ-B-050, 051 retention, export, erase | **Not built** | DR-BZ-18, 23; privacy orchestration |
+| BZ-B-052 security verification | Partly done | Negative tests exist per slice; a mutation check per operation was not recorded for all |
+| BZ-B-053…055 registers, operations, tracker | Not done / partial | Governance change request outstanding (BZ-B-000) |
 
 ## 3. Pull request plan for Phase 6B
 

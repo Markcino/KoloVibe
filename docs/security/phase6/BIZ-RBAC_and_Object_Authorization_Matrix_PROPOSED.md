@@ -2,6 +2,8 @@
 
 **Status: PROPOSED — Draft for owner review.** Phase 6A, 24 November 2026. Extends the [DOC-004 RBAC matrix](../../requirements/DOC-004_RBAC_Matrix_DRAFT.md) (also a draft). Roles for future modules in DOC-004 are generic; this document makes them concrete for Business. Cells that depend on an open policy name the decision (DR-BZ-nn) and must not be implemented until it is approved.
 
+> **Status update, 24 November 2026 (Phase 6A reconciliation).** This is supporting design for decisions the owner approved as written (DR-BZ-01…26, [approval record](../../architecture/business/BIZ-Owner_Approval_Record_2026-11-24.md)); no separate approval of this document is recorded, and the banner above is the original wording. DR-BZ-21 was decided formally (Flutter only; no public website or business portal). The backend was built in Phase 6B (PR #219, closed flags, **not deployed**; production NO-GO). Where this document and the as-built system differ, see the [architecture validation](../../architecture/business/BIZ-Architecture_Validation_PHASE6A.md); what the owner must still decide is in [owner decisions required](../../architecture/business/BIZ-Owner_Decisions_Required_PHASE6A.md).
+
 Rows are keyed **BZ-AZ-nn** and match `x-authz-ref` in the [OpenAPI proposal](../../architecture/business/BIZ-OpenAPI_3_1_PROPOSAL.yaml) one-to-one. Tests in Phase 6B are generated from this matrix (positive for the allowed actor, negative for every other actor class and for a foreign object).
 
 ## 1. Principles

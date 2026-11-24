@@ -2,6 +2,8 @@
 
 **Status: PROPOSED design-stage model. No control below is implemented or tested.** Phase 6A, 24 November 2026. Follows the conventions of [DOC-203](../../architecture/DOC-203_STRIDE_Risk_Register.csv): inherent severity before controls, required controls, verification, residual severity “TBD after implementation”, status “Proposed / not tested”. This is design-time self-assessment, **not** independent security assurance. Threat details here are design-level; do not add secrets, personal data or exploit specifics.
 
+> **Status update, 24 November 2026 (Phase 6A reconciliation).** This is supporting design for decisions the owner approved as written (DR-BZ-01…26, [approval record](../../architecture/business/BIZ-Owner_Approval_Record_2026-11-24.md)); no separate approval of this document is recorded, and the banner above is the original wording. DR-BZ-21 was decided formally (Flutter only; no public website or business portal). The backend was built in Phase 6B (PR #219, closed flags, **not deployed**; production NO-GO). Where this document and the as-built system differ, see the [architecture validation](../../architecture/business/BIZ-Architecture_Validation_PHASE6A.md); what the owner must still decide is in [owner decisions required](../../architecture/business/BIZ-Owner_Decisions_Required_PHASE6A.md).
+
 After approval, rows should be merged into DOC-203 and the verification columns into DOC-206; this file does not edit either register.
 
 ## 1. Scope, assets and adversaries
