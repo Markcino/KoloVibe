@@ -4,7 +4,7 @@
 
 ## What was decided
 
-Asked how to proceed because [PR #218](https://github.com/Markcino/KoloVibe/pull/218) (Phase 6A) was still an open draft with all 26 decisions open, the owner chose **"Approve all 26 as recommended"**: every recommendation in the [decision register](BIZ-Owner_Decision_Register_PROPOSED.md) becomes policy. Evidence is the owner's answer to that question in the session; it is not a merge or a GitHub review, so PR #218 should still be reviewed and merged by the owner (the Phase 6B code branch contains it).
+Asked how to proceed because [PR #218](https://github.com/Markcino/KoloVibe/pull/218) (Phase 6A) was still an open draft with all 26 decisions open, the owner chose **"Approve all 26 as recommended"**: every recommendation in the [decision register](BIZ-Owner_Decision_Register_PROPOSED.md) becomes policy. Evidence is the owner's answer to that question in the session. **The owner then reviewed and merged PR #218 (the Phase 6A documents, head `1dc425c`) at 2026-11-24T10:08:56Z**, which is the GitHub record for the design itself. This record, the registration-grant defaults and everything in Phase 6B were added afterwards and are in a separate pull request.
 
 This record replaces the "Open" status of DR-BZ-01 to DR-BZ-26 with **Approved as recommended** and does not change their wording. It makes ADR-BIZ-001 and the requirements baseline approved *as written*.
 

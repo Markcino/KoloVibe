@@ -1,6 +1,6 @@
 # Phase 6B · B1 — business identity and ownership: results
 
-Date: 24 November 2026. Branch `claude/blissful-archimedes-ztoqko`. Local, disposable environments only; **no staging, AWS, or live deployment**. Not independent security assurance.
+Date: 24 November 2026. Branch `claude/blissful-archimedes-ztoqko` (Phase 6B pull request). Local, disposable environments only; **no staging, AWS, or live deployment**. Not independent security assurance.
 
 ## Implemented (backend)
 

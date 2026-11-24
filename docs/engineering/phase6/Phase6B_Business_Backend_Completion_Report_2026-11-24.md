@@ -1,6 +1,6 @@
 # Phase 6B — Business backend: completion report
 
-Date: 24 November 2026. Branch `claude/blissful-archimedes-ztoqko` ([PR #218](https://github.com/Markcino/KoloVibe/pull/218), draft, not merged). Approval basis: the owner's "approve all 26 as recommended" ([record](../../architecture/business/BIZ-Owner_Approval_Record_2026-11-24.md)). **Local and disposable environments only: no staging or AWS change, no deployment, no payments, ticketing, live streaming or advertising. Production remains NO-GO. Every capability is behind a gateway flag that is closed by default. Not independent security assurance.**
+Date: 24 November 2026. Branch `claude/blissful-archimedes-ztoqko`; the Phase 6A design reached `main` in [PR #218](https://github.com/Markcino/KoloVibe/pull/218) (merged by the owner), and this Phase 6B work is a separate, unmerged pull request from the same branch. Approval basis: the owner's "approve all 26 as recommended" in session ([record](../../architecture/business/BIZ-Owner_Approval_Record_2026-11-24.md)) and the merge of #218. **Local and disposable environments only: no staging or AWS change, no deployment, no payments, ticketing, live streaming or advertising. Production remains NO-GO. Every capability is behind a gateway flag that is closed by default. Not independent security assurance.**
 
 Subphase evidence: [B1](B1_Business_Identity_and_Ownership_Results_2026-11-24.md), [B2](B2_Business_Verification_Results_2026-11-24.md), [B3](B3_Business_Profiles_Results_2026-11-24.md), [B4](B4_Business_Listings_and_Discovery_Results_2026-11-24.md), [B5](B5_Inquiries_and_Reviews_Results_2026-11-24.md).
 
@@ -81,7 +81,7 @@ Rollout when approved (not now): schema/role SQL, Audit migration, Business migr
 | 9 | Notifications for inquiries and reviews | DR-BZ-14 |
 | 10 | Deployment tooling (cluster, secrets generation, staging stacks) still lists eight services; CI loops and PostgreSQL job were extended | approved rollout (DR-BZ-24) |
 | 11 | One PR instead of one per feature | branch rule: only the designated branch may be pushed; per-feature PRs need your permission for extra branches |
-| 12 | PR #218 is unmerged and unreviewed; the owner's approval is recorded from the session, not from GitHub | owner review and merge |
+| 12 | The Phase 6B pull request is unreviewed and unmerged; approval of the *design* is recorded (session answer and the merge of #218), approval of this *code* is not | owner review of the diff |
 
 ## 6. Phase 6C prerequisites
 
