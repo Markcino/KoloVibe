@@ -2,6 +2,8 @@
 
 **Status: PROPOSED — Draft for owner review.** Phase 6A, 24 November 2026. These criteria define when a Phase 6B slice may be called done. They are testable statements, not evidence: **no criterion has been run** and none may be marked passed without a recorded run (command, commit, result), in line with the repository's evidence rules. Criteria that need an unmade policy say `[DR-BZ-nn]`; the policy value must be approved and written into the criterion before the slice starts.
 
+> **Status update, 24 November 2026 (Phase 6A reconciliation).** This is supporting design for decisions the owner approved as written (DR-BZ-01…26, [approval record](../../architecture/business/BIZ-Owner_Approval_Record_2026-11-24.md)); no separate approval of this document is recorded, and the banner above is the original wording. DR-BZ-21 was decided formally (Flutter only; no public website or business portal). The backend was built in Phase 6B (PR #219, closed flags, **not deployed**; production NO-GO). Where this document and the as-built system differ, see the [architecture validation](../../architecture/business/BIZ-Architecture_Validation_PHASE6A.md); what the owner must still decide is in [owner decisions required](../../architecture/business/BIZ-Owner_Decisions_Required_PHASE6A.md).
+
 Trace: [requirements BZ-R](../../requirements/DOC-020_Business_Requirements_and_Scope_PROPOSED.md) · [authorization matrix BZ-AZ and negative tests BZ-NT](../../security/phase6/BIZ-RBAC_and_Object_Authorization_Matrix_PROPOSED.md) · [threats BZ-T](../../security/phase6/BIZ-STRIDE_Threat_Model_PROPOSED.md) · [backlog](BIZ-Implementation_Backlog_PROPOSED.md).
 
 ## 1. Definition of done for every slice
