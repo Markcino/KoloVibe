@@ -25,19 +25,21 @@ KoloVibe R2 adds a directory of Liberian businesses that can be found, contacted
 
 **Out of scope, per the Phase 6A instruction and DEC-001:** live streaming; payments, checkout, deposits, bookings with payment; event ticketing and QR; advertising, sponsorship and paid placement; cash or monetary payouts; real-money rewards; automatic settlement; any customer-to-business money movement. Nothing in this module may take, hold or display a price that implies a transaction on the platform.
 
+**Excluded by owner decision DR-BZ-21 (24 November 2026):** any public website, business web portal, customer web app or other browser-facing Business page. All non-privileged Business actors use the Flutter app; only moderators and administrators use the protected Django console (see [client architecture](../architecture/business/BIZ-Client_Architecture_DR-BZ-21.md)).
+
 **Not designed because they are not requested or approved:** in-app messaging beyond inquiry threads; follower or "save business" features; business analytics; multi-language content; business-to-business features; push or email delivery of inquiry notifications (see DR-BZ-14).
 
 ## 3. Actors
 
-| Actor | Definition | Identity source |
-| --- | --- | --- |
-| Visitor | Unauthenticated caller of public endpoints. | none |
-| Customer | A signed-in Identity account (viewer or creator role) with a verified email. A creator is a customer too. | Identity `Account` |
-| Business owner | An account with an *active owner membership* for a specific business. A relationship, not an Identity role. | Business `BusinessMembership` |
-| Business staff | An account with an *active staff membership* for a specific business, with fewer capabilities than an owner. | Business `BusinessMembership` |
-| Moderator | Identity role `moderator`, MFA session, acting only within explicit assignment grants. | Identity role + Moderation/Business grants |
-| Administrator | Identity role `administrator`, MFA session. | Identity role |
-| Internal service | A signed service caller (gateway, moderation, audit). | existing HMAC service identity |
+| Actor | Definition | Identity source | Client surface (DR-BZ-21) |
+| --- | --- | --- | --- |
+| Visitor | Unauthenticated caller of public endpoints. | none | Flutter app |
+| Customer | A signed-in Identity account (viewer or creator role) with a verified email. A creator is a customer too. | Identity `Account` | Flutter app |
+| Business owner | An account with an *active owner membership* for a specific business. A relationship, not an Identity role. | Business `BusinessMembership` | Flutter app |
+| Business staff | An account with an *active staff membership* for a specific business, with fewer capabilities than an owner. | Business `BusinessMembership` | Flutter app |
+| Moderator | Identity role `moderator`, MFA session, acting only within explicit assignment grants. | Identity role + Moderation/Business grants | Protected Django console |
+| Administrator | Identity role `administrator`, MFA session. | Identity role | Protected Django console |
+| Internal service | A signed service caller (gateway, moderation, audit). | existing HMAC service identity | none |
 
 A person has **one** account. The Business module introduces **no second identity system, credential or role field in Identity** (BZ-R-037).
 
@@ -55,6 +57,7 @@ A person has **one** account. The Business module introduces **no second identit
 | Audit | Audit ingest with producer and kind allowlists, id-only payloads, MFA-gated read | A `business` producer, kinds and subject types |
 | Private object storage and safe uploads | Content: private R2, size-bound create-only grants, exact-object completion; D-10 creator-photo rules | Image pipeline does not exist (DR-BZ-20) |
 | Privacy requests | Identity `PrivacyRequest` receipts | Processing and propagation do not exist anywhere (DR-BZ-18) |
+| Mobile client: HTTP, session, secure token storage, design system, system states | Flutter `ApiClient`, `LiveAccountRepository`, `CredentialStore`, shared widgets and system-state screens | Business screens, repositories and a route-space extension (DR-BZ-27); no second client or session |
 | Retention of expired security rows | Identity `retention.py` pattern (bounded batches, grace periods, policy rows never touched) | Policy periods (DR-BZ-18) |
 
 ## 5. Functional and security requirements
@@ -149,6 +152,17 @@ Status column: **P** = proposed; **PP (DR-BZ-nn)** = proposed mechanism, policy 
 | BZ-R-047 | The service owns its schema and role. No service reads another service's tables; cross-service references are UUIDs with no foreign keys; events use the outbox. | P |
 | BZ-R-048 | Contract first: every route is declared in the API contract before implementation; the route-contract and role-matrix tests are extended and must fail on an undeclared or under-protected route. | P |
 
+### 5.9 Client surfaces (follows decided DR-BZ-21)
+
+| ID | Requirement | Status |
+| --- | --- | --- |
+| BZ-R-049 | Business owners, business staff, customers and visitors use the Flutter mobile app only. No public website, business web portal, customer web app or other browser-facing Business page exists. | **Decided (DR-BZ-21)** |
+| BZ-R-050 | Only moderators and administrators use a web surface, the existing protected Django console, for Business verification, profile-revision review, report decisions, reviewer and registration grants and categories. Console pages carry every existing console control (privileged role, fresh MFA, session limits, signed intent, CSRF, confirmation, route-matrix registration). | **Decided (DR-BZ-21)** |
+| BZ-R-051 | The Gateway and the Business service return JSON only for Business routes: no templates, HTML, cookies or `Access-Control-*` headers. Anonymous API reads exist to serve the app and do not authorize any web page, search-engine surface, share page or embed. | **Decided (DR-BZ-21)**; verification P |
+| BZ-R-052 | The Flutter client reuses the existing API client, session management, secure token storage, repositories and design components; it adds no second session, API client or design system. | P |
+| BZ-R-053 | The client holds no authority: it never decides or sends ownership, role, state, verified, listed, eligibility basis, rating or "open now"; it renders all Business text as plain text and shows server reason codes without interpreting them. | P |
+| BZ-R-054 | Single-use codes (staff invitation, review invitation) are shown once, never persisted on the device or logged, and expire as the server states. No link that opens outside the app exists until DR-BZ-28 is decided. | PP (DR-BZ-28) |
+
 ## 6. Non-functional expectations (proposed, not measured)
 
 No new SLOs are approved. Proposed engineering expectations: public endpoints are read-only with bounded queries and pagination so one request cannot scan the directory; search runs inside the Business schema on PostgreSQL full-text indexes (no new data store); the module can be disabled by flag without affecting R1 services; failure of Business never blocks sign-in, video or moderation paths. Capacity numbers wait for pilot data and DR-BZ-24.
@@ -162,4 +176,4 @@ No new SLOs are approved. Proposed engineering expectations: public endpoints ar
 
 ## 8. Traceability
 
-PRD-F12 → BZ-R-001…048 → [ADR-BIZ-001](../adr/ADR-BIZ-001_Business_Bounded_Context_PROPOSED.md) → [architecture](../architecture/business/BIZ-ARCH_Service_Architecture_PROPOSED.md), [ERD](../architecture/business/BIZ-ERD_PROPOSED.md), [OpenAPI proposal](../architecture/business/BIZ-OpenAPI_3_1_PROPOSAL.yaml) → [authorization matrix](../security/phase6/BIZ-RBAC_and_Object_Authorization_Matrix_PROPOSED.md), [STRIDE](../security/phase6/BIZ-STRIDE_Threat_Model_PROPOSED.md), [privacy](../privacy/business-data-privacy-and-retention-PROPOSED.md) → [acceptance criteria](../engineering/phase6/BIZ-Acceptance_Criteria_PROPOSED.md) → [backlog](../engineering/phase6/BIZ-Implementation_Backlog_PROPOSED.md). Open policies: [decision register](../architecture/business/BIZ-Owner_Decision_Register_PROPOSED.md).
+PRD-F12 → BZ-R-001…054 → [ADR-BIZ-001](../adr/ADR-BIZ-001_Business_Bounded_Context_PROPOSED.md) → [architecture](../architecture/business/BIZ-ARCH_Service_Architecture_PROPOSED.md), [ERD](../architecture/business/BIZ-ERD_PROPOSED.md), [OpenAPI proposal](../architecture/business/BIZ-OpenAPI_3_1_PROPOSAL.yaml) → [authorization matrix](../security/phase6/BIZ-RBAC_and_Object_Authorization_Matrix_PROPOSED.md), [STRIDE](../security/phase6/BIZ-STRIDE_Threat_Model_PROPOSED.md), [privacy](../privacy/business-data-privacy-and-retention-PROPOSED.md) → [acceptance criteria](../engineering/phase6/BIZ-Acceptance_Criteria_PROPOSED.md) → [backlog](../engineering/phase6/BIZ-Implementation_Backlog_PROPOSED.md). Open policies: [decision register](../architecture/business/BIZ-Owner_Decision_Register_PROPOSED.md).

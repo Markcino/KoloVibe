@@ -1,6 +1,6 @@
 # Business module (R2) — Phase 6A design package
 
-**Status: PROPOSED — for architectural approval. Nothing here is approved or implemented.** Phase 6A, 24 November 2026. Business discovery is **outside Release 1** (DEC-001); this package is R2 design only. No feature code, migrations, AWS or staging changes are part of it.
+**Status: see the approval record.** The owner approved all 26 original recommendations as written on 24 November 2026 and decided DR-BZ-21 (mobile only; no public website, no business web portal) formally in Phase 6A reconciliation; the policy values and copy the approval cannot supply are listed in the [approval record](BIZ-Owner_Approval_Record_2026-11-24.md). The backend was built behind closed flags in Phase 6B (merged in PR #219); nothing is deployed and production is NO-GO. File names still say PROPOSED because their wording has not been rewritten. Business discovery is **outside Release 1** (DEC-001); this package is R2 design only. No feature code, migrations, AWS or staging changes are part of it.
 
 ## Approved versus proposed
 
@@ -23,7 +23,8 @@
 | 9 | Dependency diagrams | [BIZ-Dependencies_PROPOSED.md](BIZ-Dependencies_PROPOSED.md) |
 | 10 | Implementation backlog and Phase 6B prerequisites | [BIZ-Implementation_Backlog_PROPOSED.md](../../engineering/phase6/BIZ-Implementation_Backlog_PROPOSED.md) |
 | 11 | Acceptance criteria | [BIZ-Acceptance_Criteria_PROPOSED.md](../../engineering/phase6/BIZ-Acceptance_Criteria_PROPOSED.md) |
-| 12 | Owner decision register (26 open decisions) | [BIZ-Owner_Decision_Register_PROPOSED.md](BIZ-Owner_Decision_Register_PROPOSED.md) |
+| 12 | Owner decision register (26 original decisions approved as written; DR-BZ-21 decided formally; DR-BZ-27 and 28 open) | [BIZ-Owner_Decision_Register_PROPOSED.md](BIZ-Owner_Decision_Register_PROPOSED.md) |
+| 13 | **Client architecture (DR-BZ-21): Flutter for owners, staff and customers; console for administrators and moderators only** | [BIZ-Client_Architecture_DR-BZ-21.md](BIZ-Client_Architecture_DR-BZ-21.md) |
 
 ## Reading order for the approver
 

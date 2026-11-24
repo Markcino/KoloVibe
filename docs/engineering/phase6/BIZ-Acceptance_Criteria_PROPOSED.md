@@ -162,3 +162,18 @@ Trace: [requirements BZ-R](../../requirements/DOC-020_Business_Requirements_and_
 | AC-OPS-002 | With the Business service stopped, sign-in, video, points and moderation pass their smoke tests; Business routes return 503. | 046 | integration |
 | AC-OPS-003 | The shared service-identity verifier in `business` is byte-identical to the others (drift test), and dependencies are pinned and scanned. | 047 | CI |
 | AC-OPS-004 | Health and probe endpoints exist; resource limits and timeouts are configured; no secret is in the repository. | 047 | CI, secret scan |
+
+## 15. Client surfaces (DR-BZ-21)
+
+**None of these has been run.** AC-CLI-001…004 are cheap, repository-only tests that can protect the decision today; AC-CLI-005…008 need the console and Flutter work and cannot pass before it exists.
+
+| ID | Criterion | Req | Verification |
+| --- | --- | --- | --- |
+| AC-CLI-001 | Every Business route in DOC-205, called through the Gateway test client with and without credentials, returns JSON or an empty `204`; none returns `text/html`. | 051 | route-contract extension |
+| AC-CLI-002 | No Business response carries an `Access-Control-*` header, an `OPTIONS` preflight is not answered with CORS permission, and neither the Gateway nor the Business settings list a CORS middleware. | 051 | gateway test, settings test |
+| AC-CLI-003 | No Business response sets a cookie, and a request with a cookie but no bearer token is 401 (or 404 for anonymous-only routes). | 051 | gateway test |
+| AC-CLI-004 | The Gateway and Business settings define no `TEMPLATES`; the console URL table contains no Business owner, staff or customer page; every console Business page is registered as privileged in the route security matrix. | 049, 050 | settings and matrix tests |
+| AC-CLI-005 | Each console Business page refuses anonymous, non-privileged, MFA-pending, idle and over-age sessions, requires CSRF and a valid signed intent on every mutation, and makes no Business call when it refuses; hostile text (markup, script) in Business fields renders escaped. | 050 | console route matrix, rendering test |
+| AC-CLI-006 | Flutter Business repositories use the shared `ApiClient` and session manager and no other HTTP client or token store; every screen group has tested loading, empty, error and offline states. | 052 | static check, widget tests |
+| AC-CLI-007 | Repository tests assert the exact request body for every Business mutation: no account, owner, role, state, verified, listed, eligibility or rating field is ever sent. | 053 | repository tests |
+| AC-CLI-008 | A staff or review-invitation code is not written to storage or logs and is cleared when its screen closes; a second display is impossible. | 054 | widget and repository tests |

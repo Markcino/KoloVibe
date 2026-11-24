@@ -1,6 +1,6 @@
 # Business module (R2) — owner decision register
 
-**Status update, 24 November 2026: the owner approved all 26 recommendations as written; see the [approval record](BIZ-Owner_Approval_Record_2026-11-24.md), which also lists what that approval does not supply.** The original proposal text follows unchanged.
+**Status update, 24 November 2026: the owner approved all 26 recommendations as written; see the [approval record](BIZ-Owner_Approval_Record_2026-11-24.md), which also lists what that approval does not supply.** The original proposal text follows unchanged, except that **DR-BZ-21 now carries a formal owner decision with stricter wording** (no public website, no business web portal; see below and the [client architecture](BIZ-Client_Architecture_DR-BZ-21.md)), and section G adds two open decisions (DR-BZ-27, DR-BZ-28) that follow from it.
 
 **Original status: PROPOSED for owner review. Nothing here is approved.** Phase 6A, 24 November 2026. Accountable owner: Mark Allen Gbalazeh (@Markcino).
 
@@ -132,8 +132,20 @@ Legend — **Blocks**: the first slice in the [backlog](../../engineering/phase6
 ### DR-BZ-21 — Where business owners work
 - **Question.** The R1 web client is an administration console with no public or non-privileged pages; the mobile app has no business screens, and the exported designs under `docs/designed` contain none (the Figma file itself was not inspected). Where do owners manage a business and where do customers browse it?
 - **Options.** (A) Mobile for customers, owner tools in mobile too. (B) Mobile for customers, a separate owner web portal. (C) Admin-assisted for the pilot.
-- **Recommendation.** A for customers; owner tools in mobile in the same app; the admin console gains only reviewer pages. Needs designs approved before any client work.
+- **Recommendation (original).** A for customers; owner tools in mobile in the same app; the admin console gains only reviewer pages. Needs designs approved before any client work.
 - **Blocks.** S4 (client), S2 (owner client).
+
+**DECISION RECORD — DECIDED**
+
+| Field | Record |
+| --- | --- |
+| Status | **Decided by the owner.** Supersedes the "Approved as recommended" entry of 24 November in the approval record for this item; the earlier approval of option A stands and is made stricter |
+| Decision | All business owners, customers and business staff use Flutter mobile. Only administrators and moderators use the protected Django web dashboard. There is no public website and no business web portal |
+| Option chosen | **A**, with the explicit exclusions above. **B rejected. C rejected** (no admin-assisted pilot) |
+| Decision-maker and evidence | Mark Allen Gbalazeh (@Markcino), accountable owner; the Phase 6A instruction he issued in the working session on 24 November 2026, which names DR-BZ-21 and asks that the decision be recorded formally |
+| Exact document revision decided against | `main` at `5e7eda7` (Phase 6A package merged in PR #218, Phase 6B backend in PR #219) and this register as revised in the Phase 6A client-architecture pull request |
+| Conditions | None added. Approved designs are still required before any client code (DR-BZ-27). Anonymous API reads exist only to serve the app and are not authority for a website. No external web link exists until DR-BZ-28 is decided |
+| Requirements, ADR, matrix, contract and backlog items updated | DOC-020 (BZ-R-049…054, actors), ADR-BIZ-001 (Decision 6), architecture (diagram, section 5), authorization matrix (client column, principle 11), STRIDE (section 3.8, BZ-T-070…077), acceptance criteria (AC-CLI-001…008), backlog (P6B-07, slices C0–C3), dependency diagram, OpenAPI proposal header, [client architecture](BIZ-Client_Architecture_DR-BZ-21.md), tracker row B-19 |
 
 ## D. Inquiries
 
@@ -181,6 +193,22 @@ Legend — **Blocks**: the first slice in the [backlog](../../engineering/phase6
 - **Recommendation.** Start conservative, record them as configuration, and review after pilot data. Follow DEC-003's approach for engagement parameters (restricted-pilot values approved separately).
 - **Blocks.** S2 (registration), S5, S6.
 
+## G. Added during Phase 6A reconciliation (24 November 2026) — client surfaces
+
+### DR-BZ-27 — Business screen designs and route space
+- **Question.** Which approved designs define the Flutter Business screens, and how are they numbered? `ScreenRoute` accepts only M-001–M-108 and the design audit asserts exactly 108 screens, so adding screens is a deliberate change to the route space, the design catalog and `design_audit_test`.
+- **Options.** (A) Extend the numbering (M-109 onward) with the same recipe, asset and audit process as the first 108. (B) A separate Business route namespace inside the same app. (C) Defer all client work.
+- **Recommendation.** A, one design package per screen group in the [client architecture](BIZ-Client_Architecture_DR-BZ-21.md) section 4, approved in this order: customer discovery, owner onboarding and profile, inquiries, reviews, staff. The owner supplies the Figma designs, category and county lists and the warning and notice copy.
+- **Blocks.** Every Flutter slice (C1–C3).
+- **Status.** **Open.**
+
+### DR-BZ-28 — Sharing and links outside the app
+- **Question.** May a user share a business outside the app, and if so what does the recipient receive? A shareable `https` link implies a landing page (a public website) or at least hosted app-link association files and a fallback page.
+- **Options.** (A) No external links in the first release; sharing is limited to copying the business name and area as text. (B) App-link or universal-link only, with a minimal non-content page on an owner-approved domain. (C) Public share pages (**conflicts with DR-BZ-21**).
+- **Recommendation.** A. It is the only option that adds no web surface; revisit with real usage.
+- **Blocks.** Any share control in the Business screens. Not a blocker for the backend.
+- **Status.** **Open.**
+
 ## Summary table
 
 | ID | Topic | Blocks | Status |
@@ -205,12 +233,14 @@ Legend — **Blocks**: the first slice in the [backlog](../../engineering/phase6
 | DR-BZ-18 | Retention, deletion, residency | S3/S5/S6 | Open |
 | DR-BZ-19 | Evidence handling | S3 | Open |
 | DR-BZ-20 | Images | S7 | Open |
-| DR-BZ-21 | Client surfaces for owners | S2/S4 | Open |
+| DR-BZ-21 | Client surfaces for owners | S2/S4 | **Decided 24 Nov (mobile only; no public website or business portal)** |
 | DR-BZ-22 | Abuse parameters | S2/S5/S6 | Open |
 | DR-BZ-23 | Legal review | S3/S6 | Open |
 | DR-BZ-24 | Sequencing and staging capacity | after S1 | Open |
 | DR-BZ-25 | Suspension and closure | S3/S6 | Open |
 | DR-BZ-26 | Ownership disputes | S3/S8 | Open |
+| DR-BZ-27 | Business screen designs and route space | Flutter slices | Open |
+| DR-BZ-28 | Sharing and links outside the app | share controls | Open |
 
 ## Decision record template (use when the owner decides)
 

@@ -17,9 +17,9 @@ After approval, rows should be merged into DOC-203 and the verification columns 
 ```mermaid
 flowchart LR
   subgraph TB0[Untrusted: internet]
-    V[Visitor / Customer app]
-    OW[Owner and staff app]
-    RV[Reviewer web console]
+    V[Visitor / Customer: Flutter app]
+    OW[Owner and staff: Flutter app]
+    RV[Reviewer and administrator: protected console only]
   end
   subgraph TB1[Edge: Gateway trust boundary]
     GW[Gateway: authn, flags, role/MFA, shape validation]
@@ -145,6 +145,21 @@ Severity is the proposed inherent severity (Critical, High, Medium, Low). “Req
 | BZ-T-066 | D | Database or gateway overload from Business | Hot queries slow other services | Medium | Own schema and login; statement timeouts; indexes; connection caps; kill switch via flag | 046, 047 | AC-OPS-002 |
 | BZ-T-067 | T | Supply chain | New dependency (search extension, image library) introduces vulnerabilities | Medium | Prefer built-in PostgreSQL features; pinned, scanned dependencies through existing CI; no new vendor | 047 | AC-OPS-003 |
 | BZ-T-068 | I | Reviewer or operator over-collection | Support copies data into tickets or chat | Medium | Privileged-read audit; no export features in first release; operator procedures in a later runbook | 041, 044 | AC-AUD-003 |
+
+### 3.8 Client surfaces (added for DR-BZ-21, 24 November 2026)
+
+The owner decided that all business owners, staff and customers use Flutter and that there is no public website or business web portal. These rows cover what that decision changes. Severity is proposed inherent severity.
+
+| ID | S T R I D E | Threat | Scenario | Sev | Required controls | Req | Tests |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| BZ-T-070 | E, S | A web surface is added by drift | A developer adds CORS, a template, a cookie session or a public page "just for sharing"; browser attack classes and a second client appear unreviewed | High | Gateway and Business define no templates, CORS or cookie handling and a test keeps it so; route-contract and console route matrices fail on an unclassified route; owner approval (DR-BZ-21, 28) is the only way to change it | 049, 050, 051 | AC-CLI-001…004 |
+| BZ-T-071 | S, E | Lost, stolen or rooted device used to take over an owner account | Refresh token extracted; attacker edits contacts, removes staff, answers reviews | High | Existing short access token (300 s), rotation with replay revocation, session list and revoke; step-up for contact change, staff removal, closure and transfer (P6B-04, **not yet built; these actions refuse today**); audit of every change | 036 | NT-04, AC-PRO-006 |
+| BZ-T-072 | T, E | Tampered or custom client asserts authority | Modified app or script sends owner, role, state, eligibility, rating or "open now" | High | Server derives all authority; banned-field rejection (400); exact request allowlists; the client holds no logic that the server does not repeat | 033, 043, 053 | NT-09, AC-CLI-007 |
+| BZ-T-073 | I | Directory scraped with plain scripts | No website does not mean no scraper: the anonymous API is callable by any HTTP client | High | Minimal anonymous fields; contact channels only to signed-in verified accounts with a reveal budget; per-IP and per-account throttles at the edge and gateway; bounded pages; keyed cursors | 019, 042 | NT-16, AC-DIS-004, AC-ABU-004 |
+| BZ-T-074 | S, I | Share or deep link used for phishing or to expose a business | A link outside the app resolves to a page or to a spoofed app link | Medium | No external link or share page until DR-BZ-28 is decided; if app links are later approved, they carry only a business id and require sign-in rules to apply | 049, 054 | AC-CLI-004 |
+| BZ-T-075 | I | Single-use code leaks from the device | Staff invitation or review-invitation code captured by screenshot, clipboard, logs or storage | Medium | Code shown once, not persisted, not logged; 72-hour expiry for staff codes; single use under concurrency; only a keyed digest stored server-side; revocation | 054 | AC-CLI-008, B1 and B5 tests |
+| BZ-T-076 | T, I | Business text attacks the reviewer console | Script or markup in a name, review or evidence note renders in a reviewer's browser | High | Plain text everywhere (BZ-R-015); the console escapes all Business text (template auto-escape, tested with hostile strings); `no-store`; short session | 015, 050 | AC-CLI-005 |
+| BZ-T-077 | D, T | Old app versions break or misuse a changed contract | Fielded app calls an operation whose meaning changed | Low | Additive-only contract changes; existing `/app/compatibility` gate; responses validated by the client before use | 048 | AC-CON-001 |
 
 ## 4. Highest risks and what they depend on
 

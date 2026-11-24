@@ -20,9 +20,15 @@ flowchart TB
     EN[Engagement]
     PT[Points]
   end
+  subgraph Clients_DR_BZ_21
+    APP[Flutter app: visitors, customers, owners, staff]
+    CON[Protected console: moderators, administrators]
+  end
   subgraph New_R2
     BZ[Business service]
   end
+  APP -->|HTTPS bearer| GW
+  CON -->|HTTPS, MFA session| GW
   DB[(PostgreSQL schema: business)]
   MQ{{RabbitMQ}}
   GW -->|validate session, role, MFA| ID
@@ -89,7 +95,7 @@ flowchart LR
 | Can proceed in parallel | Condition |
 | --- | --- |
 | Moderation generalization design (DR-BZ-17) and S2 | Design only until approved |
-| Client design (Figma) for owner and customer screens and S1–S2 | DR-BZ-21 decided |
+| Client design (Figma) for owner and customer screens and S1–S2 | DR-BZ-21 decided (24 November 2026); designs and route space need DR-BZ-27 |
 | Privacy orchestration design (export/erase) and S1–S4 | Needed before S5/S6 store customer-authored text |
 | Legal review (DR-BZ-23) and S1–S2 | Must finish before S3 and S6 |
 
