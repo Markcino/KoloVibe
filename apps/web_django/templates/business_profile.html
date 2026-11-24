@@ -1,0 +1,17 @@
+{% extends 'base_admin.html' %}{% load admin_display %}
+{% block title %}Profile review · KoloVibe{% endblock %}
+{% block content %}
+<div class="page-heading"><div class="detail-header"><p class="eyebrow">Profile revision {{ item.revision_no }}</p><h1>{{ item.display_name }}</h1><span class="status-chip" data-state="{{ item.state }}">{{ item.state|human_label }}</span></div>
+<a class="button button-outline" href="{% url 'business-profiles' %}"><span class="icon-flip">{% include 'icon.html' with name='arrow' %}</span>Back to queue</a></div>
+{% include 'business_tabs.html' %}
+<section class="panel" aria-labelledby="changes-title"><div class="section-heading"><div><p class="eyebrow">Compared with the approved profile</p><h2 id="changes-title">What changed</h2></div></div>
+<p>{% for field in item.changed_fields %}<span class="status-chip">{{ field|human_label }}</span> {% empty %}<span class="supporting-text">No fields differ from the approved profile.</span>{% endfor %}</p></section>
+<section class="panel" aria-labelledby="profile-title"><div class="section-heading"><div><p class="eyebrow">Submitted by the owner</p><h2 id="profile-title">Profile</h2></div></div>
+<dl><dt>Business</dt><dd>{{ item.business_id }}</dd><dt>Trading name</dt><dd>{{ item.display_name }}</dd><dt>Category</dt><dd>{{ item.category|default:"None" }}</dd><dt>Description</dt><dd>{{ item.description|default:"None" }}</dd><dt>County</dt><dd>{{ item.county_code|default:"None" }}</dd><dt>City</dt><dd>{{ item.city|default:"None" }}</dd>
+<dt>Address</dt><dd>{{ item.address_line|default:"None" }}{% if item.address_line %} · {% if item.address_public %}public{% else %}private{% endif %}{% endif %}</dd>
+<dt>Coordinates</dt><dd>{% if item.latitude %}{{ item.latitude }}, {{ item.longitude }} · {% if item.coordinates_public %}public{% else %}private{% endif %}{% else %}None{% endif %}</dd><dt>Time zone</dt><dd>{{ item.time_zone }}</dd></dl></section>
+<section class="panel table-panel" aria-labelledby="contacts-title"><div class="section-heading"><div><p class="eyebrow">Contact channels</p><h2 id="contacts-title">Contacts</h2></div></div>
+<div class="table-scroll" role="region" aria-label="Contact channels" tabindex="0"><table><caption>Contacts and whether each is public</caption><thead><tr><th scope="col">Kind</th><th scope="col">Value</th><th scope="col">Visibility</th></tr></thead><tbody>
+{% for contact in item.contacts %}<tr><td data-label="Kind">{{ contact.kind|human_label }}</td><td data-label="Value">{{ contact.value }}</td><td data-label="Visibility">{% if contact.is_public %}Public{% else %}Private{% endif %}</td></tr>{% empty %}<tr><td colspan="3">No contact channels.</td></tr>{% endfor %}</tbody></table></div></section>
+{% include 'business_decision_form.html' %}
+{% endblock %}

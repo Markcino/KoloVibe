@@ -1,0 +1,11 @@
+{% if offered.claim %}<section class="panel" aria-labelledby="claim-title"><div class="section-heading"><div><p class="eyebrow">Action</p><h2 id="claim-title">Claim this case</h2></div><span class="status-chip">Audited</span></div>
+<p class="supporting-text">Claiming assigns the case to you so you can decide it. You can only claim a case you are authorised to review and have no conflict of interest in.</p>
+<form method="post">{% csrf_token %}<input type="hidden" name="intent" value="{{ claim_intent }}"><p><button type="submit">Claim case</button></p></form></section>{% endif %}
+{% if offered.decisions %}<section class="panel" aria-labelledby="decision-title"><div class="section-heading"><div><p class="eyebrow">Action</p><h2 id="decision-title">Record a decision</h2></div><span class="status-chip">Audited</span></div>
+<form method="post">{% csrf_token %}<input type="hidden" name="intent" value="{{ decision_intent }}">
+<label>Decision<select name="decision" required><option value="">Select a decision</option>{% for decision in offered.decisions %}<option value="{{ decision }}">{{ decision|cut:"_"|title }}</option>{% endfor %}</select></label>
+<label>Reason code<input name="reason_code" required minlength="3" maxlength="40" pattern="[a-z][a-z_]{2,39}" autocomplete="off" spellcheck="false" aria-describedby="reason-help"></label>
+<p id="reason-help" class="supporting-text">{{ reason_help }} It is recorded with your decision.</p>
+{% if kind == 'verifications' %}<label>Note for the record (optional)<textarea name="note" maxlength="500" rows="3" aria-describedby="note-help"></textarea></label><p id="note-help" class="supporting-text">Up to 500 characters. Reviewer notes are never shown to the business owner.</p>{% endif %}
+<p><button type="submit">Review decision</button></p></form></section>
+{% elif not offered.claim %}<section class="panel"><p class="supporting-text">No decision is available for this item in its current state.</p></section>{% endif %}

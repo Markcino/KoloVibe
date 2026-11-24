@@ -75,7 +75,7 @@ No Business screen, repository, route or test exists in `apps/mobile` today (ver
 
 ## 5. Protected console design (proposed; reuses the existing console)
 
-The 13 reviewer and administrator operations map to console pages in the existing `apps/web_django` project. **None exists today.**
+The 13 reviewer and administrator operations map to console pages in the existing `apps/web_django` project. **Built in Phase 6C (24 November 2026, not deployed, capability flags closed):** nine routes under `/admin/business/`; see the [route inventory](../../engineering/phase6/Phase6C_Business_Console_Results_2026-11-24.md#2-route-inventory). Suspension and restoration remain unbuilt because no backend operation exists.
 
 | Page | Operations | Role |
 | --- | --- | --- |

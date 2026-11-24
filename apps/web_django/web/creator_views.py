@@ -12,8 +12,8 @@ from django.shortcuts import redirect
 from django.urls import reverse
 from django.views.decorators.debug import sensitive_post_parameters
 
-from . import views
-from .admin_contracts import (valid_candidate, valid_creator_summary, valid_outstanding_invitations,
+from . import account_lookup, views
+from .admin_contracts import (valid_creator_summary, valid_outstanding_invitations,
                              valid_pending_applications)
 from .api_contracts import valid_id
 
@@ -94,19 +94,12 @@ def creators(request):
 
 
 def _lookup(request):
-    email = request.POST.get("email", "").strip()
-    if not 3 <= len(email) <= 254 or "@" not in email:
-        return _page(request, error="Enter the person's full email address.", status=400)
-    code, found = views._api("/admin/accounts/lookup", method="POST", data={"email": email}, token=request.gateway_token)
-    if code == 401:
+    outcome, value, status = account_lookup.find(request, request.POST.get("email", ""), verb="invited")
+    if outcome == "expired":
         return views._expired(request)
-    if code == 200 and valid_candidate(found):
-        return _page(request, candidate={**found, "intent": _intent(request, "invite", found["account_id"])})
-    message = {404: "No account with that email can be invited. The person must register in the app first.",
-               429: "Too many lookups. Try again later.",
-               403: "Only administrators can look up accounts.",
-               400: "Enter the person's full email address."}.get(code, "Account lookup is unavailable right now.")
-    return _page(request, error=message, status=code if code in (400, 403, 404, 429) else 503)
+    if outcome == "found":
+        return _page(request, candidate={**value, "intent": _intent(request, "invite", value["account_id"])})
+    return _page(request, error=value, status=status)
 
 
 def _invite(request):

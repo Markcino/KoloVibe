@@ -1,0 +1,32 @@
+{% extends 'base_admin.html' %}{% load admin_display %}
+{% block title %}{{ title }} · KoloVibe{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Business</p><h1>{{ title }}</h1><p class="supporting-text">Verification, profile and report review for business listings. You see only what your reviewer access covers.</p></div></div>
+{% include 'business_tabs.html' %}
+{% if notice %}<p class="notice" role="status">{{ notice }}</p>{% endif %}
+<section class="panel" aria-labelledby="summary-title"><div class="section-heading"><div><p class="eyebrow">Waiting for review</p><h2 id="summary-title">Queue summary</h2></div></div>
+<div class="table-scroll" role="region" aria-label="Queue summary" tabindex="0"><table><caption>Items waiting in each business queue (first page of each)</caption>
+<thead><tr><th scope="col">Queue</th><th scope="col">Waiting</th><th scope="col">Detail</th><th scope="col">Oldest</th><th scope="col">Open</th></tr></thead><tbody>
+{% for summary in summaries %}<tr>
+<td data-label="Queue"><strong>{{ summary.title }}</strong></td>
+{% if summary.available %}<td data-label="Waiting">{{ summary.count }}{% if summary.more %}+{% endif %}</td>
+<td data-label="Detail">{% if summary.kind == 'verifications' %}{{ summary.mine }} claimed by you{% elif summary.kind == 'reports' %}{{ summary.holds }} automatic hold{{ summary.holds|pluralize }}{% else %}&mdash;{% endif %}</td>
+<td data-label="Oldest">{% if summary.oldest %}<time datetime="{{ summary.oldest }}" title="{{ summary.oldest|utc_stamp }}">{{ summary.oldest|age }}</time>{% else %}&mdash;{% endif %}</td>
+{% else %}<td data-label="Waiting" colspan="3"><span class="status-chip" data-state="removed">Unavailable right now</span></td>{% endif %}
+<td data-label="Open"><a href="{% url 'business-'|add:summary.kind %}" aria-label="Open {{ summary.title }}">Open</a></td></tr>{% endfor %}
+</tbody></table></div>
+<p class="supporting-text">Counts cover the first page of each queue (20 items); a plus sign means more are waiting.</p></section>
+<section class="panel" aria-labelledby="businesses-title"><div class="section-heading"><div><p class="eyebrow">In your scope</p><h2 id="businesses-title">Businesses needing attention</h2></div></div>
+<form class="filters" method="get" role="search" aria-label="Filter businesses">
+<label>Business name<input type="search" name="q" value="{{ needle }}" maxlength="80" autocomplete="off"></label>
+<label>Queue<select name="queue"><option value="all"{% if selected_queue == 'all' %} selected{% endif %}>All queues</option>{% for kind, spec in queues.items %}<option value="{{ kind }}"{% if selected_queue == kind %} selected{% endif %}>{{ spec.title }}</option>{% endfor %}</select></label>
+<button type="submit">Apply filter</button></form>
+<div class="table-scroll" role="region" aria-label="Businesses needing attention" tabindex="0"><table><caption>Businesses with an item waiting for you</caption>
+<thead><tr><th scope="col">Business</th><th scope="col">Id</th><th scope="col">Waiting for</th></tr></thead><tbody>
+{% for business in businesses %}<tr><td data-label="Business"><strong>{{ business.name|default:"Name shown on the item" }}</strong></td><td data-label="Id"><code title="{{ business.id }}">{{ business.id|slice:':8' }}</code></td>
+<td data-label="Waiting for">{% for link in business.links %}<a href="{{ link.url }}">{{ link.label }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}</td></tr>
+{% empty %}<tr><td colspan="3">Nothing is waiting for you right now.</td></tr>{% endfor %}</tbody></table></div>
+<p class="supporting-text">Filtering applies to the items already loaded above. Business names come from the items themselves.</p></section>
+<section class="panel" aria-labelledby="later-title"><div class="section-heading"><div><p class="eyebrow">Not available yet</p><h2 id="later-title">Waiting for backend support</h2></div></div>
+<p class="supporting-text">These workflows have no approved backend yet, so this console does not offer them: suspension and restoration, appeals, listing and impersonation complaints, ownership or staff disputes, moderation metrics, and a full list of businesses. Verification history is in the <a href="{% url 'audit' %}?producer=business">audit log</a>.</p></section>
+{% endblock %}

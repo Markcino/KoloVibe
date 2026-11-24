@@ -140,7 +140,68 @@ class RenderedPageTests(TestCase):
             found["report_queue"] = client.get(reverse("moderation-reports")).content.decode()
             found["appeal_queue_unavailable"] = client.get(reverse("moderation-appeals")).content.decode()
             found["account"] = client.get(reverse("account")).content.decode()
+        found.update(self.business_pages(client))
         return found
+
+    def business_pages(self, client):
+        """The Business console pages: overview, queues, three item pages, a confirmation, categories and access."""
+        when, case, rid, rep = "2026-11-24T10:00:00+00:00", str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4())
+        person = str(uuid.uuid4())
+        v = {"case_id": case, "business_id": str(uuid.uuid4()), "display_name": "Ma Kolo Foods", "state": "under_review",
+             "submitted_at": when, "assigned_to_you": True}
+        p = {"revision_id": rid, "business_id": str(uuid.uuid4()), "display_name": "Beta Cafe", "submitted_at": when}
+        r = {"report_id": rep, "subject_type": "review", "business_id": str(uuid.uuid4()), "reason_code": "misleading",
+             "system_hold": True, "created_at": when}
+        detail = {**v, "method": "manual_review", "legal_name": "Kolo Foods Ltd",
+                  "evidence": [{"id": str(uuid.uuid4()), "kind": "note", "value": "LBR-1"}], "duplicate_candidates": []}
+        revision = {"business_id": p["business_id"], "id": rid, "revision_no": 2, "state": "pending_review",
+                    "display_name": "Beta Cafe", "category": "food", "description": "Bread.", "county_code": "montserrado",
+                    "city": "Monrovia", "address_line": "", "address_public": False, "latitude": None, "longitude": None,
+                    "coordinates_public": False, "time_zone": "Africa/Monrovia",
+                    "contacts": [{"kind": "phone", "value": "+231770000000", "is_public": True}], "reason_code": None,
+                    "changed_fields": ["description"]}
+        report = {"report_id": rep, "subject_type": "review", "subject_id": str(uuid.uuid4()), "business_id": r["business_id"],
+                  "reason_code": "misleading", "details": "", "system_hold": True,
+                  "content": {"rating": 1, "title": None, "body": "Bad.", "state": "held", "basis": "open", "hold_reasons": []}}
+        routes = {"/moderation/business-verifications": (200, {"items": [v], "next_cursor": None}),
+                  f"/moderation/business-verifications/{case}": (200, detail),
+                  "/moderation/business-profile-revisions": (200, {"items": [p], "next_cursor": None}),
+                  f"/moderation/business-profile-revisions/{rid}": (200, revision),
+                  "/moderation/business-reports": (200, {"items": [r], "next_cursor": None}),
+                  f"/moderation/business-reports/{rep}": (200, report),
+                  "/business-categories": (200, {"items": [{"slug": "food", "name": "Food", "active": True, "parent": None}]}),
+                  "/admin/accounts/lookup": (200, {"account_id": person, "display_name": "Ada Eze", "role": "viewer",
+                                                   "email_verified": True})}
+
+        def answer(path, **kwargs):
+            return (200, dict(self.account)) if path == "/me" else routes.get(path, (503, {}))
+        found = {}
+        with patch("web.views._api", side_effect=answer), patch("web.assignment_views.roster", return_value={person: "Ada Moderator"}):
+            found["business_overview"] = client.get(reverse("business")).content.decode()
+            found["business_queue"] = client.get(reverse("business-verifications")).content.decode()
+            found["business_reports_queue"] = client.get(reverse("business-reports")).content.decode()
+            case_page = client.get(reverse("business-verifications-detail", args=[case]))
+            found["business_verification"] = case_page.content.decode()
+            found["business_profile"] = client.get(reverse("business-profiles-detail", args=[rid])).content.decode()
+            found["business_report"] = client.get(reverse("business-reports-detail", args=[rep])).content.decode()
+            found["business_confirm"] = client.post(reverse("business-verifications-detail", args=[case]), {
+                "intent": case_page.context["decision_intent"], "decision": "verify", "reason_code": "documents_checked"}).content.decode()
+            found["business_categories"] = client.get(reverse("business-categories")).content.decode()
+            found["business_grants"] = client.get(reverse("business-grants")).content.decode()
+            found["business_candidate"] = client.post(reverse("business-grants"), {
+                "form": "lookup", "intent": client.get(reverse("business-grants")).context["lookup_intent"],
+                "email": "ada@example.test"}).content.decode()
+        return found
+
+    def test_the_business_pages_checked_here_are_the_real_pages_not_error_pages(self):
+        pages = self.pages()
+        expected = {"business_overview": "Queue summary", "business_queue": "Verification requests",
+                    "business_reports_queue": "Business reports", "business_verification": "Evidence submitted",
+                    "business_profile": "What changed", "business_report": "What was reported",
+                    "business_confirm": "Confirm your decision", "business_categories": "Save a category",
+                    "business_grants": "Reviewer access", "business_candidate": "Allow registration"}
+        for name, text in expected.items():
+            self.assertIn(text, pages[name], name)
 
     def test_every_rendered_page_has_the_document_structure_assistive_technology_needs(self):
         for name, html in self.pages().items():

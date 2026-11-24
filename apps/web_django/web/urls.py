@@ -6,6 +6,7 @@ from django.views.decorators.http import require_GET
 from . import views
 from . import invitation_views
 from . import assignment_views
+from . import business_views
 from . import creator_views
 
 handler400 = views.error_400
@@ -26,6 +27,9 @@ urlpatterns = [
     path("moderator-invitation/qr/", invitation_views.enrollment_qr, name="moderator-invitation-qr"),
     path("admin/team/", invitation_views.team, name="team"),
     path("admin/creators/", creator_views.creators, name="creators"),
+    path("admin/business/", business_views.overview, name="business"),
+    path("admin/business/categories/", business_views.categories, name="business-categories"),
+    path("admin/business/access/", business_views.grants, name="business-grants"),
     path("admin/", views.dashboard, name="dashboard"),
     path("admin/moderation/previews/<uuid:preview_id>/", views.reviewer_preview, name="reviewer-preview"),
     path("admin/fraud/", views.fraud_holds, name="fraud"),
@@ -45,4 +49,10 @@ for kind in ("videos", "reports", "appeals"):
              {"kind": kind}, name=f"moderation-{kind}-detail"),
         path(f"admin/moderation/{kind}/<uuid:target_id>/assignments/", assignment_views.assign,
              {"kind": kind}, name=f"moderation-{kind}-assign"),
+    ]
+for kind in ("verifications", "profiles", "reports"):
+    urlpatterns += [
+        path(f"admin/business/{kind}/", business_views.queue, {"kind": kind}, name=f"business-{kind}"),
+        path(f"admin/business/{kind}/<uuid:target_id>/", business_views.detail, {"kind": kind},
+             name=f"business-{kind}-detail"),
     ]

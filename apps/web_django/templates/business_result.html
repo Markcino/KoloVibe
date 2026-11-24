@@ -1,0 +1,4 @@
+{% extends 'base_admin.html' %}
+{% block title %}Decision recorded · KoloVibe{% endblock %}
+{% block content %}<section class="panel"><div class="empty-state">{% include 'icon.html' with name='shield' %}<h1>Decision recorded</h1><p role="status">Your decision was applied: {{ decision|cut:"_" }}.</p>
+<div class="status-actions actions-center"><a class="button" href="{% url 'business-'|add:kind %}">Back to queue</a><a class="button button-outline" href="{% url 'business-'|add:kind|add:'-detail' target_id %}">View the item</a><a class="button button-outline" href="{% url 'business' %}">Overview</a></div></div></section>{% endblock %}

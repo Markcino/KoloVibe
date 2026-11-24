@@ -1,0 +1,17 @@
+{% extends 'base_admin.html' %}{% load admin_display %}
+{% block title %}Business report · KoloVibe{% endblock %}
+{% block content %}
+<div class="page-heading"><div class="detail-header"><p class="eyebrow">Business report</p><h1>{{ item.subject_type|human_label }}</h1>{% if item.system_hold %}<span class="status-chip" data-state="removed">Automatic hold</span>{% endif %}</div>
+<a class="button button-outline" href="{% url 'business-reports' %}"><span class="icon-flip">{% include 'icon.html' with name='arrow' %}</span>Back to queue</a></div>
+{% include 'business_tabs.html' %}
+<section class="panel" aria-labelledby="report-title"><div class="section-heading"><div><p class="eyebrow">Report</p><h2 id="report-title">Summary</h2></div></div>
+<dl><dt>Report</dt><dd>{{ item.report_id }}</dd><dt>Business</dt><dd>{{ item.business_id }}</dd><dt>Subject</dt><dd>{{ item.subject_id }}</dd><dt>Reason</dt><dd>{{ item.reason_code|human_label }}</dd><dt>Reporter's note</dt><dd>{{ item.details|default:"None" }}</dd></dl>
+<p class="supporting-text">Reporter identity is never shown. Opening this report is recorded in the audit log.</p></section>
+<section class="panel" aria-labelledby="content-title"><div class="section-heading"><div><p class="eyebrow">Reported content</p><h2 id="content-title">What was reported</h2></div></div>
+{% if item.content %}<dl>
+{% if item.subject_type == 'review' %}<dt>Rating</dt><dd>{{ item.content.rating }} of 5</dd>{% if item.content.title %}<dt>Title</dt><dd>{{ item.content.title }}</dd>{% endif %}<dt>Review</dt><dd>{{ item.content.body }}</dd><dt>State</dt><dd>{{ item.content.state|human_label }}</dd><dt>Basis</dt><dd>{{ item.content.basis|human_label }}</dd><dt>Hold reasons</dt><dd>{% for reason in item.content.hold_reasons %}{{ reason|human_label }}{% if not forloop.last %}, {% endif %}{% empty %}None{% endfor %}</dd>
+{% elif item.subject_type == 'review_response' %}<dt>Response</dt><dd>{{ item.content.body }}</dd><dt>Removed</dt><dd>{{ item.content.removed|yesno:"Yes,No" }}</dd>
+{% else %}<dt>Message</dt><dd>{{ item.content.body }}</dd><dt>From</dt><dd>{{ item.content.author_kind|human_label }}</dd><dt>Removed</dt><dd>{{ item.content.removed|yesno:"Yes,No" }}</dd>{% endif %}</dl>
+{% else %}<p class="supporting-text">The reported content is no longer available.</p>{% endif %}</section>
+{% include 'business_decision_form.html' %}
+{% endblock %}

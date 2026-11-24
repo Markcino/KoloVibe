@@ -508,7 +508,7 @@ def audit(request):
     if not valid_audit_page(page) or page["next_cursor"] is not None and page["next_cursor"] == values.get("cursor"):
         return error_page(request)
     next_query = urlencode({**values, "cursor": page["next_cursor"]}) if page["next_cursor"] else None
-    return _render(request, "audit.html", {"items": page["items"], "next_query": next_query, "filters": display, "producers": ["identity", "moderation", "creators", "content", "points", "audit"]})
+    return _render(request, "audit.html", {"items": page["items"], "next_query": next_query, "filters": display, "producers": ["identity", "moderation", "creators", "content", "points", "audit", "business"]})
 
 
 @privileged

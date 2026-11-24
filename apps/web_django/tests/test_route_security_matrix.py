@@ -24,7 +24,9 @@ PUBLIC = {"web-liveness", "web-static", "root", "moderator-home", "dashboard-ali
           "moderator-invitation", "moderator-invitation-qr"}
 # Administrator-only pages the console itself refuses a moderator on (403, before any gateway call), as defence in
 # depth on top of the owning service's own check.
-CONSOLE_CHECKED = {"creators", "moderation-videos-assign", "moderation-reports-assign", "moderation-appeals-assign"}
+BUSINESS_DETAILS = {"business-verifications-detail", "business-profiles-detail", "business-reports-detail"}
+CONSOLE_CHECKED = {"creators", "moderation-videos-assign", "moderation-reports-assign", "moderation-appeals-assign",
+                   "business-categories", "business-grants"}
 # Administrator-only page where the console forwards and the gateway and Identity decide (the console surfaces the
 # refusal). Listed explicitly so a change in either direction is a visible decision.
 DELEGATED = {"team"}
@@ -32,7 +34,8 @@ ADMIN_ONLY = CONSOLE_CHECKED | DELEGATED
 # Privileged routes whose POST changes state.
 POSTING = {"profile-edit", "password-change", "revoke-session", "logout", "team", "creators",
            "moderation-videos-detail", "moderation-reports-detail", "moderation-appeals-detail",
-           "moderation-videos-assign", "moderation-reports-assign", "moderation-appeals-assign"}
+           "moderation-videos-assign", "moderation-reports-assign", "moderation-appeals-assign",
+           "business-categories", "business-grants"} | BUSINESS_DETAILS
 
 
 def route_table():
