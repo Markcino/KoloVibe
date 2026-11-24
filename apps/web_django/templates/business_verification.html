@@ -1,0 +1,19 @@
+{% extends 'base_admin.html' %}{% load admin_display %}
+{% block title %}Verification case · KoloVibe{% endblock %}
+{% block content %}
+<div class="page-heading"><div class="detail-header"><p class="eyebrow">Verification case</p><h1>{{ item.display_name }}</h1><span class="status-chip" data-state="{{ item.state }}">{{ item.state|human_label }}</span>{% if item.assigned_to_you %}<span class="status-chip">Claimed by you</span>{% endif %}</div>
+<a class="button button-outline" href="{% url 'business-verifications' %}"><span class="icon-flip">{% include 'icon.html' with name='arrow' %}</span>Back to queue</a></div>
+{% include 'business_tabs.html' %}
+<section class="panel" aria-labelledby="case-title"><div class="section-heading"><div><p class="eyebrow">Applicant</p><h2 id="case-title">Case summary</h2></div><span class="status-chip">Private</span></div>
+<dl><dt>Case</dt><dd>{{ item.case_id }}</dd><dt>Business</dt><dd>{{ item.business_id }}</dd><dt>Trading name</dt><dd>{{ item.display_name }}</dd><dt>Legal name</dt><dd>{{ item.legal_name }}</dd><dt>Method</dt><dd>{{ item.method|human_label }}</dd><dt>Submitted</dt><dd><time datetime="{{ item.submitted_at }}">{{ item.submitted_at|utc_stamp }}</time> · {{ item.submitted_at|age }}</dd></dl>
+<p class="supporting-text">This page shows private information. Opening it is recorded in the audit log.</p></section>
+<section class="panel table-panel" aria-labelledby="evidence-title"><div class="section-heading"><div><p class="eyebrow">Evidence</p><h2 id="evidence-title">Evidence submitted</h2></div><span class="status-chip">{{ item.evidence|length }} item{{ item.evidence|length|pluralize }}</span></div>
+<div class="table-scroll" role="region" aria-label="Evidence items" tabindex="0"><table><caption>Text evidence supplied by the business owner</caption><thead><tr><th scope="col">Kind</th><th scope="col">Value</th></tr></thead><tbody>
+{% for evidence in item.evidence %}<tr><td data-label="Kind">{{ evidence.kind|human_label }}</td><td data-label="Value">{{ evidence.value }}</td></tr>{% empty %}<tr><td colspan="2">No evidence was supplied.</td></tr>{% endfor %}</tbody></table></div>
+<p class="supporting-text">Only text evidence exists. File evidence is not available.</p></section>
+<section class="panel table-panel" aria-labelledby="dup-title"><div class="section-heading"><div><p class="eyebrow">Check</p><h2 id="dup-title">Similar businesses</h2></div></div>
+<div class="table-scroll" role="region" aria-label="Similar businesses" tabindex="0"><table><caption>Businesses with a similar name; a match never rejects a case</caption><thead><tr><th scope="col">Name</th><th scope="col">Status</th><th scope="col">Id</th></tr></thead><tbody>
+{% for other in item.duplicate_candidates %}<tr><td data-label="Name">{{ other.display_name }}</td><td data-label="Status">{{ other.state|human_label }}</td><td data-label="Id"><code title="{{ other.business_id }}">{{ other.business_id|slice:':8' }}</code></td></tr>{% empty %}<tr><td colspan="3">No similar business was found.</td></tr>{% endfor %}</tbody></table></div></section>
+{% include 'business_decision_form.html' %}
+<section class="panel"><p class="supporting-text">Decision history is recorded in the <a href="{% url 'audit' %}?producer=business&amp;kind=business.verification_decided">audit log</a> (administrators with business audit access).</p></section>
+{% endblock %}

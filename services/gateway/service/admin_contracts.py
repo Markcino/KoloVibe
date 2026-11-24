@@ -37,7 +37,7 @@ def valid_audit_page(value):
         for item in value["items"]:
             if (not isinstance(item, dict) or set(item) != {"id", "kind", "occurred_at", "producer", "subject_type"}
                     or str(UUID(item["id"])) != item["id"] or not isinstance(item["kind"], str) or not 1 <= len(item["kind"]) <= 64
-                    or item["producer"] not in {"identity", "moderation", "creators", "content", "points", "audit"}
+                    or item["producer"] not in {"identity", "moderation", "creators", "content", "points", "audit", "business"}
                     or item["subject_type"] is not None and (not isinstance(item["subject_type"], str) or len(item["subject_type"]) > 32)):
                 return False
             stamp = datetime.fromisoformat(item["occurred_at"])

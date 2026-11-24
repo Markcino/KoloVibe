@@ -133,6 +133,17 @@ Same columns and status key. Base `main` at `09a5bc9`. **Nothing here is deploye
 | Business routes are JSON-only (DR-BZ-21): no HTML, cookies, CORS, templates | gateway, business | n/a | n/a | JSON 405 with `Allow` (defect fixed) | middleware list pinned | +5 | **Implemented, awaiting integration** | none | AC-CLI-005…008 need client work |
 | B2 file evidence and suspension; B3 lists and copy; B6 policy values; B7 staff removal, closure, transfer; notification contracts | business | none | none | none | fail closed or absent | n/a | **Blocked by approval** | [Owner decisions required](../architecture/business/BIZ-Owner_Decisions_Required_PHASE6A.md) gate A | Owner |
 
+### Phase 6C Business administrator and moderator console (24 November) — pull request
+
+Same columns and status key. Base `main` at `01b73e2`. **Nothing here is deployed**; every Business flag is closed and production is NO-GO. Evidence: [Phase 6C results](phase6/Phase6C_Business_Console_Results_2026-11-24.md) (route inventory, feature matrix, test results). Console suite 174 (was 138); no migration; no contract change.
+
+| Feature | Service | Mobile | Web | API | Security | Tests | Status | Blocker | Next task |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Business overview, verification, profile-review and report queues and decisions | business, gateway | none (Flutter is for owners and customers) | 9 routes under `/admin/business/` | the 13 approved operations | privileged role, MFA, grant scope enforced by the service, signed single-operation intent with idempotency key, confirmation step, strict response validation | +35 | **Implemented, awaiting integration** | Flags closed; owner-approved release record; reviewer grants; Audit read access | Owner |
+| Categories and reviewer / registration access (administrator) | business | none | 2 routes | `PUT` category, reviewer grant, registration grant | administrator-only in console, gateway and service | in the 35 | **Implemented, awaiting integration** | same | Owner |
+| Audit page accepts the `business` producer | gateway, audit | none | existing page | `GET /admin/audit` | exact allow-list in both validator copies | +3 gateway, +1 console | **Verified complete** (repository scope) | none | none |
+| Suspension, restoration, appeals, listing and impersonation complaints, disputes, moderation metrics, business list, decision history | business | none | none | **no backend operation** | n/a | n/a | **Blocked by approval** | DR-BZ-25, DR-BZ-29 and new backend contracts | Owner |
+
 Local test run at HEAD and the full backlog, DRY analysis, risk register and Phase 1 acceptance criteria are in the [Phase 0 baseline](Phase0_Implementation_Baseline_2026-11-23.md#2-local-test-evidence-at-head).
 
 ## Earlier implementation and acceptance record

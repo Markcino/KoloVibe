@@ -1,0 +1,25 @@
+{% extends 'base_admin.html' %}
+{% block title %}{{ title }} · KoloVibe{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Business</p><h1>{{ title }}</h1><p class="supporting-text">Who may review business cases, and who may register a business. Only administrators change this. Every change is audited and takes effect on the next request.</p></div></div>
+{% include 'business_tabs.html' %}
+{% if notice %}<p class="notice" role="status">{{ notice }}</p>{% endif %}
+{% if error %}<p class="notice error" role="alert">{{ error }}</p>{% endif %}
+<section class="panel" aria-labelledby="reviewer-title"><div class="section-heading"><div><p class="eyebrow">Reviewers</p><h2 id="reviewer-title">Reviewer access</h2></div></div>
+{% if not people_available %}<p class="notice error" role="alert">The list of moderators is unavailable right now. Try again later.</p>
+{% else %}<p class="supporting-text">A reviewer sees and decides only what a grant covers. Leave the business empty to cover every business. You cannot grant yourself access. Existing grants cannot be listed yet: revoke by repeating the grant with Revoke selected.</p>
+<form method="post">{% csrf_token %}<input type="hidden" name="form" value="reviewer"><input type="hidden" name="intent" value="{{ reviewer_intent }}">
+<label>Moderator<select name="reviewer" required><option value="">Select a moderator</option>{% for id, name in people %}<option value="{{ id }}">{{ name }} ({{ id|slice:':8' }})</option>{% endfor %}</select></label>
+<label>Scope<select name="scope" required>{% for scope in scopes %}<option value="{{ scope }}">{{ scope|cut:"_"|title }}</option>{% endfor %}</select></label>
+<label>Business ID (optional)<input name="target" maxlength="40" autocomplete="off" spellcheck="false" pattern="\s*[0-9a-fA-F-]{36}\s*"></label>
+<label>Change<select name="active"><option value="1">Grant</option><option value="0">Revoke</option></select></label>
+<p><button type="submit">Save reviewer access</button></p></form>{% endif %}</section>
+<section class="panel" aria-labelledby="registration-title"><div class="section-heading"><div><p class="eyebrow">Business owners</p><h2 id="registration-title">Registration access</h2></div></div>
+<p class="supporting-text">During the pilot, only invited people can register a business in the app. The person must already have a verified KoloVibe account.</p>
+{% if lookup_error %}<p class="notice error" role="alert">{{ lookup_error }}</p>{% endif %}
+{% if candidate %}<div class="assignee-row"><span class="avatar">{{ candidate.display_name|slice:':1'|upper }}</span><span class="row-copy"><strong>{{ candidate.display_name }}</strong><small>Current role: {{ candidate.role|title }}</small></span><span class="status-chip" data-state="{% if candidate.email_verified %}accepted{% else %}open{% endif %}">{% if candidate.email_verified %}Email verified{% else %}Email not verified{% endif %}</span></div>
+<form method="post" class="status-actions">{% csrf_token %}<input type="hidden" name="form" value="registration"><input type="hidden" name="intent" value="{{ registration_intent }}"><input type="hidden" name="account_id" value="{{ candidate.account_id }}">
+<button type="submit" name="active" value="1">Allow registration</button><button type="submit" name="active" value="0" class="button-outline">Remove registration access</button><a class="button button-outline" href="{% url 'business-grants' %}">Cancel</a></form>
+{% else %}<form method="post" class="assign-form">{% csrf_token %}<input type="hidden" name="form" value="lookup"><input type="hidden" name="intent" value="{{ lookup_intent }}">
+<label>Email address<input type="email" name="email" maxlength="254" autocomplete="off" required placeholder="name@example.com"></label><button type="submit">Find account</button></form>{% endif %}</section>
+{% endblock %}

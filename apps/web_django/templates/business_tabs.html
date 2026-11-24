@@ -1,0 +1,8 @@
+<nav class="status-actions" aria-label="Business sections">
+<a class="button {% if section == 'overview' %}button-tonal{% else %}button-outline{% endif %}" href="{% url 'business' %}"{% if section == 'overview' %} aria-current="page"{% endif %}>Overview</a>
+<a class="button {% if section == 'verifications' %}button-tonal{% else %}button-outline{% endif %}" href="{% url 'business-verifications' %}"{% if section == 'verifications' %} aria-current="page"{% endif %}>Verification</a>
+<a class="button {% if section == 'profiles' %}button-tonal{% else %}button-outline{% endif %}" href="{% url 'business-profiles' %}"{% if section == 'profiles' %} aria-current="page"{% endif %}>Profile reviews</a>
+<a class="button {% if section == 'reports' %}button-tonal{% else %}button-outline{% endif %}" href="{% url 'business-reports' %}"{% if section == 'reports' %} aria-current="page"{% endif %}>Reports</a>
+{% if is_administrator %}<a class="button {% if section == 'categories' %}button-tonal{% else %}button-outline{% endif %}" href="{% url 'business-categories' %}"{% if section == 'categories' %} aria-current="page"{% endif %}>Categories</a>
+<a class="button {% if section == 'grants' %}button-tonal{% else %}button-outline{% endif %}" href="{% url 'business-grants' %}"{% if section == 'grants' %} aria-current="page"{% endif %}>Access</a>{% endif %}
+</nav>

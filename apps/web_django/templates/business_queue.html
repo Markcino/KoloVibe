@@ -1,0 +1,23 @@
+{% extends 'base_admin.html' %}{% load admin_display %}
+{% block title %}{{ title }} · KoloVibe{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Business review queue</p><h1>{{ title }}</h1><p class="supporting-text">Items you are authorised to review, in ID order.</p></div></div>
+{% include 'business_tabs.html' %}
+<form class="filters" method="get" role="search" aria-label="Find an item by ID">
+<label>Find by ID<input name="find" inputmode="text" autocomplete="off" spellcheck="false" maxlength="40" placeholder="Paste an item ID" pattern="\s*[0-9a-fA-F-]{36}\s*" aria-describedby="find-help"></label>
+<button type="submit" class="button-tonal">Open item</button><p id="find-help" class="supporting-text">The item opens only if you are authorised to review it.</p></form>
+<form class="filters" method="get" aria-label="Filter this page">
+<label>Business name<input type="search" name="q" value="{{ needle }}" maxlength="80" autocomplete="off"></label>
+{% if kind == 'verifications' %}<label class="check"><input type="checkbox" name="mine" value="1"{% if mine %} checked{% endif %}> Claimed by me</label>{% endif %}
+<button type="submit">Apply filter</button></form>
+<div class="table-scroll" role="region" aria-label="{{ title }}" tabindex="0"><table><caption>{{ title }}</caption>
+<thead><tr>{% if kind == 'reports' %}<th scope="col">Subject</th><th scope="col">Reason</th><th scope="col">Business</th><th scope="col">Raised</th><th scope="col">Source</th>{% else %}<th scope="col">Business</th><th scope="col">Submitted</th>{% if kind == 'verifications' %}<th scope="col">Status</th>{% endif %}{% endif %}<th scope="col">Item</th><th scope="col">Review</th></tr></thead><tbody>
+{% for item in items %}<tr>
+{% if kind == 'reports' %}<td data-label="Subject">{{ item.subject_type|human_label }}</td><td data-label="Reason">{{ item.reason_code|human_label }}</td><td data-label="Business"><code title="{{ item.business_id }}">{{ item.business_id|slice:':8' }}</code></td><td data-label="Raised"><time datetime="{{ item.created_at }}" title="{{ item.created_at|utc_stamp }}">{{ item.created_at|age }}</time></td><td data-label="Source">{% if item.system_hold %}<span class="status-chip" data-state="removed">Automatic hold</span>{% else %}Reported{% endif %}</td>
+{% else %}<td data-label="Business"><strong>{{ item.display_name }}</strong></td><td data-label="Submitted"><time datetime="{{ item.submitted_at }}" title="{{ item.submitted_at|utc_stamp }}">{{ item.submitted_at|age }}</time></td>
+{% if kind == 'verifications' %}<td data-label="Status"><span class="status-chip" data-state="{{ item.state }}">{{ item.state|human_label }}</span>{% if item.assigned_to_you %} · yours{% endif %}</td>{% endif %}{% endif %}
+<td data-label="Item"><code title="{{ item.item_id }}">{{ item.item_id|slice:':8' }}</code></td><td data-label="Review"><a href="{% if kind == 'verifications' %}{% url 'business-verifications-detail' item.item_id %}{% elif kind == 'profiles' %}{% url 'business-profiles-detail' item.item_id %}{% else %}{% url 'business-reports-detail' item.item_id %}{% endif %}" aria-label="Review item {{ item.item_id|slice:':8' }}">Review</a></td>
+</tr>{% empty %}<tr><td colspan="6">Nothing is waiting for you in this queue.</td></tr>{% endfor %}</tbody></table></div>
+<p class="supporting-text">Showing {{ items|length }} of {{ shown }} item{{ shown|pluralize }} on this page; filters apply to this page only.</p>
+<nav class="pagination" aria-label="Queue pages">{% if request.GET.cursor %}<a href="?{{ first_query }}">First page</a>{% endif %}{% if next_query %}<a rel="next" href="?{{ next_query }}">Next page</a>{% endif %}</nav>
+{% endblock %}
