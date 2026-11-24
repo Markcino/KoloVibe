@@ -56,6 +56,14 @@ class PolicyDefinitionTests(unittest.TestCase):
                     with self.subTest(service=service, cap=cap), self.assertRaises(RuntimeError):
                         policy.check(service, frozenset({cap}), accounts=True, privileged=True)
 
+    def test_business_is_a_known_service_that_carries_no_capability(self):
+        # Business is registered so its staging settings load, but nothing is switched on through it: every
+        # capability is refused for it, and its routes stay closed until an owner-approved release record.
+        policy.check("business", frozenset(), accounts=False, privileged=False)
+        for capability in ALL:
+            with self.assertRaises(RuntimeError, msg=capability):
+                policy.check("business", frozenset({capability}), accounts=False, privileged=False)
+
     def test_gateway_dependencies_are_enforced(self):
         policy.check("gateway", ALL, accounts=True, privileged=True)
         for cap, needs in policy.REQUIRES.items():
