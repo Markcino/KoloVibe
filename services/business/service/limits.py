@@ -19,8 +19,13 @@ BUDGETS = {
     "read": (600, timedelta(hours=1)),
     "verification_submit": (5, timedelta(days=1)),
     "profile_edit": (60, timedelta(hours=1)),
+    "listing_change": (30, timedelta(hours=1)),
+    "public_read": (1200, timedelta(hours=1)),      # per signed-in account, or per client address
+    "contact_reveal": (100, timedelta(days=1)),     # signed-in verified accounts only (DR-BZ-12)
 }
 PAGE_SIZE = 20
+SEARCH_CHUNK = 50
+SEARCH_SCAN_CAP = 500                   # rows examined per request when a filter is applied after the query (open now)
 MIN_EVIDENCE_ITEMS = 1                   # technical minimum so a case is never empty; the checklist is the owner's
 MAX_EVIDENCE_ITEMS = 5
 # DR-BZ-11 (approved: pre-moderate material fields, post-moderate free text). WHICH fields are material is the

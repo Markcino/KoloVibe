@@ -9,7 +9,7 @@ import unicodedata
 from django.db import transaction
 from django.utils import timezone
 
-from . import authz, limits, security_audit
+from . import authz, limits, listings, security_audit
 from .api import Result, operation
 from .errors import ApiError, not_found
 from .models import Business, VerificationCase, VerificationDecision, VerificationEvidence
@@ -224,6 +224,7 @@ def verification_decide(ctx, data):
         case.save(update_fields=["state", "reason_code", "decided_at"])
         VerificationDecision.objects.create(case=case, decided_by_account_id=ctx.actor_id, decision=decision,
                                             reason_code=fields["reason_code"], note=fields.get("note", ""))
+        listings.refresh(business)  # a revocation removes the listing in the same transaction
         security_audit.record("business.verification_decided", ctx.actor_id, "business", business.id)
     return Result(200, {"case_id": str(case.id), "state": case.state, "business_state": business.state})
 

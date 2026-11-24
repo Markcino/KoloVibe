@@ -11,6 +11,9 @@ from urllib.error import HTTPError
 from django.http import HttpResponse, HttpResponseNotAllowed, JsonResponse
 from django.views.decorators.cache import never_cache
 
+from uuid import UUID
+
+from .accounts import _bearer, _client_origin, _invoke
 from .admin_reads import principal
 from .creator_onboarding import authenticated_actor
 from .internal_client import signed_internal_request
@@ -44,7 +47,12 @@ OPERATIONS = {
     "profile_edit": (("PATCH",), "customer", False, ()),
     "profile_submit": (("POST",), "customer", False, ()),
     "hours_replace": (("PUT",), "customer", False, ()),
-    "category_list": (("GET",), "customer", False, ()),
+    "category_list": (("GET",), "public", False, ()),
+    "listing_status": (("GET",), "customer", False, ()),
+    "listing_publish": (("POST",), "customer", False, ()),
+    "listing_unpublish": (("POST",), "customer", False, ()),
+    "public_search": (("GET",), "public", False, ("q", "category", "county", "city", "open_now", "verified", "sort", "cursor", "limit")),
+    "public_detail": (("GET",), "public", False, ()),
     "category_put": (("PUT",), "privileged", False, ()),
     "profile_queue": (("GET",), "privileged", False, ("cursor", "limit")),
     "profile_revision": (("GET",), "privileged", False, ()),
@@ -70,9 +78,35 @@ def _data(request, query, ids):
     return {**body, **ids}
 
 
-def _forward(operation, actor, role, *, mfa, verified, key, data):
+NIL_ACTOR = "00000000-0000-0000-0000-000000000000"
+
+
+def _optional_session(request):
+    """Public routes: no credential means anonymous; a credential that is present must be valid (never downgraded).
+
+    One live Identity validation (no cache) also tells us whether the email is verified, which gates contact reveal.
+    """
+    if "Authorization" not in request.headers:
+        return NIL_ACTOR, "anonymous", False
+    token = _bearer(request)
+    if token is None:
+        return _error("Unauthorized", 401)
+    result = _invoke("/internal/auth/validate", {"access_token": token, "include_email_verification": True}, {200})
+    if result.status_code != 200:
+        return result
+    try:
+        payload = json.loads(result.content)
+        user, roles = payload["user"], payload["user"]["roles"]
+        if len(roles) != 1 or not isinstance(roles[0], str) or type(payload["email_verified"]) is not bool:
+            raise ValueError
+        return str(UUID(user["id"])), roles[0], payload["email_verified"]
+    except (ValueError, KeyError, TypeError, AttributeError):
+        return _error("Identity unavailable", 503)
+
+
+def _forward(operation, actor, role, *, mfa, verified, key, data, origin=None):
     envelope = {"actor_id": actor, "role": role, "mfa_verified": mfa, "email_verified": verified,
-                "idempotency_key": key, "data": data}
+                "idempotency_key": key, "origin": origin, "data": data}
     try:
         with signed_internal_request("business", f"/internal/business/{operation}", method="POST", timeout=12,
                                      payload=json.dumps(envelope, separators=(",", ":")).encode()) as response:
@@ -111,6 +145,12 @@ def business_endpoint(request, operations, **ids):
         return _error("Invalid request", 400)
     if who == "privileged":
         actor = principal(request)
+    elif who == "public":
+        actor = _optional_session(request)
+        if isinstance(actor, JsonResponse):
+            return actor
+        actor, role, verified = actor
+        actor = (actor, role)
     else:
         actor = authenticated_actor(request, require_verified_email=verified)
     if isinstance(actor, JsonResponse):
@@ -119,4 +159,5 @@ def business_endpoint(request, operations, **ids):
         data = _data(request, query, {name: str(value) for name, value in ids.items()})
     except (ValueError, TypeError, UnicodeError):
         return _error("Invalid request", 400)
-    return _forward(operation, actor[0], actor[1], mfa=who == "privileged", verified=verified, key=key, data=data)
+    return _forward(operation, actor[0], actor[1], mfa=who == "privileged", verified=verified, key=key, data=data,
+                    origin=_client_origin(request))

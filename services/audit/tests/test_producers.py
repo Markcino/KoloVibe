@@ -43,7 +43,7 @@ class ProducerTests(TestCase):
         self.assertEqual(self.send("identity", "business.registered")[0].status_code, 400)
         self.assertEqual(self.send("business", "account.registered")[0].status_code, 400)
         self.assertEqual(self.send("business", "business.verification_decided")[0].status_code, 201)
-        self.assertEqual(self.send("business", "business.listing_published")[0].status_code, 400)
+        self.assertEqual(self.send("business", "business.payment_taken")[0].status_code, 400)
 
     def test_points_ledger_decision_payload_is_ingested_with_null_actor_and_is_producer_bound(self):
         # Exact shape emitted by the Points deliver_audit_events command.

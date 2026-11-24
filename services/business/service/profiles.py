@@ -13,7 +13,7 @@ from django.db import transaction
 from django.db.models import Max
 from django.utils import timezone
 
-from . import authz, hours, limits, security_audit, step_up
+from . import authz, hours, limits, listings, security_audit, step_up
 from .api import Result, operation
 from .errors import ApiError, not_found
 from .models import (Business, BusinessCategory, ContactChannel, HoursException, HoursRule, ProfileRevision)
@@ -280,6 +280,7 @@ def _approve(business, revision, reviewer_id, now, reason_code):
     if business.display_name != revision.display_name:
         business.display_name = revision.display_name
         business.save(update_fields=["display_name"])
+    listings.refresh(business)
 
 
 @operation("hours_replace", roles=CUSTOMER, idempotent=True, budget="profile_edit")
@@ -298,6 +299,7 @@ def hours_replace(ctx, data):
                                        for d, o, c in rules])
         HoursException.objects.bulk_create([HoursException(business=business, on_date=d, closed=cl, opens_minute=o,
                                                            closes_minute=c) for d, cl, o, c in exceptions])
+        listings.refresh(business)
         security_audit.record("business.hours_replaced", ctx.actor_id, "business", business.id)
     return Result(200, _hours_view(business))
 
@@ -308,7 +310,7 @@ def _category_view(category):
             "parent": category.parent.slug if category.parent_id else None}
 
 
-@operation("category_list", roles=CUSTOMER + REVIEWERS, budget="read")
+@operation("category_list", roles=("anonymous",) + CUSTOMER + REVIEWERS)
 def category_list(ctx, data):
     parse(data, {})
     items = BusinessCategory.objects.select_related("parent").filter(active=True).order_by("slug")

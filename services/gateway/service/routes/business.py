@@ -26,8 +26,16 @@ def patterns():
             route("me/businesses/<uuid:business_id>/profile", GET="profile_get", PATCH="profile_edit"),
             route("me/businesses/<uuid:business_id>/profile/submit", POST="profile_submit"),
             route("me/businesses/<uuid:business_id>/hours", PUT="hours_replace"),
-            route("business-categories", GET="category_list"),
+            route("me/businesses/<uuid:business_id>/listing", GET="listing_status"),
+            route("me/businesses/<uuid:business_id>/listing/publish", POST="listing_publish"),
+            route("me/businesses/<uuid:business_id>/listing/unpublish", POST="listing_unpublish"),
         ]
+    if enabled("business_discovery"):
+        from ..business import business_endpoint
+
+        routes += [path("api/v1/business-categories", business_endpoint, {"operations": {"GET": "category_list"}}),
+                   path("api/v1/businesses", business_endpoint, {"operations": {"GET": "public_search"}}),
+                   path("api/v1/businesses/<uuid:business_id>", business_endpoint, {"operations": {"GET": "public_detail"}})]
     if enabled("business_review_admin"):
         from ..business import business_endpoint
 

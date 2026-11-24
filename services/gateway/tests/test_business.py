@@ -51,7 +51,8 @@ class BusinessGatewayTests(SimpleTestCase):
         self.assertIs(actor.call_args.kwargs["require_verified_email"], True)
         envelope = json.loads(peer.call_args.kwargs["payload"])
         self.assertEqual(envelope, {"actor_id": ACTOR, "role": "creator", "mfa_verified": False, "email_verified": True,
-                                    "idempotency_key": KEY, "data": {"display_name": "Shop", "legal_name": "Shop Ltd"}})
+                                    "idempotency_key": KEY, "origin": None,
+                                    "data": {"display_name": "Shop", "legal_name": "Shop Ltd"}})
         self.assertEqual(peer.call_args.args[:2], ("business", "/internal/business/register"))
 
     @patch("service.business.signed_internal_request")
@@ -127,6 +128,64 @@ class BusinessGatewayTests(SimpleTestCase):
         self.call({"PUT": "registration_grant"}, method="PUT", body={"active": True}, account_id=uuid4(),
                   headers={"HTTP_IDEMPOTENCY_KEY": KEY})
         self.assertIs(json.loads(peer.call_args.kwargs["payload"])["mfa_verified"], True)
+
+    @patch("service.business.signed_internal_request")
+    @patch("service.business._invoke")
+    def test_public_routes_are_anonymous_without_a_credential_and_never_call_identity(self, identity, peer):
+        peer.return_value = Response(b'{"items":[],"next_cursor":null}')
+        response = self.call({"GET": "public_search"}, method="GET", query="?q=bakery&open_now=true")
+        self.assertEqual(response.status_code, 200)
+        identity.assert_not_called()
+        envelope = json.loads(peer.call_args.kwargs["payload"])
+        self.assertEqual((envelope["actor_id"], envelope["role"], envelope["mfa_verified"], envelope["email_verified"]),
+                         ("00000000-0000-0000-0000-000000000000", "anonymous", False, False))
+        self.assertEqual(envelope["data"], {"q": "bakery", "open_now": "true"})
+
+    @patch("service.business.signed_internal_request")
+    @patch("service.business._invoke")
+    def test_a_present_but_invalid_credential_is_never_downgraded_to_anonymous(self, identity, peer):
+        identity.return_value = JsonResponse({"detail": "Unauthorized"}, status=401)
+        for headers in ({"HTTP_AUTHORIZATION": "Bearer " + uuid4().hex}, {"HTTP_AUTHORIZATION": "Basic abc"},
+                        {"HTTP_AUTHORIZATION": "Bearer "}):
+            response = self.call({"GET": "public_detail"}, method="GET", headers=headers, business_id=uuid4())
+            self.assertEqual(response.status_code, 401, headers)
+        peer.assert_not_called()
+
+    @patch("service.business.signed_internal_request")
+    @patch("service.business._invoke")
+    def test_a_valid_credential_carries_the_verified_email_flag_from_one_identity_call(self, identity, peer):
+        account = str(uuid4())
+        user = {"id": account, "email": "a@example.test", "display_name": "A", "created_at": "2026-11-10T00:00:00Z",
+                "roles": ["viewer"]}
+        peer.return_value = Response(b'{"id":"x"}')
+        for verified in (True, False):
+            identity.return_value = JsonResponse({"user": user, "email_verified": verified})
+            self.call({"GET": "public_detail"}, method="GET", headers={"HTTP_AUTHORIZATION": "Bearer " + uuid4().hex},
+                      business_id=uuid4())
+            envelope = json.loads(peer.call_args.kwargs["payload"])
+            self.assertEqual((envelope["actor_id"], envelope["role"], envelope["email_verified"]), (account, "viewer", verified))
+        self.assertEqual(identity.call_args.args[1]["include_email_verification"], True)
+        identity.return_value = JsonResponse({"user": {**user, "roles": ["viewer", "creator"]}, "email_verified": True})
+        self.assertEqual(self.call({"GET": "public_detail"}, method="GET", headers={"HTTP_AUTHORIZATION": "Bearer " + uuid4().hex},
+                                   business_id=uuid4()).status_code, 503)
+
+    @patch("service.business.signed_internal_request")
+    def test_client_address_is_forwarded_only_when_the_edge_vouches_for_it(self, peer):
+        peer.return_value = Response(b'{"items":[],"next_cursor":null}')
+        headers = {"HTTP_CF_CONNECTING_IP": "203.0.113.9"}
+        self.call({"GET": "public_search"}, method="GET", headers=headers)
+        self.assertIsNone(json.loads(peer.call_args.kwargs["payload"])["origin"])
+        with override_settings(KOLOVIBE_TRUSTED_CLIENT_IP_HEADER="CF-Connecting-IP"):
+            self.call({"GET": "public_search"}, method="GET", headers=headers)
+            self.assertEqual(json.loads(peer.call_args.kwargs["payload"])["origin"], "203.0.113.9")
+            self.call({"GET": "public_search"}, method="GET", headers={"HTTP_CF_CONNECTING_IP": "not-an-ip"})
+            self.assertIsNone(json.loads(peer.call_args.kwargs["payload"])["origin"])
+
+    @patch("service.business.signed_internal_request")
+    def test_public_routes_still_bound_their_input(self, peer):
+        for case in (dict(query="?lat=6.3"), dict(query="?q=a&q=b"), dict(body={"x": 1})):
+            self.assertEqual(self.call({"GET": "public_search"}, method="GET", **case).status_code, 400, case)
+        peer.assert_not_called()
 
     def test_every_operation_is_routed_and_routes_are_closed_without_the_flag(self):
         with override_settings(ENVIRONMENT="local", LOCAL_BUSINESS_ENABLED=True):

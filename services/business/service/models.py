@@ -26,6 +26,7 @@ class Business(models.Model):
     created_at = models.DateTimeField(default=timezone.now)
     closed_at = models.DateTimeField(null=True, blank=True)
     version = models.PositiveIntegerField(default=1)
+    owner_listed = models.BooleanField(default=False)  # the owner's intent; the public sees it only while eligible
 
     class Meta:
         indexes = [models.Index(fields=["created_by_account_id", "created_at"], name="biz_by_creator_idx")]
@@ -310,3 +311,29 @@ class HoursException(models.Model):
                                                   opens_minute__lt=models.F("closes_minute"), closes_minute__lte=1440)),
                                    name="biz_hours_exception_shape"),
         ]
+
+
+class BusinessListing(models.Model):
+    """The public read model: public columns ONLY, one row while a business is listed (ADR-BIZ-001 decision 4).
+
+    Every public query reads this table and nothing else, so a private column cannot leak by omission. A row exists
+    exactly while the eligibility predicate holds and the owner wants to be listed (see listings.py)."""
+    business = models.OneToOneField(Business, primary_key=True, on_delete=models.CASCADE, related_name="listing")
+    display_name = models.CharField(max_length=80)
+    name_sort = models.CharField(max_length=80)
+    category_slug = models.CharField(max_length=60)
+    category_name = models.CharField(max_length=80)
+    county_code = models.CharField(max_length=40)
+    city = models.CharField(max_length=80)
+    summary = models.CharField(max_length=200, blank=True, default="")
+    description = models.TextField(max_length=2000, blank=True, default="")
+    address_line = models.CharField(max_length=200, blank=True, default="")  # empty unless the owner made it public
+    time_zone = models.CharField(max_length=64)
+    hours = models.JSONField(default=dict)
+    contacts = models.JSONField(default=list)  # only channels the owner marked public
+    verified = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        indexes = [models.Index(fields=["name_sort", "business"], name="biz_listing_order_idx"),
+                   models.Index(fields=["county_code", "category_slug"], name="biz_listing_filter_idx")]

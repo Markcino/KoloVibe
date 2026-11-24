@@ -240,7 +240,7 @@ class GrantAndEnvelopeTests(BusinessTestCase):
 
     def test_envelope_is_strict(self):
         good = {"actor_id": str(uuid4()), "role": "viewer", "mfa_verified": False, "email_verified": True,
-                "idempotency_key": None, "data": {"business_id": str(uuid4())}}
+                "idempotency_key": None, "origin": None, "data": {"business_id": str(uuid4())}}
         self.assertEqual(self.call("get_mine", envelope=good)[0], 404)
         for change in ({"extra": 1}, {"mfa_verified": "yes"}, {"data": []}, {"actor_id": "not-a-uuid"},
                        {"role": 5}, {"idempotency_key": 5}):

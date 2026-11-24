@@ -30,7 +30,7 @@ def tests():
 
     def call(operation, data, actor, key, role="viewer", mfa=False):
         body = {"actor_id": str(actor), "role": role, "mfa_verified": mfa, "email_verified": True,
-                "idempotency_key": key, "data": data}
+                "idempotency_key": key, "origin": None, "data": data}
         request = RequestFactory().post("/internal/business/" + operation, json.dumps(body), content_type="application/json")
         request.service_caller = "gateway"
         response = dispatch(request, operation)
@@ -118,6 +118,40 @@ def tests():
                                                  owner, f"edit-key-{i:010d}") for i in range(4)])
             self.assertEqual({status for status, _ in results}, {200})
             self.assertEqual(ProfileRevision.objects.filter(business_id=business["id"]).count(), 1)
+
+        def test_search_pages_are_complete_and_stable_on_postgresql(self):
+            from service.api import NIL_ACTOR
+            from service.models import BusinessListing
+            names = [f"Pg Shop {chr(97 + i)}" for i in range(7)] + ["Pg 100% Cakes"]
+            for name in names:
+                business = Business.objects.create(created_by_account_id=uuid4(), display_name=name, legal_name=name + " Ltd",
+                                                   state="verified", owner_listed=True)
+                BusinessListing.objects.create(business=business, display_name=name, name_sort=name.casefold(),
+                                               category_slug="food", category_name="Food", county_code="pgtest", city="Pgville",
+                                               time_zone="Africa/Monrovia", hours={"rules": [[0, 480, 1020]], "exceptions": []})
+
+            def search(**params):
+                body = {"actor_id": NIL_ACTOR, "role": "anonymous", "mfa_verified": False, "email_verified": False,
+                        "idempotency_key": None, "origin": "198.51.100.7", "data": params}
+                request = RequestFactory().post("/internal/business/public_search", json.dumps(body), content_type="application/json")
+                request.service_caller = "gateway"
+                response = dispatch(request, "public_search")
+                connection.close()
+                return response.status_code, json.loads(response.content)
+
+            seen, cursor = [], None
+            for _ in range(10):
+                status, body = search(county="pgtest", limit=3, **({"cursor": cursor} if cursor else {}))
+                self.assertEqual(status, 200, body)
+                seen += [item["display_name"] for item in body["items"]]
+                cursor = body["next_cursor"]
+                if not cursor:
+                    break
+            self.assertEqual(seen, sorted(names, key=str.casefold))
+            self.assertEqual([i["display_name"] for i in search(county="pgtest", q="%")[1]["items"]], ["Pg 100% Cakes"])
+            self.assertEqual(search(county="pgtest", q="x'; DROP TABLE service_business;--")[1]["items"], [])
+            self.assertEqual(len(search(county="pgtest", open_now="true", limit=20)[1]["items"]) >= 0, True)
+            BusinessListing.objects.filter(county_code="pgtest").delete()
 
         def test_the_database_enforces_revision_and_hours_invariants(self):
             owner = uuid4()

@@ -5811,16 +5811,17 @@ paths:
     get:
       tags:
       - Business
-      summary: List active business categories
+      summary: List active business categories (public)
       operationId: get_business_categories
       x-implementation: local
-      x-capability: business_owner
+      x-capability: business_discovery
       x-required-roles:
       - viewer
       - creator
       - moderator
       - administrator
       x-authz-ref: BZ-AZ-01
+      security: []
       responses:
         '200':
           description: Success
@@ -6018,6 +6019,245 @@ paths:
           description: Not found or not entitled (indistinguishable)
         '409':
           $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /businesses:
+    get:
+      tags:
+      - Business
+      summary: Search and filter listed businesses (public)
+      operationId: get_businesses
+      x-implementation: local
+      x-capability: business_discovery
+      x-authz-ref: BZ-AZ-02
+      description: Reads only the public listing projection. Unknown parameters are rejected (400). No distance search
+        and no paid placement. Anonymous callers are allowed; a bearer token, if sent, must be valid.
+      parameters:
+      - name: q
+        in: query
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 100
+      - name: category
+        in: query
+        schema:
+          type: string
+          pattern: ^[a-z0-9-]{2,60}$
+      - name: county
+        in: query
+        schema:
+          type: string
+          pattern: ^[a-z0-9_]{2,40}$
+      - name: city
+        in: query
+        schema:
+          type: string
+          maxLength: 80
+      - name: open_now
+        in: query
+        schema:
+          type: boolean
+        description: Computed in the business's own time zone; businesses with no recorded hours match neither value.
+      - name: verified
+        in: query
+        schema:
+          type: boolean
+      - name: sort
+        in: query
+        schema:
+          type: string
+          enum:
+          - relevance
+          - name
+        description: relevance requires q
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          maxLength: 512
+        description: Opaque, tamper-evident, bound to the filters it was issued for.
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 20
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessSearchPage'
+        '400':
+          description: Invalid request
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+      security: []
+      x-public: true
+  /businesses/{business_id}:
+    get:
+      tags:
+      - Business
+      summary: Read one listed business (public)
+      operationId: get_business
+      x-implementation: local
+      x-capability: business_discovery
+      x-authz-ref: BZ-AZ-03
+      description: Contacts are returned only to signed-in verified-email accounts, within a daily reveal budget;
+        otherwise null with a contacts_access reason. An unknown id and an unlisted, revoked or closed business are
+        indistinguishable (404).
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessPublicDetail'
+        '400':
+          description: Invalid request
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+      security: []
+      x-public: true
+  /me/businesses/{business_id}/listing:
+    get:
+      tags:
+      - Business
+      summary: Read listing status and eligibility (owner or staff)
+      operationId: get_my_business_listing
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-17
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListingStatus'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/listing/publish:
+    post:
+      tags:
+      - Business
+      summary: List the business publicly (owner only)
+      operationId: post_my_business_listing_publish
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-21
+      description: Succeeds only while the eligibility predicate holds (verified and an approved profile); otherwise
+        409 code not_eligible.
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListingStatus'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Business service unavailable
+  /me/businesses/{business_id}/listing/unpublish:
+    post:
+      tags:
+      - Business
+      summary: Remove the business from public listing (owner only)
+      operationId: post_my_business_listing_unpublish
+      x-implementation: local
+      x-capability: business_owner
+      x-required-roles:
+      - viewer
+      - creator
+      x-authz-ref: BZ-AZ-22
+      parameters:
+      - name: business_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListingStatus'
+        '400':
+          description: Invalid request
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Not found or not entitled (indistinguishable)
         '429':
           $ref: '#/components/responses/RateLimited'
         '503':
@@ -8760,6 +9000,168 @@ components:
           format: uuid
         state:
           type: string
+    BusinessSearchItem:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - display_name
+      - category
+      - county_code
+      - city
+      - summary
+      - verified
+      - open_now
+      properties:
+        id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+        category:
+          type: object
+          additionalProperties: false
+          required:
+          - slug
+          - name
+          properties:
+            slug:
+              type: string
+            name:
+              type: string
+        county_code:
+          type: string
+        city:
+          type: string
+        summary:
+          type: string
+          maxLength: 200
+        verified:
+          type: boolean
+        open_now:
+          type:
+          - boolean
+          - 'null'
+    BusinessSearchPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/BusinessSearchItem'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+    BusinessPublicDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - display_name
+      - category
+      - county_code
+      - city
+      - summary
+      - verified
+      - open_now
+      - description
+      - address_line
+      - time_zone
+      - hours
+      - contacts
+      - contacts_access
+      properties:
+        id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+        category:
+          type: object
+          additionalProperties: false
+          required:
+          - slug
+          - name
+          properties:
+            slug:
+              type: string
+            name:
+              type: string
+        county_code:
+          type: string
+        city:
+          type: string
+        summary:
+          type: string
+          maxLength: 200
+        verified:
+          type: boolean
+        open_now:
+          type:
+          - boolean
+          - 'null'
+        description:
+          type: string
+        address_line:
+          type:
+          - string
+          - 'null'
+          description: Present only when the owner opted in.
+        time_zone:
+          type: string
+        hours:
+          $ref: '#/components/schemas/HoursView'
+        contacts:
+          type:
+          - array
+          - 'null'
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - kind
+            - value
+            properties:
+              kind:
+                type: string
+              value:
+                type: string
+        contacts_access:
+          type: string
+          enum:
+          - available
+          - none
+          - sign_in_required
+          - verified_email_required
+          - limit_reached
+    ListingStatus:
+      type: object
+      additionalProperties: false
+      required:
+      - listed
+      - owner_wants_listing
+      - eligible
+      - reasons
+      properties:
+        listed:
+          type: boolean
+        owner_wants_listing:
+          type: boolean
+        eligible:
+          type: boolean
+        reasons:
+          type: array
+          items:
+            type: string
+            enum:
+            - not_verified
+            - no_approved_profile
   responses:
     VideoUploadStatus:
       description: Current owner-visible upload or processing state

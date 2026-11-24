@@ -45,7 +45,8 @@ PRODUCER_KINDS = {
                  "business.verification_queue_read", "business.verification_case_read",
                  "business.profile_edited", "business.profile_submitted", "business.profile_applied",
                  "business.profile_decided", "business.profile_queue_read", "business.profile_revision_read",
-                 "business.hours_replaced", "business.category_changed"},
+                 "business.hours_replaced", "business.category_changed",
+                 "business.listing_published", "business.listing_unpublished"},
     "points": {"points.awarded", "points.withheld", "points.reversed", "points.adjusted", "points.review_read", "points.review_denied"},
 }
 SUBJECT_TYPES = {"account", "creator", "video", "report", "appeal", "moderation_action", "points_entry", "business"}

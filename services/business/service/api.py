@@ -22,7 +22,9 @@ from .models import IdempotencyRecord
 from .validation import uuid_text
 
 logger = logging.getLogger(__name__)
-ENVELOPE = {"actor_id", "role", "mfa_verified", "email_verified", "idempotency_key", "data"}
+ENVELOPE = {"actor_id", "role", "mfa_verified", "email_verified", "idempotency_key", "origin", "data"}
+ANONYMOUS = "anonymous"
+NIL_ACTOR = "00000000-0000-0000-0000-000000000000"
 KEY_PATTERN = re.compile(r"[A-Za-z0-9_-]{16,128}")
 MAX_BODY = 8192
 OPERATIONS = {}
@@ -35,6 +37,16 @@ class Context:
     mfa_verified: bool
     email_verified: bool
     idempotency_key: str | None
+    origin: str | None = None
+
+    @property
+    def anonymous(self):
+        return self.role == ANONYMOUS
+
+    @property
+    def throttle_key(self):
+        """Who a public read is counted against: the signed-in account, else the (trusted) client address."""
+        return str(self.actor_id) if not self.anonymous else "ip:" + (self.origin or "unknown")
 
 
 @dataclass
@@ -124,10 +136,14 @@ def dispatch(request, operation):
         key = envelope["idempotency_key"]
         if (type(envelope["mfa_verified"]) is not bool or type(envelope["email_verified"]) is not bool
                 or not isinstance(envelope["role"], str) or not isinstance(envelope["data"], dict)
-                or (key is not None and not isinstance(key, str))):
+                or (key is not None and not isinstance(key, str))
+                or (envelope["origin"] is not None and (not isinstance(envelope["origin"], str)
+                                                         or len(envelope["origin"]) > 45))
+                or (envelope["role"] == ANONYMOUS) != (envelope["actor_id"] == NIL_ACTOR)
+                or (envelope["role"] == ANONYMOUS and (envelope["mfa_verified"] or envelope["email_verified"]))):
             raise ValueError
         ctx = Context(uuid_text(envelope["actor_id"]), envelope["role"], envelope["mfa_verified"],
-                      envelope["email_verified"], key)
+                      envelope["email_verified"], key, envelope["origin"])
     except (ValueError, TypeError, UnicodeError, ApiError):
         return _error(400, "Invalid request")
     if ctx.role not in op.roles:
@@ -148,4 +164,4 @@ def dispatch(request, operation):
         return _error(503, "Business service unavailable")
 
 
-from . import ownership, profiles, verification  # noqa: E402,F401  (registers the operations)
+from . import listings, ownership, profiles, verification  # noqa: E402,F401  (registers the operations)
