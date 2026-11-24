@@ -1,0 +1,15 @@
+{
+  "body": {
+    "business_id": "ff74369a-051e-4b9d-ba3f-3f419b1f493f",
+    "business_name": "Alpha Bakery",
+    "confirmed": {
+      "business": false,
+      "customer": true
+    },
+    "created_at": "2026-11-24T14:58:58.385435+00:00",
+    "id": "b64cc15f-3662-471e-9644-b1ffd4bfd0a6",
+    "state": "open",
+    "subject_code": "order_question"
+  },
+  "status": 200
+}

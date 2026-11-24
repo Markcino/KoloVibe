@@ -1,0 +1,9 @@
+{
+  "body": {
+    "eligible": true,
+    "listed": false,
+    "owner_wants_listing": false,
+    "reasons": []
+  },
+  "status": 200
+}

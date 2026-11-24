@@ -1,0 +1,9 @@
+{
+  "body": {
+    "decided_at": null,
+    "reason_code": null,
+    "state": "submitted",
+    "submitted_at": "2026-11-24T14:58:58.563170+00:00"
+  },
+  "status": 200
+}

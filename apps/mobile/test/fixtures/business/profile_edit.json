@@ -1,0 +1,39 @@
+{
+  "body": {
+    "address_line": "",
+    "address_public": false,
+    "category": "food",
+    "changed_fields": [
+      "address_line",
+      "address_public",
+      "category",
+      "city",
+      "contacts",
+      "coordinates_public",
+      "county_code",
+      "description",
+      "display_name",
+      "time_zone"
+    ],
+    "city": "Monrovia",
+    "contacts": [
+      {
+        "is_public": true,
+        "kind": "phone",
+        "value": "+231770000000"
+      }
+    ],
+    "coordinates_public": false,
+    "county_code": "montserrado",
+    "description": "Fresh.",
+    "display_name": "Fixture Bakery",
+    "id": "3d36fc91-4346-4f04-a606-9d7142df50b0",
+    "latitude": null,
+    "longitude": null,
+    "reason_code": null,
+    "revision_no": 1,
+    "state": "draft",
+    "time_zone": "Africa/Monrovia"
+  },
+  "status": 200
+}

@@ -1,0 +1,13 @@
+{
+  "body": {
+    "created_at": "2026-11-24T14:58:58.221502+00:00",
+    "display_name": "Alpha Bakery",
+    "id": "ff74369a-051e-4b9d-ba3f-3f419b1f493f",
+    "legal_name": "Alpha Bakery Ltd",
+    "listed": false,
+    "my_role": "owner",
+    "state": "verified",
+    "verified": true
+  },
+  "status": 200
+}

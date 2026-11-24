@@ -10,6 +10,8 @@ import '../features/discovery/search_history.dart';
 import '../features/creators/live_creator_repository.dart';
 import '../features/points/live_points_repository.dart';
 import '../features/content/live_content_repository.dart';
+import '../features/business/business_context.dart';
+import '../features/business/live_business_repository.dart';
 
 class AppDependencies {
   const AppDependencies.unavailable()
@@ -19,6 +21,8 @@ class AppDependencies {
         liveCreators = null,
         livePoints = null,
         liveContent = null,
+        liveBusiness = null,
+        businessContext = null,
         searchHistory = null,
         api = null,
         device = const PlatformDeviceBridge();
@@ -30,6 +34,8 @@ class AppDependencies {
       this.liveCreators,
       this.livePoints,
       this.liveContent,
+      this.liveBusiness,
+      this.businessContext,
       this.searchHistory,
       this.api,
       this.device);
@@ -38,13 +44,20 @@ class AppDependencies {
       {CredentialStore? credentialStore,
       DeviceBridge? device,
       SearchHistoryStore? searchHistoryStore,
+      BusinessContextStore? businessContextStore,
       http.Client? client}) {
     final api = ApiClient(baseUrl, client: client);
     final account = LiveAccountRepository(
         api, credentialStore ?? const PlatformCredentialStore());
     final history =
         SearchHistory(searchHistoryStore ?? const SecureSearchHistoryStore());
-    account.onSessionEnded = history.clearAll;
+    final context = BusinessContext(
+        businessContextStore ?? const SecureBusinessContextStore());
+    // Signing out forgets the recent searches and the remembered business on this device.
+    account.onSessionEnded = () async {
+      await history.clearAll();
+      await context.clear();
+    };
     return AppDependencies._(
       ServiceRepositories(
         account: account,
@@ -61,6 +74,8 @@ class AppDependencies {
       LiveCreatorRepository(api),
       LivePointsRepository(account),
       LiveContentRepository(account),
+      LiveBusinessRepository(api, account),
+      context,
       history,
       api,
       device ?? const PlatformDeviceBridge(),
@@ -73,6 +88,10 @@ class AppDependencies {
   final LiveCreatorRepository? liveCreators;
   final LivePointsRepository? livePoints;
   final LiveContentRepository? liveContent;
+  final LiveBusinessRepository? liveBusiness;
+
+  /// The business the signed-in person is working in; a device-local convenience, never authority.
+  final BusinessContext? businessContext;
 
   /// Device-local recent searches; never sent to the service.
   final SearchHistory? searchHistory;

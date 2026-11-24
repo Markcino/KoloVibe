@@ -1,0 +1,14 @@
+{
+  "body": {
+    "basis": "open",
+    "body": "Updated review text here.",
+    "business_id": "ff74369a-051e-4b9d-ba3f-3f419b1f493f",
+    "created_at": "2026-11-24T14:58:58.376636+00:00",
+    "edited_at": "2026-11-24T14:58:58.432151+00:00",
+    "id": "61604c4b-22e7-4b06-980f-af57ec9cf597",
+    "rating": 5,
+    "state": "published",
+    "title": null
+  },
+  "status": 200
+}
