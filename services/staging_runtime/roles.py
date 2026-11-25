@@ -21,6 +21,10 @@ ROLES = {
     ("points", "deliver-audit"): ("points", "job", "deliver_audit_events", None),
     ("moderation", "deliver-audit"): ("moderation", "job", "deliver_audit_events", None),
     ("identity", "deliver-security-audit"): ("privileged", "job", "deliver_security_audit", None),
+    # Maintenance (Phase 3 A5): retention of expired throttle/code/session rows and re-publication of stalled
+    # media jobs. Both are bounded, idempotent and print counts only.
+    ("identity", "purge-security-rows"): ("account_management", "job", "purge_expired_security_rows", None),
+    ("content", "requeue-media"): ("media", "job", "requeue_stalled_media", None),
 }
 
 MIN_INTERVAL, MAX_INTERVAL = 5, 3600

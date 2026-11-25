@@ -21,7 +21,8 @@ class RoleTests(unittest.TestCase):
         self.assertEqual(set(roles.ROLES), {
             ("content", "media-worker"), ("engagement", "consumer"), ("points", "consumer"),
             ("engagement", "dispatch-events"), ("points", "deliver-audit"), ("moderation", "deliver-audit"),
-            ("identity", "deliver-security-audit")})
+            ("identity", "deliver-security-audit"), ("identity", "purge-security-rows"),
+            ("content", "requeue-media")})
         for service, role in (("gateway", "consumer"), ("audit", "media-worker"), ("content", "consumer"),
                               ("content", "bash"), ("points", "../x")):
             with self.subTest(service, role=role), self.assertRaises(RuntimeError):

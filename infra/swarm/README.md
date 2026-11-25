@@ -326,7 +326,7 @@ sudo python3 kolovibe_cluster.py update-plan --profile aws-staging --worker-evid
 It stops, changing nothing, if a reviewed R1 secret does not exist in Swarm, if a flag differs from the baseline or R1 row,
 if a different secret already sits at a target, if the messaging network is not an internal encrypted overlay, or if the
 resulting spec differs from the live one by anything but the reviewed additions. `rollback` restores the previous spec,
-including flags, mounts and networks. The seven worker and job processes (media worker, queue consumers, schedulers) are
+including flags, mounts and networks. The nine worker and job processes (media worker, queue consumers, schedulers, and the two maintenance jobs `identity-purge` and `content-requeue`) are
 declared in [`staging-aws.yml`](staging-aws.yml): the AWS-specific, hostname-pinned stack, at zero replicas, validated offline
 by `python scripts/validate_staging_stack.py --aws-stack` and by `scripts/test_aws_stack.py`. It is not the Oracle stack and
 shares none of its label placement.
