@@ -42,6 +42,41 @@ class Reauthentication {
   void dispose() => _token = null;
 }
 
+/// Decision G: a single-use proof from Identity for one named purpose (and resource). Held only in memory for the
+/// one request it was obtained for; taking it clears it, so a retry needs a fresh confirmation.
+class StepUpProof {
+  StepUpProof(String token, this.purpose, this.expiresAt) : _token = token;
+  String? _token;
+  final String purpose;
+  final DateTime expiresAt;
+
+  factory StepUpProof.fromJson(Map<String, dynamic> data, String purpose) {
+    final token = data['step_up_token'], expires = data['expires_at'];
+    if (data.length != 3 ||
+        data['purpose'] != purpose ||
+        token is! String ||
+        !RegExp(r'^[A-Za-z0-9_-]{32,128}$').hasMatch(token) ||
+        expires is! String ||
+        !RegExp(r'(Z|[+-]\d\d:\d\d)$').hasMatch(expires)) {
+      throw const FormatException('Invalid security check response');
+    }
+    final stamp = DateTime.tryParse(expires);
+    if (stamp == null || !stamp.isAfter(DateTime.now())) {
+      throw const FormatException('Expired security check response');
+    }
+    return StepUpProof(token, purpose, stamp);
+  }
+
+  String take() {
+    final value = _token;
+    _token = null;
+    if (value == null || !DateTime.now().isBefore(expiresAt)) {
+      throw const ApiFailure(403, 'Confirm your password again to continue.');
+    }
+    return value;
+  }
+}
+
 class LiveAccount {
   const LiveAccount(this.id, this.email, this.displayName, this.roles);
   final String id, email, displayName;
@@ -192,6 +227,7 @@ class LiveAccountRepository implements AccountRepository {
     Map<String, String>? query,
     Map<String, Object?>? body,
     String? idempotencyKey,
+    String? stepUpToken,
   }) async {
     const expired = ApiFailure(401, 'Sign in again to manage sessions.');
     try {
@@ -205,6 +241,7 @@ class LiveAccountRepository implements AccountRepository {
           query: query,
           body: body,
           idempotencyKey: idempotencyKey,
+          stepUpToken: stepUpToken,
         );
       } on ApiFailure catch (error) {
         if (error.status != 401 || restored) rethrow;
@@ -216,6 +253,7 @@ class LiveAccountRepository implements AccountRepository {
           query: query,
           body: body,
           idempotencyKey: idempotencyKey,
+          stepUpToken: stepUpToken,
         );
       }
     } on ApiFailure catch (error) {
@@ -248,6 +286,7 @@ class LiveAccountRepository implements AccountRepository {
     Map<String, String>? query,
     Map<String, Object?>? body,
     String? idempotencyKey,
+    String? stepUpToken,
   }) =>
       _serialized(
         () => _sessionRequest(
@@ -256,6 +295,7 @@ class LiveAccountRepository implements AccountRepository {
           query: query,
           body: body,
           idempotencyKey: idempotencyKey,
+          stepUpToken: stepUpToken,
         ),
       );
 
@@ -279,6 +319,39 @@ class LiveAccountRepository implements AccountRepository {
             body: {'current_password': currentPassword},
           ),
         );
+      });
+
+  /// Decision G: confirm the password to obtain a proof for one sensitive action on one resource.
+  Future<StepUpProof> stepUp(String currentPassword, String purpose,
+          {String? resourceId}) =>
+      _serialized(() async {
+        if (currentPassword.isEmpty || currentPassword.length > 128) {
+          throw const ApiFailure(400, 'Enter your current password.');
+        }
+        if (!RegExp(r'^[a-z]+\.[a-z_]{1,48}$').hasMatch(purpose) ||
+            (resourceId != null && !isApiId(resourceId))) {
+          throw ArgumentError('Invalid security check');
+        }
+        final Map<String, dynamic> answer;
+        try {
+          answer = await _sessionRequest(
+            '/me/step-up',
+            method: 'POST',
+            body: {
+              'current_password': currentPassword,
+              'purpose': purpose,
+              if (resourceId != null) 'resource_id': resourceId,
+            },
+          );
+        } on ApiFailure catch (error) {
+          // Identity answers a wrong password with a bare 400; name it on this one route so the screen can say so.
+          if (error.status == 400) {
+            throw const ApiFailure(400, 'The password is not correct.',
+                code: 'step_up_password');
+          }
+          rethrow;
+        }
+        return StepUpProof.fromJson(answer, purpose);
       });
 
   Future<void> clearSession() => _serialized(() async {

@@ -35,8 +35,9 @@ class SendError extends StatelessWidget {
           message: failureText(error),
           icon: Icons.error_outline,
           actionLabel: needsSignIn(error) ? 'Sign in' : null,
-          onAction:
-              needsSignIn(error) ? () => signInForBusiness(context, returnTo) : null,
+          onAction: needsSignIn(error)
+              ? () => signInForBusiness(context, returnTo)
+              : null,
         ),
       );
 }
@@ -76,17 +77,20 @@ class BusinessMyBusinessesScreen extends StatelessWidget {
         title: 'My businesses',
         scroll: false,
         child: BusinessPagedList<MyBusiness>(
-          onSignIn: () => signInForBusiness(screen, BusinessScreens.myBusinesses),
+          onSignIn: () =>
+              signInForBusiness(screen, BusinessScreens.myBusinesses),
           fetch: (cursor) => repository.myBusinesses(cursor: cursor),
           header: Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: Wrap(spacing: 8, runSpacing: 8, children: [
               KoloPillButton(
                   label: 'Register a business',
-                  onPressed: () => openBusiness(screen, BusinessScreens.register)),
+                  onPressed: () =>
+                      openBusiness(screen, BusinessScreens.register)),
               KoloPillButton(
                   label: 'Join a business team',
-                  onPressed: () => openBusiness(screen, BusinessScreens.redeem)),
+                  onPressed: () =>
+                      openBusiness(screen, BusinessScreens.redeem)),
             ]),
           ),
           empty: const KoloInlineState(
@@ -260,7 +264,8 @@ class BusinessManageScreen extends StatelessWidget {
         catalog: catalog,
         title: title,
         child: BusinessLoader<HomeData>(
-          onSignIn: () => signInForBusiness(context, BusinessScreens.myBusinesses),
+          onSignIn: () =>
+              signInForBusiness(context, BusinessScreens.myBusinesses),
           load: () async {
             try {
               return await loadHome(repository, businessId);
@@ -376,7 +381,8 @@ class BusinessEditProfileScreen extends StatelessWidget {
         title: 'Business details',
         showNavigation: false,
         child: BusinessLoader<(BusinessProfile, List<BusinessCategory>)>(
-          onSignIn: () => signInForBusiness(context, BusinessScreens.myBusinesses),
+          onSignIn: () =>
+              signInForBusiness(context, BusinessScreens.myBusinesses),
           load: () async => (
             await repository.profile(businessId),
             await repository.categories()
@@ -583,7 +589,8 @@ class _ProfileFormState extends State<_ProfileForm> {
                 child: Text(_busy ? 'Saving…' : 'Save draft')),
             if (_saved)
               TextButton(
-                  onPressed: () => openBusiness(context, BusinessScreens.profileStatus,
+                  onPressed: () => openBusiness(
+                      context, BusinessScreens.profileStatus,
                       entityId: widget.businessId),
                   child: const Text('Go to Profile review')),
           ],
@@ -610,46 +617,16 @@ class BusinessEditContactsScreen extends StatelessWidget {
         title: 'Contact details',
         showNavigation: false,
         child: BusinessLoader<BusinessProfile>(
-          onSignIn: () => signInForBusiness(context, BusinessScreens.myBusinesses),
+          onSignIn: () =>
+              signInForBusiness(context, BusinessScreens.myBusinesses),
           load: () => repository.profile(businessId),
-          builder: (context, profile, reload) => profile.approved != null
-              ? _LiveContacts(
-                  contacts: (profile.working ?? profile.approved)!.contacts)
-              : _ContactsForm(
-                  repository: repository,
-                  businessId: businessId,
-                  initial: profile.working?.contacts ?? const []),
+          builder: (context, profile, reload) => _ContactsForm(
+              repository: repository,
+              businessId: businessId,
+              live: profile.approved != null,
+              initial:
+                  (profile.working ?? profile.approved)?.contacts ?? const []),
         ),
-      );
-}
-
-/// Contact details on a live profile cannot be changed yet (the extra security check does not exist), so the editor
-/// is not shown: one explanatory row and the current values.
-class _LiveContacts extends StatelessWidget {
-  const _LiveContacts({required this.contacts});
-  final List<ProfileContact> contacts;
-
-  @override
-  Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const KoloNote(
-              key: ValueKey('contacts-locked'),
-              title: 'Contact details cannot be changed yet',
-              message:
-                  'Changing contact details on a live profile needs an extra security check that is not available yet.',
-              icon: Icons.lock_outline),
-          const SizedBox(height: 12),
-          if (contacts.isEmpty)
-            const Text('No contact details are saved.')
-          else
-            for (final contact in contacts)
-              KoloListRow(
-                  title: contact.value,
-                  subtitle:
-                      '${labelFor(contactKinds, contact.kind)} · ${contact.isPublic ? 'public' : 'private'}',
-                  icon: Icons.contact_phone_outlined),
-        ],
       );
 }
 
@@ -665,10 +642,14 @@ class _ContactsForm extends StatefulWidget {
   const _ContactsForm(
       {required this.repository,
       required this.businessId,
-      required this.initial});
+      required this.initial,
+      this.live = false});
   final LiveBusinessRepository repository;
   final String businessId;
   final List<ProfileContact> initial;
+
+  /// The profile is approved, so changing its contacts needs the owner's password (Decision G).
+  final bool live;
   @override
   State<_ContactsForm> createState() => _ContactsFormState();
 }
@@ -705,6 +686,14 @@ class _ContactsFormState extends State<_ContactsForm> {
     return null;
   }
 
+  bool get _changed {
+    String key(ProfileContact c) => '${c.kind}:${c.value}:${c.isPublic}';
+    return {for (final c in _contacts) key(c)}.length != _contacts.length ||
+        !{for (final c in _contacts) key(c)}
+            .containsAll({for (final c in widget.initial) key(c)}) ||
+        _contacts.length != widget.initial.length;
+  }
+
   Future<void> _save() async {
     if (_busy) return;
     final problem = _check();
@@ -712,14 +701,28 @@ class _ContactsFormState extends State<_ContactsForm> {
       setState(() => _problemText = problem);
       return;
     }
+    String? password;
+    if (widget.live && _changed) {
+      password = await askPasswordForStepUp(context,
+          title: 'Change live contact details?',
+          message:
+              'Customers can already see this profile. Enter your password to confirm it is you. The new details are checked before they are shown.',
+          confirmLabel: 'Save draft');
+      if (password == null || !mounted) return;
+    }
     setState(() {
       _busy = true;
       _error = null;
       _problemText = null;
     });
     try {
+      final proof = password == null
+          ? null
+          : await widget.repository.confirmForBusiness(
+              widget.businessId, 'business.contact_change', password);
       await widget.repository.editProfile(widget.businessId,
           contacts: _contacts,
+          proof: proof,
           key: _attempt.forContent([
             for (final c in _contacts) '${c.kind}:${c.value}:${c.isPublic}'
           ].join('|')));
@@ -857,7 +860,8 @@ class BusinessEditHoursScreen extends StatelessWidget {
         title: 'Opening hours',
         showNavigation: false,
         child: BusinessLoader<BusinessProfile>(
-          onSignIn: () => signInForBusiness(context, BusinessScreens.myBusinesses),
+          onSignIn: () =>
+              signInForBusiness(context, BusinessScreens.myBusinesses),
           load: () => repository.profile(businessId),
           builder: (context, profile, reload) => _HoursForm(
               repository: repository,
@@ -1144,7 +1148,8 @@ class BusinessProfileStatusScreen extends StatelessWidget {
         title: 'Profile review',
         showNavigation: false,
         child: BusinessLoader<BusinessProfile>(
-          onSignIn: () => signInForBusiness(context, BusinessScreens.myBusinesses),
+          onSignIn: () =>
+              signInForBusiness(context, BusinessScreens.myBusinesses),
           load: () => repository.profile(businessId),
           builder: (context, profile, reload) => _ProfileStatus(
               repository: repository,
@@ -1254,7 +1259,8 @@ class _ProfileStatusState extends State<_ProfileStatus> {
               child: Text(_busy ? 'Submitting…' : 'Submit for review')),
         if (working == null)
           OutlinedButton(
-              onPressed: () => openBusiness(context, BusinessScreens.editProfile,
+              onPressed: () => openBusiness(
+                  context, BusinessScreens.editProfile,
                   entityId: widget.businessId),
               child: const Text('Edit business details')),
       ],
@@ -1281,7 +1287,8 @@ class BusinessVerificationScreen extends StatelessWidget {
         title: 'Verification',
         showNavigation: false,
         child: BusinessLoader<VerificationStatus>(
-          onSignIn: () => signInForBusiness(context, BusinessScreens.myBusinesses),
+          onSignIn: () =>
+              signInForBusiness(context, BusinessScreens.myBusinesses),
           load: () => repository.verificationStatus(businessId),
           builder: (context, status, reload) => _Verification(
               repository: repository,
@@ -1507,7 +1514,8 @@ class BusinessListingScreen extends StatelessWidget {
         title: 'Listing',
         showNavigation: false,
         child: BusinessLoader<ListingStatus>(
-          onSignIn: () => signInForBusiness(context, BusinessScreens.myBusinesses),
+          onSignIn: () =>
+              signInForBusiness(context, BusinessScreens.myBusinesses),
           load: () => repository.listingStatus(businessId),
           builder: (context, status, reload) => _Listing(
               repository: repository, businessId: businessId, initial: status),

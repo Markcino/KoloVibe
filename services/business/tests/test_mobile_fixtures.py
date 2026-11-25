@@ -112,6 +112,13 @@ class MobileFixtureTests(ReviewBase):
         out["staff_invite"]["body"] = {**out["staff_invite"]["body"], "code": "REDACTED-ONE-TIME-CODE"}
         take("get_mine_staff", self.call("get_mine", {"business_id": bid}, actor=staff))
         take("member_list", self.call("member_list", {"business_id": bid}, actor=owner))
+        temporary = uuid4()
+        temp_code = self.call("staff_invite", {"business_id": bid, "label": "Temporary"}, actor=owner)[1]["code"]
+        self.call("staff_redeem", {"code": temp_code}, actor=temporary)
+        temp_member = next(m["id"] for m in self.call("member_list", {"business_id": bid}, actor=owner)[1]["members"]
+                           if m["label"] == "Temporary")
+        take("member_remove", self.call("member_remove", {"business_id": bid, "member_id": temp_member}, actor=owner,
+                                        step_up={"purpose": "business.member_remove", "resource_id": str(bid)}))
         invitation = self.call("staff_invite", {"business_id": bid, "label": "Spare"}, actor=owner)[1]
         take("staff_invitation_revoke", self.call("staff_invitation_revoke", {"business_id": bid, "invitation_id": invitation["id"]}, actor=owner))
         other = uuid4()

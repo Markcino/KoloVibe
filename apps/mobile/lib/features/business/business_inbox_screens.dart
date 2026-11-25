@@ -31,7 +31,8 @@ class BusinessInboxScreen extends StatelessWidget {
         title: 'Inbox',
         scroll: false,
         child: BusinessPagedList<BusinessInquiry>(
-          onSignIn: () => signInForBusiness(context, BusinessScreens.myBusinesses),
+          onSignIn: () =>
+              signInForBusiness(context, BusinessScreens.myBusinesses),
           fetch: (cursor) => repository.inbox(businessId, cursor: cursor),
           empty: const KoloInlineState(
             title: 'No questions yet',
@@ -72,7 +73,8 @@ class BusinessInboxThreadScreen extends StatelessWidget {
         title: 'Conversation',
         showNavigation: false,
         child: BusinessLoader<(BusinessInquiry, MyBusiness)>(
-          onSignIn: () => signInForBusiness(context, BusinessScreens.myBusinesses),
+          onSignIn: () =>
+              signInForBusiness(context, BusinessScreens.myBusinesses),
           load: () async => (
             await repository.inboxThread(target.businessId, target.threadId!),
             await repository.business(target.businessId)
@@ -304,7 +306,8 @@ class BusinessOwnerReviewsScreen extends StatelessWidget {
         title: 'Reviews and replies',
         scroll: false,
         child: BusinessPagedList<PublicReview>(
-          onSignIn: () => signInForBusiness(context, BusinessScreens.myBusinesses),
+          onSignIn: () =>
+              signInForBusiness(context, BusinessScreens.myBusinesses),
           fetch: (cursor) => repository.reviews(businessId, cursor: cursor),
           header: const Padding(
             padding: EdgeInsets.only(bottom: 12),
@@ -481,7 +484,8 @@ class _OwnerReviewTileState extends State<_OwnerReviewTile> {
                         onPressed: _busy ? null : _remove,
                         child: const Text('Remove reply')),
                   TextButton(
-                      onPressed: () => openBusiness(context, BusinessScreens.report,
+                      onPressed: () => openBusiness(
+                          context, BusinessScreens.report,
                           entityId: ReportTarget('review', review.id).encoded),
                       child: const Text('Report review')),
                 ],
@@ -622,7 +626,8 @@ class BusinessTeamScreen extends StatelessWidget {
         title: 'Team',
         showNavigation: false,
         child: BusinessLoader<Team>(
-          onSignIn: () => signInForBusiness(context, BusinessScreens.myBusinesses),
+          onSignIn: () =>
+              signInForBusiness(context, BusinessScreens.myBusinesses),
           load: () => repository.team(businessId),
           builder: (context, team, reload) => _TeamBody(
               repository: repository, businessId: businessId, initial: team),
@@ -719,6 +724,35 @@ class _TeamBodyState extends State<_TeamBody> {
     }
   }
 
+  /// Decision G: removing a staff member needs the owner's password, sent to Identity for a one-time proof that is
+  /// valid for this business and this action only.
+  Future<void> _remove(Member member) async {
+    if (_busy) return;
+    final name = member.label.isEmpty ? 'this staff member' : member.label;
+    final password = await askPasswordForStepUp(context,
+        title: 'Remove $name?',
+        message:
+            'They lose access to this business straight away. Enter your password to confirm it is you.',
+        confirmLabel: 'Remove');
+    if (password == null || !mounted) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final proof = await widget.repository.confirmForBusiness(
+          widget.businessId, 'business.member_remove', password);
+      await widget.repository.removeMember(widget.businessId, member.id,
+          proof: proof, key: LiveBusinessRepository.newKey());
+      if (mounted) notifySuccess(context, '$name was removed.');
+      await _refresh();
+    } catch (error) {
+      if (mounted) setState(() => _error = error);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final pending =
@@ -729,18 +763,24 @@ class _TeamBodyState extends State<_TeamBody> {
         const KoloSectionHeading(title: 'People'),
         for (final member in _team.members)
           KoloListRow(
+            key: ValueKey('member-${member.id}'),
             title: member.label.isEmpty ? roleLabel(member.role) : member.label,
             subtitle:
                 '${roleLabel(member.role)}${member.isYou ? ' · you' : ''} · since ${dateLabel(member.since)}',
             icon: Icons.person_outline,
           ),
-        const SizedBox(height: 8),
-        const KoloNote(
-            key: ValueKey('team-removal-unavailable'),
-            title: 'Removing someone is not available yet',
-            message:
-                'Removing a team member needs an extra security check that is not available yet. You can revoke an unused invitation.',
-            icon: Icons.lock_outline),
+        for (final member in _team.members
+            .where((m) => m.role == BusinessRole.staff && !m.isYou))
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              key: ValueKey('remove-${member.id}'),
+              onPressed: _busy ? null : () => _remove(member),
+              icon: const Icon(Icons.person_remove_outlined),
+              label: Text(
+                  'Remove ${member.label.isEmpty ? 'this staff member' : member.label}'),
+            ),
+          ),
         const SizedBox(height: 16),
         const KoloSectionHeading(title: 'Invitations'),
         if (pending.isEmpty) const Text('No unused invitations.'),

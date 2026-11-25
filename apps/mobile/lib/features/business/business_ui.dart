@@ -463,8 +463,10 @@ String failureText(Object error) {
       return 'Nothing has changed since the last approved profile.';
     case 'incomplete_profile':
       return 'The profile is incomplete. Fill in every required field, then submit again.';
-    case 'step_up_unavailable':
-      return 'This change needs an extra security check that is not available yet.';
+    case 'step_up_password':
+      return 'That password is not correct. Nothing was changed.';
+    case 'step_up_required':
+      return 'Confirm your password again to make this change.';
     case 'use_respond':
       return 'KoloVibe has asked for more information. Answer that request instead.';
     case 'no_open_request':
@@ -638,3 +640,71 @@ bool isNotFoundFailure(Object error) =>
     error is ApiFailure &&
     error.kind == FailureKind.notFound &&
     error.code == null;
+
+/// Decision G: asks for the account password before one sensitive owner action. The password goes only to Identity
+/// (POST /me/step-up) and is never stored; the dialog returns it, or null when the person cancels.
+Future<String?> askPasswordForStepUp(BuildContext context,
+        {required String title,
+        required String message,
+        required String confirmLabel}) =>
+    showDialog<String>(
+      context: context,
+      builder: (_) => _StepUpDialog(
+          title: title, message: message, confirmLabel: confirmLabel),
+    );
+
+class _StepUpDialog extends StatefulWidget {
+  const _StepUpDialog(
+      {required this.title, required this.message, required this.confirmLabel});
+  final String title, message, confirmLabel;
+  @override
+  State<_StepUpDialog> createState() => _StepUpDialogState();
+}
+
+class _StepUpDialogState extends State<_StepUpDialog> {
+  final _password = TextEditingController();
+
+  @override
+  void dispose() {
+    _password.dispose();
+    super.dispose();
+  }
+
+  void _confirm() {
+    final value = _password.text;
+    if (value.isNotEmpty) Navigator.of(context).pop(value);
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        key: const ValueKey('step-up-dialog'),
+        title: Text(widget.title),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(widget.message),
+            const SizedBox(height: 12),
+            TextField(
+              key: const ValueKey('step-up-password'),
+              controller: _password,
+              obscureText: true,
+              autocorrect: false,
+              enableSuggestions: false,
+              maxLength: 128,
+              onSubmitted: (_) => _confirm(),
+              decoration: const InputDecoration(labelText: 'Your password'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel')),
+          FilledButton(
+              key: const ValueKey('step-up-confirm'),
+              onPressed: _confirm,
+              child: Text(widget.confirmLabel)),
+        ],
+      );
+}
