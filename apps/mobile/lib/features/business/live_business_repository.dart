@@ -78,9 +78,19 @@ class LiveBusinessRepository {
           {String method = 'GET',
           Map<String, Object?>? body,
           String? key,
-          Map<String, String>? query}) =>
+          Map<String, String>? query,
+          StepUpProof? proof}) =>
       account.authenticatedRequest(path,
-          method: method, body: body, idempotencyKey: key, query: query);
+          method: method,
+          body: body,
+          idempotencyKey: key,
+          query: query,
+          stepUpToken: proof?.take());
+
+  /// Decision G: the password confirmation a sensitive owner action needs, for this business only.
+  Future<StepUpProof> confirmForBusiness(
+          String businessId, String purpose, String password) =>
+      account.stepUp(password, purpose, resourceId: _id(businessId));
 
   static Map<String, String>? _page(String? cursor) {
     if (cursor == null) return null;
@@ -363,6 +373,7 @@ class LiveBusinessRepository {
       String? addressLine,
       bool? addressPublic,
       List<ProfileContact>? contacts,
+      StepUpProof? proof,
       required String key}) async {
     final changes = <String, Object?>{
       if (displayName != null)
@@ -395,7 +406,8 @@ class LiveBusinessRepository {
         '/me/businesses/${_id(businessId)}/profile',
         method: 'PATCH',
         key: key,
-        body: changes));
+        body: changes,
+        proof: proof));
   }
 
   Future<ProfileRevision> submitProfile(String businessId,
@@ -626,6 +638,19 @@ class LiveBusinessRepository {
           method: 'POST',
           key: key,
           body: {'code': _clean(code, 'code', min: 16, max: 64)}));
+
+  /// An owner removes a staff member. Needs a fresh step-up proof for `business.member_remove` on this business.
+  Future<void> removeMember(String businessId, String memberId,
+      {required StepUpProof proof, required String key}) async {
+    if (proof.purpose != 'business.member_remove') {
+      throw ArgumentError('Wrong security check');
+    }
+    _status(await _send(
+        '/me/businesses/${_id(businessId)}/members/${_id(memberId)}',
+        method: 'DELETE',
+        key: key,
+        proof: proof));
+  }
 
   Future<void> leave(String businessId, {required String key}) async {
     _status(await _send('/me/businesses/${_id(businessId)}/leave',
