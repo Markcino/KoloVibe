@@ -29,6 +29,7 @@ if any(os.getenv(k) for k in _pg_vars):
     _password = Path(os.environ["KOLOVIBE_DB_PASSWORD_FILE"]).read_text().strip()
     if not _password:
         raise RuntimeError("Empty PostgreSQL database credential")
+    from staging_runtime import database_options
     DATABASES = {"default": {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": os.environ["KOLOVIBE_DB_NAME"],
@@ -39,7 +40,7 @@ if any(os.getenv(k) for k in _pg_vars):
         "OPTIONS": {
             "sslmode": "verify-full",
             "sslrootcert": os.environ["KOLOVIBE_DB_SSLROOTCERT"],
-            "options": "-c search_path=business",
+            "options": database_options("business"),
         },
         "CONN_MAX_AGE": 0,
     }}

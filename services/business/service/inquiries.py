@@ -172,7 +172,7 @@ def inquiry_confirm_customer(ctx, data):
 
 
 # ---- business ------------------------------------------------------------------------------------------------------
-@operation("inquiry_inbox", roles=CUSTOMER, budget="read")
+@operation("inquiry_inbox", roles=CUSTOMER, budget="read", member_roles=authz.ANY)
 def inquiry_inbox(ctx, data):
     fields = parse(data, {"business_id": (uuid_text, True), **PAGE})
     business_id = fields.pop("business_id")
@@ -186,13 +186,13 @@ def inquiry_inbox(ctx, data):
                         "next_cursor": str(page[limit - 1].id) if len(page) > limit else None})
 
 
-@operation("inquiry_inbox_get", roles=CUSTOMER, budget="read")
+@operation("inquiry_inbox_get", roles=CUSTOMER, budget="read", member_roles=authz.ANY)
 def inquiry_inbox_get(ctx, data):
     fields = parse(data, {"business_id": (uuid_text, True), "thread_id": (uuid_text, True)})
     return Result(200, business_view(_business_thread(ctx, fields["business_id"], fields["thread_id"])))
 
 
-@operation("inquiry_reply", roles=CUSTOMER, idempotent=True, budget="inquiry_message")
+@operation("inquiry_reply", roles=CUSTOMER, idempotent=True, budget="inquiry_message", member_roles=authz.ANY)
 def inquiry_reply(ctx, data):
     fields = parse(data, {"business_id": (uuid_text, True), "thread_id": (uuid_text, True), "body": (_body, True)})
     with transaction.atomic():
@@ -203,7 +203,7 @@ def inquiry_reply(ctx, data):
     return Result(201, business_view(thread))
 
 
-@operation("inquiry_close_business", roles=CUSTOMER, idempotent=True)
+@operation("inquiry_close_business", roles=CUSTOMER, idempotent=True, member_roles=authz.ANY)
 def inquiry_close_business(ctx, data):
     fields = parse(data, {"business_id": (uuid_text, True), "thread_id": (uuid_text, True)})
     with transaction.atomic():
@@ -216,7 +216,7 @@ def inquiry_close_business(ctx, data):
     return Result(200, business_view(thread, with_messages=False))
 
 
-@operation("inquiry_confirm_business", roles=CUSTOMER, idempotent=True)
+@operation("inquiry_confirm_business", roles=CUSTOMER, idempotent=True, member_roles=authz.ANY)
 def inquiry_confirm_business(ctx, data):
     fields = parse(data, {"business_id": (uuid_text, True), "thread_id": (uuid_text, True)})
     with transaction.atomic():
@@ -225,7 +225,7 @@ def inquiry_confirm_business(ctx, data):
     return Result(200, business_view(thread, with_messages=False))
 
 
-@operation("inquiry_block", roles=CUSTOMER, idempotent=True)
+@operation("inquiry_block", roles=CUSTOMER, idempotent=True, member_roles=(OWNER,))
 def inquiry_block(ctx, data):
     """Owner blocks the thread's customer for this business. The customer is identified only through the thread."""
     fields = parse(data, {"business_id": (uuid_text, True), "thread_id": (uuid_text, True)})

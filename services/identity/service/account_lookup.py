@@ -30,13 +30,17 @@ def lookup(request):
         data = _body(request, {"access_token", "email"})
         if "access_token" not in data:
             raise ValueError
-        email = _email_field(data)
-    except (ValueError, TypeError, UnicodeError, ValidationError):
+    except (ValueError, TypeError, UnicodeError):
         return _error("Invalid email address")
     with transaction.atomic():
+        # Authority is decided before the body is judged, so a caller without it learns nothing about the request schema.
         administrator, error = actor(data)
         if error is not None:
             return error
+        try:
+            email = _email_field(data)
+        except (KeyError, ValueError, TypeError, UnicodeError, ValidationError):
+            return _error("Invalid email address")
         if not budget("lookup:" + str(administrator.id), LOOKUPS_PER_HOUR, timezone.now(), timedelta(hours=1)):
             return _error("Too many lookups", 429)
         record("account.creator_candidate_looked_up", administrator.id)

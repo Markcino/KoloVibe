@@ -96,7 +96,7 @@ class EditTests(ProfileBase):
         bad = [{"display_name": "x"}, {"category": "Bad Slug"}, {"county_code": "Mont Serrado"}, {"city": ""},
                {"description": "d" * 2001}, {"address_line": "a" * 201}, {"latitude": 91, "longitude": 0},
                {"latitude": 1.0}, {"latitude": "nan", "longitude": 0}, {"time_zone": "Mars/Base"},
-               {"address_public": "yes"}, {"state": "approved"}, {"business_id": str(uuid4())}, {},
+               {"address_public": "yes"}, {"state": "approved"}, {},
                {"contacts": [{"kind": "fax", "value": "123456789"}]},
                {"contacts": [{"kind": "phone", "value": "abc"}]},
                {"contacts": [{"kind": "phone", "value": "12"}]},
@@ -111,6 +111,8 @@ class EditTests(ProfileBase):
             with patch.dict(limits.BUDGETS, {"profile_edit": (1000, timedelta(hours=1))}):
                 status = self.call("profile_edit", {**{"business_id": self.bid}, **fields}, actor=self.owner)[0]
             self.assertEqual(status, 400, fields)
+        # D11-005: naming a business the caller is not entitled to is a 404 (never a 400 that would reveal the schema)
+        self.assertEqual(self.call("profile_edit", {"business_id": str(uuid4())}, actor=self.owner)[0], 404)
         self.assertEqual(self.edit(category="missing")[1]["code"], "unknown_category")
         self.assertEqual(ProfileRevision.objects.count(), 0)  # every refusal rolled back, nothing half-created
 

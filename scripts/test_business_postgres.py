@@ -23,6 +23,7 @@ def tests():
     django.setup()
     from django.db import IntegrityError, connection, transaction
     from django.test import RequestFactory
+    from test_postgres_foundations import migration_connection
     from service import limits
     from service.api import dispatch
     from service.models import (Business, BusinessMembership, HoursRule, ProfileRevision, RegistrationGrant,
@@ -224,11 +225,11 @@ def tests():
 
         def test_every_migration_applies_and_reverses_and_the_schema_round_trips(self):
             from tests import migration_checks
-            migration_checks.round_trip(self, connection)
+            migration_checks.round_trip(self, migration_connection())
 
         def test_rows_survive_an_upgrade_and_a_rollback_of_later_migrations(self):
             from tests import migration_checks
-            migration_checks.data_survives(self, connection)
+            migration_checks.data_survives(self, migration_connection())
 
     loader = unittest.defaultTestLoader
     # Migrations run last: they drop and recreate later tables, so no other test may be mid-flight.
@@ -243,15 +244,16 @@ def audit_tests():
     import django
     django.setup()
     from django.db import connection
+    from test_postgres_foundations import migration_connection
     from tests import migration_checks
 
     class AuditBusinessProducer(unittest.TestCase):
         def test_rolls_back_and_forward_over_existing_producers(self):
             self.assertEqual(connection.vendor, "postgresql")
-            migration_checks.upgrade_and_rollback_over_existing_producers(self, connection)
+            migration_checks.upgrade_and_rollback_over_existing_producers(self, migration_connection())
 
         def test_rollback_is_refused_and_loses_nothing_while_a_business_grant_exists(self):
-            migration_checks.rollback_refused_and_lossless_while_a_business_grant_exists(self, connection)
+            migration_checks.rollback_refused_and_lossless_while_a_business_grant_exists(self, migration_connection())
 
     suite = unittest.defaultTestLoader.loadTestsFromTestCase(AuditBusinessProducer)
     sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)

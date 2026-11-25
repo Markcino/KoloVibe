@@ -1,0 +1,268 @@
+{
+ "results": [
+  {
+   "id": "T3_01",
+   "test": "Engagement.test_T3_01_like_is_idempotent_and_reversible_and_private_to_the_account",
+   "status": "PASS",
+   "seconds": 0.66,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T3_02",
+   "test": "Engagement.test_T3_02_like_requires_authentication_and_a_real_video",
+   "status": "PASS",
+   "seconds": 0.2,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T3_03",
+   "test": "Engagement.test_T3_03_follow_is_idempotent_and_a_creator_cannot_follow_themselves",
+   "status": "PASS",
+   "seconds": 0.33,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T3_10",
+   "test": "Engagement.test_T3_10_a_self_view_does_not_qualify",
+   "status": "PASS",
+   "seconds": 0.07,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T3_11",
+   "test": "Engagement.test_T3_11_progress_that_is_faster_than_real_time_does_not_qualify",
+   "status": "PASS",
+   "seconds": 0.23,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T3_12",
+   "test": "Engagement.test_T3_12_backwards_oversized_and_malformed_progress_is_refused",
+   "status": "PASS",
+   "seconds": 0.35,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T3_13",
+   "test": "Engagement.test_T3_13_a_session_cannot_be_used_by_another_account_or_for_another_video",
+   "status": "PASS",
+   "seconds": 3.73,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T3_14",
+   "test": "Engagement.test_T3_14_an_unauthenticated_or_unknown_session_is_refused",
+   "status": "PASS",
+   "seconds": 0.16,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T3_20",
+   "test": "Engagement.test_T3_20_a_qualified_view_becomes_exactly_one_ledger_entry_through_the_real_broker",
+   "status": "PASS",
+   "seconds": 5.34,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T3_21",
+   "test": "Engagement.test_T3_21_repeated_progress_and_a_second_session_in_the_dedupe_window_give_one_award",
+   "status": "PASS",
+   "seconds": 8.91,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T3_22",
+   "test": "Engagement.test_T3_22_the_same_outbox_event_published_twice_is_applied_once",
+   "status": "PASS",
+   "seconds": 9.78,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T3_23",
+   "test": "Engagement.test_T3_23_points_data_is_private_to_the_creator_and_entries_are_object_scoped",
+   "status": "PASS",
+   "seconds": 0.32,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T3_24",
+   "test": "Engagement.test_T3_24_the_ledger_is_append_only_for_the_service_role_and_every_entry_is_attributable",
+   "status": "PASS",
+   "seconds": 0.02,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T3_30",
+   "test": "Engagement.test_T3_30_a_broker_outage_keeps_the_event_and_one_award_follows_recovery",
+   "status": "PASS",
+   "seconds": 12.14,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T3_31",
+   "test": "Engagement.test_T3_31_a_killed_consumer_loses_nothing_and_a_restarted_one_processes_once",
+   "status": "PASS",
+   "seconds": 7.81,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T3_32",
+   "test": "Engagement.test_T3_32_queued_messages_survive_a_broker_restart",
+   "status": "PASS",
+   "seconds": 10.33,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T3_33",
+   "test": "Engagement.test_T3_33_garbage_that_is_not_a_task_is_discarded_without_harming_the_worker",
+   "status": "PASS",
+   "seconds": 5.82,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T3_34",
+   "test": "Engagement.test_T3_34_a_forged_qualified_view_event_cannot_be_injected_by_engagement_or_a_client",
+   "status": "PASS",
+   "seconds": 1.22,
+   "doc": "A client cannot reach the queue at all; the engagement account cannot consume or declare (see Phase 10); here, over HTTP.",
+   "detail": ""
+  },
+  {
+   "id": "T3_35",
+   "test": "Engagement.test_T3_35_a_malformed_task_envelope_must_not_kill_the_consumer_or_poison_the_queue",
+   "status": "PASS",
+   "seconds": 8.2,
+   "doc": "Only an account with WRITE on the Points exchange can send this, but a poison pill must not become an outage.",
+   "detail": ""
+  },
+  {
+   "id": "T3_90",
+   "test": "Engagement.test_T3_90_the_daily_cap_withholds_further_awards_and_records_them",
+   "status": "PASS",
+   "seconds": 77.51,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T4_01",
+   "test": "Business.test_T4_01_registering_a_business_needs_an_administrator_grant",
+   "status": "PASS",
+   "seconds": 0.18,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T4_02",
+   "test": "Business.test_T4_02_the_owner_is_assigned_by_the_server_and_a_client_cannot_choose_one",
+   "status": "PASS",
+   "seconds": 0.09,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T4_03",
+   "test": "Business.test_T4_03_a_retry_with_the_same_idempotency_key_returns_the_same_business",
+   "status": "PASS",
+   "seconds": 0.1,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T4_10",
+   "test": "Business.test_T4_10_every_business_scoped_operation_answers_a_stranger_exactly_like_a_missing_business",
+   "status": "PASS",
+   "seconds": 2.35,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T4_11",
+   "test": "Business.test_T4_11_the_owner_still_has_access_to_their_own_business",
+   "status": "PASS",
+   "seconds": 0.22,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T4_12",
+   "test": "Business.test_T4_12_an_anonymous_caller_cannot_use_any_owner_operation",
+   "status": "PASS",
+   "seconds": 0.01,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T4_20",
+   "test": "Business.test_T4_20_staff_invitations_are_single_use_and_staff_cannot_do_owner_things",
+   "status": "PASS",
+   "seconds": 0.72,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T4_21",
+   "test": "Business.test_T4_21_a_staff_member_who_leaves_loses_access_at_once",
+   "status": "PASS",
+   "seconds": 0.35,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T4_22",
+   "test": "Business.test_T4_22_removing_a_member_needs_step_up_which_is_not_available_and_so_fails_closed",
+   "status": "PASS",
+   "seconds": 0.08,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T4_23",
+   "test": "Business.test_T4_23_staff_get_the_same_refusal_for_a_malformed_owner_request_as_for_a_valid_one",
+   "status": "PASS",
+   "seconds": 0.29,
+   "doc": "Authorization should come before validation: a refused actor must not learn the request schema or its errors.",
+   "detail": ""
+  },
+  {
+   "id": "T4_30",
+   "test": "Business.test_T4_30_an_unverified_business_is_not_discoverable",
+   "status": "PASS",
+   "seconds": 0.03,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T4_31",
+   "test": "Business.test_T4_31_search_input_is_bounded_and_does_not_break_the_query",
+   "status": "PASS",
+   "seconds": 0.22,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T4_32",
+   "test": "Business.test_T4_32_public_business_reads_never_expose_owner_or_legal_details",
+   "status": "PASS",
+   "seconds": 0.02,
+   "doc": "",
+   "detail": ""
+  }
+ ]
+}

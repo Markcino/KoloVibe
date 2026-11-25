@@ -1,0 +1,140 @@
+{
+ "results": [
+  {
+   "id": "T10_01",
+   "test": "Database.test_T10_01_a_service_login_cannot_read_another_services_tables",
+   "status": "PASS",
+   "seconds": 0.61,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T10_02",
+   "test": "Database.test_T10_02_a_service_login_has_no_superuser_file_program_or_ddl_reach",
+   "status": "PASS",
+   "seconds": 0.01,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T10_03",
+   "test": "Database.test_T10_03_a_service_login_cannot_switch_off_the_append_only_guards_on_its_own_ledger",
+   "status": "PASS",
+   "seconds": 0.04,
+   "doc": "R-01: the runtime login inherits the role that OWNS its tables, so it can drop the triggers that make its ledger append-only.",
+   "detail": ""
+  },
+  {
+   "id": "T10_04",
+   "test": "Database.test_T10_04_service_logins_do_not_inherit_the_role_that_owns_their_tables",
+   "status": "PASS",
+   "seconds": 0.03,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T10_05",
+   "test": "Database.test_T10_05_database_connections_require_verified_tls",
+   "status": "PASS",
+   "seconds": 0.02,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T10_06",
+   "test": "Database.test_T10_06_database_secrets_are_private_files_and_never_in_process_arguments",
+   "status": "PASS",
+   "seconds": 0.0,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T10_30",
+   "test": "Database.test_T10_30_a_backup_restores_completely_and_the_guards_survive",
+   "status": "PASS",
+   "seconds": 1.22,
+   "doc": "The tested backup and recovery drill the pre-test rules ask for, on the disposable fixture (not on staging).",
+   "detail": ""
+  },
+  {
+   "id": "T10_31",
+   "test": "Database.test_T10_31_migrations_are_idempotent_and_the_latest_ones_reverse_and_reapply",
+   "status": "PASS",
+   "seconds": 6.3,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T10_10",
+   "test": "Perimeter.test_T10_10_internal_service_ports_refuse_every_unsigned_request",
+   "status": "PASS",
+   "seconds": 0.15,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T10_11",
+   "test": "Perimeter.test_T10_11_spoofed_identity_and_forwarding_headers_do_not_open_internal_routes",
+   "status": "PASS",
+   "seconds": 0.02,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T10_20",
+   "test": "Perimeter.test_T10_20_no_cors_is_granted_and_dangerous_methods_are_refused",
+   "status": "PASS",
+   "seconds": 0.08,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T10_21",
+   "test": "Perimeter.test_T10_21_path_and_method_tricks_do_not_bypass_authorization",
+   "status": "PASS",
+   "seconds": 0.54,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T10_22",
+   "test": "Perimeter.test_T10_22_oversized_headers_bodies_and_urls_are_refused_and_the_service_stays_up",
+   "status": "PASS",
+   "seconds": 0.02,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T10_23",
+   "test": "Perimeter.test_T10_23_a_burst_of_public_reads_does_not_cause_server_errors",
+   "status": "PASS",
+   "seconds": 1.4,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T10_24",
+   "test": "Perimeter.test_T10_24_hostile_json_and_unicode_do_not_cause_server_errors",
+   "status": "PASS",
+   "seconds": 0.09,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T10_90",
+   "test": "ZSecretsAndLogs.test_T10_90_no_credential_or_token_created_during_the_run_appears_in_any_service_log",
+   "status": "FAIL",
+   "seconds": 0.0,
+   "doc": "",
+   "detail": "AssertionError: 3 not greater than 40 : too few secrets were registered for this check to mean anything\n"
+  },
+  {
+   "id": "T10_91",
+   "test": "ZSecretsAndLogs.test_T10_91_service_logs_record_requests_without_query_strings_that_carry_secrets",
+   "status": "PASS",
+   "seconds": 0.02,
+   "doc": "",
+   "detail": ""
+  }
+ ]
+}

@@ -301,3 +301,19 @@ def configure(settings):
         *settings["MIDDLEWARE"],
         "django.middleware.clickjacking.XFrameOptionsMiddleware",
     ]
+
+
+def database_options(schema):
+    """libpq options for a service's database connection: its schema and, for the migration job only, its owner role.
+
+    The running service never sets KOLOVIBE_DB_MIGRATION_ROLE, so it stays the unprivileged runtime role. The migration
+    login sets it to kolovibe_<schema> so that every table, sequence and trigger it creates is owned by that role and
+    not by a login (D11-002). Only the schema's own owner role is accepted; the value is never passed through.
+    """
+    options = "-c search_path=" + schema
+    role = os.environ.get("KOLOVIBE_DB_MIGRATION_ROLE", "")
+    if role:
+        if schema not in SERVICES or role != "kolovibe_" + schema:
+            raise RuntimeError("Invalid migration role for this service")
+        options += " -c role=" + role
+    return options

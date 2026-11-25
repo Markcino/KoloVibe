@@ -260,6 +260,36 @@ class CodeTests(TestCase):
         spent = {r for r in LoginThrottle.objects.values_list("failures", flat=True)}
         self.assertTrue(spent)
 
+    # ---- D11-004: registration budget ------------------------------------------------------
+    def test_registration_is_limited_per_trusted_origin_and_the_limit_does_not_depend_on_the_address(self):
+        """T1_94: unbounded registration sent unbounded mail. A spent origin budget answers 429, even for a new address."""
+        for index in range(accounts.CODE_ORIGIN_SENDS):
+            self.assertEqual(self.post(accounts.register, {
+                "email": "flood%d@example.test" % index, "password": self.password, "display_name": "Flood",
+                "origin": "203.0.113.9"}).status_code, 201)
+        sent = len(mail.outbox)
+        refused = self.post(accounts.register, {"email": "flood-late@example.test", "password": self.password,
+                                                "display_name": "Flood", "origin": "203.0.113.9"})
+        self.assertEqual((refused.status_code, json.loads(refused.content)), (429, {"detail": "Too many attempts"}))
+        self.assertFalse(Account.objects.filter(email="flood-late@example.test").exists())
+        self.assertEqual(len(mail.outbox), sent)  # a refused request sends nothing
+        other = self.post(accounts.register, {"email": "other-network@example.test", "password": self.password,
+                                              "display_name": "Other", "origin": "203.0.113.10"})
+        self.assertEqual(other.status_code, 201)  # one network does not lock out another
+
+    def test_registration_attempts_for_existing_addresses_count_against_the_same_origin_budget(self):
+        self.register()
+        statuses = [self.post(accounts.register, {"email": EMAIL, "password": self.password, "display_name": "Probe",
+                                                  "origin": "203.0.113.9"}).status_code
+                    for _ in range(accounts.CODE_ORIGIN_SENDS + 3)]
+        self.assertIn(429, statuses)  # probing addresses through registration is bounded, not only sending mail
+
+    def test_registration_without_a_trusted_origin_is_unchanged_and_a_malformed_origin_is_refused(self):
+        self.assertEqual(self.post(accounts.register, {"email": "a@example.test", "password": self.password,
+                                                       "display_name": "Viewer"}).status_code, 201)
+        self.assertEqual(self.post(accounts.register, {"email": "b@example.test", "password": self.password,
+                                                       "display_name": "Viewer", "origin": "not-an-ip"}).status_code, 400)
+
     # ---- password reset --------------------------------------------------------------------
     def test_reset_code_flow_revokes_sessions_and_is_single_use(self):
         account = self.verified_account()

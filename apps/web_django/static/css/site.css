@@ -214,6 +214,8 @@ main { width: min(100% - 2 * var(--page-margin), 1200px); min-width: 0; margin: 
 .admin-topbar { position: sticky; top: 0; z-index: 8; display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 64px;
   padding: 0 calc(var(--page-margin) - 4px) 0 var(--page-margin); background: var(--md-surface); }
 .topbar-start, .topbar-end { display: flex; align-items: center; gap: 8px; }
+.topbar-start { min-width: 0; }
+.app-context { min-width: 0; overflow-wrap: anywhere; }  /* D11-006: the title yields before the bar can overflow (WCAG 1.4.10) */
 .topbar-end form { margin: 0; }
 .app-context { font-size: 1.375rem; line-height: 1.75rem; }
 .admin-main { width: auto; max-width: 1480px; margin: 0 auto; padding: 8px var(--page-margin) 40px; }
@@ -322,6 +324,8 @@ td .status-actions { margin: 0; justify-content: flex-end; }
 @media (max-width: 599px) {
   .metric-grid { grid-template-columns: 1fr 1fr; }
   .role-badge .label { display: none; }
+  .admin-topbar { gap: 4px; }
+  .app-context { font-size: 1.125rem; line-height: 1.5rem; }
   .table-scroll { overflow: visible; border: 0; background: transparent; }
   table, thead, tbody, tr, th, td, caption { display: block; }
   thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }

@@ -51,6 +51,45 @@ def celery_argv(queue):
     return ["worker", "-Q", queue, *CELERY_WORKER_OPTIONS]
 
 
+GUARDED_STRATEGY = "staging_runtime.roles:guarded_strategy"
+
+
+def guarded_strategy(task, app, consumer, **kwargs):
+    """Celery's default task strategy, with malformed task envelopes turned into InvalidTaskError.
+
+    Celery's `on_task_received` handles only InvalidTaskError, ContentDisallowed and DecodeError around the strategy. Any other
+    exception while the strategy reads a malformed envelope (a `task` header with a list body, a missing `id`) is "unrecoverable"
+    for the whole worker; with late acknowledgement the broker redelivers the message after every restart, so the consumer
+    crash-loops until someone purges the queue (Phase 11 D11-001). InvalidTaskError is Celery's own path: it logs the message and
+    rejects it without requeue.
+    """
+    from celery.exceptions import InvalidTaskError
+    from celery.worker.strategy import default
+    from kombu.exceptions import ContentDisallowed, DecodeError
+
+    handler = default(task, app, consumer, **kwargs)
+
+    def guarded(message, body, ack, reject, callbacks, *args, **kw):
+        try:
+            return handler(message, body, ack, reject, callbacks, *args, **kw)
+        except (InvalidTaskError, ContentDisallowed, DecodeError):
+            raise  # Celery already rejects these
+        except (KeyError, TypeError, ValueError, AttributeError, UnicodeError) as error:
+            raise InvalidTaskError("Malformed task message (" + type(error).__name__ + ")") from error
+
+    return guarded
+
+
+def guard_malformed_messages(app):
+    app.Task.Strategy = GUARDED_STRATEGY
+
+
+def resolve_strategy(app):
+    from kombu.utils.imports import symbol_by_name
+
+    return symbol_by_name(app.Task.Strategy)
+
+
 def run_celery(target, queue, argv_hook=None):
     import importlib
 
@@ -60,6 +99,7 @@ def run_celery(target, queue, argv_hook=None):
     # accounts are not granted configure access to it. It must be off before the worker is built, because the
     # Pidbox/Control bootsteps are chosen from this setting at construction time.
     app.conf.worker_enable_remote_control = False
+    guard_malformed_messages(app)
     app.worker_main(celery_argv(queue))
 
 

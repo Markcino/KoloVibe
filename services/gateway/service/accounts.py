@@ -113,7 +113,7 @@ def register(request):
         data = _body(request, {"email", "password", "display_name"})
     except (ValueError, UnicodeError):
         return _json({"detail": "Invalid registration"}, 400)
-    return _invoke("/internal/auth/register", data, {201})
+    return _invoke("/internal/auth/register", _with_origin(request, data), {201})
 
 
 @require_POST

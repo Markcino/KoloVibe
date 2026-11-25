@@ -73,7 +73,7 @@ def _attach(case, items):
     VerificationEvidence.objects.bulk_create([VerificationEvidence(case=case, **item) for item in items])
 
 
-@operation("verification_submit", roles=CUSTOMER, idempotent=True, budget="verification_submit")
+@operation("verification_submit", roles=CUSTOMER, idempotent=True, budget="verification_submit", member_roles=(OWNER,))
 def verification_submit(ctx, data):
     fields = parse(data, {"business_id": (uuid_text, True), "method": (code_text, True),
                           "declaration": (boolean, True), "evidence": (_evidence, True)})
@@ -93,7 +93,7 @@ def verification_submit(ctx, data):
     return Result(201, _owner_view(case))
 
 
-@operation("verification_respond", roles=CUSTOMER, idempotent=True, budget="verification_submit")
+@operation("verification_respond", roles=CUSTOMER, idempotent=True, budget="verification_submit", member_roles=(OWNER,))
 def verification_respond(ctx, data):
     """Owner answers a request for information: adds evidence and returns the case to review."""
     fields = parse(data, {"business_id": (uuid_text, True), "evidence": (_evidence, True)})
@@ -111,7 +111,7 @@ def verification_respond(ctx, data):
     return Result(200, _owner_view(case))
 
 
-@operation("verification_status", roles=CUSTOMER, budget="read")
+@operation("verification_status", roles=CUSTOMER, budget="read", member_roles=(OWNER,))
 def verification_status(ctx, data):
     fields = parse(data, {"business_id": (uuid_text, True)})
     business, _ = authz.require_member(ctx.actor_id, fields["business_id"], (OWNER,))  # staff: 404

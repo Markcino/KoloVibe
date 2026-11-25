@@ -93,7 +93,7 @@ def _normal(name):
 
 
 # ---- owner ---------------------------------------------------------------------------------------------------------
-@operation("listing_status", roles=CUSTOMER, budget="read")
+@operation("listing_status", roles=CUSTOMER, budget="read", member_roles=authz.ANY)
 def listing_status(ctx, data):
     fields = parse(data, {"business_id": (uuid_text, True)})
     business, _ = authz.require_member(ctx.actor_id, fields["business_id"])
@@ -102,7 +102,7 @@ def listing_status(ctx, data):
                         "owner_wants_listing": business.owner_listed, "eligible": not reasons, "reasons": reasons})
 
 
-@operation("listing_publish", roles=CUSTOMER, idempotent=True, budget="listing_change")
+@operation("listing_publish", roles=CUSTOMER, idempotent=True, budget="listing_change", member_roles=(OWNER,))
 def listing_publish(ctx, data):
     fields = parse(data, {"business_id": (uuid_text, True)})
     with transaction.atomic():
@@ -118,7 +118,7 @@ def listing_publish(ctx, data):
     return Result(200, {"listed": True, "owner_wants_listing": True, "eligible": True, "reasons": []})
 
 
-@operation("listing_unpublish", roles=CUSTOMER, idempotent=True, budget="listing_change")
+@operation("listing_unpublish", roles=CUSTOMER, idempotent=True, budget="listing_change", member_roles=(OWNER,))
 def listing_unpublish(ctx, data):
     fields = parse(data, {"business_id": (uuid_text, True)})
     with transaction.atomic():

@@ -69,7 +69,8 @@ class Broker:
                 raise RuntimeError(f"Port {TLS_PORT} is already in use; stop the other broker first")
         self.sbin, self.base = find_sbin(), Path(base)
         self.ca, self.name = self.base / "ca.pem", f"kvtest{secrets.token_hex(3)}@localhost"
-        self.passwords = {name: secrets.token_urlsafe(24) for name in ("admin", *gen.BROKER_ACCOUNTS)}
+        # A password never starts with "-": rabbitmqctl would read it as an option (a 1-in-32 harness flake).
+        self.passwords = {name: "p" + secrets.token_urlsafe(24) for name in ("admin", *gen.BROKER_ACCOUNTS)}
         self.process = None
         self.env = {
             "PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(self.base),
@@ -339,6 +340,22 @@ class BrokerPipelineTests(unittest.TestCase):
         self.assertEqual(self.broker.queue_state(ENGAGEMENT)[0], before + 1)
         got = self.attempt("engagement", lambda c: c.default_channel.basic_get(ENGAGEMENT))
         self.assertEqual(got, "allowed")  # it may consume its own queue, as its consumer role does
+
+    def test_7_a_malformed_task_envelope_is_rejected_and_the_consumer_keeps_working(self):
+        """Phase 11 D11-001: a `task` header with a list body used to kill the worker, which then died again on every restart."""
+        from kombu import Exchange
+
+        created = self.step("engagement", "qualify", count=1)
+        with self.broker.connection("points") as connection:
+            for body in ([1, 2, 3], {"id": "x"}):
+                connection.Producer().publish(body, exchange=Exchange(POINTS, no_declare=True), routing_key=POINTS, declare=[], retry=False,
+                                              headers={"task": "kolovibe.points.event"})
+        eventually(lambda: self.broker.queue_state(POINTS) == (0, 0), 30, "malformed messages are stuck or looping in the queue")
+        self.assertIsNone(self.worker.poll(), "the worker died on a malformed task envelope")
+        self.step("engagement", "dispatch_real")
+        creators = created["creators"]
+        eventually(lambda: self.state(creators)["entries"] == 1, 45, "a valid event after the malformed ones was not applied")
+        self.settled()
 
 
 if __name__ == "__main__":

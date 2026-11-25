@@ -1,0 +1,172 @@
+{
+ "results": [
+  {
+   "id": "B_SVC_gateway",
+   "test": "test_B_SVC_gateway_gateway_service_suite,_makemigrations_check",
+   "status": "PASS",
+   "detail": "224 tests OK, 18 skipped (shared service-identity template; inspected), no migration drift",
+   "seconds": 0
+  },
+  {
+   "id": "B_SVC_identity",
+   "test": "test_B_SVC_identity_identity_service_suite,_makemigrations_check",
+   "status": "PASS",
+   "detail": "160 tests OK, 1 skipped (shared service-identity template; inspected), no migration drift",
+   "seconds": 0
+  },
+  {
+   "id": "B_SVC_creators",
+   "test": "test_B_SVC_creators_creators_service_suite,_makemigrations_check",
+   "status": "PASS",
+   "detail": "84 tests OK, 1 skipped (shared service-identity template; inspected), no migration drift",
+   "seconds": 0
+  },
+  {
+   "id": "B_SVC_content",
+   "test": "test_B_SVC_content_content_service_suite,_makemigrations_check",
+   "status": "PASS",
+   "detail": "135 tests OK, 2 skipped (shared service-identity template; inspected), no migration drift",
+   "seconds": 0
+  },
+  {
+   "id": "B_SVC_engagement",
+   "test": "test_B_SVC_engagement_engagement_service_suite,_makemigrations_check",
+   "status": "PASS",
+   "detail": "73 tests OK, 1 skipped (shared service-identity template; inspected), no migration drift",
+   "seconds": 0
+  },
+  {
+   "id": "B_SVC_points",
+   "test": "test_B_SVC_points_points_service_suite,_makemigrations_check",
+   "status": "PASS",
+   "detail": "68 tests OK, 1 skipped (shared service-identity template; inspected), no migration drift",
+   "seconds": 0
+  },
+  {
+   "id": "B_SVC_moderation",
+   "test": "test_B_SVC_moderation_moderation_service_suite,_makemigrations_check",
+   "status": "PASS",
+   "detail": "71 tests OK, 1 skipped (shared service-identity template; inspected), no migration drift",
+   "seconds": 0
+  },
+  {
+   "id": "B_SVC_audit",
+   "test": "test_B_SVC_audit_audit_service_suite,_makemigrations_check",
+   "status": "PASS",
+   "detail": "51 tests OK, 1 skipped (shared service-identity template; inspected), no migration drift",
+   "seconds": 0
+  },
+  {
+   "id": "B_SVC_business",
+   "test": "test_B_SVC_business_business_service_suite,_makemigrations_check",
+   "status": "PASS",
+   "detail": "232 tests OK, 1 skipped (shared service-identity template; inspected), no migration drift",
+   "seconds": 0
+  },
+  {
+   "id": "B_WEB",
+   "test": "test_B_WEB_Console_suite,_check_and_makemigrations",
+   "status": "PASS",
+   "detail": "179 tests OK; manage.py check clean; no migration drift",
+   "seconds": 0
+  },
+  {
+   "id": "B_SCRIPTS",
+   "test": "test_B_SCRIPTS_Script_suites_(scripts/test_*.py),_clean_full_discovery",
+   "status": "PASS",
+   "detail": "468 tests OK (459 in Phase 11, plus new regression tests); first Phase 12 attempt had 1 failure in test_stage3_foundations (a static string check made stale by the shared database_options helper), corrected and re-run",
+   "seconds": 0
+  },
+  {
+   "id": "B_FOUNDATIONS",
+   "test": "test_B_FOUNDATIONS_TLS_PostgreSQL:_every_service's_migrations_(as_the_migration_login),_isolation,_ledger,_runtime-login_ownership",
+   "status": "PASS",
+   "detail": "9 service blocks OK (59 checks, including the new runtime-login ownership check for all nine services)",
+   "seconds": 0
+  },
+  {
+   "id": "B_BUSINESS_PG",
+   "test": "test_B_BUSINESS_PG_Business_and_Audit_on_TLS_PostgreSQL",
+   "status": "PASS",
+   "detail": "15 checks OK (migrations round-trip as the migration login)",
+   "seconds": 0
+  },
+  {
+   "id": "B_R01_REMEDIATION",
+   "test": "test_B_R01_REMEDIATION_Ownership_conversion_script",
+   "status": "PASS",
+   "detail": "1 test OK on a recreated legacy schema: closes the exposure, keeps data access, refuses an unknown service, a missing login and a superuser, and is re-runnable",
+   "seconds": 0
+  },
+  {
+   "id": "B_JOURNEYS",
+   "test": "test_B_JOURNEYS_Real-HTTP_gateway,_mail,_web_journeys",
+   "status": "PASS",
+   "detail": "11 of 11 OK",
+   "seconds": 0
+  },
+  {
+   "id": "B_STAGING_RUNTIME",
+   "test": "test_B_STAGING_RUNTIME_Staging_runtime:_8_profiles,_Gunicorn/TLS,_routes,_secrets",
+   "status": "PASS",
+   "detail": "exit 0, PASS line printed",
+   "seconds": 0
+  },
+  {
+   "id": "B_DB_PREFLIGHT",
+   "test": "test_B_DB_PREFLIGHT_R1_database_preflight_and_ownership_report",
+   "status": "PASS",
+   "detail": "17 tests OK (report clean after the split; legacy state still exposed)",
+   "seconds": 0
+  },
+  {
+   "id": "B_EVENT_PIPELINE",
+   "test": "test_B_EVENT_PIPELINE_Engagement_to_Points,_recording_publisher",
+   "status": "PASS",
+   "detail": "8 tests OK",
+   "seconds": 0
+  },
+  {
+   "id": "B_BROKER_PIPELINE",
+   "test": "test_B_BROKER_PIPELINE_Engagement_to_Points_on_a_real_TLS_RabbitMQ",
+   "status": "PASS",
+   "detail": "7 tests OK (adds the malformed-envelope regression)",
+   "seconds": 0
+  },
+  {
+   "id": "B_POISON_UNIT",
+   "test": "test_B_POISON_UNIT_Worker_poison-message_guard,_unit_tests",
+   "status": "PASS",
+   "detail": "5 tests OK (inside the 468 script tests)",
+   "seconds": 0
+  },
+  {
+   "id": "B_FLUTTER_ANALYZE",
+   "test": "test_B_FLUTTER_ANALYZE_Flutter_3.47.8_analyze",
+   "status": "PASS",
+   "detail": "No issues found",
+   "seconds": 0
+  },
+  {
+   "id": "B_FLUTTER_TEST",
+   "test": "test_B_FLUTTER_TEST_Flutter_3.47.8_tests_(widget_and_unit;_not_device)",
+   "status": "PASS",
+   "detail": "All tests passed, 1823",
+   "seconds": 0
+  },
+  {
+   "id": "B_OPENAPI",
+   "test": "test_B_OPENAPI_OpenAPI_validation_(DOC-205_and_health)",
+   "status": "PASS",
+   "detail": "Both files valid at the Phase 12 commit (DOC-205 description for registration was edited)",
+   "seconds": 0
+  },
+  {
+   "id": "B_STRUCTURE",
+   "test": "test_B_STRUCTURE_Repository_structure_check",
+   "status": "PASS",
+   "detail": "Structure OK: 9 services and approved monorepo layout",
+   "seconds": 0
+  }
+ ]
+}

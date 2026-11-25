@@ -16,7 +16,7 @@ from django.db import DatabaseError, IntegrityError, transaction
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.cache import never_cache
 
-from . import throttle
+from . import authz, throttle
 from .errors import ApiError
 from .models import IdempotencyRecord
 from .validation import uuid_text
@@ -65,11 +65,13 @@ class Operation:
     verified_email: bool
     idempotent: bool
     budget: str | None
+    member_roles: tuple | None = None  # business roles entitled to the business named in `data` (None: not business-scoped)
 
 
-def operation(name, *, roles, mfa=False, verified_email=False, idempotent=False, budget=None):
+def operation(name, *, roles, mfa=False, verified_email=False, idempotent=False, budget=None, member_roles=None):
     def register(handler):
-        OPERATIONS[name] = Operation(name, handler, tuple(roles), mfa, verified_email, idempotent, budget)
+        OPERATIONS[name] = Operation(name, handler, tuple(roles), mfa, verified_email, idempotent, budget,
+                                     None if member_roles is None else tuple(member_roles))
         return handler
     return register
 
@@ -155,6 +157,8 @@ def dispatch(request, operation):
     try:
         if op.budget and not throttle.allow(op.budget, ctx.actor_id):
             return _error(429, "Too many requests")
+        if op.member_roles is not None:  # D11-005: entitlement is decided before the body or key is validated
+            authz.gate(ctx.actor_id, envelope["data"], op.member_roles)
         result, secret = _run(op, ctx, envelope["data"])
         return _respond(result, secret)
     except ApiError as error:
