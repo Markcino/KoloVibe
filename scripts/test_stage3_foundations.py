@@ -10,7 +10,7 @@ class FoundationTests(unittest.TestCase):
             text=(ROOT/"services"/svc/"service"/"settings.py").read_text()
             self.assertIn("service.service_auth.ServiceAuthMiddleware", text)
             self.assertIn("verify-full", text)
-            self.assertIn("search_path="+svc, text)
+            self.assertIn('database_options("'+svc+'")', text)  # D11-002: the schema (and only the schema) comes from the shared helper
     def test_dhi_private_broker(self):
         stack=(ROOT/"infra/swarm/staging.yml").read_text()
         config=(ROOT/"infra/rabbitmq/rabbitmq.conf").read_text()
