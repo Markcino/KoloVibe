@@ -68,6 +68,9 @@ class AccountLookupTests(TestCase):
         self.assertEqual(self.call("ada@example.test", token="invalid").status_code, 401)
         for email in ("", "not-an-email", "a" * 300 + "@example.test", None):
             self.assertEqual(self.call(email).status_code, 400, email)
+            # Phase 11 D11-005: authority is decided before the body is judged, so a caller without it learns nothing about the schema
+            self.assertEqual(self.call(email, token=self.access["moderator"]).status_code, 403, email)
+            self.assertEqual(self.call(email, token="invalid").status_code, 401, email)
         self.assertEqual(self.call("ada@example.test", extra="field").status_code, 400)
 
     def test_lookups_are_rate_limited_per_administrator(self):

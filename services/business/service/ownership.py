@@ -54,14 +54,14 @@ def list_mine(ctx, data):
     return Result(200, {"items": items, "next_cursor": str(page[limit - 1].id) if len(page) > limit else None})
 
 
-@operation("get_mine", roles=CUSTOMER, budget="read")
+@operation("get_mine", roles=CUSTOMER, budget="read", member_roles=authz.ANY)
 def get_mine(ctx, data):
     fields = parse(data, {"business_id": (uuid_text, True)})
     business, membership = authz.require_member(ctx.actor_id, fields["business_id"])
     return Result(200, business_view(business, membership.role))
 
 
-@operation("staff_invite", roles=CUSTOMER, idempotent=True, budget="staff_invite")
+@operation("staff_invite", roles=CUSTOMER, idempotent=True, budget="staff_invite", member_roles=(OWNER,))
 def staff_invite(ctx, data):
     fields = parse(data, {"business_id": (uuid_text, True), "label": (lambda v: clean_text(v, 1, 40), True)})
     now = timezone.now()
@@ -84,7 +84,7 @@ def staff_invite(ctx, data):
     return Result(201, invitation_view(invitation, now), secret={"code": code})
 
 
-@operation("staff_invitation_revoke", roles=CUSTOMER, idempotent=True)
+@operation("staff_invitation_revoke", roles=CUSTOMER, idempotent=True, member_roles=(OWNER,))
 def staff_invitation_revoke(ctx, data):
     fields = parse(data, {"business_id": (uuid_text, True), "invitation_id": (uuid_text, True)})
     with transaction.atomic():
@@ -127,7 +127,7 @@ def staff_redeem(ctx, data):
     return Result(200, business_view(business, STAFF))
 
 
-@operation("member_list", roles=CUSTOMER, budget="read")
+@operation("member_list", roles=CUSTOMER, budget="read", member_roles=(OWNER,))
 def member_list(ctx, data):
     fields = parse(data, {"business_id": (uuid_text, True)})
     business, _ = authz.require_member(ctx.actor_id, fields["business_id"], (OWNER,))
@@ -138,7 +138,7 @@ def member_list(ctx, data):
     return Result(200, {"members": members, "invitations": invitations})
 
 
-@operation("member_remove", roles=CUSTOMER, idempotent=True)
+@operation("member_remove", roles=CUSTOMER, idempotent=True, member_roles=(OWNER,))
 def member_remove(ctx, data):
     """Owner removes a staff member. Needs step-up (BZ-R-036): fails closed until Identity provides it (P6B-04)."""
     fields = parse(data, {"business_id": (uuid_text, True), "member_id": (uuid_text, True)})
@@ -156,7 +156,7 @@ def member_remove(ctx, data):
     return Result(200, {"status": "ok"})
 
 
-@operation("member_leave", roles=CUSTOMER, idempotent=True)
+@operation("member_leave", roles=CUSTOMER, idempotent=True, member_roles=authz.ANY)
 def member_leave(ctx, data):
     """A staff member ends their own membership. Owners cannot leave: the last-owner rule and transfer are not enabled."""
     fields = parse(data, {"business_id": (uuid_text, True)})

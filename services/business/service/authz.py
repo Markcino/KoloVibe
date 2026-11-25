@@ -2,6 +2,8 @@
 
 Non-entitlement is always 404, identical to an unknown id, so object existence is never disclosed (BZ-R-034).
 """
+from uuid import UUID
+
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
@@ -29,6 +31,20 @@ def require_member(actor_id, business_id, roles=ANY, *, lock=False):
     if membership is None:
         raise not_found()
     return membership.business, membership
+
+
+def gate(actor_id, data, roles=ANY):
+    """Authorize before validating: a body naming a business the actor is not entitled to is a 404, however malformed.
+
+    A body that names no well-formed business id is left to normal validation (400): nothing is being disclosed.
+    """
+    business_id = data.get("business_id") if isinstance(data, dict) else None
+    try:
+        UUID(business_id)
+    except (ValueError, TypeError, AttributeError):
+        return
+    if str(UUID(business_id)) == business_id:
+        require_member(actor_id, business_id, roles)
 
 
 def memberships_of(actor_id):

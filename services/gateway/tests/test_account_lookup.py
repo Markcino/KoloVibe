@@ -22,10 +22,15 @@ class AccountLookupGatewayTests(SimpleTestCase):
     def test_requires_a_bearer_token_and_an_exact_body(self):
         response, call = self.post({"email": "a@example.test"}, token=None)
         self.assertEqual(response.status_code, 401)
+        # Authority is Identity's decision and must come first (Phase 11 D11-005): a malformed body is not answered with a schema
+        # error by the Gateway. Only the token is forwarded, so a caller without authority is refused by Identity whatever the body,
+        # and nothing the caller chose is passed on.
         for body in ({}, {"email": "a@example.test", "role": "creator"}, [], "x"):
-            response, call = self.post(body)
-            self.assertEqual(response.status_code, 400, body)
-            call.assert_not_called()
+            response, call = self.post(body, invoke=JsonResponse({"detail": "Forbidden"}, status=403))
+            self.assertEqual(response.status_code, 403, body)
+            self.assertEqual(call.call_args.args[:2], ("/internal/auth/account-lookup", {"access_token": "access-token-value"}), body)
+        response, _ = self.post({}, invoke=JsonResponse({"detail": "Invalid email address"}, status=400))
+        self.assertEqual(response.status_code, 400, "an authorized caller still gets the validation error")
 
     def test_forwards_only_the_token_and_email_and_validates_the_candidate(self):
         good = self.candidate()

@@ -26,9 +26,12 @@ def lookup(request):
         data = _body(request, {"email"})
         if set(data) != {"email"}:
             raise ValueError
+        forwarded = {"access_token": token, "email": data["email"]}
     except (ValueError, UnicodeError):
-        return _json({"detail": "Invalid request"}, 400)
-    response = _invoke("/internal/auth/account-lookup", {"access_token": token, "email": data["email"]}, {200}, max_response=4096)
+        # Authority is Identity's decision and must come first: forward the token alone, so a caller without authority is refused
+        # whatever the body and an administrator receives Identity's validation error. Nothing the caller chose is passed on.
+        forwarded = {"access_token": token}
+    response = _invoke("/internal/auth/account-lookup", forwarded, {200}, max_response=4096)
     if response.status_code == 200 and not valid_candidate(json.loads(response.content)):
         return _json({"detail": "Identity unavailable"}, 503)
     return response

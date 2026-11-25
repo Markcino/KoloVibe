@@ -110,7 +110,7 @@ def _public_view(review):
 
 
 # ---- invitations (route D of DR-BZ-15) ------------------------------------------------------------------------------
-@operation("review_invite_create", roles=CUSTOMER, idempotent=True, budget="review_invite")
+@operation("review_invite_create", roles=CUSTOMER, idempotent=True, budget="review_invite", member_roles=(OWNER,))
 def review_invite_create(ctx, data):
     fields = parse(data, {"business_id": (uuid_text, True)})
     now = timezone.now()
@@ -129,7 +129,7 @@ def review_invite_create(ctx, data):
     return Result(201, {"id": str(invitation.id), "expires_at": invitation.expires_at.isoformat()}, secret={"code": code})
 
 
-@operation("review_invite_revoke", roles=CUSTOMER, idempotent=True)
+@operation("review_invite_revoke", roles=CUSTOMER, idempotent=True, member_roles=(OWNER,))
 def review_invite_revoke(ctx, data):
     fields = parse(data, {"business_id": (uuid_text, True), "invitation_id": (uuid_text, True)})
     with transaction.atomic():
@@ -296,7 +296,7 @@ def review_list_public(ctx, data):
     return Result(200, {"items": [_public_view(r) for r in page[:limit]], "next_cursor": token})
 
 
-@operation("review_respond", roles=CUSTOMER, idempotent=True)
+@operation("review_respond", roles=CUSTOMER, idempotent=True, member_roles=(OWNER,))
 def review_respond(ctx, data):
     fields = parse(data, {"business_id": (uuid_text, True), "review_id": (uuid_text, True),
                           "body": (lambda v: clean_text(v, 2, 1000, multiline=True), True)})
@@ -318,7 +318,7 @@ def review_respond(ctx, data):
     return Result(200, {"review_id": str(review.id), "body": response.body, "created_at": response.created_at.isoformat()})
 
 
-@operation("review_response_delete", roles=CUSTOMER, idempotent=True)
+@operation("review_response_delete", roles=CUSTOMER, idempotent=True, member_roles=(OWNER,))
 def review_response_delete(ctx, data):
     fields = parse(data, {"business_id": (uuid_text, True), "review_id": (uuid_text, True)})
     with transaction.atomic():

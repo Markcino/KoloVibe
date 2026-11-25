@@ -163,7 +163,7 @@ def _open(business):
     return business.state != Business.State.CLOSED
 
 
-@operation("profile_get", roles=CUSTOMER, budget="read")
+@operation("profile_get", roles=CUSTOMER, budget="read", member_roles=authz.ANY)
 def profile_get(ctx, data):
     fields = parse(data, {"business_id": (uuid_text, True)})
     business, _ = authz.require_member(ctx.actor_id, fields["business_id"])
@@ -178,7 +178,7 @@ def profile_get(ctx, data):
         "hours": _hours_view(business)})
 
 
-@operation("profile_edit", roles=CUSTOMER, idempotent=True, budget="profile_edit")
+@operation("profile_edit", roles=CUSTOMER, idempotent=True, budget="profile_edit", member_roles=(OWNER,))
 def profile_edit(ctx, data):
     fields = parse(data, EDIT_FIELDS)
     business_id = fields.pop("business_id")
@@ -229,7 +229,7 @@ def profile_edit(ctx, data):
     return Result(200, _revision_view(working, with_changes=changed_fields(working, approved)))
 
 
-@operation("profile_submit", roles=CUSTOMER, idempotent=True, budget="profile_edit")
+@operation("profile_submit", roles=CUSTOMER, idempotent=True, budget="profile_edit", member_roles=(OWNER,))
 def profile_submit(ctx, data):
     fields = parse(data, {"business_id": (uuid_text, True)})
     with transaction.atomic():
@@ -275,7 +275,7 @@ def _approve(business, revision, reviewer_id, now, reason_code):
     listings.refresh(business)
 
 
-@operation("hours_replace", roles=CUSTOMER, idempotent=True, budget="profile_edit")
+@operation("hours_replace", roles=CUSTOMER, idempotent=True, budget="profile_edit", member_roles=authz.ANY)
 def hours_replace(ctx, data):
     fields = parse(data, {"business_id": (uuid_text, True), "rules": (lambda v: v, True),
                           "exceptions": (lambda v: v, False)})
