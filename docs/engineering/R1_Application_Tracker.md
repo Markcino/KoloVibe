@@ -1,6 +1,6 @@
 # R1 application delivery tracker
 
-**Updated 25 November 2026 (Phase 12 section added).** Stage 3 (Technical Foundation) was **declared completed by the owner on 10 November**, while unresolved security, operations and recovery controls remain open. Stage 4 (R1 MVP implementation) and Stage 5 (verification) remain in progress on AWS staging. Production is **NO-GO**. See the [Stage 3 tracker](Stage3_Implementation_Tracker.csv) and the [current AWS release record](../operations/R1_AWS_Staging_Reconciliation_2026-11-23.md).
+**Updated 25 November 2026 (Phase 12 section and reverification Phase 1 added).** Stage 3 (Technical Foundation) was **declared completed by the owner on 10 November**, while unresolved security, operations and recovery controls remain open. Stage 4 (R1 MVP implementation) and Stage 5 (verification) remain in progress on AWS staging. Production is **NO-GO**. See the [Stage 3 tracker](Stage3_Implementation_Tracker.csv) and the [current AWS release record](../operations/R1_AWS_Staging_Reconciliation_2026-11-23.md).
 
 ## Current release checkpoint — v0.357.1 (23 November)
 
@@ -200,6 +200,10 @@ Full record: [Phase 11 report](phase11/Phase11_Test_Report.md), [matrix](phase11
 | Registration enumeration and no registration limit (D11-003, D11-004) | Identity | n/a | n/a | n/a | DOC-205 declares the 409 | ADR-013 | T1_03, T1_94 FAIL | **Defects (Medium)** | Fix, policy value | Owner |
 | Validation before authorization; console overflow at 320 px (D11-005, D11-006) | Gateway, Business | n/a | console CSS | n/a | n/a | Low | T1_31, T4_23, T9_32 FAIL | **Defects (Low)** | None | None |
 | Accounts, sessions, MFA, object-level authorization, media validation, engagement and points on a real broker, Business isolation, console sessions and CSRF | all | n/a | yes | yes | yes | tested black-box | 122 PASS of 130 new tests | **Verified (local, repository scope)** | Device and staging gates | Owner |
+
+### Reverification Phase 1 (25 November 2026) — `main` at `d56e7ce`
+
+Full record and the single authoritative feature matrix: [Phase 1 reverification](reverification/Phase1_Reverification_2026-11-25.md). Read-only; every status re-checked against source and re-run tests (services 1,103, console 179, scripts 475, PostgreSQL, journeys and pipeline suites, Flutter 1,824; 0 failed). **Production NO-GO.** Release 1 core is development complete; **Partial**: privacy processing (FR-017, blocked by ADR-020), Creators and Content audit delivery (FR-015), observability (FR-019), copyright claimant intake, maintenance scheduling. **Missing in code:** dead-letter handling, upload result screens M-050 to M-052. Events, Advertising and Finance have no code (blocked by approval). Corrections: the Studio analytics chart and a cover-moment control are already live.
 
 ### Phase 12 defect remediation, regression and release readiness (25 November 2026) — branch `claude/blissful-albattani-81b81r`
 
