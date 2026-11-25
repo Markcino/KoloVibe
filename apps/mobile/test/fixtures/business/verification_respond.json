@@ -1,0 +1,9 @@
+{
+  "body": {
+    "decided_at": "2026-11-25T07:23:37.587378+00:00",
+    "reason_code": "need_more_detail",
+    "state": "submitted",
+    "submitted_at": "2026-11-25T07:23:37.573741+00:00"
+  },
+  "status": 200
+}

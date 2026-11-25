@@ -231,7 +231,7 @@ final cases = <Case>[
       'answer for information',
       'POST',
       '$base/verification/evidence',
-      'verification_submit',
+      'verification_respond',
       (r) => r.respondToVerification(businessId,
           evidence: [(kind: 'note', value: 'More detail.')], key: key),
       body: {

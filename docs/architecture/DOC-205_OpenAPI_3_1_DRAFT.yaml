@@ -9805,6 +9805,7 @@ components:
           type: string
           enum:
           - verification
+          - profile_review
           - review_queue
         target_business_id:
           type:

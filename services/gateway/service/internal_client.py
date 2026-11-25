@@ -51,7 +51,7 @@ def signed_internal_request(audience, path, *, method="GET", payload=b"", timeou
     local = os.environ.get("KOLOVIBE_ENV") == "local"
     if local:
         peers = {name: os.environ.get(f"KOLOVIBE_{name.upper()}_URL")
-                 for name in ("identity", "content", "creators", "moderation", "engagement", "points", "audit")}
+                 for name in ("identity", "content", "creators", "moderation", "engagement", "points", "audit", "business")}
     else:
         peers = json.loads(Path(os.environ["KOLOVIBE_TRUSTED_PEERS_FILE"]).read_text())
     base = peers.get(audience)
