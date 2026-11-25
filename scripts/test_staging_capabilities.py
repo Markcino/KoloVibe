@@ -106,7 +106,27 @@ class PolicyDefinitionTests(unittest.TestCase):
                           rf"/api/v1/admin/moderator-invitations/{policy.UUID}/revoke",
                           r"/api/v1/auth/moderator-invitations/(?:setup|complete)",
                           r"/internal/auth/moderator-invitations",
-                          r"/internal/auth/moderator-invitations/(?:setup|complete)"})
+                          r"/internal/auth/moderator-invitations/(?:setup|complete)",
+                          rf"/api/v1/admin/creators/{policy.UUID}/restrictions",
+                          rf"/api/v1/admin/creator-restrictions/{policy.UUID}/lift",
+                          rf"/api/v1/admin/creator-restriction-appeals/{policy.UUID}/decision",
+                          r"/api/v1/admin/creator-restriction-appeals",
+                          r"/internal/creators/restrictions/(?:issue|lift|list|appeals|decide)"})
+
+    def test_creator_restriction_admin_routes_need_the_privileged_switch(self):
+        media = frozenset({"media"})
+        target = "0b0c1d2e-3f40-4a5b-8c6d-7e8f90a1b2c3"
+        for service, method, path in (("gateway", "POST", f"/api/v1/admin/creators/{target}/restrictions"),
+                                      ("gateway", "GET", "/api/v1/admin/creator-restriction-appeals"),
+                                      ("gateway", "POST", f"/api/v1/admin/creator-restrictions/{target}/lift"),
+                                      ("creators", "POST", "/internal/creators/restrictions/issue")):
+            self.assertFalse(policy.allowed(service, media, method, path), path)
+            self.assertTrue(policy.allowed(service, media, method, path, privileged=True), path)
+        for service, method, path in (("gateway", "GET", "/api/v1/creators/me/restrictions"),
+                                      ("gateway", "POST", f"/api/v1/creators/me/restrictions/{target}/appeals"),
+                                      ("creators", "POST", "/internal/creators/restrictions/capabilities")):
+            self.assertTrue(policy.allowed(service, media, method, path), path)
+        self.assertFalse(policy.allowed("creators", media, "POST", "/internal/creators/restrictions/other", privileged=True))
 
     def test_moderator_invitation_routes_need_both_accounts_and_privileged_gates(self):
         for service, path in (("gateway", "/api/v1/admin/moderator-invitations"),

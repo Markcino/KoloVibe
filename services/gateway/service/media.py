@@ -13,6 +13,7 @@ from django.views.decorators.http import require_GET, require_POST
 from .responses import error_response as _error
 from .accounts import current_account
 from .creator_onboarding import authenticated_actor, creator_eligibility, creator_ownership, _forward as creator_forward
+from .creator_restrictions import capabilities as restriction_capabilities
 from .internal_client import signed_internal_request
 from .videos import list_videos, video_detail
 from .video_validation import (FAILURES, LIBRARY_STATES, checked_metadata, safe_url as _safe_url,
@@ -134,6 +135,25 @@ def _eligible_creator(request):
     return data["creator_id"], None
 
 
+def _publish_blocked(request, creator_id):
+    """Decision F: publishing needs an approved creator with no active publishing or suspension measure.
+
+    An upload-only or monetization-only measure does not block publishing.
+    """
+    actor = authenticated_actor(request, require_verified_email=True)
+    if isinstance(actor, JsonResponse):
+        return actor
+    response = restriction_capabilities(*actor)
+    if response.status_code != 200:
+        return response
+    allowed = json.loads(response.content)
+    if not allowed["publish"]:
+        return _error("Approved creator with publishing allowed required", 403)
+    if allowed["creator_id"] != creator_id:
+        return _error("Creator ownership changed", 403)
+    return None
+
+
 def _owned_creator(request):
     actor = authenticated_actor(request, require_verified_email=True)
     if isinstance(actor, JsonResponse):
@@ -241,11 +261,9 @@ def video_visibility(request, video_id, operation):
     if request.GET or request.body:
         return _error("Invalid video request", 400)
     if operation == "publish":
-        eligible, error = _eligible_creator(request)
+        error = _publish_blocked(request, creator_id)
         if error is not None:
             return error
-        if eligible != creator_id:
-            return _error("Creator ownership changed", 403)
     return forward_media(operation, {"creator_id": creator_id, "video_id": str(video_id)}, (200,))
 
 

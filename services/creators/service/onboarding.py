@@ -169,6 +169,18 @@ def _pending(cursor):
                          "next_cursor": items[-1]["account_id"] if len(applications) > PAGE_SIZE else None})
 
 
+def approved_profile(actor):
+    """The actor's approved, active, reviewed creator profile under the current attestation, or None."""
+    application = Application.objects.select_related("profile").filter(account_id=actor).first()
+    if (application is not None and application.status == Application.Status.APPROVED
+            and application.attestation_version == POLICY_VERSION and application.profile is not None
+            and application.profile.user_id == actor
+            and application.profile.status == CreatorProfile.Status.ACTIVE
+            and application.profile.reviewed_at is not None and application.profile.restricted_at is None):
+        return application.profile
+    return None
+
+
 def _status(actor, operation):
     if operation == "review_policy":
         eligibility = json.loads(_status(actor, "eligibility").content)
@@ -180,29 +192,22 @@ def _status(actor, operation):
             "policy_version": policy.version if trusted else None})
     if operation == "standing":
         profile = CreatorProfile.objects.filter(user_id=actor).first()
-        eligible = (profile is not None and profile.status == CreatorProfile.Status.ACTIVE
-                    and profile.reviewed_at is not None and profile.restricted_at is None
-                    and Application.objects.filter(account_id=actor, profile=profile,
-                        status=Application.Status.APPROVED, attestation_version=POLICY_VERSION).exists())
+        from .restrictions import blocked, derived_status
+        eligible = approved_profile(actor) is not None and not blocked(profile.id, "publish")  # Decision F
         return JsonResponse({"creator_id": str(profile.id) if profile else None,
-                             "creator_status": profile.status if profile else None,
+                             "creator_status": derived_status(profile) if profile else None,
                              "publishing_allowed": eligible})
     if operation == "ownership":
         profile_id = CreatorProfile.objects.filter(user_id=actor).values_list("id", flat=True).first()
         if profile_id is None:
             return _error("Creator profile not found", 404)
         return JsonResponse({"creator_id": str(profile_id)})
-    application = Application.objects.select_related("profile").filter(account_id=actor).first()
     if operation == "eligibility":
-        eligible = (
-            application is not None and application.status == Application.Status.APPROVED
-            and application.attestation_version == POLICY_VERSION and application.profile is not None
-            and application.profile.user_id == actor
-            and application.profile.status == CreatorProfile.Status.ACTIVE
-            and application.profile.reviewed_at is not None and application.profile.restricted_at is None
-        )
-        return JsonResponse({"upload_eligible": eligible,
-                             "creator_id": str(application.profile_id) if eligible else None})
+        from .restrictions import blocked
+        profile = approved_profile(actor)
+        eligible = profile is not None and not blocked(profile.id, "upload")  # Decision F
+        return JsonResponse({"upload_eligible": eligible, "creator_id": str(profile.id) if eligible else None})
+    application = Application.objects.select_related("profile").filter(account_id=actor).first()
     if application is None or application.status == Application.Status.REVOKED:
         return _error("Creator application not found", 404)  # a withdrawn invitation looks like none to the applicant
     return JsonResponse(_summary(application))
