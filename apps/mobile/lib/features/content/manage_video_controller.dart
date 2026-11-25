@@ -81,7 +81,11 @@ class ManageVideoController extends ChangeNotifier {
               category: category,
               tags: tags,
               coverTimeMs: coverTimeMs),
-          success: 'Details saved.');
+          success: 'Details saved.', after: () {
+        if (video?.editReview?.isPending == true) {
+          message = 'Changes sent for review.';
+        }
+      });
 
   Future<bool> delete() => _run(() async {
         await _repository.deleteVideo(video!);
@@ -89,7 +93,7 @@ class ManageVideoController extends ChangeNotifier {
       }, success: null);
 
   Future<bool> _run(Future<void> Function() action,
-      {required String? success}) async {
+      {required String? success, void Function()? after}) async {
     final current = video;
     if (busy || current == null) return false;
     busy = true;
@@ -99,6 +103,7 @@ class ManageVideoController extends ChangeNotifier {
     try {
       await action();
       message = success;
+      after?.call();
       return true;
     } on ApiFailure catch (failure) {
       _fail(failure);
