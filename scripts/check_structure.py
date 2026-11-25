@@ -20,6 +20,7 @@ REPOSITORY_PATHS = (
     "packages/contracts/openapi/health.yaml",
     "infra/docker/Dockerfile.service",
     "infra/postgres/schema_isolation.sql",
+    "infra/postgres/r01_ownership_remediation.sql",
     "infra/nginx/README.md",
     "infra/swarm/README.md",
     "infra/observability/README.md",

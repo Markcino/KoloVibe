@@ -13,7 +13,7 @@ from unittest.mock import patch
 from scripts.validate_staging_stack import ROOT, SERVICES, load_stack, validate
 
 sys.path.insert(0, str(ROOT / "services"))
-from staging_runtime import configure, json_file, secret
+from staging_runtime import configure, database_options, json_file, secret
 
 
 class StagingConfigurationTests(unittest.TestCase):
@@ -67,6 +67,27 @@ class StagingConfigurationTests(unittest.TestCase):
                 self.assertEqual(json_file("CALLERS", private=True)["gateway"], old)
                 path.write_text(json.dumps({"gateway": new}))
                 self.assertEqual(json_file("CALLERS", private=True)["gateway"], new)
+
+
+class DatabaseOptionsTests(unittest.TestCase):
+    """D11-002: only the migration job may act as the role that owns a service's tables."""
+
+    def test_a_runtime_connection_only_sets_the_schema(self):
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("KOLOVIBE_DB_MIGRATION_ROLE", None)
+            self.assertEqual(database_options("points"), "-c search_path=points")
+
+    def test_the_migration_job_acts_as_its_own_schema_owner_and_no_other(self):
+        with patch.dict(os.environ, {"KOLOVIBE_DB_MIGRATION_ROLE": "kolovibe_points"}):
+            self.assertEqual(database_options("points"), "-c search_path=points -c role=kolovibe_points")
+            with self.assertRaises(RuntimeError):
+                database_options("audit")  # another service's owner role is refused
+
+    def test_an_injected_or_unknown_role_is_refused(self):
+        for bad in ("postgres", "kolovibe_points_rt", "kolovibe_points -c search_path=public", "kolovibe_points\n", "KOLOVIBE_POINTS"):
+            with patch.dict(os.environ, {"KOLOVIBE_DB_MIGRATION_ROLE": bad}):
+                with self.assertRaises(RuntimeError, msg=bad):
+                    database_options("points")
 
 
 class StagingManifestTests(unittest.TestCase):

@@ -7,6 +7,7 @@ the tool's connection fails; no handle appears in the default output; the passwo
 
 import json
 from pathlib import Path
+import re
 import subprocess
 import sys
 import tempfile
@@ -231,19 +232,34 @@ class RoleOwnershipReportTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        import psycopg
         cls.context = postgres_fixture()
         cls.base, cls.environments = cls.context.__enter__()
         env = cls.environments["gateway"]
-        cls.result = run_psql_file("r1_role_ownership_report.sql", (cls.base / "admin-password").read_text(),
-                                   env["KOLOVIBE_DB_PORT"], env["KOLOVIBE_DB_SSLROOTCERT"], dbname=env["KOLOVIBE_DB_NAME"])
+        password = (cls.base / "admin-password").read_text()
+
+        def report():
+            return run_psql_file("r1_role_ownership_report.sql", password, env["KOLOVIBE_DB_PORT"],
+                                 env["KOLOVIBE_DB_SSLROOTCERT"], dbname=env["KOLOVIBE_DB_NAME"])
+        # 1. the fixture as provisioned: owner role separate from the runtime logins (D11-002)
+        cls.result = report()
         cls.out = cls.result.stdout
+        # 2. the legacy state the report was written for: the runtime login owns its tables. Recreated here for two services.
+        with psycopg.connect(dbname=env["KOLOVIBE_DB_NAME"], user="kolovibe_ci_admin", password=password, host="127.0.0.1",
+                             port=env["KOLOVIBE_DB_PORT"], sslmode="verify-full", sslrootcert=env["KOLOVIBE_DB_SSLROOTCERT"],
+                             autocommit=True) as db:
+            for service in ("identity", "points"):
+                db.execute(f"GRANT kolovibe_{service} TO ci_{service}")
+                db.execute(f"REVOKE kolovibe_{service}_rt FROM ci_{service}")
+                db.execute(f"REASSIGN OWNED BY kolovibe_{service} TO ci_{service}")
+        cls.legacy = report().stdout
 
     @classmethod
     def tearDownClass(cls):
         cls.context.__exit__(None, None, None)
 
-    def rows(self, heading):
-        section = self.out.split(heading, 1)[1]
+    def rows(self, heading, out=None):
+        section = (out or self.out).split(heading, 1)[1]
         return [line for line in section.split("== ", 1)[0].splitlines() if "|" in line]
 
     def test_the_report_runs_read_only_and_prints_every_section(self):
@@ -252,14 +268,23 @@ class RoleOwnershipReportTests(unittest.TestCase):
             self.assertIn(f"== {number}. ", self.out)
         self.assertRegex(self.out, r"transaction_read_only[\s\S]*\bon\b")
 
-    def test_the_report_makes_the_login_owned_objects_visible(self):
-        """Migrations run by a service login leave that LOGIN role owning its tables and sequences."""
-        owned = [line for line in self.rows("== 4. ") if "ci_identity" in line and "table" in line]
-        self.assertTrue(owned, self.out)
+    def test_the_provisioned_fixture_has_no_login_owned_object_and_no_login_that_controls_a_guarded_table(self):
+        """D11-002: after the ownership split the report must come back clean."""
+        owned_by_a_login = [line for line in self.rows("== 4. ") if re.search(r"\bt\s*$", line)]
+        self.assertEqual(owned_by_a_login, [], self.out)
+        runtime_controls = [line for line in self.rows("== 6. ") if re.search(r"\|\s*ci_[a-z]+\s*\|\s*t\s*\|", line)]
+        self.assertEqual(runtime_controls, [], "a runtime login controls a guarded table: " + "\n".join(runtime_controls))
+        migration_controls = [line for line in self.rows("== 6. ") if re.search(r"\|\s*ci_[a-z]+_mig\s*\|\s*t\s*\|", line)]
+        self.assertTrue(migration_controls, "the migration login is the one that must control the guarded tables")
+
+    def test_the_report_still_makes_login_owned_objects_visible_in_a_legacy_database(self):
+        """A migration run by a service LOGIN leaves that login owning its tables; the report must show it."""
+        owned = [line for line in self.rows("== 4. ", self.legacy) if "ci_identity" in line and "table" in line]
+        self.assertTrue(owned, self.legacy)
         self.assertRegex(owned[0], r"\bt\s*$", "owner_can_login must be reported as true")
 
-    def test_the_report_shows_when_a_login_controls_an_append_only_table(self):
-        guarded = [line for line in self.rows("== 6. ") if "points_entries" in line and "ci_points" in line]
+    def test_the_report_shows_when_a_login_controls_an_append_only_table_in_a_legacy_database(self):
+        guarded = [line for line in self.rows("== 6. ", self.legacy) if "points_entries" in line and "ci_points" in line]
         self.assertTrue(guarded, "the points ledger guard must appear with the login that can control it")
         self.assertIn(" t ", guarded[0] + " ")
 

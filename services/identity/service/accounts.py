@@ -351,12 +351,20 @@ def resend_verification(request):
 @require_POST
 def register(request):
     try:
-        data = _body(request, {"email", "password", "display_name"})
+        data = _body(request, {"email", "password", "display_name", "origin"})
         email, password, display_name = (data[key] for key in ("email", "password", "display_name"))
         if not all(isinstance(value, str) for value in (email, password, display_name)):
             raise ValueError("Invalid account fields")
+        origin = _origin(data)
         if not settings.EMAIL_HOST or not settings.DEFAULT_FROM_EMAIL:
             return _error("Email delivery unavailable", 503)
+        # D11-004: every attempt from a trusted origin is counted before anything is created or sent, whether the address
+        # is new or taken. It commits on its own, so a refused or failed attempt still counts and the limit cannot be
+        # read as an oracle for existing addresses.
+        with transaction.atomic():
+            spent = _send_budget_spent("register", origin, timezone.now())
+        if spent:
+            return _error("Too many attempts", 429)
         with transaction.atomic():
             account = Account.objects.create_user(email, password, display_name)
             account.is_active = False

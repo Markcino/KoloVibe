@@ -95,11 +95,21 @@ def postgres_fixture():
                     credential = secrets.token_urlsafe(48)
                     credential_path = base / f"{service}-password"
                     secret_file(credential_path, credential)
+                    # D11-002: the runtime login holds the DML-only role and can never act as the owner of its tables.
                     db.execute(sql.SQL("CREATE ROLE {} LOGIN PASSWORD {}").format(
                         sql.Identifier("ci_" + service), sql.Literal(credential)))
                     db.execute(sql.SQL("GRANT {} TO {}").format(
-                        sql.Identifier("kolovibe_" + service),
+                        sql.Identifier("kolovibe_" + service + "_rt"),
                         sql.Identifier("ci_" + service)))
+                    # A separate login, used only by the migration job, acts as the owner role while it migrates.
+                    migration_credential = secrets.token_urlsafe(48)
+                    migration_path = base / f"{service}-migration-password"
+                    secret_file(migration_path, migration_credential)
+                    db.execute(sql.SQL("CREATE ROLE {} LOGIN PASSWORD {}").format(
+                        sql.Identifier("ci_" + service + "_mig"), sql.Literal(migration_credential)))
+                    db.execute(sql.SQL("GRANT {} TO {}").format(
+                        sql.Identifier("kolovibe_" + service),
+                        sql.Identifier("ci_" + service + "_mig")))
                     environment = dict(
                         {name: value for name, value in os.environ.items()
                          if not name.startswith("KOLOVIBE_")},
@@ -109,16 +119,39 @@ def postgres_fixture():
                         KOLOVIBE_DB_PASSWORD_FILE=str(credential_path),
                         KOLOVIBE_DB_SSLROOTCERT=str(certificate),
                         KOLOVIBE_PG_FIXTURE=str(base),
+                        KOLOVIBE_PG_MIGRATION_USER="ci_" + service + "_mig",
+                        KOLOVIBE_PG_MIGRATION_PASSWORD_FILE=str(migration_path),
                         PYTHONPATH=os.pathsep.join((str(ROOT / "services"),
                                                    os.environ.get("PYTHONPATH", ""))),
                         KOLOVIBE_SERVICE_NAME=service)
                     environments[service] = environment
                     run([sys.executable, "manage.py", "migrate", "--noinput"],
-                        cwd=ROOT / "services" / service, env=environment)
+                        cwd=ROOT / "services" / service,
+                        env=dict(environment, KOLOVIBE_DB_USER="ci_" + service + "_mig",
+                                 KOLOVIBE_DB_PASSWORD_FILE=str(migration_path),
+                                 KOLOVIBE_DB_MIGRATION_ROLE="kolovibe_" + service))
             yield base, environments
         finally:
             run([tools["pg_ctl"], "-D", str(data), "-m", "fast", "-w", "stop"],
                 stdout=subprocess.DEVNULL)
+
+
+def migration_connection(alias="migrator"):
+    """A Django connection that logs in as the service's MIGRATION login and acts as its owner role (D11-002).
+
+    Tests that apply or reverse migrations must use this; the runtime connection cannot alter the schema, by design.
+    """
+    import copy
+    from django.db import connections
+    from staging_runtime import database_options
+    service = os.environ["KOLOVIBE_SERVICE_NAME"]
+    settings = copy.deepcopy(connections["default"].settings_dict)
+    settings["USER"] = os.environ["KOLOVIBE_PG_MIGRATION_USER"]
+    settings["PASSWORD"] = Path(os.environ["KOLOVIBE_PG_MIGRATION_PASSWORD_FILE"]).read_text().strip()
+    with patch.dict(os.environ, {"KOLOVIBE_DB_MIGRATION_ROLE": "kolovibe_" + service}):
+        settings["OPTIONS"]["options"] = database_options(service)
+    connections.databases[alias] = settings
+    return connections[alias]
 
 
 def fixture():
@@ -165,6 +198,30 @@ def service_tests(service):
                         with self.assertRaises(DatabaseError):
                             with transaction.atomic(), connection.cursor() as cursor:
                                 cursor.execute(query)
+
+        def test_the_runtime_login_does_not_own_or_control_its_tables(self):
+            """D11-002 / R-01: the login the service runs as can read and write rows, but it can neither act as the
+            role that owns the tables nor switch off the append-only triggers, alter the schema, or truncate."""
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT c.relname, pg_has_role(current_user, c.relowner, 'USAGE') FROM pg_class c "
+                               "JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = %s "
+                               "AND c.relkind IN ('r', 'p', 'S')", [service])
+                controlled = [name for name, controls in cursor.fetchall() if controls]
+                self.assertEqual(controlled, [], "runtime login owns or inherits the owner of: " + ", ".join(controlled))
+                cursor.execute("SELECT c.relname FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid "
+                               "JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = %s "
+                               "AND NOT t.tgisinternal", [service])
+                guarded = sorted({row[0] for row in cursor.fetchall()})
+                cursor.execute("SELECT has_schema_privilege(current_user, %s, 'CREATE')", [service])
+                self.assertFalse(cursor.fetchone()[0], "runtime login may create objects in its schema")
+            for table in guarded:
+                for statement in ("ALTER TABLE {} DISABLE TRIGGER USER", "ALTER TABLE {} OWNER TO CURRENT_USER",
+                                  "TRUNCATE {}", "DROP TABLE {}"):
+                    with self.subTest(table=table, statement=statement):
+                        with self.assertRaises(DatabaseError), transaction.atomic(), connection.cursor() as cursor:
+                            cursor.execute(sql.SQL(statement).format(sql.Identifier(table)).as_string(cursor.cursor))
+            with self.assertRaises(DatabaseError), transaction.atomic(), connection.cursor() as cursor:
+                cursor.execute("CREATE TABLE d11_002_probe (id integer)")
 
         def test_signed_identity_replay_expiry_and_wrong_audience(self):
             key = secrets.token_urlsafe(48)
@@ -331,6 +388,7 @@ def service_tests(service):
                 cursor.execute("TRUNCATE service_rightsevent")
 
     names = ["test_actual_cross_service_sql_access_is_denied",
+             "test_the_runtime_login_does_not_own_or_control_its_tables",
              "test_signed_identity_replay_expiry_and_wrong_audience"]
     if service in ("points", "engagement"):
         names.append("test_outbox_republish_and_transactional_inbox")

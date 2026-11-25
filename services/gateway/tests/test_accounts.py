@@ -172,6 +172,19 @@ class AccountGatewayTests(SimpleTestCase):
                 self.post("reset-request", {"email": "viewer@example.test"}, HTTP_CF_CONNECTING_IP="2001:db8::7")
                 self.assertEqual(json.loads(call.call_args.kwargs["payload"])["origin"], "2001:db8::7")
 
+    def test_registration_forwards_the_trusted_client_origin_and_never_accepts_one_from_the_caller(self):
+        body = {"email": "viewer@example.test", "password": secrets.token_urlsafe(20), "display_name": "Viewer"}
+        with patch("service.accounts.signed_internal_request") as call:
+            call.return_value = Response(201, b'{"id": "1", "verification_required": true}')
+            self.post("register", body, HTTP_CF_CONNECTING_IP="203.0.113.9")
+            self.assertNotIn("origin", json.loads(call.call_args.kwargs["payload"]))  # no trusted header configured
+            with override_settings(KOLOVIBE_TRUSTED_CLIENT_IP_HEADER="CF-Connecting-IP"):
+                self.post("register", body, HTTP_CF_CONNECTING_IP="203.0.113.9")
+                self.assertEqual(json.loads(call.call_args.kwargs["payload"])["origin"], "203.0.113.9")
+                call.reset_mock()
+                self.assertEqual(self.post("register", {**body, "origin": "198.51.100.1"}).status_code, 400)
+                call.assert_not_called()
+
     def test_throttling_is_reported_without_detail_about_the_account(self):
         with patch("service.accounts.signed_internal_request") as call:
             call.side_effect = HTTPError("http://identity", 429, "Too Many Requests", {},
