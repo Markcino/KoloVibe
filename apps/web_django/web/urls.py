@@ -8,6 +8,7 @@ from . import invitation_views
 from . import assignment_views
 from . import business_views
 from . import creator_views
+from . import edit_views
 
 handler400 = views.error_400
 handler403 = views.error_403
@@ -50,6 +51,10 @@ for kind in ("videos", "reports", "appeals"):
         path(f"admin/moderation/{kind}/<uuid:target_id>/assignments/", assignment_views.assign,
              {"kind": kind}, name=f"moderation-{kind}-assign"),
     ]
+urlpatterns += [
+    path("admin/moderation/edits/", edit_views.queue, name="moderation-edits"),
+    path("admin/moderation/edits/<uuid:target_id>/", edit_views.detail, name="moderation-edits-detail"),
+]
 for kind in ("verifications", "profiles", "reports"):
     urlpatterns += [
         path(f"admin/business/{kind}/", business_views.queue, {"kind": kind}, name=f"business-{kind}"),

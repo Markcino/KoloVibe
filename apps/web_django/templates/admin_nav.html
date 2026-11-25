@@ -1,6 +1,7 @@
 <nav aria-label="Administration">
 <a class="nav-item" href="{% url 'dashboard' %}"{% if request.path == '/admin/' %} aria-current="page"{% endif %}>{% include 'icon.html' with name='dashboard' %}<span>Dashboard</span></a>
 <a class="nav-item" href="{% url 'moderation-videos' %}"{% if '/admin/moderation/videos/' in request.path %} aria-current="page"{% endif %}>{% include 'icon.html' with name='videos' %}<span>Videos</span></a>
+<a class="nav-item" href="{% url 'moderation-edits' %}"{% if '/admin/moderation/edits/' in request.path %} aria-current="page"{% endif %}>{% include 'icon.html' with name='videos' %}<span>Video edits</span></a>
 <a class="nav-item" href="{% url 'moderation-reports' %}"{% if '/admin/moderation/reports/' in request.path %} aria-current="page"{% endif %}>{% include 'icon.html' with name='reports' %}<span>Reports</span></a>
 <a class="nav-item" href="{% url 'moderation-appeals' %}"{% if '/admin/moderation/appeals/' in request.path %} aria-current="page"{% endif %}>{% include 'icon.html' with name='appeals' %}<span>Appeals</span></a>
 <a class="nav-item" href="{% url 'business' %}"{% if '/admin/business/' in request.path %} aria-current="page"{% endif %}>{% include 'icon.html' with name='business' %}<span>Business</span></a>

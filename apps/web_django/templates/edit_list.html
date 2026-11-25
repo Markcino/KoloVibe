@@ -1,0 +1,16 @@
+{% extends 'base_admin.html' %}{% load admin_display %}
+{% block title %}{{ title }} · KoloVibe{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Review queue</p><h1>{{ title }}</h1><p class="supporting-text">Changes creators made to the text of published videos. The approved text stays live until you approve a change.</p></div></div>
+<div class="table-scroll" role="region" aria-label="Video edits queue" tabindex="0">
+<table><caption>Video edits · Pending</caption>
+<thead><tr><th scope="col">Proposed title</th><th scope="col">Submitted</th><th scope="col">Video</th><th scope="col">Review</th></tr></thead>
+<tbody>{% for item in items %}<tr>
+<td data-label="Proposed title"><strong>{{ item.title }}</strong></td>
+<td data-label="Submitted"><time datetime="{{ item.submitted_at }}" title="{{ item.submitted_at|utc_stamp }}">{{ item.submitted_at|age }}</time></td>
+<td data-label="Video"><code title="{{ item.video_id }}">{{ item.video_id|slice:':8' }}</code></td>
+<td data-label="Review"><a href="{% url 'moderation-edits-detail' item.id %}" aria-label="Review edit {{ item.id|slice:':8' }}">Review</a></td>
+</tr>{% empty %}<tr><td colspan="4">No edits are waiting for review.</td></tr>{% endfor %}</tbody>
+</table></div>
+<nav class="pagination" aria-label="Queue pages">{% if request.GET.cursor %}<a href="?">First page</a>{% endif %}{% if next_query %}<a rel="next" href="?{{ next_query }}">Next page</a>{% endif %}</nav>
+{% endblock %}
