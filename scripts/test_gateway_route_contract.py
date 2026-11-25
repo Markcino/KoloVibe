@@ -122,7 +122,8 @@ class GatewayRouteContractTests(unittest.TestCase):
              "GET /health/live", "GET /health/ready", "POST /auth/moderator-invitations/setup",
              "POST /auth/moderator-invitations/complete",
              "GET /business-categories", "GET /businesses", "GET /businesses/{id}",
-             "GET /businesses/{id}/reviews"})
+             "GET /businesses/{id}/reviews",
+             "GET /legal/terms", "GET /legal/privacy", "GET /legal/marketing"})
 
 
 if __name__ == "__main__":

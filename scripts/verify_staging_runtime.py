@@ -354,8 +354,9 @@ def verify():
                 if time.monotonic() >= deadline:
                     raise AssertionError("Approved account fixture startup timed out")
                 time.sleep(0.1)
+        accepted = {kind: api("gateway", f"/api/v1/legal/{kind}")[1]["version"] for kind in ("terms", "privacy")}
         account = {"email": "staging@example.test", "password": secrets.token_urlsafe(48),
-                   "display_name": "Staging fixture"}
+                   "display_name": "Staging fixture", "accepted": accepted}
         assert api("gateway", "/api/v1/auth/register", data=account)[0] == 201
         from smtp_fixture import mailed_code
         code = mailed_code(base)

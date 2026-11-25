@@ -27,8 +27,9 @@ from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from .models import (Account, CodeKind, EmailVerification, LoginSession, LoginThrottle,
+from .models import (Account, LegalAcceptance, CodeKind, EmailVerification, LoginSession, LoginThrottle,
                      PasswordReset, ReauthenticationToken, UsedRefreshToken)
+from . import legal
 from .mfa import challenge, privileged_enabled, session_allowed
 from .retention import maybe_purge
 from .security_audit import record
@@ -351,10 +352,18 @@ def resend_verification(request):
 @require_POST
 def register(request):
     try:
-        data = _body(request, {"email", "password", "display_name", "origin"})
+        data = _body(request, {"email", "password", "display_name", "origin", "accepted", "marketing_consent"})
         email, password, display_name = (data[key] for key in ("email", "password", "display_name"))
         if not all(isinstance(value, str) for value in (email, password, display_name)):
             raise ValueError("Invalid account fields")
+        marketing = data.get("marketing_consent", False)
+        if type(marketing) is not bool:
+            raise ValueError("Invalid marketing consent")
+        # Decision B: the terms and the privacy notice must be accepted, by their current versions, before anything is
+        # created or sent. A stale version is refused with a code so the app can fetch the current text.
+        stale = legal.check_required(data["accepted"])
+        if stale is not None:
+            return stale
         origin = _origin(data)
         if not settings.EMAIL_HOST or not settings.DEFAULT_FROM_EMAIL:
             return _error("Email delivery unavailable", 503)
@@ -370,6 +379,11 @@ def register(request):
                 account = Account.objects.create_user(email, password, display_name)
                 account.is_active = False
                 account.save(update_fields=["is_active"])
+                legal.record_acceptance(account, legal.REQUIRED, LegalAcceptance.Context.REGISTRATION)
+                record("account.legal_accepted", account.id)
+                if marketing:
+                    legal.record_marketing(account, True)
+                    record("account.marketing_consent_changed", account.id)
                 _send_verification(account, timezone.now())
                 record("account.registered", account.id)
             account_id = account.id

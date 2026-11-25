@@ -14,10 +14,13 @@ CREATOR_ONBOARDING_PUBLIC = re.compile(
 )
 CREATOR_ONBOARDING_INTERNAL = re.compile(r"/internal/creators/onboarding/(?:invite|pending|outstanding|revoke|review|status|submit|eligibility)")
 ACCOUNTS = {
+    # Decision B: registration needs the current legal texts, and a signed-in person must be able to re-accept them.
     "gateway": {"/api/v1/auth/" + name for name in
-                ("register", "verify", "login", "refresh", "logout")} | {"/api/v1/me"},
+                ("register", "verify", "login", "refresh", "logout")} | {"/api/v1/me"}
+               | {"/api/v1/legal/" + kind for kind in ("terms", "privacy", "marketing")}
+               | {"/api/v1/me/legal", "/api/v1/me/marketing-consent"},
     "identity": {"/internal/auth/" + name for name in
-                 ("register", "verify", "login", "refresh", "validate", "revoke")},
+                 ("register", "verify", "login", "refresh", "validate", "revoke", "legal", "legal/document")},
 }
 INTERNAL = {
     "content": {"/internal/videos", "/internal/videos/detail", "/internal/videos/published-count"},

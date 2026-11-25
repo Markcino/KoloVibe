@@ -257,3 +257,37 @@ class ModeratorInvitationEvent(models.Model):
 
     event = models.OneToOneField(SecurityEvent, primary_key=True, on_delete=models.PROTECT)
     invitation = models.ForeignKey(ModeratorInvitation, on_delete=models.PROTECT)
+
+
+class LegalAcceptance(models.Model):
+    """Decision B: one row per accepted version of a required legal document. Append-only (database trigger)."""
+
+    class Context(models.TextChoices):
+        REGISTRATION = "registration", "Registration"
+        UPDATE = "update", "Update"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    account = models.ForeignKey(Account, on_delete=models.PROTECT, related_name="legal_acceptances")
+    document = models.CharField(max_length=16)
+    version = models.CharField(max_length=32)
+    sha256 = models.CharField(max_length=64)
+    context = models.CharField(max_length=16, choices=Context.choices)
+    accepted_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        indexes = [models.Index(fields=["account", "document", "accepted_at"], name="legal_acceptance_lookup")]
+
+
+class MarketingConsentEvent(models.Model):
+    """Decision B: each grant or withdrawal of the optional marketing consent. The latest row is the current state.
+    Append-only (database trigger)."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    account = models.ForeignKey(Account, on_delete=models.PROTECT, related_name="marketing_consents")
+    granted = models.BooleanField()
+    version = models.CharField(max_length=32)
+    sha256 = models.CharField(max_length=64)
+    recorded_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        indexes = [models.Index(fields=["account", "recorded_at"], name="marketing_consent_lookup")]

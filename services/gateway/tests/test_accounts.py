@@ -173,7 +173,8 @@ class AccountGatewayTests(SimpleTestCase):
                 self.assertEqual(json.loads(call.call_args.kwargs["payload"])["origin"], "2001:db8::7")
 
     def test_registration_forwards_the_trusted_client_origin_and_never_accepts_one_from_the_caller(self):
-        body = {"email": "viewer@example.test", "password": secrets.token_urlsafe(20), "display_name": "Viewer"}
+        body = {"email": "viewer@example.test", "password": secrets.token_urlsafe(20), "display_name": "Viewer",
+                "accepted": {"terms": "2026-11-25", "privacy": "2026-11-25"}}
         with patch("service.accounts.signed_internal_request") as call:
             call.return_value = Response(201, b'{"id": "1", "verification_required": true}')
             self.post("register", body, HTTP_CF_CONNECTING_IP="203.0.113.9")

@@ -11,9 +11,11 @@ from django.core import mail
 from django.test import RequestFactory, TestCase, override_settings
 from django.utils import timezone
 
-from service import accounts
+from service import accounts, legal
 from service.models import (Account, CodeKind, EmailVerification, LoginSession, LoginThrottle,
                             PasswordReset, SecurityEvent)
+
+ACCEPTED = {kind: legal.DOCUMENTS[kind].version for kind in legal.REQUIRED}
 
 EMAIL = "viewer@example.test"
 TOO_COMMON = "pass" "word"  # refused by the password validators
@@ -21,12 +23,15 @@ TOO_COMMON = "pass" "word"  # refused by the password validators
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
                    EMAIL_HOST="smtp.example.test", DEFAULT_FROM_EMAIL="noreply@example.test")
+
 class CodeTests(TestCase):
     def setUp(self):
         self.factory = RequestFactory()
         self.password = secrets.token_urlsafe(24)
 
     def post(self, view, body):
+        if view is accounts.register and "accepted" not in body:
+            body = {**body, "accepted": ACCEPTED}  # Decision B: callers accept the current required versions
         return view(self.factory.post("/internal/auth/test", json.dumps(body),
                                       content_type="application/json"))
 

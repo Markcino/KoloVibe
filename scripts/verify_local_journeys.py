@@ -214,7 +214,21 @@ def verify():
                     raise RuntimeError(f"Disposable {service} readiness timed out")
                 time.sleep(0.1)
 
+        current_legal = {}
+
+        def accepted_versions():
+            """Decision B: the versions a person reads before registering, fetched once from the public texts."""
+            if not current_legal:
+                for kind in ("terms", "privacy"):
+                    status, raw = request(ports["gateway"], f"/api/v1/legal/{kind}", method="GET")
+                    if status != 200:
+                        raise AssertionError(f"legal text {kind} unavailable: {status}")
+                    current_legal[kind] = json.loads(raw)["version"]
+            return dict(current_legal)
+
         def api(path, *, data=None, token=None, key=None, method=None, headers=None):
+            if path == "/auth/register" and isinstance(data, dict) and "accepted" not in data:
+                data = {**data, "accepted": accepted_versions()}  # every fixture account accepts the current texts
             status, raw = request(ports["gateway"], "/api/v1" + path,
                                   method=method or ("POST" if data is not None else "GET"), data=data,
                                   headers=({"Authorization": "Bearer " + token} if token else {}) | ({"Idempotency-Key": key} if key else {})
@@ -371,10 +385,20 @@ def verify():
 
             def test_account_contract_and_revocation(self):
                 password = secrets.token_urlsafe(24)
+                # Decision B: the texts are public and versioned; registration needs their current versions.
+                for kind in ("terms", "privacy", "marketing"):
+                    status, document = api(f"/legal/{kind}")
+                    self.assertEqual(status, 200)
+                    contract(f"/legal/{kind}", "get", status, document)
+                    self.assertEqual(document["status"], "pending_legal_review")
                 body = {"email": "journey@example.test", "display_name": "Fixture Viewer",
-                        "password": password}
+                        "password": password, "accepted": accepted_versions()}
                 schema = spec["components"]["schemas"]["RegisterRequest"]
                 Draft202012Validator(schema, format_checker=FormatChecker()).validate(body)
+                missing = {key: value for key, value in body.items() if key != "accepted"}
+                self.assertEqual(request(ports["gateway"], "/api/v1/auth/register", method="POST", data=missing)[0], 400)
+                status, stale = api("/auth/register", data={**body, "accepted": {**body["accepted"], "terms": "2000-01-01"}})
+                self.assertEqual((status, stale.get("code")), (409, "legal_version_outdated"))
                 status, payload = api("/auth/register", data=body)
                 self.assertEqual(status, 201)
                 contract("/auth/register", "post", status, payload)
@@ -390,6 +414,16 @@ def verify():
                 self.assertEqual(status, 200)
                 contract("/me", "get", status, account)
                 self.assertEqual(account["id"], tokens["user"]["id"])
+                status, legal_state = api("/me/legal", token=tokens["access_token"])
+                self.assertEqual(status, 200)
+                contract("/me/legal", "get", status, legal_state)
+                self.assertFalse(legal_state["acceptance_required"])
+                self.assertFalse(legal_state["marketing"]["granted"], "accepting the terms is never marketing consent")
+                status, legal_state = api("/me/marketing-consent", method="PUT", token=tokens["access_token"],
+                                          data={"granted": True, "version": legal_state["marketing"]["version"]})
+                self.assertEqual(status, 200)
+                contract("/me/marketing-consent", "put", status, legal_state)
+                self.assertTrue(legal_state["marketing"]["granted"])
                 status, rotated = api("/auth/refresh", data={"refresh_token": tokens["refresh_token"]})
                 self.assertEqual(status, 200)
                 contract("/auth/refresh", "post", status, rotated)
