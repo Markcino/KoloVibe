@@ -64,6 +64,9 @@ def _invoke(path, data, success_statuses, *, max_response=MAX_RESPONSE):
         if (error.code == 409 and path == "/internal/auth/privacy-requests"
                 and result.get("code") == "request_open"):
             payload["code"] = "request_open"
+        if (error.code == 409 and path in ("/internal/auth/register", "/internal/auth/legal")
+                and result.get("code") == "legal_version_outdated"):
+            payload["code"] = "legal_version_outdated"
         return _json(payload, error.code)
     except (URLError, TimeoutError, OSError, KeyError, ValueError, TypeError, UnicodeError):
         return _json({"detail": "Identity unavailable"}, 503)
@@ -111,7 +114,12 @@ def _with_origin(request, data):
 @require_POST
 def register(request):
     try:
-        data = _body(request, {"email", "password", "display_name"})
+        # Decision B: `accepted` names the versions of the terms and privacy notice the person saw; Identity checks them.
+        data = _body(request, {"email", "password", "display_name", "accepted", "marketing_consent"})
+        if not isinstance(data.get("accepted"), dict) or len(data["accepted"]) > 4:
+            raise ValueError
+        if "marketing_consent" in data and type(data["marketing_consent"]) is not bool:
+            raise ValueError
     except (ValueError, UnicodeError):
         return _json({"detail": "Invalid registration"}, 400)
     return _invoke("/internal/auth/register", _with_origin(request, data), {201})

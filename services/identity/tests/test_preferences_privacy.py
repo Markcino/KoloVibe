@@ -5,13 +5,16 @@ import secrets
 from django.core import mail
 from django.test import RequestFactory, TestCase, override_settings
 
-from service import accounts, preferences_privacy
+from service import accounts, legal, preferences_privacy
 from service.models import Account, NotificationPreferences, PrivacyRequest, SecurityEvent
+
+ACCEPTED = {kind: legal.DOCUMENTS[kind].version for kind in legal.REQUIRED}
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
                    EMAIL_HOST="smtp.example.test",
                    DEFAULT_FROM_EMAIL="noreply@example.test")
+
 class PreferencesPrivacyTests(TestCase):
     def setUp(self):
         self.factory = RequestFactory()
@@ -20,6 +23,8 @@ class PreferencesPrivacyTests(TestCase):
         self.second = self._account("second@example.test")
 
     def _post(self, view, body):
+        if view is accounts.register and "accepted" not in body:
+            body = {**body, "accepted": ACCEPTED}  # Decision B: callers accept the current required versions
         return view(self.factory.post("/internal/test", json.dumps(body),
                                       content_type="application/json"))
 

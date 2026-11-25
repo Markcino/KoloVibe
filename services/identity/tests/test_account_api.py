@@ -11,13 +11,16 @@ from django.core import mail
 from django.test import RequestFactory, TestCase, override_settings
 from django.utils import timezone
 
-from service import accounts
+from service import accounts, legal
 from service.models import (Account, AuditDelivery, EmailVerification, LoginSession, PasswordReset,
                             ReauthenticationToken, SecurityEvent, UsedRefreshToken)
+
+ACCEPTED = {kind: legal.DOCUMENTS[kind].version for kind in legal.REQUIRED}
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
                    EMAIL_HOST="smtp.example.test", DEFAULT_FROM_EMAIL="noreply@example.test")
+
 class AccountApiTests(TestCase):
     def test_reset_replaces_code_and_revokes_existing_sessions(self):
         account = self.register_and_verify()
@@ -196,6 +199,8 @@ class AccountApiTests(TestCase):
         self.password = secrets.token_urlsafe(24)
 
     def post(self, view, body, origin="127.0.0.1"):
+        if view is accounts.register and "accepted" not in body:
+            body = {**body, "accepted": ACCEPTED}  # Decision B: callers accept the current required versions
         request = self.factory.post("/internal/auth/test", json.dumps(body),
                                     content_type="application/json", REMOTE_ADDR=origin)
         return view(request)
@@ -376,7 +381,7 @@ class AccountApiTests(TestCase):
         self.post(accounts.update_profile, {**access, "display_name": "Updated Name"})
         self.post(accounts.manage_sessions, access)
         self.post(accounts.revoke, access)
-        expected = {"account.registered", "account.verified", "login.succeeded",
+        expected = {"account.registered", "account.legal_accepted", "account.verified", "login.succeeded",
                     "account.profile_updated", "session.listed", "session.revoked"}
         self.assertEqual(set(SecurityEvent.objects.values_list("kind", flat=True)), expected)
         self.assertEqual(SecurityEvent.objects.count(), AuditDelivery.objects.count())

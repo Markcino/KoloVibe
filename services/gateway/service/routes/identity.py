@@ -6,7 +6,7 @@ def patterns():
     from .. import accounts
     from ..compatibility import compatibility
     from ..preferences_privacy import preferences, privacy_requests
-    from .. import account_lookup, moderator_invitations
+    from .. import account_lookup, legal, moderator_invitations
 
     return [
         path("api/v1/admin/moderator-invitations", moderator_invitations.collection),
@@ -15,6 +15,7 @@ def patterns():
         path("api/v1/auth/moderator-invitations/setup", moderator_invitations.accept),
         path("api/v1/auth/moderator-invitations/complete", moderator_invitations.accept, {"complete": True}),
         path("api/v1/app/compatibility", compatibility, name="app-compatibility"),
+        *[path(f"api/v1/legal/{kind}", legal.document, {"kind": kind}, name=f"legal-{kind}") for kind in legal.KINDS],
         path("api/v1/auth/register", accounts.register, name="register"),
         path("api/v1/auth/verification/resend", accounts.resend_verification, name="verification-resend"),
         path("api/v1/auth/verify", accounts.verify_email, name="verify"),
@@ -28,6 +29,8 @@ def patterns():
         path("api/v1/me/password", accounts.change_password, name="change-password"),
         path("api/v1/me/reauthenticate", accounts.reauthenticate, name="reauthenticate"),
         path("api/v1/me/step-up", accounts.step_up, name="step-up"),
+        path("api/v1/me/legal", legal.acceptance, name="account-legal"),
+        path("api/v1/me/marketing-consent", legal.marketing_consent, name="account-marketing-consent"),
         path("api/v1/me/preferences", preferences, name="account-preferences"),
         path("api/v1/me/privacy-requests", privacy_requests, name="account-privacy-requests"),
         path("api/v1/me/sessions/<uuid:session_id>", accounts.revoke_session, name="revoke-account-session"),

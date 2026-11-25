@@ -64,7 +64,17 @@ class Stack:
         return self.call("GET", path, **kw)
 
     def post(self, path, data=None, **kw):
+        if path == "/auth/register" and isinstance(data, dict) and "accepted" not in data:
+            data = {**data, "accepted": self.accepted_versions()}  # Decision B: fixture accounts accept the current texts
         return self.call("POST", path, {} if data is None else data, **kw)
+
+    def accepted_versions(self):
+        versions = {}
+        for kind in ("terms", "privacy"):
+            status, document = self.call("GET", f"/legal/{kind}", None)
+            assert status == 200, ("legal", kind, status)
+            versions[kind] = document["version"]
+        return versions
 
     # ---- accounts -----------------------------------------------------------------------------------
     def new_user(self, label=None, *, verify=True):
