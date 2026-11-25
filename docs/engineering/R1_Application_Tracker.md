@@ -175,6 +175,20 @@ Columns for this phase: Feature · Backend · Mobile · Admin dashboard · Contr
 
 Local test run at HEAD and the full backlog, DRY analysis, risk register and Phase 1 acceptance criteria are in the [Phase 0 baseline](Phase0_Implementation_Baseline_2026-11-23.md#2-local-test-evidence-at-head).
 
+### Phase 10 platform development integration (25 November 2026) — branch `claude/blissful-albattani-81b81r`, no pull request
+
+Full record: [Phase 10 report](phase10/Phase10_Platform_Integration_Report_2026-11-25.md), [UAT preparation](phase10/Phase10_UAT_Preparation_Checklist.md), generated [inventories](phase10/inventory/). **Development integration on disposable infrastructure, not CI, not UAT, nothing deployed, production NO-GO.** Nine of fifteen listed modules exist as code; **Events, Ticketing, Advertising and Revenue/financial workflows are design packages only (7A, 8A, 9A) and are Not implemented, blocked by product approval.**
+
+| Item | Backend | Mobile | Admin web | Database | Contract | Security | Tests | Status | Blocker | Owner |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Whole implemented platform (11 matrix rows) | nine services | 144 screens | 30 route declarations | 60 migrations, drift-free | DOC-205, 158 operations | Bandit 0 medium or high; secrets and `pip-audit` clean | services 1,089; console 179; scripts 459; Flutter 3.47.8 **1,823**, analyze clean; 11 of 11 local journeys; staging runtime and preflight pass | **Development complete** for rows 1, 2, 3, 5, 6, 7, 9, 13, 14, 15, 17 | Phase 11 environment (see checklist A) | Owner |
+| Engagement to Points on a real RabbitMQ (new `verify_event_pipeline_broker.py`) | outbox, dispatcher, worker | n/a | n/a | outbox, inbox | internal | least-privilege accounts proved | 6 pass | **Verified complete** (repository scope) | Deployed broker permissions unverified | Owner |
+| **Defect fixed:** Engagement non-qualified events used the default exchange | `events.py` | n/a | n/a | n/a | n/a | refused by a least-privilege account; would have forced a widening | 2 new unit tests, mutation-checked | **Verified complete** | None | None |
+| **Defect fixed:** broker setup script granted `.*` to every account | generator | n/a | n/a | n/a | n/a | wildcard removed | 1 new test | **Verified complete** (generator only) | Live grants not inspected | Owner |
+| Creators and Content audit delivery (FR-015) | registered kinds never emitted | n/a | audit page lacks them | n/a | declared | accountability gap | none | **Missing implementation** | Credentials and a reviewed slice | Owner |
+| Copyright claimant intake in the app | backend complete | no client | via moderation | n/a | declared | n/a | local journey | **Partial** | Copyright policy is a draft | Owner |
+| Scheduled maintenance commands | three unscheduled; one undocumented | n/a | n/a | n/a | n/a | row growth | none | **Partial** | Add roles or document | Owner |
+
 ## Earlier implementation and acceptance record
 
 | Area | Status recorded before this reconciliation | Evidence | Remaining gate at that time |
