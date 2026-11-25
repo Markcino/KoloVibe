@@ -1515,6 +1515,9 @@ paths:
       tags:
       - Content
       summary: Edit owned video metadata
+      description: Under Decision A (RV2-01), an edit to the title, description, category or tags of a published video
+        is held for moderation review. The response keeps the approved live values and returns the proposal in
+        edit_review. The cover time still applies at once. Drafts, failed and rejected videos are edited directly.
       operationId: patch__videos_video_id
       x-implementation: local
       x-capability: media
@@ -2634,6 +2637,164 @@ paths:
         and binds session identity before signing its moderation envelope; password-only and expired/revoked sessions
         are rejected. Decisions retain reviewer ID, reason text and reason_code with immutable transactional audit
         evidence.'
+  /moderation/edits:
+    get:
+      tags:
+      - Moderation
+      summary: List held edits to published videos awaiting review
+      operationId: get_video_edit_review_queue
+      x-implementation: local
+      x-required-roles:
+      - moderator
+      - administrator
+      description: Under Decision A (RV2-01). Requires a live MFA-verified reviewer session. A moderator sees only edits to
+        videos assigned to them; administrators see all.
+      parameters:
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: One page of pending edits
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items, next_cursor]
+                properties:
+                  items:
+                    type: array
+                    maxItems: 20
+                    items:
+                      $ref: '#/components/schemas/EditQueueItem'
+                  next_cursor:
+                    type: [string, 'null']
+                    format: uuid
+        '400':
+          description: Invalid moderation request
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Role, MFA or assignment requirement not met
+        '404':
+          description: Edit not found
+        '409':
+          description: Edit no longer pending, or idempotency conflict
+        '503':
+          description: Moderation temporarily unavailable
+      x-capability: moderation
+      x-mfa-required: true
+  /moderation/edits/{revision_id}:
+    get:
+      tags:
+      - Moderation
+      summary: Read a held edit beside the live text
+      operationId: get_video_edit_review_detail
+      x-implementation: local
+      x-required-roles:
+      - moderator
+      - administrator
+      description: Under Decision A. The read is audited. The creator's identity is not returned.
+      parameters:
+      - name: revision_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: The held edit and this reviewer's decisions on it
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditReviewDetail'
+        '400':
+          description: Invalid moderation request
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Role, MFA or assignment requirement not met
+        '404':
+          description: Edit not found
+        '409':
+          description: Edit no longer pending, or idempotency conflict
+        '503':
+          description: Moderation temporarily unavailable
+      x-capability: moderation
+      x-mfa-required: true
+  /moderation/edits/{revision_id}/decisions:
+    post:
+      tags:
+      - Moderation
+      summary: Approve or reject a held edit
+      operationId: post_video_edit_decision
+      x-implementation: local
+      x-required-roles:
+      - moderator
+      - administrator
+      description: Under Decision A. Approval makes the proposed text live; rejection keeps the approved text. The creator
+        sees the outcome in edit_review on their own video. A replay with the same Idempotency-Key answers the recorded
+        outcome. Removal of the video stays available at any time through the video decision route.
+      parameters:
+      - name: revision_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [action, reason]
+              properties:
+                action: {type: string, enum: [approve, reject]}
+                reason: {type: string, minLength: 10, maxLength: 2000}
+                reason_code:
+                  type: string
+                  pattern: ^[A-Z][A-Z0-9_]{1,63}$
+                  description: Optional; omission records REVIEWED_EDIT_APPROVE or REVIEWED_EDIT_REJECT.
+      responses:
+        '200':
+          description: Decision applied
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [id, video_id, action, status]
+                properties:
+                  id: {type: string, format: uuid}
+                  video_id: {type: string, format: uuid}
+                  action: {type: string, enum: [approve, reject]}
+                  status: {const: applied}
+        '400':
+          description: Invalid moderation request
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Role, MFA or assignment requirement not met
+        '404':
+          description: Edit not found
+        '409':
+          description: Edit no longer pending, or idempotency conflict
+        '503':
+          description: Moderation temporarily unavailable
+      x-capability: moderation
+      x-mfa-required: true
   /videos/{video_id}/appeals:
     post:
       tags:
@@ -8270,7 +8431,10 @@ components:
       - published_at
       - poster_url
       - revision
+      - edit_review
       properties:
+        edit_review:
+          $ref: '#/components/schemas/EditReview'
         id:
           type: string
           format: uuid
@@ -8826,6 +8990,76 @@ components:
         status: {type: string, enum: [open, denied, restored]}
         created_at: {type: string, format: date-time}
         reason: {type: string, minLength: 10, maxLength: 2000}
+    EditValues:
+      type: object
+      additionalProperties: false
+      required: [title, description, category, tags]
+      properties:
+        title: {type: string, minLength: 1, maxLength: 160}
+        description: {type: string, maxLength: 2000}
+        category:
+          type: [string, 'null']
+          enum: [hipco, afrobeats, comedy, skits, short_films, culture, documentaries, null]
+        tags:
+          type: array
+          maxItems: 5
+          uniqueItems: true
+          items: {type: string, pattern: '^[a-z0-9_]{1,30}$'}
+    EditReview:
+      type: [object, 'null']
+      description: Under Decision A, the creator's newest pending or decided edit to a published video. Null when there
+        is none. proposed is present only while the edit is pending; reason_code is set when a reviewer gives one.
+      additionalProperties: false
+      required: [id, status, submitted_at, decided_at, reason_code, proposed]
+      properties:
+        id: {type: string, format: uuid}
+        status: {type: string, enum: [pending, approved, rejected]}
+        submitted_at: {type: string, format: date-time}
+        decided_at: {type: [string, 'null'], format: date-time}
+        reason_code: {type: [string, 'null'], pattern: '^[A-Z][A-Z0-9_]{1,63}$'}
+        proposed:
+          oneOf:
+          - $ref: '#/components/schemas/EditValues'
+          - type: 'null'
+    EditQueueItem:
+      type: object
+      additionalProperties: false
+      required: [id, video_id, title, submitted_at]
+      properties:
+        id: {type: string, format: uuid}
+        video_id: {type: string, format: uuid}
+        title: {type: string, description: The proposed title}
+        submitted_at: {type: string, format: date-time}
+    EditReviewDetail:
+      type: object
+      additionalProperties: false
+      required: [edit, decisions]
+      properties:
+        edit:
+          type: object
+          additionalProperties: false
+          required: [id, video_id, status, submitted_at, video_state, live, proposed]
+          properties:
+            id: {type: string, format: uuid}
+            video_id: {type: string, format: uuid}
+            status: {type: string, enum: [pending, approved, rejected, superseded, withdrawn]}
+            submitted_at: {type: string, format: date-time}
+            video_state: {type: string, enum: [draft, uploading, processing, failed, review, published, rejected, removed]}
+            live: {$ref: '#/components/schemas/EditValues'}
+            proposed: {$ref: '#/components/schemas/EditValues'}
+        decisions:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, action, status, reason, created_at]
+            properties:
+              id: {type: string, format: uuid}
+              action: {type: string, enum: [approve, reject]}
+              status: {type: string, enum: [pending, applied, conflict]}
+              reason: {type: string, maxLength: 2000}
+              created_at: {type: string, format: date-time}
     PilotModerationAction:
       type: object
       additionalProperties: false
@@ -8964,7 +9198,10 @@ components:
       - created_at
       - published_at
       - poster_url
+      - edit_review
       properties:
+        edit_review:
+          $ref: '#/components/schemas/EditReview'
         id:
           type: string
           format: uuid

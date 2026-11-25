@@ -42,7 +42,7 @@ def _valid_result(operation, data, payload):
                 and data["video_id"] == payload["video_id"] and data["deleted"] is True)
     if operation in {"edit", "publish", "unpublish"}:
         return (_valid_owned_item(data, payload) and data["id"] == payload["video_id"]
-                and (operation != "edit" or all(data[key] == value for key, value in payload.items()
+                and (operation != "edit" or all(_edited(data, key, value) for key, value in payload.items()
                                                 if key not in {"creator_id", "video_id"}))
                 and (operation == "edit" or data["state"] == "published"
                      and data["visibility"] == ("public" if operation == "publish" else "private")))
@@ -78,6 +78,15 @@ def _valid_result(operation, data, payload):
                                            "If-None-Match": "*"}
             and datetime.fromisoformat(data["expires_at"]).tzinfo is not None
             and type(data["max_bytes"]) is int and data["max_bytes"] == 50 * 1024 * 1024)
+
+
+def _edited(data, key, value):
+    """The edit shows either live or, on a published video, in the pending proposal (Decision A)."""
+    if data[key] == value:
+        return True
+    review = data["edit_review"]
+    return (data["state"] == "published" and key in {"title", "description", "category", "tags"}
+            and review is not None and review["status"] == "pending" and review["proposed"][key] == value)
 
 
 def _valid_owned_item(item, payload):

@@ -6,7 +6,8 @@ from .models import AuditDelivery, AuditEvent
 # Exactly the vocabulary the Audit service accepts from this producer (services/audit/service/events.py).
 KINDS = {"video.created", "video.updated", "video.upload_intent_created", "video.upload_completed",
          "video.processing_succeeded", "video.processing_failed", "video.deleted", "video.published",
-         "video.unpublished", "video.moderated"}
+         "video.unpublished", "video.moderated", "video.edit_submitted", "video.edit_withdrawn",
+         "video.edit_approved", "video.edit_rejected"}
 
 
 def record(kind, video_id, actor_id=None):

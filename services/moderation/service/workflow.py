@@ -41,6 +41,8 @@ FIELDS = {
     "assignment_list": {"scope", "target_id"}, "assignment_set": {"scope", "target_id", "moderator_id", "active"},
     "assignment_summary": {"moderator_ids"},
     "notice": {"video_id", "creator_id"}, "standing": {"creator_id"},
+    "edit_queue": {"cursor"}, "edit_detail": {"target_id"},
+    "edit_decision": {"target_id", "action", "reason", "key"},
     **{operation: {"target_id", "action", "reason", "key"} for operation in DECISIONS},
 }
 
@@ -78,8 +80,12 @@ def _content(operation, payload):
                         or not isinstance(data["description"], str) or len(data["description"]) > 2000
                         or data["rights_status"] not in {"attested", "flagged", "claimed", "removed", "restored"}):
                     raise ValueError("Invalid reviewer metadata")
-            elif operation in {"apply", "rights"} and (set(data) != {"applied"} or data["applied"] is not True):
+            elif operation in {"apply", "rights", "edit-apply"} and (set(data) != {"applied"} or data["applied"] is not True):
                 raise ValueError("Invalid moderation receipt")
+            elif operation in {"edits", "edit-detail"}:
+                from .edit_review import valid_content
+                if not valid_content(operation, data, payload):
+                    raise ValueError("Invalid edit review answer")
             return data
     except HTTPError as error:
         error.close()
@@ -443,7 +449,7 @@ def moderation_workflow(request, operation):
         actor, role, data = UUID(envelope["actor_id"]), envelope["role"], envelope["data"]
         expected = FIELDS.get(operation)
         if (not isinstance(role, str) or expected is None or not isinstance(data, dict)
-                or not expected <= set(data) or set(data) - expected - ({"reason_code"} if operation in DECISIONS else {"status"} if operation in {"review_queue", "reports", "appeals"} else set())):
+                or not expected <= set(data) or set(data) - expected - ({"reason_code"} if operation in DECISIONS or operation == "edit_decision" else {"status"} if operation in {"review_queue", "reports", "appeals"} else set())):
             raise ValueError("Invalid moderation operation")
         allowed = ({"creator"} if operation in {"notice", "copyright_status", "counter_notice"} else VIEWERS | REVIEWERS if operation == "standing" else VIEWERS if operation in ("appeal", "own_appeals", "own_appeal") else
                    VIEWERS | REVIEWERS if operation in ("report", "copyright_report", "own_reports", "own_report") else REVIEWERS)
@@ -456,9 +462,14 @@ def moderation_workflow(request, operation):
                 return _error("MFA-verified reviewer session required", 403)
             from .operations import assignments
             return assignments(operation, actor, data, _content)
-        if operation in DECISIONS or operation in {"review_queue", "reports", "appeals", "video_detail", "report_detail", "appeal_detail", "preview", "totals", "fraud_scope"}:
+        if operation in DECISIONS or operation in {"review_queue", "reports", "appeals", "video_detail", "report_detail", "appeal_detail", "preview", "totals", "fraud_scope", "edit_queue", "edit_detail", "edit_decision"}:
             if envelope.get("mfa_verified") is not True:
                 return _error("MFA-verified reviewer session required", 403)
+        if operation in {"edit_queue", "edit_detail", "edit_decision"}:
+            from . import edit_review
+            handler = {"edit_queue": edit_review.queue, "edit_detail": edit_review.detail,
+                       "edit_decision": edit_review.decide}[operation]
+            return handler(actor, role, data, _content)
         if operation in {"totals", "fraud_scope"}:
             from .operations import operational_read
             return operational_read(operation, actor, role, _content)

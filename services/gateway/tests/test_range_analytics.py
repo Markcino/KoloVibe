@@ -20,7 +20,7 @@ class RangeAnalyticsGatewayTests(SimpleTestCase):
         self.state = {"total_videos": 1, "videos_by_state": {name: int(name == "published") for name in VIDEO_STATES}}
         self.detail = {"id": self.video, "creator_id": self.creator, "title": "Owned title", "description": "",
                        "state": "published", "created_at": "2026-11-01T12:00:00Z", "revision": 2,
-                       **metadata("private"), "published_at": "2026-11-01T12:00:00Z"}
+                       **metadata("private", owned=True), "published_at": "2026-11-01T12:00:00Z"}
 
     def summary(self, period="7d"):
         days = 7 if period == "7d" else 28

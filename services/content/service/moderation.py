@@ -10,7 +10,7 @@ from django.views.decorators.http import require_POST
 
 from .models import ModerationReceipt, Video, RightsEvent, OriginalityAttestation
 from .copyright import audit, claim
-from . import media_storage as storage, security_audit
+from . import edit_review, media_storage as storage, security_audit
 
 
 TRANSITIONS = {
@@ -92,6 +92,24 @@ def _apply(video_id, action_id, action, revision, *, copyright=False, actor_id=N
     return JsonResponse({"applied": True})
 
 
+def _edit_review(operation, data):
+    """Decision A: reviewer reads and decisions for held edits to published videos."""
+    if operation == "edits":
+        cursor = UUID(data["cursor"]) if data["cursor"] is not None else None
+        return JsonResponse(edit_review.queue(cursor, edit_review.parse_scope(data.get("scope_ids"))))
+    revision_id = UUID(data["revision_id"])
+    if operation == "edit-detail":
+        result = edit_review.detail(revision_id)
+        return JsonResponse(result) if result else _error("Edit not found", 404)
+    try:
+        revision = edit_review.apply(revision_id, UUID(data["action_id"]), data["action"], data["reason_code"])
+    except edit_review.Conflict:
+        return _error("Edit is no longer pending", 409)
+    if revision is None:
+        return _error("Edit not found", 404)
+    return JsonResponse({"applied": True})
+
+
 @require_POST
 def moderation_video(request, operation):
     if getattr(request, "service_caller", None) != "moderation":
@@ -102,9 +120,11 @@ def moderation_video(request, operation):
         data = json.loads(request.body)
         fields = {"inspect": {"video_id"}, "apply": {"video_id", "action_id", "action", "revision"},
                   "queue": {"cursor"}, "detail": {"video_id"}, "preview": {"video_id"}, "totals": {"scope_ids"},
-                  "rights": {"video_id", "command_id", "report_id", "event", "actor_id", "reason"}}
+                  "rights": {"video_id", "command_id", "report_id", "event", "actor_id", "reason"},
+                  "edits": {"cursor"}, "edit-detail": {"revision_id"},
+                  "edit-apply": {"revision_id", "action_id", "action", "reason_code"}}
         if (operation not in fields or not isinstance(data, dict) or not fields[operation] <= set(data)
-                or set(data) - fields[operation] - ({"scope_ids", "status"} if operation == "queue" else {"copyright", "actor_id", "reason", "report_id"} if operation == "apply" else set())):
+                or set(data) - fields[operation] - ({"scope_ids", "status"} if operation == "queue" else {"scope_ids"} if operation == "edits" else {"copyright", "actor_id", "reason", "report_id"} if operation == "apply" else set())):
             raise ValueError("Invalid moderation request")
         if operation in {"queue", "totals"}:
             states = {"review", "published", "rejected", "removed"}
@@ -125,6 +145,8 @@ def moderation_video(request, operation):
             page = list(videos[:21])
             items = [{"id": str(video.id), "title": video.title} for video in page[:20]]
             return JsonResponse({"items": items, "next_cursor": items[-1]["id"] if len(page) > 20 else None})
+        if operation in {"edits", "edit-detail", "edit-apply"}:
+            return _edit_review(operation, data)
         video_id = UUID(data["video_id"])
         if operation == "rights":
             if data["event"] not in {"claim", "dismiss"} or not isinstance(data["reason"], str) or not 1 <= len(data["reason"]) <= 2000:
