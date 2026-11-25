@@ -5,7 +5,9 @@ import '../../shared/widgets/live_state_view.dart';
 import '../../core/theme/kolovibe_theme.dart';
 import '../../shared/widgets/kolo_components.dart';
 import '../creators/creator_shell.dart';
+import 'live_restriction_repository.dart';
 import 'live_standing_repository.dart';
+import 'measures_section.dart';
 import 'notice_copy.dart';
 import 'standing_controller.dart';
 
@@ -19,10 +21,14 @@ class LiveStandingScreen extends StatefulWidget {
       {super.key,
       required this.catalog,
       required this.repository,
+      this.restrictions,
       this.titleLookup,
       this.controller});
   final DesignCatalog catalog;
   final LiveStandingRepository repository;
+
+  /// Decision F: the creator's own measures; omitted, the section is not shown.
+  final LiveRestrictionRepository? restrictions;
   final Future<Map<String, String>> Function(Set<String> ids)? titleLookup;
   final StandingController? controller;
 
@@ -128,6 +134,8 @@ class _LiveStandingScreenState extends State<LiveStandingScreen> {
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => _open(76, entityId: notice.videoId),
                 )),
+              if (widget.restrictions != null)
+                MeasuresSection(repository: widget.restrictions!),
             ],
             const SizedBox(height: 16),
             FilledButton(

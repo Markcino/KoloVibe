@@ -3,6 +3,7 @@ import '../../features/moderation/live_moderation_repository.dart';
 import '../../features/moderation/live_notice_screen.dart';
 import '../../features/moderation/live_appeal_screen.dart';
 import '../../features/moderation/live_report_screen.dart';
+import '../../features/moderation/live_restriction_repository.dart';
 import '../../features/moderation/live_standing_repository.dart';
 import '../../features/moderation/live_standing_screen.dart';
 import '../../features/points/live_points_screen.dart';
@@ -50,6 +51,7 @@ Widget? trustRoute(RouteContext context) {
     77 when deps.liveAccount != null => LiveStandingScreen(
         catalog: context.catalog,
         repository: LiveStandingRepository(deps.liveAccount!),
+        restrictions: LiveRestrictionRepository(deps.liveAccount!),
         titleLookup: deps.liveContent == null
             ? null
             : (ids) => ownVideoTitles(deps.liveContent!, ids)),
