@@ -221,7 +221,7 @@ def profile_edit(ctx, data):
         working.save()
         if contacts is not None:
             if approved is not None and set(contacts) != _contact_set(approved):
-                step_up.require(ctx.actor_id, "business.contact_change")  # a live contact detail is being changed
+                step_up.require(ctx, "business.contact_change", business.id)  # a live contact detail is being changed
             working.contacts.all().delete()
             ContactChannel.objects.bulk_create([ContactChannel(revision=working, kind=k, value=v, is_public=p)
                                                 for k, v, p in contacts])

@@ -16,13 +16,13 @@ class BusinessTestCase(TestCase):
         self.n = 0
 
     def call(self, operation, data=None, *, actor=None, role="viewer", mfa=False, verified=True, key="auto",
-             caller="gateway", method="post", envelope=None, origin=None):
+             caller="gateway", method="post", envelope=None, origin=None, step_up=None):
         self.n += 1
         if key == "auto":
             key = f"idem-key-{self.n:016d}"
         body = envelope if envelope is not None else {
             "actor_id": str(actor or uuid4()), "role": role, "mfa_verified": mfa, "email_verified": verified,
-            "idempotency_key": key, "origin": origin, "data": data or {}}
+            "idempotency_key": key, "origin": origin, "data": data or {}, "step_up": step_up}
         request = self.factory.generic(method.upper(), f"/internal/business/{operation}", json.dumps(body),
                                        content_type="application/json")
         request.service_caller = caller

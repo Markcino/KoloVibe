@@ -82,7 +82,7 @@ def _rules():
         r"/api/v1/me/preferences", r"/api/v1/me/privacy-requests")
     add("gateway", "account_management", "POST", r"/api/v1/auth/verification/resend",
         r"/api/v1/auth/password/reset-request", r"/api/v1/auth/password/reset", r"/api/v1/me/reauthenticate",
-        r"/api/v1/me/preferences", r"/api/v1/me/privacy-requests")
+        r"/api/v1/me/step-up", r"/api/v1/me/preferences", r"/api/v1/me/privacy-requests")
     add("gateway", "account_management", "PATCH", r"/api/v1/me", r"/api/v1/me/password", r"/api/v1/me/preferences")
     add("gateway", "account_management", "DELETE", rf"/api/v1/me/sessions/{UUID}")
     add("gateway", "account_management", "GET POST", r"/api/v1/admin/moderator-invitations", privileged=True)
@@ -123,7 +123,7 @@ def _rules():
         r"/internal/auth/moderator-invitations/(?:setup|complete)", privileged=True)
     add("identity", "account_management", "POST",
         r"/internal/auth/(?:verification/resend|password/reset-request|password/reset|password/change|profile"
-        r"|reauthenticate|preferences|privacy-requests|sessions)")
+        r"|reauthenticate|step-up|step-up/consume|preferences|privacy-requests|sessions)")
     add("identity", "moderation", "POST", r"/internal/auth/standing")
 
     # ---- Creators (internal): the own-profile read and edit behind `/api/v1/creators/me` ---------------

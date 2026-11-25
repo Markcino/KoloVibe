@@ -3,7 +3,7 @@ from django.http import JsonResponse
 from .health import liveness
 from . import accounts
 from .mfa import verify_mfa
-from . import account_lookup, moderator_invitations
+from . import account_lookup, moderator_invitations, step_up
 from .preferences_privacy import preferences, privacy_requests
 
 urlpatterns = [
@@ -21,6 +21,8 @@ urlpatterns = [
     path("internal/auth/password/change", accounts.change_password, name="internal-change-password"),
     path("internal/auth/profile", accounts.update_profile, name="internal-update-profile"),
     path("internal/auth/reauthenticate", accounts.reauthenticate, name="internal-reauthenticate"),
+    path("internal/auth/step-up", step_up.issue, name="internal-step-up"),
+    path("internal/auth/step-up/consume", step_up.consume, name="internal-step-up-consume"),
     path("internal/auth/preferences", preferences, name="internal-preferences"),
     path("internal/auth/privacy-requests", privacy_requests, name="internal-privacy-requests"),
     path("internal/auth/login", accounts.login, name="internal-login"),

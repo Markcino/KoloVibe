@@ -45,8 +45,11 @@ def run(t, c):
     def key():
         return secrets.token_urlsafe(24)
 
+    passwords = {}
+
     def person(label):
         body = {"email": f"biz-{label}@example.test", "display_name": f"Biz {label}", "password": secrets.token_urlsafe(24)}
+        passwords[label] = body["password"]
         t.assertEqual(api("/auth/register", data=body)[0], 201)
         t.assertEqual(api("/auth/verify", data={"email": body["email"], "code": mailed_code(c.base)})[0], 200)
         status, tokens = api("/auth/login", data={name: body[name] for name in ("email", "password")})
@@ -265,10 +268,21 @@ def run(t, c):
     members = ok(api(f"/me/businesses/{bid}/members", token=owner), "/me/businesses/{business_id}/members")
     member = next(m for m in members["members"] if m["role"] == "staff")["id"]
     status, refused = api(f"/me/businesses/{bid}/members/{member}", method="DELETE", token=owner, key=key())
-    t.assertEqual((status, refused["code"]), (403, "step_up_unavailable"))  # removal fails closed until step-up exists
+    t.assertEqual((status, refused["code"]), (403, "step_up_required"))  # removal needs an Identity step-up proof
+    # Decision G: a purpose-bound proof from Identity, consumed once by the Gateway for this business only.
+    t.assertEqual(api("/me/step-up", token=owner, data={"current_password": "wrong-password",
+                                                        "purpose": "business.member_remove", "resource_id": bid})[0], 400)
+    proof = ok(api("/me/step-up", token=owner, data={"current_password": passwords["owner"],
+                                                     "purpose": "business.member_remove", "resource_id": bid}),
+               "/me/step-up", "post")["step_up_token"]
+    t.assertEqual(api(f"/me/businesses/{bid}/members/{member}", method="DELETE", token=staff, key=key(),
+                      headers={"X-Step-Up-Token": proof})[0], 403)  # another person's session cannot use it
+    ok(api(f"/me/businesses/{bid}/members/{member}", method="DELETE", token=owner, key=key(),
+           headers={"X-Step-Up-Token": proof}), "/me/businesses/{business_id}/members/{member_id}", "delete")
+    t.assertEqual(api(f"/me/businesses/{bid}/members/{member}", method="DELETE", token=owner, key=key(),
+                      headers={"X-Step-Up-Token": proof})[0], 403)  # a proof is used once
 
     # ---- 14. revoked staff access is denied -----------------------------------------------------------------------
-    ok(api(f"/me/businesses/{bid}/leave", data={}, token=staff, key=key()), "/me/businesses/{business_id}/leave", "post")
     for denied in (api(f"/me/businesses/{bid}", token=staff),
                    api(f"/me/businesses/{bid}/inquiries/{tid}/messages", data={"body": "Still here?"}, token=staff, key=key())):
         t.assertEqual(denied[0], 404)

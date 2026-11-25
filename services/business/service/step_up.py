@@ -1,11 +1,14 @@
-"""Step-up authentication for sensitive owner actions (contact change, closure, ownership transfer, staff removal).
+"""Step-up for sensitive owner actions (Decision G; BZ-R-036).
 
-The approved design (BZ-R-036) requires a fresh, purpose-bound proof. Identity cannot yet issue or verify one
-for other services (prerequisite P6B-04, not approved), so this hook FAILS CLOSED: the guarded operations refuse
-every caller until Identity provides the capability and `verify` is implemented. Nothing weaker is substituted.
+Identity owns the one step-up mechanism. The person obtains a purpose-bound, single-use proof from Identity; the
+Gateway consumes it at Identity with the same session and attests only the verified purpose and resource in the
+signed envelope. This module never sees a password or a proof: it checks that the attestation names exactly the
+purpose and the business the operation acts on. Anything else (no proof, another purpose, another business) is
+refused, so a proof for one business or action cannot authorize another.
 """
 from .errors import ApiError
 
 
-def require(actor, purpose):
-    raise ApiError(403, "Step-up authentication is required and is not available yet", "step_up_unavailable")
+def require(ctx, purpose, resource_id):
+    if ctx.step_up != {"purpose": purpose, "resource_id": str(resource_id)}:
+        raise ApiError(403, "Step-up authentication is required", "step_up_required")

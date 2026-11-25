@@ -184,7 +184,7 @@ class Matrix(ReviewBase):
                 before = _snapshot()
                 actor_kwargs = ({"envelope": {"actor_id": "00000000-0000-0000-0000-000000000000", "role": "anonymous",
                                               "mfa_verified": False, "email_verified": False, "idempotency_key": None,
-                                              "origin": None, "data": {}}} if role == "anonymous" else {})
+                                              "origin": None, "data": {}, "step_up": None}} if role == "anonymous" else {})
                 status, _ = self.call(name, {}, role=role, mfa=role in PRIVILEGED, **actor_kwargs)
                 self.assertEqual(status, 403, f"{name} must refuse role {role}")
                 self.assertEqual(_snapshot(), before, f"{name} wrote data while refusing {role}")

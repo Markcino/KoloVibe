@@ -196,16 +196,23 @@ class ApprovalTests(ProfileBase):
         self.assertEqual(self.submit()[1]["state"], "pending_review")
         self.assertEqual(ProfileRevision.objects.get(state="approved").address_line, "")
 
-    def test_changing_a_live_contact_fails_closed_until_step_up_exists(self):
+    def test_changing_a_live_contact_needs_a_step_up_for_this_business(self):
         self.complete(contacts=[{"kind": "phone", "value": "+231770000000", "is_public": True}])
         self.assertEqual(self.submit()[0], 200)  # before first approval nothing is live
         self.grant()
         rid = str(ProfileRevision.objects.get(state="pending_review").id)
         self.rv("profile_decide", {"revision_id": rid, "decision": "approve", "reason_code": "looks_correct"})
-        status, body = self.edit(contacts=[{"kind": "phone", "value": "+231770009999", "is_public": True}])
-        self.assertEqual((status, body["code"]), (403, "step_up_unavailable"))
+        changed = {"business_id": self.bid, "contacts": [{"kind": "phone", "value": "+231770009999", "is_public": True}]}
+        status, body = self.edit(contacts=changed["contacts"])
+        self.assertEqual((status, body["code"]), (403, "step_up_required"))
         self.assertEqual(ProfileRevision.objects.filter(state="draft").count(), 0)  # nothing was left behind
+        wrong = {"purpose": "business.member_remove", "resource_id": self.bid}
+        self.assertEqual(self.call("profile_edit", changed, actor=self.owner, step_up=wrong)[1]["code"], "step_up_required")
         self.assertEqual(self.edit(contacts=[{"kind": "phone", "value": "+231770000000", "is_public": True}])[0], 200)  # unchanged set
+        proof = {"purpose": "business.contact_change", "resource_id": self.bid}
+        status, body = self.call("profile_edit", changed, actor=self.owner, step_up=proof)
+        self.assertEqual(status, 200)
+        self.assertEqual(self.submit()[1]["state"], "pending_review")  # the new contact is still reviewed before it is live
 
     def test_closed_business_cannot_be_edited(self):
         Business.objects.filter(pk=self.bid).update(state="closed")

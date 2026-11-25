@@ -2,6 +2,7 @@
 
 import ipaddress
 import json
+import uuid
 from urllib.error import HTTPError, URLError
 
 from django.conf import settings
@@ -185,6 +186,41 @@ def reauthenticate(request):
                 or not 32 <= len(payload["reauth_token"]) <= 128
                 or not isinstance(payload["expires_at"], str)
                 or len(payload["expires_at"]) > 64):
+            raise ValueError
+        expiry = parse_datetime(payload["expires_at"])
+        if expiry is None or expiry.tzinfo is None:
+            raise ValueError
+    except (KeyError, ValueError, TypeError):
+        return _json({"detail": "Identity unavailable"}, 503)
+    return result
+
+
+@never_cache
+@require_POST
+def step_up(request):
+    """Decision G: obtain a purpose-bound proof from Identity. Identity alone knows the purposes and their bindings."""
+    token = _bearer(request)
+    if token is None:
+        return _json({"detail": "Unauthorized"}, 401)
+    try:
+        data = _body(request, {"current_password", "purpose", "resource_id"})
+        if (not {"current_password", "purpose"} <= set(data)
+                or not isinstance(data["current_password"], str) or not 1 <= len(data["current_password"]) <= 128
+                or not isinstance(data["purpose"], str) or not 3 <= len(data["purpose"]) <= 64
+                or ("resource_id" in data and not isinstance(data["resource_id"], str))):
+            raise ValueError
+        if "resource_id" in data:
+            data["resource_id"] = str(uuid.UUID(data["resource_id"]))
+    except (ValueError, UnicodeError, AttributeError):
+        return _json({"detail": "Step-up failed"}, 400)
+    result = _invoke("/internal/auth/step-up", {"access_token": token, **data}, {200})
+    if result.status_code != 200:
+        return result
+    try:
+        payload = json.loads(result.content)
+        if (set(payload) != {"step_up_token", "purpose", "expires_at"} or payload["purpose"] != data["purpose"]
+                or not isinstance(payload["step_up_token"], str) or not 32 <= len(payload["step_up_token"]) <= 128
+                or not isinstance(payload["expires_at"], str) or len(payload["expires_at"]) > 64):
             raise ValueError
         expiry = parse_datetime(payload["expires_at"])
         if expiry is None or expiry.tzinfo is None:
