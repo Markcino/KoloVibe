@@ -244,6 +244,13 @@ class _LiveManageVideoScreenState extends State<LiveManageVideoScreen> {
             const SizedBox(height: 12),
             Text(video.description, style: KoloVibeText.body(14, height: 1.5)),
           ],
+          if (editReviewNote(video) case final note?)
+            Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Semantics(
+                    key: const ValueKey('edit-review-note'),
+                    liveRegion: true,
+                    child: Text(note, style: KoloVibeText.body(13)))),
           if (controller.message != null)
             Padding(
                 padding: const EdgeInsets.only(top: 12),
@@ -306,6 +313,19 @@ class _LiveManageVideoScreenState extends State<LiveManageVideoScreen> {
                 child: Center(child: CircularProgressIndicator())),
         ]);
   }
+}
+
+/// Decision A: what the creator needs to know about their latest edit to a published video.
+String? editReviewNote(OwnedVideo video) {
+  final review = video.editReview;
+  if (review == null || video.state != 'published') return null;
+  return switch (review.status) {
+    'pending' =>
+      'Your changes are waiting for review. Viewers still see the approved details.',
+    'rejected' =>
+      'Your last changes were not approved. Viewers still see the approved details.',
+    _ => null,
+  };
 }
 
 /// The designed confirmation dialog: an alert mark, a title, an explanation
@@ -396,11 +416,13 @@ class _EditDialog extends StatefulWidget {
 
 class _EditDialogState extends State<_EditDialog> {
   final _form = GlobalKey<FormState>();
-  late final _title = TextEditingController(text: widget.video.title);
+  // A pending edit (Decision A) is continued from what the creator last asked for.
+  late final _title = TextEditingController(text: widget.video.editingTitle);
   late final _description =
-      TextEditingController(text: widget.video.description);
-  late final _tags = TextEditingController(text: widget.video.tags.join(' '));
-  late String? _category = widget.video.category;
+      TextEditingController(text: widget.video.editingDescription);
+  late final _tags =
+      TextEditingController(text: widget.video.editingTags.join(' '));
+  late String? _category = widget.video.editingCategory;
   late int? _cover = widget.video.coverTimeMs;
 
   String _clock(int ms) {

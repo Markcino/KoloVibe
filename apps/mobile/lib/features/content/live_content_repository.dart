@@ -46,6 +46,91 @@ List<String> normalizeTags(Iterable<String> raw) {
   return List.unmodifiable(tags);
 }
 
+/// Decision A: the creator's newest pending or decided edit to a published video's text.
+/// Viewers keep seeing the approved details while [isPending].
+class EditReview {
+  const EditReview(this.id, this.status, this.submittedAt,
+      {this.decidedAt,
+      this.reasonCode,
+      this.title,
+      this.description,
+      this.category,
+      this.tags});
+
+  final String id, status;
+  final DateTime submittedAt;
+  final DateTime? decidedAt;
+  final String? reasonCode;
+
+  /// The proposed details; present only while the edit is pending.
+  final String? title, description, category;
+  final List<String>? tags;
+
+  bool get isPending => status == 'pending';
+
+  static EditReview? fromJson(Object? raw) {
+    if (raw == null) return null;
+    if (raw is! Map<String, dynamic> ||
+        raw.length != 6 ||
+        !raw.keys.toSet().containsAll(const {
+          'id',
+          'status',
+          'submitted_at',
+          'decided_at',
+          'reason_code',
+          'proposed'
+        })) {
+      throw const FormatException('Invalid edit review');
+    }
+    final status = raw['status'];
+    final proposed = raw['proposed'];
+    final reason = raw['reason_code'];
+    if (!isApiId(raw['id']) ||
+        !const {'pending', 'approved', 'rejected'}.contains(status) ||
+        (status == 'pending') != (raw['decided_at'] == null) ||
+        (status == 'pending') != (proposed != null) ||
+        reason != null &&
+            (reason is! String ||
+                !RegExp(r'^[A-Z][A-Z0-9_]{1,63}$').hasMatch(reason))) {
+      throw const FormatException('Invalid edit review');
+    }
+    String? title, description, category;
+    List<String>? tags;
+    if (proposed != null) {
+      if (proposed is! Map<String, dynamic> ||
+          proposed.length != 4 ||
+          proposed['title'] is! String ||
+          (proposed['title'] as String).isEmpty ||
+          (proposed['title'] as String).length > 160 ||
+          proposed['description'] is! String ||
+          (proposed['description'] as String).length > 2000 ||
+          proposed['category'] != null &&
+              !videoCategories.containsKey(proposed['category']) ||
+          proposed['tags'] is! List ||
+          (proposed['tags'] as List).length > 5 ||
+          (proposed['tags'] as List)
+              .any((tag) => tag is! String || !_tagPattern.hasMatch(tag))) {
+        throw const FormatException('Invalid edit review');
+      }
+      title = proposed['title'] as String;
+      description = proposed['description'] as String;
+      category = proposed['category'] as String?;
+      tags =
+          List<String>.unmodifiable((proposed['tags'] as List).cast<String>());
+    }
+    return EditReview(raw['id'] as String, status as String,
+        OwnedVideo._timestamp(raw['submitted_at']),
+        decidedAt: raw['decided_at'] == null
+            ? null
+            : OwnedVideo._timestamp(raw['decided_at']),
+        reasonCode: reason as String?,
+        title: title,
+        description: description,
+        category: category,
+        tags: tags);
+  }
+}
+
 class OwnedVideo {
   const OwnedVideo(this.id, this.creatorId, this.title, this.description,
       this.state, this.createdAt,
@@ -56,7 +141,8 @@ class OwnedVideo {
       this.publishedAt,
       this.posterUrl,
       this.durationMs,
-      this.revision});
+      this.revision,
+      this.editReview});
 
   final String id, creatorId, title, description, state, visibility;
   final DateTime createdAt;
@@ -67,6 +153,16 @@ class OwnedVideo {
 
   /// Moderation revision; only the owned-detail read returns it.
   final int? revision;
+
+  /// Decision A: the state of the creator's latest edit to a published video's text.
+  final EditReview? editReview;
+
+  /// The details the creator last asked for: the pending proposal, or the live details.
+  String get editingTitle => editReview?.title ?? title;
+  String get editingDescription => editReview?.description ?? description;
+  String? get editingCategory =>
+      editReview?.isPending == true ? editReview!.category : category;
+  List<String> get editingTags => editReview?.tags ?? tags;
 
   /// Short-lived signed URL (at most 300 seconds). Never persist it.
   final String? posterUrl;
@@ -104,7 +200,8 @@ class OwnedVideo {
           ...required,
           'duration_seconds',
           'duration_ms',
-          'revision'
+          'revision',
+          'edit_review'
         }).isNotEmpty) {
       throw const FormatException('Invalid owned video');
     }
@@ -159,6 +256,7 @@ class OwnedVideo {
         publishedAt: published,
         posterUrl: poster as String?,
         revision: revision as int?,
+        editReview: EditReview.fromJson(raw['edit_review']),
         durationMs: millis as int? ??
             (seconds == null ? null : (seconds as int) * 1000));
   }
@@ -527,20 +625,20 @@ class LiveContentRepository {
       List<String>? tags,
       int? coverTimeMs}) async {
     final changes = <String, Object?>{};
-    if (title != null && title.trim() != video.title) {
+    if (title != null && title.trim() != video.editingTitle) {
       final cleaned = title.trim();
       if (cleaned.isEmpty || cleaned.length > 160) {
         throw const FormatException('Invalid title');
       }
       changes['title'] = cleaned;
     }
-    if (description != null && description != video.description) {
+    if (description != null && description != video.editingDescription) {
       if (description.length > 2000) {
         throw const FormatException('Invalid description');
       }
       changes['description'] = description;
     }
-    if (category != null && category != video.category) {
+    if (category != null && category != video.editingCategory) {
       if (!videoCategories.containsKey(category)) {
         throw const FormatException('Invalid category');
       }
@@ -548,7 +646,7 @@ class LiveContentRepository {
     }
     if (tags != null) {
       final normalized = normalizeTags(tags);
-      if (normalized.join(',') != video.tags.join(',')) {
+      if (normalized.join(',') != video.editingTags.join(',')) {
         changes['tags'] = normalized;
       }
     }
@@ -574,12 +672,15 @@ class LiveContentRepository {
     if (result.id != video.id ||
         result.creatorId != video.creatorId ||
         changes.entries.any((entry) => switch (entry.key) {
-              'title' => result.title != entry.value,
-              'description' => result.description != entry.value,
-              'category' => result.category != entry.value,
+              // Decision A: a published video's text may be held for review.
+              'title' => result.editingTitle != entry.value,
+              'description' => result.editingDescription != entry.value,
+              'category' => result.editingCategory != entry.value,
               'cover_time_ms' => result.coverTimeMs != entry.value,
-              _ => result.tags.join(',') != (entry.value as List).join(','),
-            })) {
+              _ =>
+                result.editingTags.join(',') != (entry.value as List).join(','),
+            }) ||
+        result.editReview?.isPending == true && result.state != 'published') {
       throw const FormatException('Mismatched edited video');
     }
     return result;
