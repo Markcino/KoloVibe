@@ -221,7 +221,10 @@ class AccountApiTests(TestCase):
         response = self.post(accounts.register, {"email": "USER@example.test",
                                                   "password": self.password,
                                                   "display_name": "Someone Else"})
-        self.assertEqual(response.status_code, 409)
+        # D11-003: the duplicate is answered like a new registration and only the owner is told.
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(Account.objects.filter(email="user@example.test").count(), 1)
+        self.assertEqual(Account.objects.get(email="user@example.test").display_name, "Local User")
 
     def test_session_management_scopes_listing_and_revocation_to_the_owner(self):
         account = self.register_and_verify()

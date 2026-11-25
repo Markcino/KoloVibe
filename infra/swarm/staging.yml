@@ -69,6 +69,9 @@ services:
       <<: *environment
       KOLOVIBE_SERVICE_NAME: gateway
       KOLOVIBE_ALLOWED_HOSTS: ${GATEWAY_HOSTS:?approved gateway hostnames required}
+      # Host Nginx overwrites this header on every request with the client address it recovered from
+      # the Cloudflare Tunnel connector (infra/nginx). Without it every per-origin limit is inert (D12-001).
+      KOLOVIBE_TRUSTED_CLIENT_IP_HEADER: CF-Connecting-IP
       KOLOVIBE_DB_USER: ${GATEWAY_DB_USER:?runtime database login required}
       KOLOVIBE_TRUSTED_PEERS_FILE: /run/secrets/trusted_peers
       # JSON map {audience: key}: one independent signing key per peer. Each peer's

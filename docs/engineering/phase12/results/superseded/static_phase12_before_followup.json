@@ -1,0 +1,60 @@
+{
+ "results": [
+  {
+   "id": "T10_80",
+   "test": "test_T10_80_Static_review:_Nginx_hides_version,_TLS_1.2+,_tiny_body_limits,_strips_spoofable_headers",
+   "status": "PASS",
+   "detail": "Re-read at the Phase 12 commit: server_tokens off; TLSv1.2/1.3; client_max_body_size 8k and 16k; X-Forwarded-For cleared before the upstream",
+   "seconds": 0
+  },
+  {
+   "id": "T10_81",
+   "test": "test_T10_81_Static_review:_rate_limiting_defined_at_the_edge_in_the_repository",
+   "status": "FAIL",
+   "detail": "Re-checked: still no limit_req or limit_conn in infra/nginx. Edge limits would be Cloudflare rules, which are not in the repository and were not inspected",
+   "seconds": 0
+  },
+  {
+   "id": "T10_82",
+   "test": "test_T10_82_Static_review:_HSTS_and_secure_cookies_configured_for_staging",
+   "status": "PASS",
+   "detail": "Re-read: console HSTS 30 days; services HSTS 3600 s via staging_runtime; Secure cookies in staging",
+   "seconds": 0
+  },
+  {
+   "id": "T10_83",
+   "test": "test_T10_83_Static_review:_Swarm_declares_CPU_and_memory_limits,_read-only_root,_non-root_user,_dropped_capabilities_for_workers",
+   "status": "PASS",
+   "detail": "Re-read infra/swarm/staging-aws.yml: 14 memory limits, read_only, cap_drop ALL, user 10001",
+   "seconds": 0
+  },
+  {
+   "id": "T10_84",
+   "test": "test_T10_84_Python_dependency_advisories,_four_lock_files",
+   "status": "PASS",
+   "detail": "pip-audit re-run on the Phase 12 build: dev 29, web 12, media 1, ci 59 dependencies, 0 vulnerable",
+   "seconds": 0
+  },
+  {
+   "id": "T10_85",
+   "test": "test_T10_85_Static_analysis:_Bandit_over_services,_scripts,_console",
+   "status": "PASS",
+   "detail": "Re-run: 229 findings, all low; 0 medium or high (scripts/enforce_bandit.py)",
+   "seconds": 0
+  },
+  {
+   "id": "T10_86",
+   "test": "test_T10_86_Secret_scan_over_the_repository",
+   "status": "PASS",
+   "detail": "Re-run: check_secret_findings passes (152 recognized non-secret identifiers); a stray .pytest_cache from this phase was removed first",
+   "seconds": 0
+  },
+  {
+   "id": "T10_87",
+   "test": "test_T10_87_Static_review:_a_deployment_manifest_configures_KOLOVIBE_TRUSTED_CLIENT_IP_HEADER_so_per-origin_limits_count",
+   "status": "FAIL",
+   "detail": "New in Phase 12 (D12-001): no file under infra, scripts/ops, .github or docs/operations sets it; the Gateway sees no client origin as deployed, so every per-origin budget (sign-in, codes, registration) is inert",
+   "seconds": 0
+  }
+ ]
+}

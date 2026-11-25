@@ -209,11 +209,11 @@ Full record: [readiness report](phase12/Phase12_Release_Readiness_Report.md), [d
 | --- | --- | --- | --- | --- |
 | Points consumer poison pill (D11-001) | **Fixed, verified** | unit, real broker, T3_35 PASS | Dead-letter policy (broker) | Infrastructure owner |
 | Database ownership and append-only guards (D11-002, R-01) | **Fixed in the repository; NOT converted on staging** | T10_03, T10_04, T10_31 PASS; conversion script tested on a recreated legacy schema | Migration logins, conversion, read-back, backup first | Infrastructure owner, DBA |
-| Registration limit (D11-004) | **Fixed in code; inert as deployed (D12-001)** | T1_94 PASS with a trusted origin | Trusted client address at the edge | Infrastructure owner |
-| Registration enumeration (D11-003) | **Open: owner decision** (ADR-013, M-012) | T1_03 FAIL | Decision | Product owner |
+| Registration limit (D11-004); trusted client address and edge rate limits (D12-001) | **Fixed in the repository (follow-up); not yet deployed** | T1_94, T10_81, T10_87 PASS; real-Nginx edge tests | Deploy with the real connector address and test through the real edge | Infrastructure owner |
+| Registration enumeration (D11-003) | **Fixed, verified** (owner chose the fix; ADR-013 A-2) | T1_03 PASS; Identity and mobile tests | None | None |
 | Validation before authorization (D11-005); console reflow (D11-006) | **Fixed, verified** | T1_31, T4_23, T9_32 PASS | None | None |
 | Creators and Content audit (D11-007), copyright intake client (D11-008), maintenance scheduling (D11-009) | **Open** (runbook written) | — | Owner decisions and approvals | Product owner, Infrastructure owner |
-| Regression on the fixed build | 244 rows: 159 PASS, 3 FAIL, 39 BLOCKED, 43 NOT RUN; services 1,098, console 179, scripts 468, Flutter 1,823 | matrix | Devices, real R2, backup restore, edge | Owner |
+| Regression on the fixed build | After the follow-up, 244 rows: 162 PASS, 0 FAIL, 39 BLOCKED, 43 NOT RUN; console 179, scripts 475, Flutter 1,824 | matrix | Devices, real R2, backup restore, edge | Owner |
 
 ## Earlier implementation and acceptance record
 

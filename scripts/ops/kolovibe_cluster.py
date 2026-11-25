@@ -192,6 +192,9 @@ LIVE_CONTENT_R2_SECRETS = frozenset({'kolovibe_content_r2_access_key_r1_v2',  # 
                                      'kolovibe_content_r2_secret_key_r1_v2'})  # pragma: allowlist secret
 
 
+TRUSTED_CLIENT_IP_HEADER = 'CF-Connecting-IP'
+
+
 def r1_rollout_table():
     """What the R1 rollout adds to each existing service: names only, never values.
 
@@ -232,6 +235,10 @@ def r1_rollout_table():
                 'KOLOVIBE_OUTBOUND_KEY_FILE': '/run/secrets/audit_signing_key',
                 'KOLOVIBE_TRUSTED_PEERS_FILE': '/run/secrets/audit_peers'},
         'operator_env': (), 'networks': ()}
+    # Per-origin abuse limits count only when the Gateway knows the client address. Host Nginx overwrites
+    # this header on every request (infra/nginx); D12-001.
+    table['gateway'] = {'mounts': {}, 'env': {'KOLOVIBE_TRUSTED_CLIENT_IP_HEADER': TRUSTED_CLIENT_IP_HEADER},
+                        'operator_env': (), 'networks': ()}
     table['moderation'] = {
         'mounts': {'outbound_key': own('moderation', 'outbound_key'), 'trusted_peers': own('moderation', 'peers')},
         'env': {'KOLOVIBE_OUTBOUND_KEY_FILE': '/run/secrets/outbound_key',

@@ -243,6 +243,16 @@ void main() {
     expect(
         find.text('Destination ${const ScreenRoute(79).name}'), findsOneWidget);
   });
+  testWidgets(
+      'M-006 offers M-012 because registration no longer reveals existing accounts (ADR-013 A-2)',
+      (tester) async {
+    await form(tester, 6);
+    expect(find.text('Already have an account?'), findsOneWidget);
+    await tap(tester, 'Already have an account?');
+    expect(find.textContaining('This email can’t be used'), findsOneWidget);
+    expect(find.text('Sign in instead'), findsOneWidget);
+    expect(find.text('Reset my password'), findsOneWidget);
+  });
   testWidgets('M-079 uses live identity and creator roles', (tester) async {
     await tester.pumpWidget(app(LiveAccountScreen(
         repository: AccountFixture().account, catalog: catalog)));

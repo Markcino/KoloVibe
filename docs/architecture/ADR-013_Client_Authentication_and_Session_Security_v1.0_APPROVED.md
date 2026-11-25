@@ -355,7 +355,7 @@ Primary existing DOC-206 controls to link: **SEC-003, SEC-005, SEC-006, SEC-007,
 | Lifetime | Email verification **30 minutes**; password reset **15 minutes** (ADR013-P10). Single use. Issuing a new code ends every earlier unused code of that purpose. |
 | Guess limits | The **5th wrong guess destroys the code**. Across all codes an address may fail **10 times per hour** per purpose; a trusted network origin may fail **40 times per 15 minutes**. A spent budget returns `429` even for a correct code, so the limit cannot be used as an oracle. Failure counters are keyed on the submitted address whether or not an account exists. |
 | Send limits | **60-second** cooldown and **3 emails per hour** per account and purpose; a trusted origin may request **20 emails per hour**. Over-limit requests are dropped silently. |
-| Anti-enumeration | Verify and reset return the same `400` for an unknown address, a wrong, expired, used or exhausted code. Resend and reset-request return the same empty `204` for unknown, ineligible, throttled and delivery-failed cases. **Known residual risks:** registration still answers `409` for an existing address because the approved M-012 screen depends on it, and the time spent sending mail can differ between known and unknown addresses; both rely on edge rate limits and are tracked for the independent review. |
+| Anti-enumeration | Verify and reset return the same `400` for an unknown address, a wrong, expired, used or exhausted code. Resend and reset-request return the same empty `204` for unknown, ineligible, throttled and delivery-failed cases. Registration answers the same `201` for a new and an existing address (amendment A-2). **Known residual risk:** the time spent sending mail can differ between known and unknown addresses; it relies on edge rate limits and is tracked for the independent review. |
 | Network signal | Identity cannot see the caller (its peer is the gateway). The gateway forwards an `origin` only when `KOLOVIBE_TRUSTED_CLIENT_IP_HEADER` names a header the trusted edge overwrites on every request (for example `CF-Connecting-IP`). With no such header only address-level limits apply, and a caller-supplied `origin` field is rejected. **Deployment action:** configure and test that header before the origin limits count for anything. |
 | Not MFA | Email verification proves access to a mailbox. It is **not multifactor authentication**, is never offered or described as such, issues no session, and never raises assurance. Reset signs nobody in and revokes all sessions (ADR §6, §7). |
 | Audit | `account.verification_code_failed`, `account.verification_throttled`, `account.password_reset_code_failed`, `account.password_reset_throttled` carry the account id (when one exists) and no code. |
@@ -367,6 +367,23 @@ Primary existing DOC-206 controls to link: **SEC-003, SEC-005, SEC-006, SEC-007,
 3. *Contract:* 24 hours after rollout set `KOLOVIBE_ACCEPT_LEGACY_LONG_CODES=0`, then delete `_verify_legacy`, `_reset_legacy`, the `kind='token'` rows, the bare-code gateway shape and the setting in a follow-up change. A pending long link cannot outlive that window, so no account is stranded.
 
 **Verification evidence (local, not staging).** `services/identity/tests/test_codes.py` (27 cases: CSPRNG source, keyed verifier and cross-binding, expiry, single use, 5-guess destruction, address and origin budgets with correct-code refusal, unknown-versus-known indistinguishability, purpose separation, cooldown and hourly cap, log and audit contents, legacy window open/closed); `services/gateway/tests/test_accounts.py` (request shapes, origin trust); `apps/web_django/tests/test_journeys.py`.
+
+## 19B. Amendment A-2 — registration does not reveal existing accounts (2026-11-25)
+
+**Status:** owner decision of 25 November 2026 on Phase 12 defect D11-003 (choice: apply the fix). It supersedes the A-1 residual risk that registration answers `409` for an existing address, and changes only how the app reaches screen M-012. Independent security verification is **NOT RUN**.
+
+**Decision.**
+
+| Case | Answer to the caller | What the address owner receives |
+| --- | --- | --- |
+| New address | `201 {"id", "verification_required": true}` | A verification code (A-1) |
+| Existing, still unverified | The same `201`, with a random `id` that names no account | A fresh verification code that replaces the earlier one, under the A-1 send limits |
+| Existing, verified | The same `201`, with a random `id` | A notice that someone tried to register the address, pointing to sign-in and password reset; at most 3 per hour per address; no code |
+| Invalid fields, spent origin budget, mail failure | Identical for new and existing addresses (`400`, `429`, `503`) | Nothing |
+
+The attempt on an existing address is recorded as `account.registration_attempt_existing` (Identity security events, delivered to Audit). **M-012** ("You may already be part of the vibe") is no longer opened by a `409`; it is reached from the verification screen M-006 by the link "Already have an account?". The app still handles a `409` from an older server the same way during rollout.
+
+**Evidence (local).** `services/identity/tests/test_codes.py` (D11-003 cases), `services/identity/tests/test_account_api.py`, Phase 11 black-box `T1_03`, the mobile account widget tests.
 
 ## 20. References and provenance
 

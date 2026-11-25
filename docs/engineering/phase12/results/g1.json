@@ -4,7 +4,7 @@
    "id": "T1_01",
    "test": "Accounts.test_T1_01_registration_creates_an_unverified_account_and_leaks_nothing",
    "status": "PASS",
-   "seconds": 0.12,
+   "seconds": 0.09,
    "doc": "",
    "detail": ""
   },
@@ -12,23 +12,23 @@
    "id": "T1_02",
    "test": "Accounts.test_T1_02_an_unverified_account_cannot_sign_in",
    "status": "PASS",
-   "seconds": 0.07,
+   "seconds": 0.06,
    "doc": "",
    "detail": ""
   },
   {
    "id": "T1_03",
    "test": "Accounts.test_T1_03_duplicate_registration_is_not_distinguishable_from_a_new_one",
-   "status": "FAIL",
-   "seconds": 0.1,
+   "status": "PASS",
+   "seconds": 0.11,
    "doc": "",
-   "detail": "AssertionError: 409 != 201 : registering an existing email must not reveal that it exists\n"
+   "detail": ""
   },
   {
    "id": "T1_04",
    "test": "Accounts.test_T1_04_email_case_does_not_create_a_second_account",
    "status": "PASS",
-   "seconds": 0.1,
+   "seconds": 0.11,
    "doc": "",
    "detail": ""
   },
@@ -36,7 +36,7 @@
    "id": "T1_05",
    "test": "Accounts.test_T1_05_weak_passwords_are_refused",
    "status": "PASS",
-   "seconds": 0.1,
+   "seconds": 0.09,
    "doc": "",
    "detail": ""
   },
@@ -60,7 +60,7 @@
    "id": "T1_10",
    "test": "Accounts.test_T1_10_wrong_password_and_unknown_email_look_the_same",
    "status": "PASS",
-   "seconds": 0.08,
+   "seconds": 0.09,
    "doc": "",
    "detail": ""
   },
@@ -68,7 +68,7 @@
    "id": "T1_11",
    "test": "Accounts.test_T1_11_protected_routes_reject_missing_malformed_and_tampered_tokens",
    "status": "PASS",
-   "seconds": 0.18,
+   "seconds": 0.17,
    "doc": "",
    "detail": ""
   },
@@ -76,7 +76,7 @@
    "id": "T1_12",
    "test": "Accounts.test_T1_12_refresh_rotates_and_a_replayed_refresh_token_is_refused",
    "status": "PASS",
-   "seconds": 0.14,
+   "seconds": 0.12,
    "doc": "",
    "detail": ""
   },
@@ -84,7 +84,7 @@
    "id": "T1_13",
    "test": "Accounts.test_T1_13_replaying_an_old_refresh_token_revokes_the_whole_family",
    "status": "PASS",
-   "seconds": 0.16,
+   "seconds": 0.18,
    "doc": "",
    "detail": ""
   },
@@ -92,7 +92,7 @@
    "id": "T1_14",
    "test": "Accounts.test_T1_14_logout_revokes_the_session_immediately",
    "status": "PASS",
-   "seconds": 0.14,
+   "seconds": 0.17,
    "doc": "",
    "detail": ""
   },
@@ -108,7 +108,7 @@
    "id": "T1_16",
    "test": "Accounts.test_T1_16_sessions_list_only_the_owner_and_revoking_another_session_is_immediate",
    "status": "PASS",
-   "seconds": 0.19,
+   "seconds": 0.18,
    "doc": "",
    "detail": ""
   },
@@ -116,7 +116,7 @@
    "id": "T1_17",
    "test": "Accounts.test_T1_17_one_account_cannot_revoke_or_see_another_accounts_sessions",
    "status": "PASS",
-   "seconds": 0.23,
+   "seconds": 0.26,
    "doc": "",
    "detail": ""
   },
@@ -124,7 +124,7 @@
    "id": "T1_20",
    "test": "Accounts.test_T1_20_password_change_needs_the_current_password_and_revokes_other_sessions",
    "status": "PASS",
-   "seconds": 0.22,
+   "seconds": 0.26,
    "doc": "",
    "detail": ""
   },
@@ -132,7 +132,7 @@
    "id": "T1_21",
    "test": "Accounts.test_T1_21_password_reset_does_not_reveal_whether_an_email_exists",
    "status": "PASS",
-   "seconds": 0.09,
+   "seconds": 0.12,
    "doc": "",
    "detail": ""
   },
@@ -140,7 +140,7 @@
    "id": "T1_22",
    "test": "Accounts.test_T1_22_password_reset_with_the_emailed_code_works_once_and_ends_old_sessions",
    "status": "PASS",
-   "seconds": 0.21,
+   "seconds": 0.25,
    "doc": "",
    "detail": ""
   },
@@ -148,7 +148,7 @@
    "id": "T1_30",
    "test": "Accounts.test_T1_30_cross_account_reads_return_nothing_of_anothers",
    "status": "PASS",
-   "seconds": 0.41,
+   "seconds": 0.45,
    "doc": "",
    "detail": ""
   },
@@ -156,7 +156,7 @@
    "id": "T1_31",
    "test": "Accounts.test_T1_31_a_viewer_cannot_reach_privileged_or_creator_routes",
    "status": "PASS",
-   "seconds": 0.24,
+   "seconds": 0.22,
    "doc": "",
    "detail": ""
   },
@@ -164,7 +164,7 @@
    "id": "T1_32",
    "test": "Accounts.test_T1_32_a_role_change_takes_effect_at_once_and_the_old_session_cannot_keep_the_old_role",
    "status": "PASS",
-   "seconds": 0.24,
+   "seconds": 0.28,
    "doc": "",
    "detail": ""
   },
@@ -204,7 +204,7 @@
    "id": "T1_50",
    "test": "Accounts.test_T1_50_oversized_malformed_and_hostile_input_is_refused_safely",
    "status": "PASS",
-   "seconds": 0.06,
+   "seconds": 0.07,
    "doc": "",
    "detail": ""
   },
@@ -228,7 +228,7 @@
    "id": "T1_60",
    "test": "Mfa.test_T1_60_a_privileged_password_sign_in_returns_a_challenge_and_no_tokens",
    "status": "PASS",
-   "seconds": 1.14,
+   "seconds": 1.04,
    "doc": "",
    "detail": ""
   },
@@ -236,7 +236,7 @@
    "id": "T1_61",
    "test": "Mfa.test_T1_61_a_wrong_code_is_refused_and_does_not_open_a_session",
    "status": "PASS",
-   "seconds": 0.64,
+   "seconds": 0.58,
    "doc": "",
    "detail": ""
   },
@@ -244,7 +244,7 @@
    "id": "T1_62",
    "test": "Mfa.test_T1_62_a_correct_code_opens_a_session_once_and_the_same_code_cannot_be_replayed",
    "status": "PASS",
-   "seconds": 18.81,
+   "seconds": 13.63,
    "doc": "",
    "detail": ""
   },
@@ -252,7 +252,7 @@
    "id": "T1_63",
    "test": "Mfa.test_T1_63_a_recovery_code_works_exactly_once",
    "status": "PASS",
-   "seconds": 0.57,
+   "seconds": 0.63,
    "doc": "",
    "detail": ""
   },
@@ -260,7 +260,7 @@
    "id": "T1_64",
    "test": "Mfa.test_T1_64_a_challenge_is_single_use_after_success",
    "status": "PASS",
-   "seconds": 29.32,
+   "seconds": 29.25,
    "doc": "",
    "detail": ""
   },
@@ -276,7 +276,7 @@
    "id": "T1_66",
    "test": "Mfa.test_T1_66_a_forged_or_foreign_challenge_token_is_refused",
    "status": "PASS",
-   "seconds": 1.03,
+   "seconds": 1.08,
    "doc": "",
    "detail": ""
   },
@@ -284,7 +284,7 @@
    "id": "T1_67",
    "test": "Mfa.test_T1_67_a_moderator_session_cannot_perform_administrator_only_actions",
    "status": "PASS",
-   "seconds": 0.6,
+   "seconds": 0.63,
    "doc": "",
    "detail": ""
   },
@@ -292,7 +292,7 @@
    "id": "T1_90",
    "test": "ZBruteForce.test_T1_90_repeated_wrong_passwords_are_throttled",
    "status": "PASS",
-   "seconds": 0.67,
+   "seconds": 0.76,
    "doc": "",
    "detail": ""
   },
@@ -300,7 +300,7 @@
    "id": "T1_91",
    "test": "ZBruteForce.test_T1_91_a_throttled_account_does_not_accept_the_right_password_during_the_lockout",
    "status": "PASS",
-   "seconds": 0.65,
+   "seconds": 0.76,
    "doc": "",
    "detail": ""
   },
@@ -308,7 +308,7 @@
    "id": "T1_92",
    "test": "ZBruteForce.test_T1_92_repeated_wrong_verification_codes_are_throttled",
    "status": "PASS",
-   "seconds": 0.72,
+   "seconds": 0.82,
    "doc": "",
    "detail": ""
   },
@@ -316,7 +316,7 @@
    "id": "T1_93",
    "test": "ZBruteForce.test_T1_93_repeated_wrong_reset_codes_are_throttled",
    "status": "PASS",
-   "seconds": 0.8,
+   "seconds": 0.89,
    "doc": "",
    "detail": ""
   },
@@ -324,7 +324,7 @@
    "id": "T1_94",
    "test": "ZBruteForce.test_T1_94_registration_and_reset_requests_are_rate_limited",
    "status": "PASS",
-   "seconds": 0.98,
+   "seconds": 1.01,
    "doc": "",
    "detail": ""
   },
@@ -332,7 +332,7 @@
    "id": "T1_95",
    "test": "ZBruteForce.test_T1_95_verification_resend_sends_at_most_three_emails_an_hour_per_account",
    "status": "PASS",
-   "seconds": 2.04,
+   "seconds": 2.05,
    "doc": "",
    "detail": ""
   },
@@ -340,7 +340,7 @@
    "id": "T1_96",
    "test": "ZBruteForce.test_T1_96_password_reset_sends_at_most_three_emails_an_hour_and_answers_identically",
    "status": "PASS",
-   "seconds": 1.88,
+   "seconds": 1.92,
    "doc": "",
    "detail": ""
   }
