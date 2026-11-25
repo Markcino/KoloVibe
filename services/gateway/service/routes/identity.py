@@ -27,6 +27,7 @@ def patterns():
         path("api/v1/me/sessions", accounts.sessions, name="account-sessions"),
         path("api/v1/me/password", accounts.change_password, name="change-password"),
         path("api/v1/me/reauthenticate", accounts.reauthenticate, name="reauthenticate"),
+        path("api/v1/me/step-up", accounts.step_up, name="step-up"),
         path("api/v1/me/preferences", preferences, name="account-preferences"),
         path("api/v1/me/privacy-requests", privacy_requests, name="account-privacy-requests"),
         path("api/v1/me/sessions/<uuid:session_id>", accounts.revoke_session, name="revoke-account-session"),

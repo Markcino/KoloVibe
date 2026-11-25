@@ -198,13 +198,38 @@ class StaffTests(BusinessTestCase):
             status, body = self.call("staff_invite", {"business_id": self.bid, "label": "C"}, actor=self.owner)
             self.assertEqual((status, body["code"]), (409, "staff_limit"))
 
-    def test_step_up_gated_removal_fails_closed_for_the_owner(self):
+    def test_removal_needs_a_step_up_attested_for_this_business_and_purpose(self):
         staff = self.add_staff(self.owner, self.bid)
         member = BusinessMembership.objects.get(account_id=staff)
-        status, body = self.call("member_remove", {"business_id": self.bid, "member_id": str(member.id)}, actor=self.owner)
-        self.assertEqual((status, body["code"]), (403, "step_up_unavailable"))
+        data = {"business_id": self.bid, "member_id": str(member.id)}
+        other_business = self.register(self.owner, name="Other Shop")[1]["id"]
+        for label, proof in {"no proof": None,
+                             "another purpose": {"purpose": "business.contact_change", "resource_id": self.bid},
+                             "another business": {"purpose": "business.member_remove", "resource_id": other_business}}.items():
+            with self.subTest(label):
+                status, body = self.call("member_remove", data, actor=self.owner, step_up=proof)
+                self.assertEqual((status, body["code"]), (403, "step_up_required"))
         member.refresh_from_db()
         self.assertEqual(member.status, "active")
+        proof = {"purpose": "business.member_remove", "resource_id": self.bid}
+        self.assertEqual(self.call("member_remove", data, actor=staff, step_up=proof)[0], 404)  # staff are not owners
+        self.assertEqual(self.call("member_remove", data, actor=self.owner, step_up=proof)[0], 200)
+        member.refresh_from_db()
+        self.assertNotEqual(member.status, "active")
+        self.assertEqual(self.call("get_mine", {"business_id": self.bid}, actor=staff)[0], 404)  # next request
+        self.assertTrue(AuditEvent.objects.filter(kind="business.membership_revoked").exists())
+        owner = BusinessMembership.objects.get(business_id=self.bid, role="owner")
+        status, body = self.call("member_remove", {"business_id": self.bid, "member_id": str(owner.id)},
+                                 actor=self.owner, step_up=proof)
+        self.assertEqual((status, body["code"]), (409, "owner_protected"))
+
+    def test_a_malformed_or_anonymous_step_up_attestation_is_refused(self):
+        for proof in ({"purpose": "business.member_remove"}, {"purpose": 1, "resource_id": self.bid},
+                      {"purpose": "business.member_remove", "resource_id": "nope"}, "string",
+                      {"purpose": "business.member_remove", "resource_id": self.bid, "extra": 1}):
+            with self.subTest(proof):
+                self.assertEqual(self.call("member_list", {"business_id": self.bid}, actor=self.owner,
+                                           step_up=proof)[0], 400)
 
     def test_staff_can_leave_immediately_and_owner_cannot(self):
         staff = self.add_staff(self.owner, self.bid)
@@ -240,7 +265,7 @@ class GrantAndEnvelopeTests(BusinessTestCase):
 
     def test_envelope_is_strict(self):
         good = {"actor_id": str(uuid4()), "role": "viewer", "mfa_verified": False, "email_verified": True,
-                "idempotency_key": None, "origin": None, "data": {"business_id": str(uuid4())}}
+                "idempotency_key": None, "origin": None, "data": {"business_id": str(uuid4())}, "step_up": None}
         self.assertEqual(self.call("get_mine", envelope=good)[0], 404)
         for change in ({"extra": 1}, {"mfa_verified": "yes"}, {"data": []}, {"actor_id": "not-a-uuid"},
                        {"role": 5}, {"idempotency_key": 5}):

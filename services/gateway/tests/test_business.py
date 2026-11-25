@@ -51,7 +51,7 @@ class BusinessGatewayTests(SimpleTestCase):
         self.assertIs(actor.call_args.kwargs["require_verified_email"], True)
         envelope = json.loads(peer.call_args.kwargs["payload"])
         self.assertEqual(envelope, {"actor_id": ACTOR, "role": "creator", "mfa_verified": False, "email_verified": True,
-                                    "idempotency_key": KEY, "origin": None,
+                                    "idempotency_key": KEY, "origin": None, "step_up": None,
                                     "data": {"display_name": "Shop", "legal_name": "Shop Ltd"}})
         self.assertEqual(peer.call_args.args[:2], ("business", "/internal/business/register"))
 
@@ -92,7 +92,7 @@ class BusinessGatewayTests(SimpleTestCase):
         envelope = json.loads(peer.call_args.kwargs["payload"])
         self.assertEqual((envelope["actor_id"], envelope["role"], envelope["mfa_verified"], envelope["idempotency_key"], envelope["origin"]),
                          (ACTOR, "viewer", False, KEY, None))
-        self.assertEqual(set(envelope), {"actor_id", "role", "mfa_verified", "email_verified", "idempotency_key", "origin", "data"})
+        self.assertEqual(set(envelope), {"actor_id", "role", "mfa_verified", "email_verified", "idempotency_key", "origin", "data", "step_up"})
         self.assertEqual(envelope["data"]["role"], "administrator")  # carried as data, where the service refuses the field (400)
 
     @patch("service.business.signed_internal_request")

@@ -31,7 +31,7 @@ def tests():
 
     def call(operation, data, actor, key, role="viewer", mfa=False):
         body = {"actor_id": str(actor), "role": role, "mfa_verified": mfa, "email_verified": True,
-                "idempotency_key": key, "origin": None, "data": data}
+                "idempotency_key": key, "origin": None, "data": data, "step_up": None}
         request = RequestFactory().post("/internal/business/" + operation, json.dumps(body), content_type="application/json")
         request.service_caller = "gateway"
         response = dispatch(request, operation)
@@ -133,7 +133,7 @@ def tests():
 
             def search(**params):
                 body = {"actor_id": NIL_ACTOR, "role": "anonymous", "mfa_verified": False, "email_verified": False,
-                        "idempotency_key": None, "origin": "198.51.100.7", "data": params}
+                        "idempotency_key": None, "origin": "198.51.100.7", "data": params, "step_up": None}
                 request = RequestFactory().post("/internal/business/public_search", json.dumps(body), content_type="application/json")
                 request.service_caller = "gateway"
                 response = dispatch(request, "public_search")

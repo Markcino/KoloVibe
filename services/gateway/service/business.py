@@ -105,6 +105,43 @@ def _data(request, query, ids):
 
 NIL_ACTOR = "00000000-0000-0000-0000-000000000000"
 
+# Decision G: operations that accept an Identity step-up proof -> (purpose, path id that is the proof's resource).
+# The Gateway consumes the proof at Identity with the request's own access token and attests only the verified
+# purpose and resource. Whether an operation needs it (always, or only for some changes) is the service's rule.
+STEP_UP = {
+    "member_remove": ("business.member_remove", "business_id"),
+    "profile_edit": ("business.contact_change", "business_id"),
+}
+STEP_UP_HEADER = "X-Step-Up-Token"
+
+
+def _step_up(request, operation, ids):
+    """None when no proof was sent; the attestation dict when Identity accepted it; a JsonResponse refusal."""
+    raw = request.headers.get(STEP_UP_HEADER)
+    if raw is None:
+        return None
+    if operation not in STEP_UP or not 32 <= len(raw) <= 128:
+        return _error("Invalid request", 400)
+    purpose, resource_field = STEP_UP[operation]
+    token = _bearer(request)
+    if token is None:
+        return _error("Unauthorized", 401)
+    resource = str(ids[resource_field])
+    result = _invoke("/internal/auth/step-up/consume", {
+        "access_token": token, "step_up_token": raw, "purpose": purpose, "audience": "business",
+        "resource_id": resource}, {200})
+    if result.status_code != 200:
+        if result.status_code in (401, 403):
+            return _error("Step-up required", 403) if result.status_code == 403 else result
+        return _error("Identity unavailable", 503)
+    try:
+        payload = json.loads(result.content)
+        if payload != {"account_id": payload.get("account_id"), "purpose": purpose, "resource_id": resource}:
+            raise ValueError
+        return {"purpose": purpose, "resource_id": resource, "account_id": str(UUID(payload["account_id"]))}
+    except (ValueError, TypeError, AttributeError):
+        return _error("Identity unavailable", 503)
+
 
 def _optional_session(request):
     """Public routes: no credential means anonymous; a credential that is present must be valid (never downgraded).
@@ -129,9 +166,9 @@ def _optional_session(request):
         return _error("Identity unavailable", 503)
 
 
-def _forward(operation, actor, role, *, mfa, verified, key, data, origin=None):
+def _forward(operation, actor, role, *, mfa, verified, key, data, origin=None, step_up=None):
     envelope = {"actor_id": actor, "role": role, "mfa_verified": mfa, "email_verified": verified,
-                "idempotency_key": key, "origin": origin, "data": data}
+                "idempotency_key": key, "origin": origin, "data": data, "step_up": step_up}
     try:
         with signed_internal_request("business", f"/internal/business/{operation}", method="POST", timeout=12,
                                      payload=json.dumps(envelope, separators=(",", ":")).encode()) as response:
@@ -187,5 +224,11 @@ def business_endpoint(request, operations, **ids):
         data = _data(request, query, {name: str(value) for name, value in ids.items()})
     except (ValueError, TypeError, UnicodeError):
         return _error("Invalid request", 400)
+    proof = _step_up(request, operation, ids)
+    if isinstance(proof, JsonResponse):
+        return proof
+    if proof is not None:
+        if proof.pop("account_id") != actor[0]:  # the proof must belong to the person making this request
+            return _error("Step-up required", 403)
     return _forward(operation, actor[0], actor[1], mfa=who == "privileged", verified=verified, key=key, data=data,
-                    origin=_client_origin(request))
+                    origin=_client_origin(request), step_up=proof)

@@ -463,6 +463,44 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '503': {$ref: '#/components/responses/LocalUnavailable'}
+  /me/step-up:
+    post:
+      tags: [Identity]
+      operationId: obtainStepUpProof
+      x-implementation: local
+      summary: Obtain a purpose-bound step-up proof for one sensitive action (Decision G)
+      description: >-
+        Identity owns the only step-up mechanism. The current password is confirmed and a random proof is issued,
+        stored only as a keyed digest and bound to the account, the login session, the named purpose, the one
+        service that may accept it and, where the purpose requires it, the resource id. It expires after five
+        minutes and is consumed once, by the Gateway, when it is sent as the X-Step-Up-Token header of the
+        operation it was obtained for. Issuance shares the account-wide reauthentication limit. Purposes are a
+        fixed list owned by Identity: business.member_remove, business.contact_change, business.close and
+        business.ownership_transfer (resource: the business id). Issuance, consumption and refusal are audited
+        without the proof.
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [current_password, purpose]
+              properties:
+                current_password: {type: string, minLength: 1, maxLength: 128}
+                purpose: {type: string, minLength: 3, maxLength: 64}
+                resource_id: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Single-use step-up proof; response must not be cached
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/StepUpProof'}
+        '400': {description: 'Generic failure: wrong password, unknown purpose, or a missing or unexpected resource'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '503': {$ref: '#/components/responses/LocalUnavailable'}
   /me/sessions:
     get:
       tags: [Identity]
@@ -5135,8 +5173,8 @@ paths:
       - viewer
       - creator
       x-authz-ref: BZ-AZ-35
-      description: Fails closed with 403 code step_up_unavailable until Identity provides a purpose-bound step-up
-        proof (prerequisite P6B-04).
+      description: Needs an Identity step-up proof for business.member_remove and this business (Decision G). Without
+        one the service answers 403 with code step_up_required and nothing changes.
       parameters:
       - name: business_id
         in: path
@@ -5150,6 +5188,15 @@ paths:
         schema:
           type: string
           format: uuid
+      - name: X-Step-Up-Token
+        in: header
+        required: false
+        description: Identity step-up proof (POST /me/step-up) for purpose business.member_remove and this business. The Gateway consumes it
+          at Identity with the same session; a refused proof answers 403 and the request is not forwarded.
+        schema:
+          type: string
+          minLength: 32
+          maxLength: 128
       - name: Idempotency-Key
         in: header
         required: true
@@ -5729,9 +5776,10 @@ paths:
       - viewer
       - creator
       x-authz-ref: BZ-AZ-18
-      description: Creates the working revision from the approved one. Changing a live contact set requires step-up
-        and fails closed (403 step_up_unavailable) until Identity provides it (P6B-04). Address and coordinates are
-        private unless the owner sets the public flags.
+      description: Creates the working revision from the approved one. Changing a live contact set needs an Identity
+        step-up proof for business.contact_change and this business (Decision G); without one the service answers 403
+        step_up_required and leaves nothing behind. The new contacts are still reviewed before they are live. Address
+        and coordinates are private unless the owner sets the public flags.
       parameters:
       - name: business_id
         in: path
@@ -5739,6 +5787,15 @@ paths:
         schema:
           type: string
           format: uuid
+      - name: X-Step-Up-Token
+        in: header
+        required: false
+        description: Identity step-up proof (POST /me/step-up) for purpose business.contact_change and this business. The Gateway consumes it
+          at Identity with the same session; a refused proof answers 403 and the request is not forwarded.
+        schema:
+          type: string
+          minLength: 32
+          maxLength: 128
       - name: Idempotency-Key
         in: header
         required: true
@@ -7877,6 +7934,14 @@ components:
         minimum_version: null
         latest_version: null
         store_url: null
+    StepUpProof:
+      type: object
+      additionalProperties: false
+      required: [step_up_token, purpose, expires_at]
+      properties:
+        step_up_token: {type: string, minLength: 32, maxLength: 128}
+        purpose: {type: string, minLength: 3, maxLength: 64}
+        expires_at: {type: string, format: date-time}
     ReauthenticationResponse:
       type: object
       additionalProperties: false

@@ -214,10 +214,11 @@ def verify():
                     raise RuntimeError(f"Disposable {service} readiness timed out")
                 time.sleep(0.1)
 
-        def api(path, *, data=None, token=None, key=None, method=None):
+        def api(path, *, data=None, token=None, key=None, method=None, headers=None):
             status, raw = request(ports["gateway"], "/api/v1" + path,
                                   method=method or ("POST" if data is not None else "GET"), data=data,
-                                  headers=({"Authorization": "Bearer " + token} if token else {}) | ({"Idempotency-Key": key} if key else {}))
+                                  headers=({"Authorization": "Bearer " + token} if token else {}) | ({"Idempotency-Key": key} if key else {})
+                                  | (headers or {}))
             return status, json.loads(raw) if raw else None
 
         def fixture_connection(service):

@@ -22,7 +22,7 @@ class BusinessClientSurfaceTests(BusinessTestCase):
         for operation, kwargs in cases:
             body = kwargs.get("envelope") or {"actor_id": str(uuid4()), "role": kwargs.get("role", "viewer"), "mfa_verified": False,
                                               "email_verified": True, "idempotency_key": None, "origin": None,
-                                              "data": kwargs.get("data", {})}
+                                              "data": kwargs.get("data", {}), "step_up": None}
             request = self.factory.generic(kwargs.get("method", "post").upper(), "/internal/business/" + operation,
                                            json.dumps(body), content_type="application/json")
             request.service_caller = kwargs.get("caller", "gateway")

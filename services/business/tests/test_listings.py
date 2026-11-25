@@ -48,7 +48,7 @@ class ListingBase(BusinessTestCase):
             return self.call(operation, data or {}, actor=uuid4(), role=role, verified=verified, origin=origin)
         return self.call(operation, data or {}, role="anonymous", verified=False, origin=origin,
                          envelope={"actor_id": NIL_ACTOR, "role": "anonymous", "mfa_verified": False,
-                                   "email_verified": False, "idempotency_key": None, "origin": origin, "data": data or {}})
+                                   "email_verified": False, "idempotency_key": None, "origin": origin, "data": data or {}, "step_up": None})
 
     def search(self, **params):
         return self.public("public_search", params)
@@ -170,7 +170,7 @@ class PublicViewTests(ListingBase):
 
     def test_anonymous_envelopes_are_strict(self):
         base = {"actor_id": NIL_ACTOR, "role": "anonymous", "mfa_verified": False, "email_verified": False,
-                "idempotency_key": None, "origin": None, "data": {"business_id": self.bid}}
+                "idempotency_key": None, "origin": None, "data": {"business_id": self.bid}, "step_up": None}
         self.assertEqual(self.call("public_detail", envelope=base)[0], 200)
         for change in ({"actor_id": str(uuid4())}, {"mfa_verified": True}, {"email_verified": True}, {"origin": 5},
                        {"origin": "x" * 46}):

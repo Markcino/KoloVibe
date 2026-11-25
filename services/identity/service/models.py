@@ -131,6 +131,27 @@ class ReauthenticationToken(models.Model):
     used_at = models.DateTimeField(null=True, blank=True)
 
 
+class StepUpProof(models.Model):
+    """Decision G: a short-lived, single-use proof of fresh reauthentication for one purpose.
+
+    Bound to the account and login session that obtained it, the purpose, the service that may accept it
+    (audience) and, where the purpose names one, the resource it was obtained for. Only a digest is stored.
+    """
+
+    digest = models.CharField(max_length=64, primary_key=True)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE)
+    session = models.ForeignKey(LoginSession, on_delete=models.CASCADE)
+    purpose = models.CharField(max_length=64)
+    audience = models.CharField(max_length=32)
+    resource_id = models.UUIDField(null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["expires_at"], name="step_up_expiry")]
+
+
 class NotificationPreferences(models.Model):
     """Account-owned delivery choices; no delivery is enabled by this record."""
 

@@ -140,11 +140,11 @@ def member_list(ctx, data):
 
 @operation("member_remove", roles=CUSTOMER, idempotent=True, member_roles=(OWNER,))
 def member_remove(ctx, data):
-    """Owner removes a staff member. Needs step-up (BZ-R-036): fails closed until Identity provides it (P6B-04)."""
+    """Owner removes a staff member. Needs a step-up proof for this business (BZ-R-036, Decision G)."""
     fields = parse(data, {"business_id": (uuid_text, True), "member_id": (uuid_text, True)})
     authz.require_member(ctx.actor_id, fields["business_id"], (OWNER,))
-    step_up.require(ctx.actor_id, "business.member_remove")
-    with transaction.atomic():  # reached only once step_up.require can succeed
+    step_up.require(ctx, "business.member_remove", fields["business_id"])
+    with transaction.atomic():
         business = authz.lock_business(fields["business_id"])
         target = authz.members_of(business).filter(pk=fields["member_id"]).first()
         if target is None:

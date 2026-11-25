@@ -21,7 +21,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from .models import (EmailVerification, LoginSession, LoginThrottle, MfaChallenge, PasswordReset,
-                     ReauthenticationToken, UsedRefreshToken)
+                     ReauthenticationToken, StepUpProof, UsedRefreshToken)
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +36,7 @@ def _rules(now):
         ("login_throttle", LoginThrottle.objects.filter(window_started_at__lt=now - day)),
         ("refresh_replay_markers", UsedRefreshToken.objects.filter(expires_at__lt=now - day)),
         ("reauthentication_tokens", ReauthenticationToken.objects.filter(expires_at__lt=now - day)),
+        ("step_up_proofs", StepUpProof.objects.filter(expires_at__lt=now - day)),
         ("mfa_challenges", MfaChallenge.objects.filter(expires_at__lt=now - day)),
         ("email_verifications", EmailVerification.objects.filter(expires_at__lt=now - 7 * day)),
         ("password_resets", PasswordReset.objects.filter(expires_at__lt=now - 7 * day)),

@@ -22,7 +22,7 @@ from .models import IdempotencyRecord
 from .validation import uuid_text
 
 logger = logging.getLogger(__name__)
-ENVELOPE = {"actor_id", "role", "mfa_verified", "email_verified", "idempotency_key", "origin", "data"}
+ENVELOPE = {"actor_id", "role", "mfa_verified", "email_verified", "idempotency_key", "origin", "data", "step_up"}
 ANONYMOUS = "anonymous"
 NIL_ACTOR = "00000000-0000-0000-0000-000000000000"
 KEY_PATTERN = re.compile(r"[A-Za-z0-9_-]{16,128}")
@@ -38,6 +38,7 @@ class Context:
     email_verified: bool
     idempotency_key: str | None
     origin: str | None = None
+    step_up: dict | None = None  # Decision G: purpose and resource of a proof Identity accepted (Gateway-attested)
 
     @property
     def anonymous(self):
@@ -144,8 +145,15 @@ def dispatch(request, operation):
                 or (envelope["role"] == ANONYMOUS) != (envelope["actor_id"] == NIL_ACTOR)
                 or (envelope["role"] == ANONYMOUS and (envelope["mfa_verified"] or envelope["email_verified"]))):
             raise ValueError
+        proof = envelope["step_up"]
+        if proof is not None:
+            if (not isinstance(proof, dict) or set(proof) != {"purpose", "resource_id"}
+                    or not isinstance(proof["purpose"], str) or len(proof["purpose"]) > 64
+                    or envelope["role"] == ANONYMOUS):
+                raise ValueError
+            proof = {"purpose": proof["purpose"], "resource_id": str(uuid_text(proof["resource_id"]))}
         ctx = Context(uuid_text(envelope["actor_id"]), envelope["role"], envelope["mfa_verified"],
-                      envelope["email_verified"], key, envelope["origin"])
+                      envelope["email_verified"], key, envelope["origin"], proof)
     except (ValueError, TypeError, UnicodeError, ApiError):
         return _error(400, "Invalid request")
     if ctx.role not in op.roles:

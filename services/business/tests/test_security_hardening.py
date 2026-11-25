@@ -358,7 +358,7 @@ class RateLimitTests(Scenario):
             self.assertEqual(self.call("public_detail", {"business_id": self.bid, "origin": "203.0.113.9"}, role="anonymous", verified=False,
                                        envelope={"actor_id": "00000000-0000-0000-0000-000000000000", "role": "anonymous",
                                                  "mfa_verified": False, "email_verified": False, "idempotency_key": None,
-                                                 "origin": "203.0.113.7", "data": {"business_id": self.bid, "origin": "203.0.113.9"}})[0], 400)
+                                                 "origin": "203.0.113.7", "data": {"business_id": self.bid, "origin": "203.0.113.9"}, "step_up": None})[0], 400)
 
 
 # ---- one submission, one effect ----------------------------------------------------------------------------------------------
@@ -636,7 +636,7 @@ class ServiceIdentityFailureTests(Scenario):
              method="POST", omit=()):
         payload = json.dumps(body if body is not None else {
             "actor_id": "00000000-0000-0000-0000-000000000000", "role": "anonymous", "mfa_verified": False, "email_verified": False,
-            "idempotency_key": None, "origin": None, "data": {}}).encode()
+            "idempotency_key": None, "origin": None, "data": {}, "step_up": None}).encode()
         path = path or f"/internal/business/{operation}"
         stamp, nonce = str(int(time.time())) if stamp is None else stamp, nonce or secrets.token_urlsafe(24)
         canonical = "\n".join((caller, audience, stamp, nonce, method, path, hashlib.sha256(payload).hexdigest()))
@@ -669,7 +669,7 @@ class ServiceIdentityFailureTests(Scenario):
         self.assertEqual(request.status_code, 200)
         stamp, nonce = str(int(time.time())), secrets.token_urlsafe(24)
         payload = json.dumps({"actor_id": "00000000-0000-0000-0000-000000000000", "role": "anonymous", "mfa_verified": False,
-                              "email_verified": False, "idempotency_key": None, "origin": None, "data": {}}).encode()
+                              "email_verified": False, "idempotency_key": None, "origin": None, "data": {}, "step_up": None}).encode()
         canonical = "\n".join(("gateway", "business", stamp, nonce, "POST", "/internal/business/category_list", hashlib.sha256(payload).hexdigest()))
         signature = hmac.new(self.key.encode(), canonical.encode(), hashlib.sha256).hexdigest()
         response = self.client.post("/internal/business/public_search", payload, content_type="application/json", HTTP_X_KOLOVIBE_CALLER="gateway",
