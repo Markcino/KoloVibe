@@ -201,6 +201,10 @@ Full record: [Phase 11 report](phase11/Phase11_Test_Report.md), [matrix](phase11
 | Validation before authorization; console overflow at 320 px (D11-005, D11-006) | Gateway, Business | n/a | console CSS | n/a | n/a | Low | T1_31, T4_23, T9_32 FAIL | **Defects (Low)** | None | None |
 | Accounts, sessions, MFA, object-level authorization, media validation, engagement and points on a real broker, Business isolation, console sessions and CSRF | all | n/a | yes | yes | yes | tested black-box | 122 PASS of 130 new tests | **Verified (local, repository scope)** | Device and staging gates | Owner |
 
+### Owner decisions A to J (25 November 2026)
+
+[Decision record](../planning/Owner_Decisions_A-J_2026-11-25.md). Approved for development and staging testing: published-edit re-review (A, RV2-01), terms and privacy acceptance (B, RV2-02), privacy processing (C, ADR-020 mechanism), backup and observability (D, ADR-016 in part, ADR-017), copyright (E, D11-008), creator restrictions (F, D-8), Identity step-up (G, DR-BZ-33), Events (H), Advertising (I) and Finance owning the only ledger (J, X-01). Values, legal text and five conflicts with the standing directive stay open (sections 2 and 3). Production NO-GO.
+
 ### Reverification Phase 4: Business (25 November 2026)
 
 [Phase 4 Business completion](reverification/Phase4_Business_Completion_2026-11-25.md). All approved Business functionality is development complete: all 57 operations are routed, 44 have a Flutter client and 13 have a console client, and only staff removal is refused by design. The eleven listed extensions are **Blocked by approval** (DR-BZ-14, 18, 19, 20, 25, 26, 29, 33). Not activated anywhere. Production NO-GO.
