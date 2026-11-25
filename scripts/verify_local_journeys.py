@@ -21,6 +21,7 @@ from django.core.mail.backends.base import BaseEmailBackend
 from jsonschema import Draft202012Validator, FormatChecker
 import yaml
 
+import business_journey
 from smtp_fixture import mailed_code
 from test_postgres_foundations import ROOT, postgres_fixture, secret_file
 
@@ -155,7 +156,7 @@ def verify():
     with postgres_fixture() as (base, environments), ExitStack() as stack:
         ports = {}
         reservations = {}
-        services = ("identity", "content", "creators", "moderation", "engagement", "points", "audit", "gateway", "web")
+        services = ("identity", "content", "creators", "moderation", "engagement", "points", "audit", "business", "gateway", "web")
         for service in services:
             sock = stack.enter_context(socket.socket())
             sock.bind(("127.0.0.1", 0))
@@ -178,6 +179,7 @@ def verify():
             environment = dict(environments[service])
             if service == "gateway":
                 environment["KOLOVIBE_LOCAL_MEDIA_ENABLED"] = "1"
+                environment["KOLOVIBE_LOCAL_BUSINESS_ENABLED"] = "1"
                 for peer, key in peer_keys.items():
                     environment[f"KOLOVIBE_{peer.upper()}_URL"] = f"http://127.0.0.1:{ports[peer]}"
                     environment[f"KOLOVIBE_GATEWAY_OUTBOUND_KEY_{peer.upper()}"] = key
@@ -212,9 +214,9 @@ def verify():
                     raise RuntimeError(f"Disposable {service} readiness timed out")
                 time.sleep(0.1)
 
-        def api(path, *, data=None, token=None, key=None):
+        def api(path, *, data=None, token=None, key=None, method=None):
             status, raw = request(ports["gateway"], "/api/v1" + path,
-                                  method="POST" if data is not None else "GET", data=data,
+                                  method=method or ("POST" if data is not None else "GET"), data=data,
                                   headers=({"Authorization": "Bearer " + token} if token else {}) | ({"Idempotency-Key": key} if key else {}))
             return status, json.loads(raw) if raw else None
 
@@ -623,6 +625,13 @@ def verify():
                 with fixture_connection("identity") as connection:
                     self.assertEqual(connection.execute("SELECT count(*) FROM identity.service_account WHERE email=%s", (payload["email"],)).fetchone()[0], 1)
                     self.assertEqual(connection.execute("SELECT count(*) FROM identity.service_moderatorinvitationevent e JOIN identity.service_securityevent s ON s.id=e.event_id WHERE e.invitation_id=%s AND s.kind='moderator.invitation_accepted'", (receipt["id"],)).fetchone()[0], 1)
+
+            def test_business_end_to_end_journey(self):
+                """Phase 6E: sign-in to verification, discovery, inquiry, review, report, staff and revocation over real HTTP."""
+                from types import SimpleNamespace
+                business_journey.run(self, SimpleNamespace(
+                    api=api, request=request, contract=contract, ports=ports, base=base,
+                    privileged_fixture=privileged_fixture, fixture_connection=fixture_connection))
 
             def test_web_admin_boundary_and_csrf(self):
                 self.assertEqual(request(ports["web"], "/")[0], 302)
