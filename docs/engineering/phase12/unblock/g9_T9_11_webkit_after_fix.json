@@ -1,0 +1,12 @@
+{
+ "results": [
+  {
+   "id": "T9_11",
+   "test": "Console.test_T9_11_a_get_request_to_the_logout_url_does_not_sign_you_out",
+   "status": "PASS",
+   "seconds": 2.52,
+   "doc": "",
+   "detail": ""
+  }
+ ]
+}

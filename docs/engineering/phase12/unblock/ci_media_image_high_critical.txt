@@ -1,0 +1,11 @@
+ffmpeg         9.0.2-r0                                   apk     CVE-2026-135736      Critical    0.7% (53rd)   0.6    
+ffmpeg         9.0.2-r0                                   apk     CVE-2026-135742      High        0.7% (53rd)   0.5    
+ffmpeg         9.0.2-r0                                   apk     CVE-2026-135743      Critical    0.6% (47th)   0.5    
+ffmpeg         9.0.2-r0                                   apk     CVE-2026-135739      High        0.5% (42nd)   0.4    
+ffmpeg         9.0.2-r0                                   apk     CVE-2026-135722      High        0.2% (11th)   0.2    
+ffmpeg         9.0.2-r0                                   apk     CVE-2026-135725      High        0.2% (9th)    0.2    
+ffmpeg         9.0.2-r0                                   apk     CVE-2026-135734      High        0.2% (9th)    0.2    
+ffmpeg         9.0.2-r0                                   apk     CVE-2026-135740      High        0.2% (9th)    0.2    
+ffmpeg         9.0.2-r0                                   apk     CVE-2026-135737      High        0.2% (8th)    0.1    
+ffmpeg         9.0.2-r0                                   apk     CVE-2026-135738      High        0.2% (8th)    0.1    
+ffmpeg         9.0.2-r0                                   apk     CVE-2026-135723      High        0.2% (5th)    0.1    

@@ -112,8 +112,8 @@ class ImageSecurityContractTests(unittest.TestCase):
         self.assertIn("COPY --chown=builder:builder infra/docker/ffmpeg/APKBUILD", stage)
         # Packaged as an apk named ffmpeg at the true version, so the scanner and the SBOM can see and judge it.
         self.assertIn("pkgname=ffmpeg\n", apkbuild)
-        self.assertIn("pkgver=9.0.2\n", apkbuild)  # 9.0 fixes CVE-2026-70628, -70632 and -96611
-        self.assertRegex(apkbuild, r'(?s)sha512sums="\s*[0-9a-f]{128}  ffmpeg-9\.0\.2\.tar\.xz\s*"')
+        self.assertIn("pkgver=9.1\n", apkbuild)  # 9.1 fixes CVE-2026-135722 to -135743 (24 November 2026 advisories)
+        self.assertRegex(apkbuild, r'(?s)sha512sums="\s*[0-9a-f]{128}  ffmpeg-9\.1\.tar\.xz\s*"')
         self.assertIn('source="https://ffmpeg.org/releases/ffmpeg-$pkgver.tar.xz"', apkbuild)
         self.assertIn("abuild -r", stage)
         configure = apkbuild[apkbuild.index("./configure"):apkbuild.index("make -j")]
@@ -138,7 +138,7 @@ class ImageSecurityContractTests(unittest.TestCase):
         config = (ROOT / ".grype.yaml").read_text()
         rules = yaml.safe_load(config)
         self.assertEqual(set(rules), {"ignore"})
-        package = {"name": "ffmpeg", "version": "9.0.2-r0", "type": "apk"}
+        package = {"name": "ffmpeg", "version": "9.1-r0", "type": "apk"}
         # The first rule is the 14 November approval. Every other rule must be one of the evidenced CVEs of the 19 November
         # owner decision in infra/docker/ffmpeg/scan-exceptions.json (scripts/test_ffmpeg_scan_exceptions.py proves the two
         # files are identical and that CI checks each premise against the built binary). Nothing else may be ignored.

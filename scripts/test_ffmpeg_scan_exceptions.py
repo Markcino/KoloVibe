@@ -22,9 +22,9 @@ GRYPE = yaml.safe_load(GRYPE_TEXT)
 APKBUILD = (ROOT / "infra/docker/ffmpeg/APKBUILD").read_text()
 CONFIGURE = APKBUILD[APKBUILD.index("./configure"):APKBUILD.index("make -j")]
 APPROVED_FIRST = "CVE-2026-107696"
-PACKAGE = {"name": "ffmpeg", "version": "9.0.2-r0", "type": "apk"}
+PACKAGE = {"name": "ffmpeg", "version": "9.1-r0", "type": "apk"}
 
-VERSION = ("ffmpeg version 9.0.2 Copyright (c) 2000-2026 the FFmpeg developers\n"
+VERSION = ("ffmpeg version 9.1 Copyright (c) 2000-2026 the FFmpeg developers\n"
            "  built with gcc 15.2.0 (Alpine 15.2.0)\n"
            "  configuration: --prefix=/usr --disable-everything --disable-autodetect --disable-network --disable-doc "
            "--disable-hwaccels --disable-vdpau --enable-gpl --enable-libx264 --enable-decoder=h264 --enable-encoder=aac\n"
@@ -183,7 +183,7 @@ class CheckerTests(unittest.TestCase):
         self.assertTrue(self.problems(version=VERSION.replace("--disable-autodetect ", "")))
         self.assertTrue(self.problems(version=VERSION.replace("--enable-gpl", "--enable-gpl --enable-decoders")))
         with self.assertRaises(ValueError):
-            self.problems(version="ffmpeg version 9.0.2\n")  # no configuration line at all
+            self.problems(version="ffmpeg version 9.1\n")  # no configuration line at all
 
     def test_a_row_without_any_check_is_rejected(self):
         broken = copy.deepcopy(EVIDENCE)
