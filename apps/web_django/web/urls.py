@@ -9,6 +9,7 @@ from . import assignment_views
 from . import business_views
 from . import creator_views
 from . import edit_views
+from . import restriction_views
 
 handler400 = views.error_400
 handler403 = views.error_403
@@ -28,6 +29,9 @@ urlpatterns = [
     path("moderator-invitation/qr/", invitation_views.enrollment_qr, name="moderator-invitation-qr"),
     path("admin/team/", invitation_views.team, name="team"),
     path("admin/creators/", creator_views.creators, name="creators"),
+    path("admin/creators/measures/", restriction_views.find, name="creator-measures-find"),
+    path("admin/creators/measures/appeals/", restriction_views.appeals, name="creator-measure-appeals"),
+    path("admin/creators/<uuid:target_id>/measures/", restriction_views.creator, name="creator-measures"),
     path("admin/business/", business_views.overview, name="business"),
     path("admin/business/categories/", business_views.categories, name="business-categories"),
     path("admin/business/access/", business_views.grants, name="business-grants"),

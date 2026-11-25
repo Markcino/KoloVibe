@@ -1,0 +1,31 @@
+{% extends 'base_admin.html' %}{% load admin_display %}
+{% block title %}{{ title }} · KoloVibe{% endblock %}
+{% block content %}
+<div class="page-heading"><div class="detail-header"><p class="eyebrow">Enforcement</p><h1>{{ title }}</h1><span class="status-chip"><code>{{ creator_id }}</code></span></div>
+<a class="button button-outline" href="{% url 'creator-measures-find' %}"><span class="icon-flip">{% include 'icon.html' with name='arrow' %}</span>Find another creator</a></div>
+{% if notice %}<p class="notice" role="status">{{ notice }}</p>{% endif %}
+{% if error %}<p class="notice error" role="alert">{{ error }}</p>{% endif %}
+{% if available %}
+<section class="panel table-panel" aria-labelledby="measures-title"><div class="section-heading"><div><p class="eyebrow">History</p><h2 id="measures-title">Measures</h2></div><span class="status-chip">{{ items|length }} shown</span></div>
+<ul class="activity-list">{% for item in items %}<li><span class="activity-icon">{% include 'icon.html' with name='shield' %}</span><div>
+<strong>{{ item.kind|human_label }} · {% if item.active %}Active{% elif item.lifted_at %}Lifted{% else %}Ended{% endif %}</strong>
+<span class="status-chip" data-state="{% if item.active %}open{% else %}accepted{% endif %}">{{ item.reason_code }} · {{ item.policy_version }}</span>
+<time datetime="{{ item.issued_at }}">Issued {{ item.issued_at|utc_stamp }}</time>{% if item.expires_at %} · <time datetime="{{ item.expires_at }}">ends {{ item.expires_at|utc_stamp }}</time>{% endif %}
+<small>{{ item.reason }}</small>
+{% if item.appeal %}<small>Appeal: {{ item.appeal.status|human_label }}</small>{% endif %}
+{% if item.lifted_at %}<small>Lifted <time datetime="{{ item.lifted_at }}">{{ item.lifted_at|utc_stamp }}</time>: {{ item.lift_reason }}</small>{% endif %}
+{% if item.lift_intent %}<form method="post" class="assign-form">{% csrf_token %}<input type="hidden" name="operation" value="lift"><input type="hidden" name="restriction_id" value="{{ item.id }}"><input type="hidden" name="intent" value="{{ item.lift_intent }}">
+<label>Reason for lifting<textarea name="lift_reason" minlength="10" maxlength="2000" rows="2" required></textarea></label><button type="submit" class="button-outline">Lift measure</button></form>{% endif %}
+</div></li>{% empty %}<li class="empty-state"><div><p>No measures on this creator.</p></div></li>{% endfor %}</ul></section>
+<section class="panel" aria-labelledby="issue-title"><div class="section-heading"><div><p class="eyebrow">Action</p><h2 id="issue-title">Issue a measure</h2></div><span class="status-chip">Audited</span></div>
+<p class="supporting-text">The creator sees the kind, code, policy version and dates in the app, and can appeal. Your reason and your identity stay private. A different administrator must lift the measure or decide its appeal. Published videos stay up; use the video review queue to remove one.</p>
+<form method="post">{% csrf_token %}<input type="hidden" name="operation" value="issue"><input type="hidden" name="intent" value="{{ issue_intent }}">
+<label>Kind<select name="kind" required><option value="">Select a kind</option>{% for name, label in kinds %}<option value="{{ name }}">{{ label }}</option>{% endfor %}</select></label>
+<label>Reason code<input type="text" name="reason_code" maxlength="64" pattern="[A-Z][A-Z0-9_]{1,63}" required aria-describedby="code-help"></label>
+<p id="code-help" class="supporting-text">Capital letters, digits and underscores, such as SPAM_REPEAT.</p>
+<label>Policy version<input type="text" name="policy_version" maxlength="32" pattern="[A-Za-z0-9._\-]{1,32}" required></label>
+<label>Ends (UTC, optional)<input type="datetime-local" name="expires_at"></label>
+<label>Private reason<textarea name="reason" minlength="10" maxlength="2000" rows="4" required></textarea></label>
+<p><button type="submit">Issue measure</button></p></form></section>
+{% endif %}
+{% endblock %}
