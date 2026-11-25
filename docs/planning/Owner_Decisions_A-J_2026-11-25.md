@@ -45,6 +45,10 @@ The permanent principal engineering directive allows two apps only: Flutter for 
 | Advertiser dashboard and organizer tools | Must not be a web portal (DR-BZ-21 pattern) | Flutter, like Business owners |
 | Creator allocation in proportion to points | Standing rule "points never become money" | Points stay non-cash and are never redeemed or converted. Finance uses a points snapshot only as the weighting of an approved revenue pool. The UI says points have no fixed monetary value |
 
+### Owner ruling on the public web surface (25 November 2026, 16:16 UTC)
+
+The owner chose **"Policies page only"**. A public, static page may serve the terms of service and privacy notice, as app store listings require. It has no accounts, feeds, ads or forms. Copyright claims stay in Flutter, with a contact address published in the copyright policy. There is no public claim form. This narrowly amends the no-public-website rule for that page only. The other rows of section 3 keep the interpretation shown.
+
 ## 4. Unchanged restrictions
 
-Production remains NO-GO. No live payouts, real payments, live advertisements or production deployment. Staging deployment is allowed only when every gate in the instruction is met, and only to the authorized staging environment. Live streaming and a public website stay excluded unless the owner rules otherwise on section 3.
+Production remains NO-GO. No live payouts, real payments, live advertisements or production deployment. Staging deployment is allowed only when every gate in the instruction is met, and only to the authorized staging environment. Live streaming stays excluded. A public website stays excluded except for the static policy page above.
