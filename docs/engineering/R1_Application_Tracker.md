@@ -119,7 +119,7 @@ Same columns and status key. Base `main` at `5e7eda7`, which is **70 commits ahe
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Creator invitation listing and revocation ([P5F-01](phase5f/P5F-01_creator_invitation_management.md)) | creators, gateway | none needed (404 pinned by test) | new panel and confirm page | DOC-205 updated | administrator-only at three layers, no self-revocation, state guard, signed per-row intent, no personal data listed, event trail | creators +8, gateway +6, web +7; each control mutation-checked | **Implemented, awaiting integration** | Migration `0006` on staging; runtime grants; Audit delivery and DB append-only trigger for `OnboardingEvent` | Owner |
 | Dead duplicate widgets removed; withdrawn-invitation state pinned ([P5F-02](phase5f/P5F-02_mobile_dead_code_and_withdrawn_invitation.md)) | none | `SectionHeader`, `EmptySection` deleted (no references) | n/a | n/a | n/a | 1,556 Flutter tests | **Verified complete** (repository scope) | None | None |
-| Creator restriction/suspension write path | creators, moderation | n/a | none | none | enforcement and read exist; nothing sets the status | n/a | **Blocked by approval** | D-8 | Owner |
+| Creator restriction/suspension write path | creators, gateway, console, app | `0008_creator_restrictions` (additive) | issue, lift, appeal and decide audited | `/admin/creators/{id}/restrictions`, `/admin/creator-restrictions/{id}/lift`, `/admin/creator-restriction-appeals`, `/creators/me/restrictions` | administrator with live MFA; no self-restriction; a second administrator lifts or decides; private reason never reaches the creator | #250, #251, #252 | **Implemented, unverified** | Staging; device UAT; visual approval | Owner |
 | Remaining blocked items: post-approval re-review (D-1), M-045 (D-2), profile photos (D-3), M-078 (D-4), privacy export/deletion (D-5), points reversal (D-6), fraud-hold clearing (D-7), invite API roles (D-9), R2 lifecycle (D-10), audit retention and legal hold (D-11) | various | various | various | none | none added | n/a | **Blocked by approval** | [Decision register](Phase5F_Core_Completion_Results_2026-11-24.md#5-owner-decisions-required) | Owner |
 
 ### Phase 6B hardening (24 November) — Business backend, second pass
@@ -204,7 +204,7 @@ Full record: [Phase 11 report](phase11/Phase11_Test_Report.md), [matrix](phase11
 
 ### Execution progress (25 November 2026)
 
-Resume from [EXECUTION_PROGRESS.md](reverification/EXECUTION_PROGRESS.md), which records the phase status, the completed work packages and the next task under the re-issued mandate. Decision A (re-review of published-video edits) merged in PRs #246 to #248.
+Resume from [EXECUTION_PROGRESS.md](reverification/EXECUTION_PROGRESS.md), which records the phase status, the completed work packages and the next task under the re-issued mandate. Decision A (re-review of published-video edits) merged in PRs #246 to #248. Decision F (creator restrictions) merged in #250 and #251, with the app part in #252.
 
 ### Owner decisions A to J (25 November 2026)
 

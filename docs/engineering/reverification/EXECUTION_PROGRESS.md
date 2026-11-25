@@ -58,6 +58,7 @@ The phase statuses are NOT STARTED, IN PROGRESS, COMPLETED, FAILED and BLOCKED.
 | G Identity step-up | DR-BZ-33 | #240, #241 (via #245) | IMPLEMENTED BUT UNVERIFIED | Staging |
 | B Terms and privacy acceptance, separate marketing consent, policies page | RV2-02 | #243 (backend from #242), #244 | IMPLEMENTED BUT UNVERIFIED | Legal texts are drafts marked "pending legal review"; staging |
 | A Re-review of published-video edits | RV2-01 | #246 backend, #247 app, #248 dashboard | IMPLEMENTED BUT UNVERIFIED | Staging; device UAT |
+| F Creator warnings, restrictions, suspensions and appeals | D-8 (administrator only, the proposed answer) | #250 backend, #251 console, #252 app | IMPLEMENTED BUT UNVERIFIED | Staging; device UAT; visual approval of the app section |
 
 Local test evidence for package A, recorded on 25 November:
 - Content 166 passed, Moderation 78, Gateway 233, Audit 52, console 184 and scripts 475.
@@ -65,15 +66,24 @@ Local test evidence for package A, recorded on 25 November:
 - Flutter: 1,860 passed.
 - CI on `main` was green at `e01776a`.
 
+Local test evidence for package F, recorded on 25 November:
+- Creators 107 passed, Gateway 248, Audit 52, console 193 and scripts 480.
+- PostgreSQL: business 2 of 2, journeys 11 of 11, staging runtime PASS and event pipeline 8 of 8.
+- Flutter: 1,867 passed.
+- CI was green on #250 (`f63ffec`) and #252 (`2ff5f23`).
+
+What package F deliberately leaves out:
+- Suspension does not unpublish existing videos; removal stays a moderation decision.
+- Monetization is a capability flag only. Finance (J) will read it for future earnings.
+
 ## Remaining work, in order
 
-1. **F Creator restrictions** (D-8).
-2. **E Copyright workflow** (D11-008). The copyright contact stays a placeholder, and claims stay in the app.
-3. **C Privacy processing and retention** (ADR-020). Retention periods are proposed only. Deletion must handle `LegalAcceptance` (`on_delete=PROTECT`).
-4. **D Backups and observability**, repository side (ADR-016 in part, ADR-017).
-5. **RV2-03 Dead letters.** The proposed values (retry ceiling 10, kept 14 days, administrator-only replay) are flagged as proposed.
-6. **J Finance ledger**, sandbox only, followed by **H Events** and **I Advertising**. Check current Google documentation before building advertising. No invented payout thresholds, shares, exchange rates or tax rules.
-7. Then Phase 07, Phase 08 (needs access and an approved plan), the Phase 09 gate and Phases 10 to 14.
+1. **E Copyright workflow** (D11-008). The copyright contact stays a placeholder, and claims stay in the app.
+2. **C Privacy processing and retention** (ADR-020). Retention periods are proposed only. Deletion must handle `LegalAcceptance` (`on_delete=PROTECT`).
+3. **D Backups and observability**, repository side (ADR-016 in part, ADR-017).
+4. **RV2-03 Dead letters.** The proposed values (retry ceiling 10, kept 14 days, administrator-only replay) are flagged as proposed.
+5. **J Finance ledger**, sandbox only, followed by **H Events** and **I Advertising**. Check current Google documentation before building advertising. No invented payout thresholds, shares, exchange rates or tax rules.
+6. Then Phase 07, Phase 08 (needs access and an approved plan), the Phase 09 gate and Phases 10 to 14.
 
 **Still waiting on the owner:**
 - DR-BZ-25: what happens to reviews and messages after a business closes.
@@ -84,4 +94,4 @@ Local test evidence for package A, recorded on 25 November:
 
 ## Next executable task
 
-Start decision F (creator restrictions) on a new branch from `main`. Read the Creators restriction model and the Gateway creator eligibility first.
+Start decision E (copyright workflow, D11-008) on a new branch from `main`. Read the existing Moderation copyright reports and counter-notices first. The copyright contact stays a placeholder.
