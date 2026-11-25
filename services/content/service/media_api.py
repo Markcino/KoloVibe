@@ -2,6 +2,7 @@
 
 from datetime import timedelta
 import json
+import logging
 import re
 from uuid import UUID, uuid5
 
@@ -16,6 +17,8 @@ from . import media_storage as storage
 from .models import MediaUpload, Video, OriginalityAttestation
 from .copyright import ATTESTATION_VERSION, audit
 from .video_metadata import FIELDS, item, metadata
+
+logger = logging.getLogger(__name__)
 
 
 UPLOAD_LIFETIME = timedelta(minutes=10)
@@ -167,10 +170,12 @@ def _manage(video_id, creator_id, data, operation):
         values = metadata({key: value for key, value in data.items() if key in FIELDS}, duration_ms=duration)
         changed = {name: value for name, value in values.items() if getattr(video, name) != value}
         if "cover_time_ms" in changed:
-            # A processed cover edit clears the stale frame. Re-rendering is
-            # deferred rather than doing network/FFmpeg work in a request lock.
+            # A cover edit clears the stale frame. For a processed video the media worker renders the new one
+            # from the private rendition after commit (D-P2-01); no network or FFmpeg work runs under this lock.
             video.poster_asset_id = None
             changed["poster_asset_id"] = None
+            if video.provider_asset_id:
+                transaction.on_commit(lambda video_id=video.id: _queue_cover(video_id))
         for name, value in changed.items():
             setattr(video, name, value)
         if changed:
@@ -192,6 +197,26 @@ def _enqueue(video_id):
         routing_key="kolovibe.content.media",
         retry=False,
     )
+
+
+def _enqueue_cover(video_id):
+    from .media_tasks import render_cover
+
+    render_cover.apply_async(
+        args=[str(video_id)],
+        queue="kolovibe.content.media",
+        exchange="kolovibe.content.media",
+        routing_key="kolovibe.content.media",
+        retry=False,
+    )
+
+
+def _queue_cover(video_id):
+    """Best effort after commit: a broker outage never fails the saved edit; `requeue_stalled_media` recovers it."""
+    try:
+        _enqueue_cover(video_id)
+    except (KombuError, OSError, RuntimeError, ImportError):
+        logger.warning("Cover render could not be queued; recovery will retry")
 
 
 def _complete(video_id, creator_id):
