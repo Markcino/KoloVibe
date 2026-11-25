@@ -1,0 +1,11 @@
+drill_engagement-consumer mem=201326592 res=0 nanocpu=500000000 ro=true capdrop=[ALL] user=10001:10001 containers_so_far=4
+drill_engagement-dispatch mem=167772160 res=0 nanocpu=500000000 ro=true capdrop=[ALL] user=10001:10001 containers_so_far=4
+drill_identity-audit mem=167772160 res=0 nanocpu=500000000 ro=true capdrop=[ALL] user=10001:10001 containers_so_far=4
+drill_media-worker mem=536870912 res=0 nanocpu=1000000000 ro=true capdrop=[ALL] user=10001:10001 containers_so_far=4
+drill_moderation-audit mem=167772160 res=0 nanocpu=500000000 ro=true capdrop=[ALL] user=10001:10001 containers_so_far=4
+drill_points-audit mem=167772160 res=0 nanocpu=500000000 ro=true capdrop=[ALL] user=10001:10001 containers_so_far=4
+drill_points-consumer mem=201326592 res=0 nanocpu=500000000 ro=true capdrop=[ALL] user=10001:10001 containers_so_far=4
+{"Limits":{"NanoCPUs":500000000,"MemoryBytes":201326592},"Reservations":{"NanoCPUs":100000000,"MemoryBytes":100663296}} {"Condition":"on-failure","Delay":30000000000,"MaxAttempts":0} grace=40s
+OOM drill: hog (points-consumer deploy block, 192M limit) allocating 400 MiB -> OOMKilled=true exit 137, task rescheduled by on-failure policy.
+Kill drill: idle (points-consumer deploy block) SIGKILL -> replacement running after 33s (policy delay 30s). uid 10001, /app read-only confirmed in the replacement.
+Crash drill: real stack, real entrypoint, dummy secrets -> each of 7 services exits 1 at startup; tasks retried about every 32s with no attempt cap (MaxAttempts 0).

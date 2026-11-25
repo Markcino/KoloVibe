@@ -47,9 +47,10 @@ ENTRYPOINT ["python", "-m", "staging_runtime.launch"]
 CMD []
 
 # ---- Minimal FFmpeg for the media worker (built only when FFMPEG_SOURCE=ffmpeg-minimal) -------------------------
-# Upstream FFmpeg 9.0.2, the newest release (9.0 fixes CVE-2026-70628, -70632 and -96611 that Alpine 3.24's 8.1.3
-# carries). infra/docker/ffmpeg/APKBUILD pins the source by SHA-512 and compiles out everything the pipeline does
-# not use. It is packaged as a real apk named `ffmpeg`, so the scanner and the SBOM see it: a bare binary copied
+# Upstream FFmpeg 9.1, the newest release (9.0 fixed CVE-2026-70628, -70632 and -96611 that Alpine 3.24's 8.1.3
+# carries; 9.1 fixes the 24 November 2026 advisories CVE-2026-135722 to -135743, among them the scale filter this
+# build contains). infra/docker/ffmpeg/APKBUILD pins the source by SHA-512 and compiles out everything the pipeline
+# does not use. It is packaged as a real apk named `ffmpeg`, so the scanner and the SBOM see it: a bare binary copied
 # into the image would be invisible to them and a passing scan would mean nothing.
 FROM ${FFMPEG_BUILD_BASE} AS ffmpeg-minimal
 RUN set -eux; \
@@ -62,7 +63,7 @@ RUN set -eux; \
     su builder -c 'abuild-keygen -a -n >/dev/null'; \
     cp /home/builder/.abuild/*.rsa.pub /etc/apk/keys/; \
     su builder -c 'cd /home/builder/ffmpeg && abuild -r'; \
-    cp /home/builder/packages/*/*/ffmpeg-9.0.2-r0.apk /out/apk/; \
+    cp /home/builder/packages/*/*/ffmpeg-9.1-r0.apk /out/apk/; \
     ls -l /out/apk
 
 # The default (shared-image) build copies this empty directory: no FFmpeg, no encoder libraries.

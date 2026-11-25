@@ -16,6 +16,7 @@
 | D11-008 | Low | Functional (product decision) | **OPEN** (carried; owner decision) |
 | D11-009 | Low | Documentation / operations | **Documentation FIXED. Scheduling OPEN** (owner approval) |
 | **D12-001** | **Medium** | Integration failure (a security control that is configured off) | **NEW, OPEN** (edge configuration and owner) |
+| **D12-002** | **High** | Vulnerable dependency (media worker FFmpeg) | **NEW. Fix proposed** (FFmpeg 9.1); closed when the media image scan passes in CI |
 
 ## 2. Triage and root cause
 
@@ -61,6 +62,12 @@ Carried from Phase 10. A product decision (whether claimants use the app or anot
 ### D12-001 — Per-origin limits are inert as deployed (Integration failure, Medium) — NEW, OPEN
 **Finding.** Every per-origin budget (sign-in, verification and reset codes, resend, and now registration) depends on the Gateway receiving a trusted client address, which it believes only from the header named by `KOLOVIBE_TRUSTED_CLIENT_IP_HEADER`. No deployment manifest, profile or runbook in the repository sets it (`T10_87`, static). ADR-013 already says this must be configured and tested before the origin limits count; it was never done. As deployed, only address-level limits apply.
 **Action (edge, owner).** Choose the header the edge overwrites on every request (for example Cloudflare's), make Nginx pass it through and drop any client-supplied copy, set the variable on the Gateway, and test with a real request through the edge. Retest: `T10_87` and `T1_94` through the real edge.
+
+### D12-002 — FFmpeg 9.0.2 in the media worker image carries 11 High/Critical advisories (Vulnerable dependency, High) — NEW, fix proposed
+**Finding.** The vulnerability database dated 24 November 2026 added advisories CVE-2026-135722 to -135743 against FFmpeg before 9.1. The media worker scan (`T10_92`) has failed on every main build since (first `e9bb068`, latest `c11f1a6`, CI run 45619859049): 11 High or Critical findings on `ffmpeg 9.0.2-r0`, two Critical (CVE-2026-135736 in `vf_deband`, CVE-2026-135743 in `af_dynaudnorm`). The other image scans pass.
+**Why an exception is not enough.** At least two affected components are compiled into the minimal build: the `scale` filter (CVE-2026-135739) and the WAV muxer (CVE-2026-135722). Component data is from the CNA records as mirrored by cve.threatint.com and summarised by Rescana (24 November 2026), not verified against FFmpeg source here.
+**Fix.** Build FFmpeg 9.1 (released 20 November 2026; the advisories' affected ranges end before 9.1). The source is pinned by the SHA-512 Alpine's aports master APKBUILD records for `ffmpeg-9.1.tar.xz`. The existing scoped exceptions move from `9.0.2-r0` to `9.1-r0` unchanged in premise, and CI re-checks each premise against the 9.1 binary. Rules that 9.1 no longer needs are to be pruned once the scan shows which findings remain. **Owner review needed** for the version move of the exceptions.
+**Verification.** The media image job (build, minimal-build checks, exception premises, end-to-end media pipeline test, Grype gate) on the pull request.
 
 ## 3. Test-harness corrections made in Phase 12 (not product defects)
 

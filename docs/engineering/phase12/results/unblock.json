@@ -1,0 +1,60 @@
+{
+ "results": [
+  {
+   "id": "T3_92",
+   "test": "test_T3_92_sustained_load_with_worker_kills_and_a_broker_restart_applies_every_event_exactly_once",
+   "status": "PASS",
+   "seconds": 168.8,
+   "doc": "",
+   "detail": "Local disposable TLS broker (scripts/phase11/test_g3_soak.py): 240 qualified views, ~1200 messages incl. 4 full republish rounds, 5 worker kills, broker stop/start; queue drained in 62.7 s; 240 receipts (100 posted, 140 withheld at the cap), 100 ledger entries, no duplicates. Correctness under failure, not AWS capacity"
+  },
+  {
+   "id": "T9_90",
+   "test": "test_T9_90_the_group_9_console_suite_passes_in_firefox",
+   "status": "PASS",
+   "seconds": 90.0,
+   "doc": "",
+   "detail": "Firefox 155 via playwright run-server: full group 9 run {'PASS': 18, 'ERROR': 1}; the one ERROR was T9_11 waiting for a load event Firefox never fires on an empty 405; T9_11 rewritten to wait for the response and PASS in Firefox, WebKit and Chromium"
+  },
+  {
+   "id": "T9_91",
+   "test": "test_T9_91_the_group_9_console_suite_passes_in_webkit",
+   "status": "PASS",
+   "seconds": 37.1,
+   "doc": "",
+   "detail": "WebKit 26.6 via playwright run-server: full group 9 run {'PASS': 19}"
+  },
+  {
+   "id": "T10_92",
+   "test": "test_T10_92_container_image_vulnerability_scans",
+   "status": "FAIL",
+   "seconds": 0,
+   "doc": "",
+   "detail": "CI run 45619859049 (main c11f1a6): shared, web and 8 per-service image scans PASS; media worker image FAIL, 11 High/Critical in ffmpeg 9.0.2-r0 (D12-002)"
+  },
+  {
+   "id": "T10_93",
+   "test": "test_T10_93_flutter_and_python_dependency_advisories_osv",
+   "status": "PASS",
+   "seconds": 0,
+   "doc": "",
+   "detail": "CI run 45619859049 (main c11f1a6), job Python and Flutter dependency advisories / osv-scan: success"
+  },
+  {
+   "id": "T10_96",
+   "test": "test_T10_96_resource_limits_are_enforced_at_runtime_in_swarm",
+   "status": "PASS",
+   "seconds": 0,
+   "doc": "",
+   "detail": "Local single-node Swarm, rendered staging-aws.yml, all 7 services: memory 160M/192M/512M, CPU 0.5/1.0, uid 10001, read-only root, CapDrop ALL applied; 400 MiB in a 192M task OOM-killed and rescheduled. Logging/alerting: T10_96L"
+  },
+  {
+   "id": "T10_97",
+   "test": "test_T10_97_a_killed_worker_is_restarted_by_the_swarm_restart_policy",
+   "status": "PASS",
+   "seconds": 0,
+   "doc": "",
+   "detail": "Local single-node Swarm: SIGKILL of a running task, replacement running after 33 s (delay 30 s); crashing tasks retried every ~32 s with no attempt cap (MaxAttempts 0)"
+  }
+ ]
+}

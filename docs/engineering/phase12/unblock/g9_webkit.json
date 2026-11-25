@@ -1,0 +1,156 @@
+{
+ "results": [
+  {
+   "id": "T9_01",
+   "test": "Console.test_T9_01_an_administrator_signs_in_with_password_and_mfa_and_reaches_the_dashboard",
+   "status": "PASS",
+   "seconds": 2.41,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_02",
+   "test": "Console.test_T9_02_a_moderator_signs_in_and_cannot_reach_administrator_only_pages",
+   "status": "PASS",
+   "seconds": 1.89,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_03",
+   "test": "Console.test_T9_03_a_viewer_cannot_sign_in_to_the_console",
+   "status": "PASS",
+   "seconds": 1.05,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_04",
+   "test": "Console.test_T9_04_wrong_password_and_unknown_email_get_the_same_page",
+   "status": "PASS",
+   "seconds": 2.03,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_05",
+   "test": "Console.test_T9_05_a_wrong_mfa_code_does_not_open_a_session",
+   "status": "PASS",
+   "seconds": 1.42,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_06",
+   "test": "Console.test_T9_06_every_console_page_redirects_an_anonymous_visitor_to_sign_in",
+   "status": "PASS",
+   "seconds": 1.03,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_07",
+   "test": "Console.test_T9_07_login_does_not_follow_an_external_next_parameter_and_changes_the_session_id",
+   "status": "PASS",
+   "seconds": 1.56,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_10",
+   "test": "Console.test_T9_10_logout_ends_the_session_and_the_old_cookie_no_longer_works",
+   "status": "PASS",
+   "seconds": 2.19,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_11",
+   "test": "Console.test_T9_11_a_get_request_to_the_logout_url_does_not_sign_you_out",
+   "status": "PASS",
+   "seconds": 1.75,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_12",
+   "test": "Console.test_T9_12_state_changing_posts_without_a_csrf_token_are_refused",
+   "status": "PASS",
+   "seconds": 1.72,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_13",
+   "test": "Console.test_T9_13_an_idle_session_expires_after_thirty_minutes",
+   "status": "PASS",
+   "seconds": 1.82,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_14",
+   "test": "Console.test_T9_14_a_privileged_session_expires_fifteen_minutes_after_sign_in_even_if_active",
+   "status": "PASS",
+   "seconds": 1.68,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_20",
+   "test": "Console.test_T9_20_security_headers_and_a_content_security_policy_that_forbids_scripts",
+   "status": "PASS",
+   "seconds": 1.9,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_21",
+   "test": "Console.test_T9_21_no_console_page_triggers_a_csp_violation_or_a_javascript_error",
+   "status": "PASS",
+   "seconds": 3.27,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_22",
+   "test": "Console.test_T9_22_administrator_pages_load_without_a_server_error_and_without_leaking_internals",
+   "status": "PASS",
+   "seconds": 3.71,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_30",
+   "test": "Console.test_T9_30_every_form_control_and_button_has_an_accessible_name_and_the_page_has_landmarks",
+   "status": "PASS",
+   "seconds": 1.58,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_31",
+   "test": "Console.test_T9_31_the_sign_in_form_works_with_the_keyboard_alone_and_focus_is_visible",
+   "status": "PASS",
+   "seconds": 1.39,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_32",
+   "test": "Console.test_T9_32_pages_fit_a_narrow_phone_width_and_200_percent_zoom_without_horizontal_scroll",
+   "status": "PASS",
+   "seconds": 2.54,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_33",
+   "test": "Console.test_T9_33_interactive_targets_are_large_enough_to_activate",
+   "status": "PASS",
+   "seconds": 2.16,
+   "doc": "",
+   "detail": ""
+  }
+ ]
+}

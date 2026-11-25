@@ -1,7 +1,8 @@
 """Phase 11, test group 9: the administrator and moderator console in a real browser (Chromium via Playwright).
 
-Real Firefox and Safari/WebKit are NOT RUN (not installed in this environment); a screen reader is NOT RUN. Accessibility here
-is structural (labels, landmarks, focus, keyboard, narrow layouts), which is evidence, not a screen-reader test.
+Chromium is launched locally by default. P11_BROWSER=firefox or webkit with P11_WS=<ws url of a `playwright run-server`>
+runs the same suite in that engine (Phase 12: T9_90 Firefox, T9_91 WebKit). A screen reader is NOT RUN. Accessibility
+here is structural (labels, landmarks, focus, keyboard, narrow layouts), which is evidence, not a screen-reader test.
 """
 
 import os
@@ -40,7 +41,11 @@ class Console(unittest.TestCase):
         if sync_playwright is None:
             self.skipTest("playwright is not installed")
         self.pw = sync_playwright().start()
-        self.browser = self.pw.chromium.launch(args=["--no-sandbox"])
+        engine, server = os.environ.get("P11_BROWSER", "chromium"), os.environ.get("P11_WS")
+        if engine not in ("chromium", "firefox", "webkit") or (engine != "chromium" and not server):
+            raise RuntimeError("P11_BROWSER must be chromium, firefox or webkit; firefox and webkit need P11_WS")
+        browser_type = getattr(self.pw, engine)
+        self.browser = browser_type.connect(server) if server else browser_type.launch(args=["--no-sandbox"])
         self.addCleanup(self.pw.stop)
         self.addCleanup(self.browser.close)
         self.base = f"http://127.0.0.1:{S().ports['web']}"
@@ -155,7 +160,9 @@ class Console(unittest.TestCase):
     def test_T9_11_a_get_request_to_the_logout_url_does_not_sign_you_out(self):
         page = self.ctx().new_page()
         self.login(page, self.person("moderator"))
-        page.goto(self.base + "/admin/logout/")
+        # Wait only for the response: Firefox shows its own error page for the empty 405 body and never fires `load`.
+        response = page.goto(self.base + "/admin/logout/", wait_until="commit")
+        self.assertEqual(response.status, 405, "a GET to the logout URL must be refused")
         page.goto(self.base + "/admin/")
         self.assertTrue(urlparse(page.url).path.startswith("/admin"), "logout must need a POST with a CSRF token, not a link")
 
