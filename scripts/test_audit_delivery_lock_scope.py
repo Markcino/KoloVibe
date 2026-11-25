@@ -1,6 +1,6 @@
 """Regression guard for least-privilege audit delivery row locking.
 
-All three delivery commands join immutable event rows for reading. The runtime
+All four delivery commands join immutable event rows for reading. The runtime
 roles cannot UPDATE the event tables, so PostgreSQL must lock only the mutable
 AuditDelivery row rather than the full join.
 """
@@ -15,6 +15,7 @@ COMMANDS = (
     "services/identity/service/management/commands/deliver_security_audit.py",
     "services/points/service/management/commands/deliver_audit_events.py",
     "services/moderation/service/management/commands/deliver_audit_events.py",
+    "services/business/service/management/commands/deliver_audit_events.py",
 )
 
 
