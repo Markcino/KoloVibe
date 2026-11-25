@@ -184,13 +184,31 @@ class Database(unittest.TestCase):
             self.assertIn("No migrations to apply", result.stdout, service)
         failures = []
         for service, back in (("engagement", "0005"), ("business", "0006"), ("creators", "0005")):
-            env = dict(S().environments[service], KOLOVIBE_ENV="local")
+            # Phase 12 (D11-002): schema changes are the migration login's job; the runtime login can no longer alter tables.
+            base = S().environments[service]
+            env = dict(base, KOLOVIBE_ENV="local", KOLOVIBE_DB_USER=base["KOLOVIBE_PG_MIGRATION_USER"],
+                       KOLOVIBE_DB_PASSWORD_FILE=base["KOLOVIBE_PG_MIGRATION_PASSWORD_FILE"], KOLOVIBE_DB_MIGRATION_ROLE="kolovibe_" + service)
             for target in (back, None):
                 args = [sys.executable, "manage.py", "migrate", "--noinput"] + (["service", target] if target else [])
                 result = subprocess.run(args, cwd=lib.ROOT / "services" / service, env=env, capture_output=True, text=True, timeout=120)
                 if result.returncode:
                     failures.append((service, target or "forward", result.stderr.strip().splitlines()[-1][:160] if result.stderr.strip() else ""))
         self.assertEqual(failures, [], failures)
+        # tables the owner re-created by that round trip must still be usable by the runtime login (default privileges)
+        unreachable = []
+        for service in ("engagement", "business", "creators"):
+            conn = S().db(service)
+            try:
+                tables = [row[0] for row in conn.execute("select tablename from pg_tables where schemaname = %s", (service,)).fetchall()]
+                for table in tables:
+                    try:
+                        conn.execute(sql.SQL("select 1 from {}.{} limit 1").format(sql.Identifier(service), sql.Identifier(table)))
+                    except Exception as error:
+                        conn.rollback()
+                        unreachable.append((service, table, type(error).__name__))
+            finally:
+                conn.close()
+        self.assertEqual(unreachable, [], "the runtime login lost access to re-created tables: " + str(unreachable[:5]))
 
 
 class Perimeter(unittest.TestCase):
