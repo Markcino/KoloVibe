@@ -1,0 +1,29 @@
+{% extends 'base_admin.html' %}{% load admin_display %}
+{% block title %}{{ title }} · KoloVibe{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Copyright</p><h1>{{ title }}</h1><p class="supporting-text">Accounts verified as acting for a rights holder. Their new copyright claims are marked "Verified rights holder" for reviewers. Verification never decides a claim, and creators never see who claimed.</p></div></div>
+{% if notice %}<p class="notice" role="status">{{ notice }}</p>{% endif %}
+{% if error %}<p class="notice error" role="alert">{{ error }}</p>{% endif %}
+<section class="panel" aria-labelledby="verify-title"><div class="section-heading"><div><p class="eyebrow">Verify</p><h2 id="verify-title">Verify an account</h2></div><span class="status-chip">Audited</span></div>
+{% if candidate %}
+<div class="assignee-row"><span class="avatar">{{ candidate.display_name|slice:':1'|upper }}</span><span class="row-copy"><strong>{{ candidate.display_name }}</strong><small>Current role: {{ candidate.role|title }}</small></span></div>
+<form method="post">{% csrf_token %}<input type="hidden" name="operation" value="verify"><input type="hidden" name="account_id" value="{{ candidate.account_id }}"><input type="hidden" name="intent" value="{{ candidate.intent }}">
+<label>Rights holder (organisation or person)<input type="text" name="organisation" minlength="2" maxlength="200" required></label>
+<label>How authority was checked (private)<textarea name="evidence" minlength="10" maxlength="2000" rows="3" required></textarea></label>
+<div class="status-actions"><button type="submit">Verify account</button><a class="button button-outline" href="{% url 'rights-holders' %}">Cancel</a></div></form>
+{% else %}
+<form method="post" class="assign-form">{% csrf_token %}<input type="hidden" name="operation" value="lookup">
+<label>Email address<input type="email" name="email" maxlength="254" autocomplete="off" required placeholder="name@example.com"></label>
+<button type="submit">Find account</button></form>
+{% endif %}</section>
+{% if available %}<section class="panel table-panel" aria-labelledby="holders-title"><div class="section-heading"><div><p class="eyebrow">Register</p><h2 id="holders-title">Verified and revoked</h2></div></div>
+<div class="table-scroll" role="region" aria-label="Rights holders" tabindex="0"><table><caption class="visually-hidden">Rights-holder verifications</caption>
+<thead><tr><th scope="col">Rights holder</th><th scope="col">Account</th><th scope="col">Verified</th><th scope="col">Evidence</th><th scope="col">Status</th></tr></thead><tbody>
+{% for row in rows %}<tr><td data-label="Rights holder"><strong>{{ row.organisation }}</strong></td>
+<td data-label="Account"><code title="{{ row.account_id }}">{{ row.account_id|slice:':8' }}</code></td>
+<td data-label="Verified"><time datetime="{{ row.verified_at }}" title="{{ row.verified_at|utc_stamp }}">{{ row.verified_at|age }}</time></td>
+<td data-label="Evidence"><small>{{ row.evidence }}</small></td>
+<td data-label="Status">{% if row.active %}<form method="post" class="status-actions">{% csrf_token %}<input type="hidden" name="operation" value="revoke"><input type="hidden" name="account_id" value="{{ row.account_id }}"><input type="hidden" name="intent" value="{{ row.intent }}"><span class="status-chip" data-state="accepted">Verified</span><button type="submit" class="button-outline" aria-label="Revoke {{ row.organisation }}">Revoke</button></form>{% else %}<span class="status-chip">Revoked <time datetime="{{ row.revoked_at }}">{{ row.revoked_at|utc_stamp }}</time></span>{% endif %}</td></tr>
+{% empty %}<tr><td colspan="5">No rights holders have been verified.</td></tr>{% endfor %}</tbody></table></div>
+{% if next_query %}<nav class="pagination" aria-label="Rights holder pages"><a rel="next" href="?{{ next_query }}">Next page</a></nav>{% endif %}</section>{% endif %}
+{% endblock %}
