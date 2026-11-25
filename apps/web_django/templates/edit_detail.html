@@ -1,0 +1,29 @@
+{% extends 'base_admin.html' %}{% load admin_display %}
+{% block title %}{{ title }} · KoloVibe{% endblock %}
+{% block content %}
+<div class="page-heading"><div class="detail-header"><p class="eyebrow">Review item</p><h1>{{ title }}</h1>
+<span class="status-chip" data-state="{{ edit.status }}">{{ edit.status|title }}</span>
+<span class="status-chip">Video: {{ edit.video_state|human_label }}</span></div>
+<a class="button button-outline" href="{% url 'moderation-edits' %}"><span class="icon-flip">{% include 'icon.html' with name='arrow' %}</span>Back to queue</a></div>
+<section class="panel"><div class="section-heading"><div><p class="eyebrow">Record</p><h2>Summary</h2></div></div>
+<dl><dt>Edit</dt><dd>{{ edit.id }}</dd><dt>Video</dt><dd>{{ edit.video_id }}</dd><dt>Submitted</dt><dd><time datetime="{{ edit.submitted_at }}">{{ edit.submitted_at|utc_stamp }}</time> · {{ edit.submitted_at|age }}</dd></dl></section>
+<section class="panel"><div class="section-heading"><div><p class="eyebrow">Evidence</p><h2>Live and proposed text</h2></div></div>
+<div class="table-scroll" role="region" aria-label="Live and proposed text" tabindex="0">
+<table><caption>Changed fields are marked</caption>
+<thead><tr><th scope="col">Field</th><th scope="col">Live now</th><th scope="col">Proposed</th></tr></thead>
+<tbody>{% for row in rows %}<tr{% if row.changed %} data-changed="true"{% endif %}>
+<th scope="row">{{ row.label }}{% if row.changed %} <span class="status-chip">Changed</span>{% endif %}</th>
+<td data-label="Live now">{{ row.live|default:"(empty)" }}</td><td data-label="Proposed">{{ row.proposed|default:"(empty)" }}</td>
+</tr>{% endfor %}</tbody></table></div></section>
+<section class="panel"><div class="section-heading"><div><p class="eyebrow">Context</p><h2>Decision history</h2></div></div><ul class="activity-list">{% for decision in decisions %}<li><span class="activity-icon">{% include 'icon.html' with name='shield' %}</span><div><strong>{{ decision.action|human_label }} · {{ decision.status|human_label }}</strong><time datetime="{{ decision.created_at }}">{{ decision.created_at|utc_stamp }}</time><small>{{ decision.reason }}</small></div></li>{% empty %}<li class="empty-state"><div><p>No decisions in your authorized scope.</p></div></li>{% endfor %}</ul></section>
+{% if intent %}
+<section class="panel" aria-labelledby="decision-title"><div class="section-heading"><div><p class="eyebrow">Action</p><h2 id="decision-title">Record a decision</h2></div><span class="status-chip">Audited</span></div>
+<p class="supporting-text">Approving makes the proposed text live. Rejecting keeps the live text. The creator sees the outcome on their video. To take the video down, use the video review queue.</p>
+<form method="post">{% csrf_token %}<input type="hidden" name="intent" value="{{ intent }}">
+  <label>Decision<select name="action" required><option value="">Select a decision</option>{% for action in actions %}<option value="{{ action }}">{{ action|title }}</option>{% endfor %}</select></label>
+  <label>Reason<textarea name="reason" minlength="10" maxlength="2000" rows="5" required aria-describedby="reason-help"></textarea></label>
+  <p id="reason-help" class="supporting-text">Give a reason of 10 to 2,000 characters. This decision is recorded.</p>
+  <p><button type="submit">Submit decision</button></p>
+</form></section>
+{% else %}<p class="notice" role="status">This edit is no longer waiting for review.</p>{% endif %}
+{% endblock %}

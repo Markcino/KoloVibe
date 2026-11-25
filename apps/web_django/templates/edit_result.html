@@ -1,0 +1,4 @@
+{% extends 'base_admin.html' %}
+{% block title %}Decision recorded · KoloVibe{% endblock %}
+{% block content %}<section class="panel"><div class="empty-state">{% include 'icon.html' with name='shield' %}<h1>Decision recorded</h1><p role="status">{% if action == 'approve' %}The proposed text is now live.{% else %}The live text was kept.{% endif %}</p>
+<div class="status-actions actions-center"><a class="button" href="{% url 'moderation-edits' %}">Back to video edits</a><a class="button button-outline" href="{% url 'dashboard' %}">Dashboard</a></div></div></section>{% endblock %}
