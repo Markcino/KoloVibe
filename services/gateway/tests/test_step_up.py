@@ -1,5 +1,6 @@
 """Decision G at the edge: the Gateway obtains and consumes Identity step-up proofs; it never decides them."""
 import json
+import secrets
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -14,6 +15,7 @@ ACTOR = str(uuid4())
 BUSINESS = str(uuid4())
 MEMBER = str(uuid4())
 PROOF = "p" * 64
+PASSWORD = secrets.token_urlsafe(16)
 
 
 class NoContent(Response):
@@ -34,25 +36,25 @@ class StepUpIssueTests(SimpleTestCase):
     def test_the_request_is_bounded_and_forwarded_with_the_callers_token(self, identity):
         identity.return_value = JsonResponse({"step_up_token": PROOF, "purpose": "business.member_remove",
                                               "expires_at": "2026-11-25T16:00:00+00:00"})
-        response = self.post({"current_password": "pw", "purpose": "business.member_remove", "resource_id": BUSINESS})
+        response = self.post({"current_password": PASSWORD, "purpose": "business.member_remove", "resource_id": BUSINESS})
         self.assertEqual(response.status_code, 200)
         path, payload, _ = identity.call_args.args
         self.assertEqual(path, "/internal/auth/step-up")
-        self.assertEqual(payload, {"access_token": "t" * 40, "current_password": "pw",
+        self.assertEqual(payload, {"access_token": "t" * 40, "current_password": PASSWORD,
                                    "purpose": "business.member_remove", "resource_id": BUSINESS})
 
     @patch("service.accounts._invoke")
     def test_malformed_requests_and_answers_never_pass(self, identity):
-        self.assertEqual(self.post({"current_password": "pw", "purpose": "x.y"}, token=None).status_code, 401)
-        for body in ({"purpose": "business.member_remove"}, {"current_password": "pw"},
-                     {"current_password": "pw", "purpose": "business.member_remove", "resource_id": "nope"},
-                     {"current_password": "pw", "purpose": "business.member_remove", "audience": "finance"}):
+        self.assertEqual(self.post({"current_password": PASSWORD, "purpose": "x.y"}, token=None).status_code, 401)
+        for body in ({"purpose": "business.member_remove"}, {"current_password": PASSWORD},
+                     {"current_password": PASSWORD, "purpose": "business.member_remove", "resource_id": "nope"},
+                     {"current_password": PASSWORD, "purpose": "business.member_remove", "audience": "finance"}):
             with self.subTest(body):
                 self.assertEqual(self.post(body).status_code, 400)
         identity.assert_not_called()
         identity.return_value = JsonResponse({"step_up_token": PROOF, "purpose": "other.purpose",
                                               "expires_at": "2026-11-25T16:00:00+00:00"})
-        self.assertEqual(self.post({"current_password": "pw", "purpose": "business.member_remove"}).status_code, 503)
+        self.assertEqual(self.post({"current_password": PASSWORD, "purpose": "business.member_remove"}).status_code, 503)
 
 
 class BusinessStepUpTests(SimpleTestCase):

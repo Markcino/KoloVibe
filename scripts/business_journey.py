@@ -270,7 +270,7 @@ def run(t, c):
     status, refused = api(f"/me/businesses/{bid}/members/{member}", method="DELETE", token=owner, key=key())
     t.assertEqual((status, refused["code"]), (403, "step_up_required"))  # removal needs an Identity step-up proof
     # Decision G: a purpose-bound proof from Identity, consumed once by the Gateway for this business only.
-    t.assertEqual(api("/me/step-up", token=owner, data={"current_password": "wrong-password",
+    t.assertEqual(api("/me/step-up", token=owner, data={"current_password": secrets.token_urlsafe(24),
                                                         "purpose": "business.member_remove", "resource_id": bid})[0], 400)
     proof = ok(api("/me/step-up", token=owner, data={"current_password": passwords["owner"],
                                                      "purpose": "business.member_remove", "resource_id": bid}),

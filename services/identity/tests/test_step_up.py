@@ -67,7 +67,7 @@ class StepUpTests(TestCase):
 
     def test_wrong_password_is_generic_and_shares_the_reauthentication_budget(self):
         for _ in range(accounts.LOGIN_LIMIT):
-            self.assertEqual(self.issue(current_password="wrong-password").status_code, 400)
+            self.assertEqual(self.issue(current_password=secrets.token_urlsafe(24)).status_code, 400)
         self.assertEqual(self.issue().status_code, 429)
         self.assertEqual(self.post(accounts.reauthenticate, {
             "access_token": self.tokens[1], "current_password": self.password}).status_code, 429)
