@@ -97,9 +97,9 @@ class PolicyDefinitionTests(unittest.TestCase):
             self.assertTrue(rule.pattern.pattern.startswith("/"))
         # Reviewer/admin routes and invite-only MFA enrollment require the privileged switch.
         self.assertEqual({rule.pattern.pattern for rule in policy.RULES if rule.privileged},
-                         {r"/api/v1/moderation/(?:videos|reports|appeals)",
-                          rf"/api/v1/moderation/(?:videos|reports|appeals)/{policy.UUID}/decisions",
-                          rf"/api/v1/moderation/(?:videos|reports|appeals)/{policy.UUID}",
+                         {r"/api/v1/moderation/(?:videos|reports|appeals|edits)",
+                          rf"/api/v1/moderation/(?:videos|reports|appeals|edits)/{policy.UUID}/decisions",
+                          rf"/api/v1/moderation/(?:videos|reports|appeals|edits)/{policy.UUID}",
                           rf"/api/v1/moderation/previews/{policy.UUID}", r"/api/v1/moderation/totals", r"/api/v1/engagement/fraud-holds", r"/api/v1/admin/moderation/assignments(?:/summary)?", r"/api/v1/admin/audit", r"/api/v1/admin/points/balances", rf"/api/v1/admin/points/accounts/{policy.UUID}",
                           r"/api/v1/admin/moderator-invitations",
                           r"/api/v1/admin/accounts/lookup", r"/internal/auth/account-lookup",
@@ -158,6 +158,7 @@ class RouteCoverageTests(unittest.TestCase):
 
     def test_reviewer_routes_need_the_privileged_capability_as_well(self):
         reviewer = ["/api/v1/moderation/videos", "/api/v1/moderation/reports", "/api/v1/moderation/appeals",
+                    "/api/v1/moderation/edits", f"/api/v1/moderation/edits/{SAMPLE_UUID}/decisions",
                     f"/api/v1/moderation/videos/{SAMPLE_UUID}/decisions",
                     f"/api/v1/moderation/appeals/{SAMPLE_UUID}/decisions"]
         for path in reviewer:

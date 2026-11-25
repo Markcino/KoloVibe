@@ -1,4 +1,5 @@
 from datetime import datetime
+import re
 from uuid import UUID
 
 RIGHTS_STATUSES = {"attested", "flagged", "claimed", "removed", "restored"}
@@ -48,6 +49,49 @@ def valid_detail(value):
             if (set(preview) != {"id", "url", "expires_at"} or str(UUID(preview["id"])) != preview["id"]
                     or preview["url"] != "/api/v1/moderation/previews/" + preview["id"]
                     or datetime.fromisoformat(preview["expires_at"]).tzinfo is None):
+                return False
+        return True
+    except (ValueError, TypeError, KeyError, AttributeError):
+        return False
+
+
+EDIT_FIELDS = {"title", "description", "category", "tags"}
+EDIT_STATUSES = {"pending", "approved", "rejected", "superseded", "withdrawn"}
+CATEGORIES = {"hipco", "afrobeats", "comedy", "skits", "short_films", "culture", "documentaries"}
+VIDEO_STATES = {"draft", "uploading", "processing", "failed", "review", "published", "rejected", "removed"}
+
+
+def valid_edit_values(values):
+    return (isinstance(values, dict) and set(values) == EDIT_FIELDS
+            and isinstance(values["title"], str) and 1 <= len(values["title"]) <= 160
+            and isinstance(values["description"], str) and len(values["description"]) <= 2000
+            and (values["category"] is None or values["category"] in CATEGORIES)
+            and isinstance(values["tags"], list) and len(values["tags"]) <= 5
+            and all(isinstance(tag, str) and re.fullmatch(r"[a-z0-9_]{1,30}", tag) for tag in values["tags"]))
+
+
+def valid_edit_detail(value):
+    """Decision A: a held edit, its live and proposed text, and this reviewer's decisions."""
+    try:
+        if not isinstance(value, dict) or set(value) != {"edit", "decisions"}:
+            return False
+        edit = value["edit"]
+        if (set(edit) != {"id", "video_id", "status", "submitted_at", "video_state", "live", "proposed"}
+                or str(UUID(edit["id"])) != edit["id"] or str(UUID(edit["video_id"])) != edit["video_id"]
+                or edit["status"] not in EDIT_STATUSES or edit["video_state"] not in VIDEO_STATES
+                or datetime.fromisoformat(edit["submitted_at"]).tzinfo is None
+                or not valid_edit_values(edit["live"]) or not valid_edit_values(edit["proposed"])):
+            return False
+        rows = value["decisions"]
+        if not isinstance(rows, list) or len(rows) > 20:
+            return False
+        for row in rows:
+            if (not isinstance(row, dict) or set(row) != {"id", "action", "status", "reason", "created_at"}
+                    or not all(isinstance(item, str) and len(item) <= 2000 for item in row.values())
+                    or row["action"] not in {"approve", "reject"} or row["status"] not in {"pending", "applied", "conflict"}):
+                return False
+            UUID(row["id"])
+            if datetime.fromisoformat(row["created_at"]).tzinfo is None:
                 return False
         return True
     except (ValueError, TypeError, KeyError, AttributeError):

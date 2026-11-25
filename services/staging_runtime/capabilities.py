@@ -107,9 +107,9 @@ def _rules():
         r"/api/v1/me/appeals", rf"/api/v1/me/appeals/{UUID}", rf"/api/v1/creators/me/videos/{UUID}/notice")
     add("gateway", "moderation", "POST", r"/api/v1/reports", rf"/api/v1/videos/{UUID}/appeals", r"/api/v1/copyright/reports", rf"/api/v1/videos/{UUID}/counter-notices")
     add("gateway", "moderation", "GET", r"/api/v1/creators/me/copyright")
-    add("gateway", "moderation", "GET", r"/api/v1/moderation/(?:videos|reports|appeals)", privileged=True)
-    add("gateway", "moderation", "POST", rf"/api/v1/moderation/(?:videos|reports|appeals)/{UUID}/decisions", privileged=True)
-    add("gateway", "moderation", "GET", rf"/api/v1/moderation/(?:videos|reports|appeals)/{UUID}",
+    add("gateway", "moderation", "GET", r"/api/v1/moderation/(?:videos|reports|appeals|edits)", privileged=True)
+    add("gateway", "moderation", "POST", rf"/api/v1/moderation/(?:videos|reports|appeals|edits)/{UUID}/decisions", privileged=True)
+    add("gateway", "moderation", "GET", rf"/api/v1/moderation/(?:videos|reports|appeals|edits)/{UUID}",
         rf"/api/v1/moderation/previews/{UUID}", r"/api/v1/moderation/totals", r"/api/v1/engagement/fraud-holds", privileged=True)
 
     add("gateway", "moderation", "GET POST", r"/api/v1/admin/moderation/assignments(?:/summary)?", privileged=True)
@@ -149,7 +149,7 @@ def _rules():
     add("engagement", "watch", "POST", rf"/internal/engagement/watch/{OP}")
     add("points", "points", "POST", rf"/internal/points/{OP}", r"/internal/points/admin/(?:balances|account)")
     add("moderation", "moderation", "POST", rf"/internal/moderation/{OP}")
-    add("moderation", "moderation", "POST", r"/internal/moderation/(?:review_queue|own_reports|own_report|own_appeals|own_appeal|video_decision|report_decision|appeal_decision|video_detail|report_detail|appeal_detail|fraud_scope|assignment_list|assignment_set|assignment_summary|copyright_report|counter_notice|copyright_status)")
+    add("moderation", "moderation", "POST", r"/internal/moderation/(?:review_queue|own_reports|own_report|own_appeals|own_appeal|video_decision|report_decision|appeal_decision|video_detail|report_detail|appeal_detail|fraud_scope|assignment_list|assignment_set|assignment_summary|copyright_report|counter_notice|copyright_status|edit_queue|edit_detail|edit_decision)")
     return tuple(r)
 
 

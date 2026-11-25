@@ -47,6 +47,12 @@ def patterns():
              {"operation": "report_decision"}, name="decide-video-report"),
         path("api/v1/moderation/appeals/<uuid:target_id>/decisions", moderation_endpoint,
              {"operation": "appeal_decision"}, name="decide-video-appeal"),
+        # Decision A (RV2-01): held edits to published videos.
+        path("api/v1/moderation/edits", moderation_endpoint, {"operation": "edit_queue"}, name="review-edit-queue"),
+        path("api/v1/moderation/edits/<uuid:target_id>", moderation_endpoint, {"operation": "edit_detail"},
+             name="review-edit-detail"),
+        path("api/v1/moderation/edits/<uuid:target_id>/decisions", moderation_endpoint,
+             {"operation": "edit_decision"}, name="decide-video-edit"),
     ]
 
     for kind, operation in (("videos", "video_detail"), ("reports", "report_detail"), ("appeals", "appeal_detail")):

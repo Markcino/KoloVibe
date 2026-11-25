@@ -96,7 +96,7 @@ class ContentAuditEvidenceTests(TestCase):
         self.assertEqual(self.call("unpublish", self.owner(video.id)).status_code, 200)
         self.assertEqual(self.call("unpublish", self.owner(video.id)).status_code, 200)
         self.assertEqual(self.call("delete", self.owner(video.id)).status_code, 200)
-        self.assertEqual(kinds(video.id), ["video.updated", "video.published", "video.unpublished", "video.deleted"])
+        self.assertEqual(kinds(video.id), ["video.edit_submitted", "video.published", "video.unpublished", "video.deleted"])
         self.assertNotIn("Renamed", json.dumps(list(AuditEvent.objects.filter(subject_id=video.id).values()), default=str))
 
     def test_refused_requests_record_nothing(self):

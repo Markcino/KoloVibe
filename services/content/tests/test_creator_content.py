@@ -65,6 +65,9 @@ class CreatorContentTests(TestCase):
         self.assertEqual(result.status_code, 200)
         data = json.loads(result.content)
         self.assertEqual((data["state"], data["visibility"], data["poster_url"]), ("published", "public", None))
+        # Decision A: the reviewed text stays live and the edit waits for review; the cover applies at once.
+        self.assertEqual((data["title"], data["category"], data["tags"], data["cover_time_ms"]), ("Original", "hipco", [], 2000))
+        self.assertEqual(data["edit_review"]["proposed"], {"title": "Updated", "description": "", "category": "comedy", "tags": ["hipco"]})
         self.video.refresh_from_db()
         self.assertEqual(self.video.moderation_approved_at, approved)
         self.assertEqual(self.video.moderation_revision, 1)

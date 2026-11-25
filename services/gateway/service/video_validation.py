@@ -33,6 +33,8 @@ def valid_video(item, *, creator_id=None, public=False, revision=False):
                 "published_at", "category", "tags", "cover_time_ms", "poster_url"}
     if revision:
         required.add("revision")
+    if creator_id is not None and not public:
+        required.add("edit_review")  # Decision A: only the owner's view carries the state of their edit review
     if (not isinstance(item, dict) or not required <= item.keys()
             or item.keys() - required - {"duration_seconds", "duration_ms"}
             or item["state"] not in STATES
@@ -63,7 +65,28 @@ def valid_video(item, *, creator_id=None, public=False, revision=False):
         return False
     if revision and (type(item["revision"]) is not int or not 0 <= item["revision"] <= 2_147_483_647):
         return False
+    if "edit_review" in required and not valid_edit_review(item["edit_review"]):
+        return False
     return True
+
+
+def valid_edit_review(review):
+    """Null, or the newest pending or decided edit; the proposal is shown only while it is pending."""
+    if review is None:
+        return True
+    from .reviewer_contracts import valid_edit_values
+    if (not isinstance(review, dict)
+            or set(review) != {"id", "status", "submitted_at", "decided_at", "reason_code", "proposed"}
+            or not isinstance(review["id"], str) or str(UUID(review["id"])) != review["id"]
+            or review["status"] not in {"pending", "approved", "rejected"}
+            or not timestamp(review["submitted_at"])
+            or not timestamp(review["decided_at"], nullable=review["status"] == "pending")
+            or (review["status"] == "pending") != (review["decided_at"] is None)
+            or review["reason_code"] is not None and (not isinstance(review["reason_code"], str)
+                                                      or not re.fullmatch(r"[A-Z][A-Z0-9_]{1,63}", review["reason_code"]))
+            or (review["status"] == "pending") != (review["proposed"] is not None)):
+        return False
+    return review["proposed"] is None or valid_edit_values(review["proposed"])
 
 
 def checked_metadata(fields, *, creating=False):

@@ -21,9 +21,9 @@ class CreatorContentGatewayTests(SimpleTestCase):
         self.profile = {"id": self.creator, "user_id": self.actor, "handle": "creator_name", "bio": "",
                         "display_name": "Creator", "location": "Monrovia", "status": "active"}
 
-    def video_item(self, **changes):
+    def video_item(self, owned=False, **changes):
         return {"id": self.video, "creator_id": self.creator, "title": "Original hipco", "description": "Monrovia",
-                "state": "published", "created_at": "2026-11-11T12:00:00Z", **metadata(),
+                "state": "published", "created_at": "2026-11-11T12:00:00Z", **metadata(owned=owned),
                 "category": "hipco", **changes}
 
     def test_owner_profile_get_patch_forward_only_actor_owned_fields(self):
@@ -226,7 +226,7 @@ class CreatorContentGatewayTests(SimpleTestCase):
             self.assertFalse(videos._valid_item(valid | changes))
 
     def test_owner_edits_normalize_tags_and_verify_returned_metadata(self):
-        result = self.video_item(title="Updated", tags=["monrovia"], visibility="public")
+        result = self.video_item(owned=True, title="Updated", tags=["monrovia"], visibility="public")
         with patch("service.media._owned_creator", return_value=(self.creator, None)), \
                 patch("service.media.signed_internal_request", return_value=Response(200, json.dumps(result).encode())) as call:
             request = self.factory.patch("/api/v1/videos/id", {"title": " Updated ", "tags": ["#Monrovia"]},
@@ -246,7 +246,7 @@ class CreatorContentGatewayTests(SimpleTestCase):
                 "title": "Original", "category": "hipco"}, content_type="application/json")).status_code, 403)
             self.assertEqual(media.video_visibility(self.factory.generic("POST", "/publish"), self.video, "publish").status_code, 403)
             call.assert_not_called()
-            call.return_value = Response(200, json.dumps(self.video_item(visibility="private")).encode())
+            call.return_value = Response(200, json.dumps(self.video_item(owned=True, visibility="private")).encode())
             self.assertEqual(media.video_visibility(self.factory.generic("POST", "/unpublish"), self.video, "unpublish").status_code, 200)
 
     def test_publish_review_required_code_and_upload_failure_status_are_preserved(self):
@@ -266,7 +266,7 @@ class CreatorContentGatewayTests(SimpleTestCase):
             self.assertEqual(media.video_upload_status(self.factory.get("/status"), self.video).status_code, 503)
 
     def test_owner_library_state_query_and_response_filter_are_checked(self):
-        item = self.video_item(state="processing", visibility="private")
+        item = self.video_item(owned=True, state="processing", visibility="private")
         with patch("service.media._owned_creator", return_value=(self.creator, None)), \
                 patch("service.media.signed_internal_request", return_value=Response(200, json.dumps({"items": [item], "next_cursor": None}).encode())) as call:
             request = self.factory.get("/creators/me/videos", {"state": "in_progress"})
@@ -278,7 +278,7 @@ class CreatorContentGatewayTests(SimpleTestCase):
             call.assert_not_called()
 
     def test_owner_library_search_is_validated_forwarded_trimmed_and_checked_in_the_response(self):
-        item = self.video_item(title="River Song", description="a short film")
+        item = self.video_item(owned=True, title="River Song", description="a short film")
         page = json.dumps({"items": [item], "next_cursor": None}).encode()
         with patch("service.media._owned_creator", return_value=(self.creator, None)), \
                 patch("service.media.signed_internal_request", return_value=Response(200, page)) as call:
@@ -306,7 +306,7 @@ class CreatorContentGatewayTests(SimpleTestCase):
             self.assertTrue(any(route.name == "api-videos" and route.callback is videos.list_videos for route in catalog.patterns()))
 
     def test_maximum_unicode_metadata_pages_fit_the_bounded_response_budget(self):
-        items = [self.video_item(id=str(uuid4()), title="🎥" * 160, description="🎥" * 2000) for _ in range(20)]
+        items = [self.video_item(owned=True, id=str(uuid4()), title="🎥" * 160, description="🎥" * 2000) for _ in range(20)]
         body = json.dumps({"items": items, "next_cursor": None}).encode()
         self.assertGreater(len(body), 500000)
         with patch("service.media._owned_creator", return_value=(self.creator, None)), \

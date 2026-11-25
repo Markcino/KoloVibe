@@ -15,7 +15,7 @@ from kombu.exceptions import KombuError
 
 from . import media_storage as storage
 from .models import MediaUpload, Video, OriginalityAttestation
-from . import security_audit
+from . import edit_review, security_audit
 from .copyright import ATTESTATION_VERSION, audit
 from .video_metadata import FIELDS, item, metadata
 
@@ -35,7 +35,7 @@ def _draft(creator_id, data):
     with transaction.atomic():
         video = Video.objects.create(creator_id=creator_id, **values)
         security_audit.record("video.created", video.id)
-    return JsonResponse(item(video), status=201)
+    return JsonResponse(_owned_item(video, None), status=201)
 
 
 def _intent(video_id, creator_id, data):
@@ -107,8 +107,14 @@ def _status(video):
             or video.state == "processing" and video.failure_reason is not None}
 
 
-def _owned_item(video):
-    return item(video)
+_LOOKUP = object()
+
+
+def _owned_item(video, review=_LOOKUP):
+    """The creator's own view adds the state of their latest edit review (Decision A)."""
+    if review is _LOOKUP:
+        review = edit_review.review_states([video])[video.id]
+    return item(video) | {"edit_review": review}
 
 
 def _owned_detail(video):
@@ -135,7 +141,8 @@ def _library(creator_id, cursor, state="all", query=None):
         videos = videos.filter(Q(created_at__lt=anchor.created_at) |
                                Q(created_at=anchor.created_at, id__lt=anchor.id))
     page = list(videos[:21])
-    return JsonResponse({"items": [_owned_item(item) for item in page[:20]],
+    reviews = edit_review.review_states(page[:20])
+    return JsonResponse({"items": [_owned_item(item, reviews[item.id]) for item in page[:20]],
                          "next_cursor": str(page[19].id) if len(page) > 20 else None})
 
 
@@ -174,6 +181,9 @@ def _manage(video_id, creator_id, data, operation):
         if duration is None and video.duration_seconds is not None:
             duration = video.duration_seconds * 1000
         values = metadata({key: value for key, value in data.items() if key in FIELDS}, duration_ms=duration)
+        if video.state == Video.State.PUBLISHED:
+            # Decision A (RV2-01): reviewed text stays live; the edit waits for moderation.
+            edit_review.submit(video, {name: values.pop(name) for name in edit_review.MATERIAL if name in values})
         changed = {name: value for name, value in values.items() if getattr(video, name) != value}
         if "cover_time_ms" in changed:
             # A cover edit clears the stale frame. For a processed video the media worker renders the new one
@@ -185,7 +195,6 @@ def _manage(video_id, creator_id, data, operation):
         for name, value in changed.items():
             setattr(video, name, value)
         if changed:
-            # M-054 says "Save changes" and does not request another review.
             video.moderation_revision += 1
             video.save(update_fields=[*changed, "moderation_revision"])
             security_audit.record("video.updated", video.id)

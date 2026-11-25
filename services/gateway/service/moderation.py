@@ -13,12 +13,12 @@ from .creator_onboarding import authenticated_actor, creator_ownership
 from .internal_client import signed_internal_request
 
 
-DETAILS = {"video_detail", "report_detail", "appeal_detail"}
+DETAILS = {"video_detail", "report_detail", "appeal_detail", "edit_detail"}
 
-QUEUES = {"review_queue", "reports", "appeals"}
+QUEUES = {"review_queue", "reports", "appeals", "edit_queue"}
 OWN_LISTS = {"own_reports", "own_appeals"}
 OWN_DETAILS = {"own_report", "own_appeal"}
-DECISIONS = {"video_decision", "report_decision", "appeal_decision"}
+DECISIONS = {"video_decision", "report_decision", "appeal_decision", "edit_decision"}
 
 
 def _valid_result(operation, result):
@@ -34,6 +34,9 @@ def _valid_result(operation, result):
                     and all(str(UUID(item)) == item for item in values))
         except (KeyError, TypeError, ValueError, AttributeError):
             return False
+    if operation == "edit_detail":
+        from .reviewer_contracts import valid_edit_detail
+        return valid_edit_detail(result)
     if operation in DETAILS:
         from .reviewer_contracts import valid_detail
         return valid_detail(result)
@@ -51,6 +54,7 @@ def _valid_result(operation, result):
             return False
         fields = {
             "review_queue": {"id", "title"},
+            "edit_queue": {"id", "video_id", "title", "submitted_at"},
             "reports": {"id", "video_id", "status", "created_at", "reason", "details"},
             "appeals": {"id", "video_id", "status", "created_at", "reason"},
             "own_reports": {"id", "video_id", "status", "created_at", "reason", "details"},
@@ -145,7 +149,7 @@ def moderation_endpoint(request, operation, target_id=None):
                 raise ValueError
             data = {}
         elif operation in QUEUES | OWN_LISTS:
-            if request.body or set(request.GET) - ({"cursor", "status"} if operation in QUEUES else {"cursor"}) or any(len(request.GET.getlist(key)) > 1 for key in request.GET):
+            if request.body or set(request.GET) - ({"cursor", "status"} if operation in QUEUES - {"edit_queue"} else {"cursor"}) or any(len(request.GET.getlist(key)) > 1 for key in request.GET):
                 raise ValueError("Invalid queue request")
             cursor = request.GET.get("cursor")
             data = {"cursor": str(UUID(cursor)) if cursor is not None else None}

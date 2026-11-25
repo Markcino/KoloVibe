@@ -83,6 +83,41 @@ class Video(models.Model):
         ]
 
 
+class MetadataRevision(models.Model):
+    """Decision A (RV2-01): a proposed edit to a published video's text, held until a reviewer decides.
+
+    The approved values on the video stay live while a revision is pending. A newer edit supersedes the pending one,
+    so repeated edits never skip review, and rows are kept as history: only the status moves forward.
+    """
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending review"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+        SUPERSEDED = "superseded", "Superseded by a newer edit"
+        WITHDRAWN = "withdrawn", "Withdrawn"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    video = models.ForeignKey(Video, on_delete=models.PROTECT, related_name="metadata_revisions")
+    proposed = models.JSONField()
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
+    created_at = models.DateTimeField(default=timezone.now)
+    decided_at = models.DateTimeField(null=True, blank=True)
+    decision_id = models.UUIDField(null=True, blank=True, unique=True)
+    reason_code = models.CharField(max_length=64, null=True, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["status", "id"], name="content_revision_queue_idx"),
+                   models.Index(fields=["video", "-created_at"], name="content_revision_video_idx")]
+        constraints = [
+            models.UniqueConstraint(fields=["video"], condition=Q(status="pending"), name="content_one_pending_revision"),
+            models.CheckConstraint(condition=Q(status__in=["pending", "approved", "rejected", "superseded", "withdrawn"]),
+                                   name="content_revision_status"),
+            models.CheckConstraint(condition=Q(status="pending", decided_at__isnull=True)
+                                   | (~Q(status="pending") & Q(decided_at__isnull=False)),
+                                   name="content_revision_decided_at"),
+        ]
+
+
 class ModerationReceipt(models.Model):
     action_id = models.UUIDField(primary_key=True)
     video_id = models.UUIDField()

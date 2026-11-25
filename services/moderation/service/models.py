@@ -123,3 +123,31 @@ class CopyrightStrike(models.Model):
     removal = models.OneToOneField(ModerationAction, primary_key=True, on_delete=models.PROTECT)
     creator_id = models.UUIDField(db_index=True)
     reversed_by = models.OneToOneField(ModerationAction, null=True, on_delete=models.PROTECT, related_name="reversed_copyright_strike")
+
+
+class EditDecision(models.Model):
+    """Decision A (RV2-01): one reviewer's decision on a held edit to a published video.
+
+    Recorded before Content applies it, so a lost answer is replayed with the same id. A revision gets at most
+    one decision that did not conflict.
+    """
+    id = models.UUIDField(primary_key=True, editable=False)
+    revision_id = models.UUIDField()
+    video_id = models.UUIDField(db_index=True)
+    creator_id = models.UUIDField(db_index=True)
+    reviewer_id = models.UUIDField()
+    action = models.CharField(max_length=8, choices=[("approve", "approve"), ("reject", "reject")])
+    reason = models.TextField(max_length=2000)
+    reason_code = models.CharField(max_length=64)
+    status = models.CharField(max_length=16, default="pending")
+    created_at = models.DateTimeField(auto_now_add=True)
+    finished_at = models.DateTimeField(null=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["revision_id"], condition=~Q(status="conflict"),
+                                    name="mod_one_decision_per_edit"),
+            models.CheckConstraint(condition=Q(action__in=["approve", "reject"]), name="mod_edit_decision_action"),
+            models.CheckConstraint(condition=Q(status__in=["pending", "applied", "conflict"]),
+                                   name="mod_edit_decision_status"),
+        ]
