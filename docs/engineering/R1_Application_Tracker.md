@@ -35,7 +35,7 @@ Source: [Phase 0 baseline](Phase0_Implementation_Baseline_2026-11-23.md), which 
 | Public video/creator discovery and search | content, creators, gateway | M-017–M-028 wired | none | `GET /videos`, `/creators/*` | public allow-list; `user_id` removed from public creator reads | content 123 | **Deployed, awaiting acceptance** (feed 200; empty) | No published content; no leak regression test | P1-05 |
 | Video upload to R2, FFmpeg processing, review, publish | content, media worker, gateway | M-041–M-052 wired | review preview | DOC-205 | signed size/type, create-only PUT, no-shell FFmpeg, DEC-005 gate | content 123; image E2E in CI | **Implemented, awaiting integration** | Live R2/FFmpeg/RabbitMQ untested; worker sandbox; R2 lifecycle | B-10 |
 | Authorized playback | content, gateway | M-024–M-035 (`video_player`) | admin preview | `/videos/{id}/playback` | 5-minute links, published+approved only | included above | **Partial** | No device playback evidence | B-12 |
-| Post-approval metadata edits | content | M-054 | none | `PATCH /videos/{id}` | Published videos can change with no re-review (R-03) | included above | **Blocked by approval** | Owner decision: re-review or risk acceptance | B-08 |
+| Post-approval metadata edits | content, moderation | M-054 shows the review state | Video edits review page | `PATCH /videos/{id}`, `/moderation/edits` | Decision A (25 November): edits to a published video's text are held for review (PRs #246 to #248) | content 166, moderation 78, console 184 | **Implemented, awaiting integration** | Staging and device evidence | None |
 | Likes, follows, shares | engagement, gateway | M-028–M-030 wired | none | DOC-205 | server-derived identity | engagement 67 | **Implemented, awaiting integration** | Staging activation | B-10 |
 | Qualified views and watch sessions (DEC-003) | engagement, gateway | engagement controller wired | none | `/watch-sessions`, `/engagement/watch-events` | server elapsed time, 24 h dedup, creator cap | engagement 67 | **Implemented, awaiting integration** | Live RabbitMQ; device playback | B-11 |
 | Engagement → RabbitMQ → Points delivery | engagement, points | n/a | n/a | internal | outbox/inbox idempotency; WRITE-only publish to `kolovibe.points` | engagement 67, points 64 | **Partial** | Three fixes after v0.357.1; no live retry/dead-letter/recovery evidence. Do not change permissions | B-11 (owner-run) |
@@ -201,6 +201,10 @@ Full record: [Phase 11 report](phase11/Phase11_Test_Report.md), [matrix](phase11
 | Registration enumeration and no registration limit (D11-003, D11-004) | Identity | n/a | n/a | n/a | DOC-205 declares the 409 | ADR-013 | T1_03, T1_94 FAIL | **Defects (Medium)** | Fix, policy value | Owner |
 | Validation before authorization; console overflow at 320 px (D11-005, D11-006) | Gateway, Business | n/a | console CSS | n/a | n/a | Low | T1_31, T4_23, T9_32 FAIL | **Defects (Low)** | None | None |
 | Accounts, sessions, MFA, object-level authorization, media validation, engagement and points on a real broker, Business isolation, console sessions and CSRF | all | n/a | yes | yes | yes | tested black-box | 122 PASS of 130 new tests | **Verified (local, repository scope)** | Device and staging gates | Owner |
+
+### Execution progress (25 November 2026)
+
+Resume from [EXECUTION_PROGRESS.md](reverification/EXECUTION_PROGRESS.md), which records the phase status, the completed work packages and the next task under the re-issued mandate. Decision A (re-review of published-video edits) merged in PRs #246 to #248.
 
 ### Owner decisions A to J (25 November 2026)
 
