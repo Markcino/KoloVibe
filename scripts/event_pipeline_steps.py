@@ -261,6 +261,60 @@ def points_ledger_rules(arguments):
         creator_user_id=creator).values_list("delta", flat=True))}
 
 
+def _outbox_counts():
+    from django.db import connection
+
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT count(*), count(published_at), coalesce(sum(attempts), 0) FROM event_outbox")
+        total, published, attempts = cursor.fetchone()
+    return {"outbox_total": total, "outbox_published": published, "attempts": int(attempts)}
+
+
+# --- steps for scripts/verify_event_pipeline_broker.py: the same code, against a real RabbitMQ ----------------------
+
+def engagement_dispatch_real(arguments):
+    """Publish through the service's own Celery app (real AMQPS connection, real account permissions)."""
+    from service import events
+    from service.celery_app import app
+
+    errors, detail = [], ""
+    for _ in range(arguments.get("limit", 50)):
+        try:
+            if not events.dispatch_one(app):
+                break
+        except Exception as error:  # a type name and the broker's own refusal text; the outbox must keep the event
+            errors.append(type(error).__name__)
+            detail = str(error)[:200]
+            break
+    return {"errors": errors, "detail": detail if errors else "", **_outbox_counts()}
+
+
+def engagement_reset_outbox(arguments):
+    """Make every published event unpublished again: the broker then sees the same event id a second time."""
+    from django.db import connection
+
+    with connection.cursor() as cursor:
+        cursor.execute("UPDATE event_outbox SET published_at = NULL")
+    return _outbox_counts()
+
+
+def engagement_record_other(arguments):
+    """An outbox event that is not a qualified view: it travels to Engagement's own queue."""
+    from django.db import transaction
+    from service import events
+
+    with transaction.atomic():
+        return {"event_id": events.record_event(arguments.get("event_type", "foundation.ping"), {"n": 1})}
+
+
+def points_worker(arguments):
+    """The production worker entry point (queue and options exactly as the shared image runs them). Blocks."""
+    from staging_runtime import roles
+
+    roles.run_celery("service.celery_app:app", "kolovibe.points")
+    return {}
+
+
 if __name__ == "__main__":
     service, step = sys.argv[1], sys.argv[2]
     setup(service)

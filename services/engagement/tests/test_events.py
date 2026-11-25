@@ -89,11 +89,46 @@ class OutboxPublishPermissionTests(SimpleTestCase):
 
         self.assertEqual(published, [("kolovibe.points", "kolovibe.points")])
 
-    def test_engagement_queue_routing_unchanged(self):
+    def test_engagement_queue_uses_its_named_exchange_never_the_default(self):
+        """Publishing through the default exchange routes by name to ANY queue, so the account could not be limited."""
         app, _ = self.dispatch("engagement.received")
         options = app.send_task.call_args.kwargs
+        queue = options["queue"]
         self.assertEqual(app.send_task.call_args.args[0], events.TASK_NAME)
-        self.assertEqual(options["queue"], "kolovibe.engagement")
+        self.assertEqual((queue.name, queue.exchange.name, queue.routing_key),
+                         ("kolovibe.engagement",) * 3)
+        self.assertEqual((options["exchange"], options["routing_key"]), ("kolovibe.engagement",) * 2)
+        self.assertTrue(queue.no_declare and queue.exchange.no_declare)
+        self.assertNotIn(options["exchange"], ("", "amq.default", "kolovibe.points"))
+
+    def test_engagement_queue_actual_celery_publish_uses_named_exchange(self):
+        """Celery's own routing (not just the Queue metadata) must not fall back to the default exchange."""
+        from celery import Celery
+        from kombu.transport import memory
+
+        app = Celery("kolovibe-publish-route-test", broker="memory://")
+        app.conf.update(task_default_queue="kolovibe.engagement", task_serializer="json",
+                        task_ignore_result=True, result_backend=None)
+        db = MagicMock()
+        cursor = db.cursor.return_value.__enter__.return_value
+        cursor.fetchone.return_value = (UUID("d37b09c2-934f-4b69-ad5f-d41f4a3d8096"), "engagement.received", {})
+        published = []
+
+        def reject_declaration(*args, **kwargs):
+            raise AssertionError("Publisher must not declare or bind broker resources")
+
+        def capture_publish(channel, message, **kwargs):
+            published.append((kwargs.get("exchange"), kwargs.get("routing_key")))
+
+        with (
+            patch.object(events, "connection", db),
+            patch.object(events.transaction, "atomic", return_value=nullcontext()),
+            patch.object(memory.Channel, "queue_bind", new=reject_declaration),
+            patch.object(memory.Channel, "exchange_declare", new=reject_declaration),
+            patch.object(memory.Channel, "basic_publish", new=capture_publish),
+        ):
+            self.assertTrue(events.dispatch_one(app))
+        self.assertEqual(published, [("kolovibe.engagement", "kolovibe.engagement")])
 
     def test_failed_publish_does_not_acknowledge_outbox(self):
         app = MagicMock()

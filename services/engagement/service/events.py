@@ -24,6 +24,32 @@ def record_event(event_type, payload):
         )
     return str(ident)
 
+
+def _destination(event_type):
+    """The pre-provisioned queue an event travels to: (task name, Queue, publish options). Nothing is declared here.
+
+    A qualified view goes to Points; every other event goes to Engagement's own queue. In both cases the message is published
+    to the destination's NAMED exchange with an explicit routing key and without declaring the queue or exchange. The
+    owning worker creates and binds them. A producer-side declaration needs READ on the exchange, and since the exchange and
+    queue share a name, that right would also let the Engagement account consume the Points queue. Publishing through the
+    default exchange is not an option either: it routes by queue name to ANY queue, so granting it would let this account
+    write to Points directly. Celery selects the default exchange for a bare queue name, hence the explicit options.
+    """
+    from kombu import Exchange, Queue
+
+    if event_type == QUALIFIED_VIEW:
+        task_name, name = "kolovibe.points.event", "kolovibe.points"
+    else:
+        task_name, name = TASK_NAME, f"kolovibe.{SERVICE}"
+    queue = Queue(
+        name,
+        exchange=Exchange(name, type="direct", durable=True, no_declare=True),
+        routing_key=name,
+        durable=True,
+        no_declare=True,
+    )
+    return task_name, queue, {"exchange": name, "routing_key": name}
+
 def dispatch_one(celery_app):
     """At-least-once dispatch: publishing may succeed before DB acknowledgment."""
     with transaction.atomic():
@@ -39,29 +65,7 @@ def dispatch_one(celery_app):
             ident, event_type, payload = row
             if isinstance(payload, str):
                 payload = json.loads(payload)
-            if event_type == QUALIFIED_VIEW:
-                from kombu import Exchange, Queue
-
-                task_name = "kolovibe.points.event"
-                # The Points worker owns this pre-provisioned durable queue and its binding.
-                # A producer-side Queue declaration tries queue.bind and requires READ on
-                # the Points exchange. Since the exchange and queue share a name, granting
-                # that READ right would also permit the Engagement user to consume points.
-                # Publish to the existing binding without re-declaring broker resources.
-                queue = Queue(
-                    "kolovibe.points",
-                    exchange=Exchange("kolovibe.points", type="direct", durable=True, no_declare=True),
-                    routing_key="kolovibe.points",
-                    durable=True,
-                    no_declare=True,
-                )
-                # Celery selects amq.default for direct queues when no explicit
-                # exchange/routing_key is supplied. The Engagement user is only
-                # permitted to WRITE to the pre-provisioned Points exchange.
-                publish_options = {"exchange": "kolovibe.points", "routing_key": "kolovibe.points"}
-            else:
-                task_name, queue = TASK_NAME, f"kolovibe.{SERVICE}"
-                publish_options = {}
+            task_name, queue, publish_options = _destination(event_type)
             celery_app.send_task(
                 task_name,
                 args=[str(ident), event_type, payload],
