@@ -1,0 +1,18 @@
+{% extends 'base_admin.html' %}
+{% block title %}{{ title }} · KoloVibe{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Enforcement</p><h1>{{ title }}</h1><p class="supporting-text">Warnings, restrictions and suspensions on creators. Find a creator by handle, or open one by creator ID.</p></div>
+<a class="button button-outline" href="{% url 'creator-measure-appeals' %}">Open appeals</a></div>
+{% if error %}<p class="notice error" role="alert">{{ error }}</p>{% endif %}
+<section class="panel" aria-labelledby="find-title"><div class="section-heading"><div><p class="eyebrow">Find</p><h2 id="find-title">Find a creator</h2></div></div>
+<form method="get" class="assign-form"><label>Handle<input type="search" name="q" maxlength="100" autocomplete="off" value="{{ query|default:'' }}" required></label><button type="submit">Search</button></form>
+<form method="get" class="assign-form"><label>Creator ID<input type="text" name="creator" maxlength="36" autocomplete="off" required pattern="[0-9a-fA-F-]{36}"></label><button type="submit" class="button-outline">Open</button></form>
+</section>
+{% if results is not None %}<section class="panel table-panel" aria-labelledby="results-title"><div class="section-heading"><div><p class="eyebrow">Results</p><h2 id="results-title">Creators</h2></div></div>
+<div class="table-scroll" role="region" aria-label="Creator search results" tabindex="0"><table><caption class="visually-hidden">Creators matching the handle</caption>
+<thead><tr><th scope="col">Creator</th><th scope="col">Creator ID</th><th scope="col">Measures</th></tr></thead><tbody>
+{% for item in results %}<tr><td data-label="Creator"><strong>@{{ item.handle }}</strong>{% if item.display_name %} <small>{{ item.display_name }}</small>{% endif %}</td>
+<td data-label="Creator ID"><code title="{{ item.id }}">{{ item.id|slice:':8' }}</code></td>
+<td data-label="Measures"><a href="{% url 'creator-measures' item.id %}" aria-label="Measures for @{{ item.handle }}">Open</a></td></tr>
+{% empty %}<tr><td colspan="3">No creators match that handle. Restricted creators may not appear in search; open them by creator ID.</td></tr>{% endfor %}</tbody></table></div></section>{% endif %}
+{% endblock %}
