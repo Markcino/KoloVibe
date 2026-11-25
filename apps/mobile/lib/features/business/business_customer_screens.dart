@@ -12,15 +12,6 @@ import 'business_screens.dart';
 import 'business_ui.dart';
 import 'live_business_repository.dart';
 
-void _go(BuildContext context, int screen, {String? entityId}) =>
-    openBusiness(context, screen, entityId: entityId);
-
-/// Replaces the current screen, so back does not return to a finished form.
-void _replace(BuildContext context, int screen, {String? entityId}) {
-  final route = ScreenRoute(screen, entityId: entityId);
-  Navigator.of(context).pushReplacementNamed(route.name, arguments: route);
-}
-
 /// A failed send, with a sign-in button when the session ended.
 class _SendError extends StatelessWidget {
   const _SendError(
@@ -103,7 +94,7 @@ class _BusinessAskScreenState extends State<BusinessAskScreen> {
       if (!mounted) return;
       _sent = true;
       notifySuccess(context, 'Question sent');
-      _replace(context, BusinessScreens.conversation, entityId: thread.id);
+      replaceBusiness(context, BusinessScreens.conversation, entityId: thread.id);
     } catch (error) {
       if (mounted) setState(() => _error = error);
     } finally {
@@ -171,7 +162,7 @@ class _BusinessAskScreenState extends State<BusinessAskScreen> {
                       ? 'Open my questions'
                       : null,
                   onAction: () =>
-                      _replace(context, BusinessScreens.myInquiries),
+                      replaceBusiness(context, BusinessScreens.myInquiries),
                 ),
               FilledButton(
                   onPressed: _busy ? null : _send,
@@ -205,7 +196,7 @@ class BusinessMyInquiriesScreen extends StatelessWidget {
             message: 'Questions you send to businesses appear here.',
             icon: Icons.forum_outlined,
             actionLabel: 'Find a business',
-            onAction: () => _go(context, BusinessScreens.results),
+            onAction: () => openBusiness(context, BusinessScreens.results),
           ),
           itemBuilder: (context, inquiry) => KoloListRow(
             title: inquiry.businessName,
@@ -215,7 +206,7 @@ class BusinessMyInquiriesScreen extends StatelessWidget {
               inquiryStateLabel(inquiry.state),
               dateLabel(inquiry.createdAt),
             ].join(' · '),
-            onTap: () => _go(context, BusinessScreens.conversation,
+            onTap: () => openBusiness(context, BusinessScreens.conversation,
                 entityId: inquiry.id),
           ),
         ),
@@ -388,7 +379,7 @@ class _ConversationState extends State<_Conversation> {
               child: const Text('We dealt with each other')),
         if (both)
           FilledButton(
-              onPressed: () => _go(context, BusinessScreens.writeReview,
+              onPressed: () => openBusiness(context, BusinessScreens.writeReview,
                   entityId:
                       ReviewTarget(inquiry.businessId, inquiry.id).encoded),
               child: const Text('Write a review')),
@@ -397,7 +388,7 @@ class _ConversationState extends State<_Conversation> {
               onPressed: _busy ? null : _close,
               child: const Text('Close conversation')),
         TextButton(
-            onPressed: () => _go(context, BusinessScreens.detail,
+            onPressed: () => openBusiness(context, BusinessScreens.detail,
                 entityId: inquiry.businessId),
             child: const Text('View business')),
       ],
@@ -428,7 +419,7 @@ class _ConversationState extends State<_Conversation> {
             Text(dateLabel(message.createdAt), style: KoloVibeText.body(11)),
             if (!message.removed)
               TextButton(
-                onPressed: () => _go(context, BusinessScreens.report,
+                onPressed: () => openBusiness(context, BusinessScreens.report,
                     entityId:
                         ReportTarget('inquiry_message', message.id).encoded),
                 child: const Text('Report'),
@@ -515,7 +506,7 @@ class _BusinessWriteReviewScreenState extends State<BusinessWriteReviewScreen> {
           review.state == ReviewState.published
               ? 'Review published'
               : 'Review received. It will appear once it has been checked.');
-      _replace(context, BusinessScreens.myReviews);
+      replaceBusiness(context, BusinessScreens.myReviews);
     } catch (error) {
       if (mounted) setState(() => _error = error);
     } finally {
@@ -618,7 +609,7 @@ class _BusinessWriteReviewScreenState extends State<BusinessWriteReviewScreen> {
                   actionLabel: failureText(_error!).contains('already reviewed')
                       ? 'Open my reviews'
                       : null,
-                  onAction: () => _replace(context, BusinessScreens.myReviews),
+                  onAction: () => replaceBusiness(context, BusinessScreens.myReviews),
                 ),
               FilledButton(
                   onPressed: _busy ? null : _submit,
@@ -667,11 +658,11 @@ class _BusinessMyReviewsScreenState extends State<BusinessMyReviewsScreen> {
             message: 'Reviews you write appear here.',
             icon: Icons.rate_review_outlined,
             actionLabel: 'Find a business',
-            onAction: () => _go(context, BusinessScreens.results),
+            onAction: () => openBusiness(context, BusinessScreens.results),
           ),
           itemBuilder: (context, review) => _OwnReviewTile(
             review: review,
-            onView: () => _go(context, BusinessScreens.detail,
+            onView: () => openBusiness(context, BusinessScreens.detail,
                 entityId: review.businessId),
             onEdit: () => _open(BusinessScreens.editReview, review.id),
             onWithdraw: () => _open(BusinessScreens.withdrawReview, review.id),

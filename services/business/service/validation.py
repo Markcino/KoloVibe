@@ -1,8 +1,11 @@
 """Allowlist field validation: unknown fields, wrong types, control characters and out-of-bounds values are 400."""
+import re
 import unicodedata
 from uuid import UUID
 
 from .errors import ApiError
+
+CODE = re.compile(r"[a-z][a-z_]{2,39}")
 
 
 def invalid(detail="Invalid request"):
@@ -30,6 +33,13 @@ def uuid_text(value):
     if str(parsed) != value:
         raise invalid()
     return parsed
+
+
+def code_text(value):
+    """A reason, evidence or subject code: lower-case words joined by underscores, 3 to 40 characters."""
+    if not isinstance(value, str) or not CODE.fullmatch(value):
+        raise invalid()
+    return value
 
 
 def boolean(value):
@@ -61,3 +71,7 @@ def page_params(data, page_size):
     if type(limit) is not int or not 1 <= limit <= page_size:
         raise invalid()
     return cursor, limit
+
+
+# The cursor/limit pair every paged operation accepts, for `parse(data, PAGE)`.
+PAGE = {"cursor": (lambda v: v, False), "limit": (lambda v: v, False)}

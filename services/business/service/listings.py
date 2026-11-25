@@ -23,8 +23,7 @@ from .errors import ApiError, not_found
 from .models import Business, BusinessListing, ProfileRevision
 from .validation import clean_text, parse, uuid_text
 
-CUSTOMER = ("viewer", "creator")
-EVERYONE = ("anonymous", "viewer", "creator", "moderator", "administrator")
+CUSTOMER, EVERYONE = authz.CUSTOMER, authz.EVERYONE
 OWNER = authz.OWNER
 
 

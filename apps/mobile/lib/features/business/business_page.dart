@@ -84,3 +84,13 @@ void openBusiness(BuildContext context, int screen,
   final route = ScreenRoute(screen, entityId: entityId, returnTo: returnTo);
   Navigator.of(context).pushNamed(route.name, arguments: route);
 }
+
+/// Opens the one sign-in screen (M-004). After signing in the person returns to [returnTo].
+void signInForBusiness(BuildContext context, int returnTo) =>
+    openBusiness(context, 4, returnTo: returnTo);
+
+/// Replaces the current screen, so back does not return to a finished form.
+void replaceBusiness(BuildContext context, int screen, {String? entityId}) {
+  final route = ScreenRoute(screen, entityId: entityId);
+  Navigator.of(context).pushReplacementNamed(route.name, arguments: route);
+}

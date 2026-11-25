@@ -7,10 +7,8 @@ use a Business-local queue for now: generalising the Moderation service (DR-BZ-1
 """
 import hashlib
 import hmac
-import re
 import secrets
 import unicodedata
-from datetime import timedelta
 from uuid import UUID
 
 from django.conf import settings
@@ -22,22 +20,12 @@ from .api import Result, operation, NIL_ACTOR
 from .errors import ApiError, not_found
 from .models import (Business, BusinessListing, BusinessReport, InquiryMessage, InquiryThread, Review,
                      ReviewAggregate, ReviewInvitation, ReviewResponse)
-from .validation import clean_text, page_params, parse, uuid_text
+from .validation import PAGE, clean_text, code_text, page_params, parse, uuid_text
 
-CUSTOMER = ("viewer", "creator")
-REVIEWERS = ("moderator", "administrator")
-EVERYONE = ("anonymous",) + CUSTOMER + REVIEWERS
+CUSTOMER, REVIEWERS, EVERYONE = authz.CUSTOMER, authz.REVIEWERS, authz.EVERYONE
 OWNER = authz.OWNER
 R = Review.State
 SYSTEM = UUID(NIL_ACTOR)
-CODE = re.compile(r"[a-z][a-z_]{2,39}")
-PAGE = {"cursor": (lambda v: v, False), "limit": (lambda v: v, False)}
-
-
-def _code(value):
-    if not isinstance(value, str) or not CODE.fullmatch(value):
-        raise ApiError(400, "Invalid request")
-    return value
 
 
 def _rating(value):
@@ -371,7 +359,7 @@ def _subject(ctx, subject_type, subject_id):
 
 @operation("report_create", roles=CUSTOMER, verified_email=True, idempotent=True, budget="report_create")
 def report_create(ctx, data):
-    fields = parse(data, {"subject_type": (lambda v: v, True), "subject_id": (uuid_text, True), "reason_code": (_code, True),
+    fields = parse(data, {"subject_type": (lambda v: v, True), "subject_id": (uuid_text, True), "reason_code": (code_text, True),
                           "details": (lambda v: clean_text(v, 0, 1000, multiline=True), False)})
     if fields["subject_type"] not in BusinessReport.Subject.values:
         raise ApiError(400, "Invalid request")
@@ -443,7 +431,7 @@ def report_case(ctx, data):
 
 @operation("report_decide", roles=REVIEWERS, mfa=True, idempotent=True)
 def report_decide(ctx, data):
-    fields = parse(data, {"report_id": (uuid_text, True), "decision": (lambda v: v, True), "reason_code": (_code, True)})
+    fields = parse(data, {"report_id": (uuid_text, True), "decision": (lambda v: v, True), "reason_code": (code_text, True)})
     decision = fields["decision"]
     if decision not in ("remove", "keep"):
         raise ApiError(400, "Invalid request")

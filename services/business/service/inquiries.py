@@ -11,20 +11,11 @@ from . import authz, limits, security_audit, throttle
 from .api import Result, operation
 from .errors import ApiError, not_found
 from .models import Business, BusinessListing, InquiryBlock, InquiryMessage, InquiryThread
-from .validation import clean_text, page_params, parse, uuid_text
-import re
+from .validation import PAGE, clean_text, code_text, page_params, parse, uuid_text
 
-CUSTOMER = ("viewer", "creator")
+CUSTOMER = authz.CUSTOMER
 OWNER, STAFF = authz.OWNER, authz.STAFF
 T = InquiryThread.State
-SUBJECT = re.compile(r"[a-z][a-z_]{2,39}")
-PAGE = {"cursor": (lambda v: v, False), "limit": (lambda v: v, False)}
-
-
-def _subject(value):
-    if not isinstance(value, str) or not SUBJECT.fullmatch(value):
-        raise ApiError(400, "Invalid request")
-    return value
 
 
 def _body(value):
@@ -95,7 +86,7 @@ def _business_thread(ctx, business_id, thread_id, roles=(OWNER, STAFF), *, lock=
 # ---- customer ------------------------------------------------------------------------------------------------------
 @operation("inquiry_create", roles=CUSTOMER, verified_email=True, idempotent=True, budget="inquiry_create")
 def inquiry_create(ctx, data):
-    fields = parse(data, {"business_id": (uuid_text, True), "subject_code": (_subject, True), "body": (_body, True)})
+    fields = parse(data, {"business_id": (uuid_text, True), "subject_code": (code_text, True), "body": (_body, True)})
     with transaction.atomic():
         listing = BusinessListing.objects.filter(business_id=fields["business_id"]).first()
         business = Business.objects.select_for_update().filter(pk=fields["business_id"]).first()

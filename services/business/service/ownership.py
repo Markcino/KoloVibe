@@ -10,11 +10,11 @@ from django.utils import timezone
 from . import authz, limits, security_audit, step_up
 from .api import Result, operation
 from .errors import ApiError, not_found
-from .models import Business, BusinessMembership, RegistrationGrant, StaffInvitation
+from .models import Business, RegistrationGrant, StaffInvitation
 from .present import business_view, invitation_view, member_view
-from .validation import boolean, clean_text, invalid, page_params, parse, uuid_text
+from .validation import PAGE, boolean, clean_text, page_params, parse, uuid_text
 
-CUSTOMER = ("viewer", "creator")  # moderators and administrators can never hold a membership (conflict of interest)
+CUSTOMER = authz.CUSTOMER  # moderators and administrators can never hold a membership (conflict of interest)
 OWNER, STAFF = authz.OWNER, authz.STAFF
 
 
@@ -44,7 +44,7 @@ def register(ctx, data):
 
 @operation("list_mine", roles=CUSTOMER, budget="read")
 def list_mine(ctx, data):
-    cursor, limit = page_params(parse(data, {"cursor": (lambda v: v, False), "limit": (lambda v: v, False)}),
+    cursor, limit = page_params(parse(data, PAGE),
                                 limits.PAGE_SIZE)
     query = authz.memberships_of(ctx.actor_id).order_by("id")
     if cursor is not None:
