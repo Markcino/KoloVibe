@@ -150,3 +150,48 @@ def process(video_id):
     else:
         _finish(upload, token, Video.State.REVIEW,
                 key=key, duration=duration, poster=poster_key, outcome=outcome, screening_result=screening_result)
+
+
+# States that carry a processed rendition; `processing` is excluded because the full pipeline owns the poster there.
+PROCESSED_STATES = (Video.State.REVIEW, Video.State.PUBLISHED, Video.State.REJECTED)
+
+
+def render_cover(video_id):
+    """Render a new poster after a cover edit on a processed video (D-P2-01). Returns True when one was stored.
+
+    Reads the private rendition the video already has, so publication, visibility and moderation state never change.
+    Safe to repeat: it acts only while the poster is missing, and a frame rendered for a cover that changed meanwhile
+    is discarded because the newer edit queues its own render. Storage and encoder outages propagate for retry; an
+    unrenderable frame leaves the video playable without a poster.
+    """
+    video = (Video.objects.filter(pk=video_id, deleted_at__isnull=True, poster_asset_id__isnull=True,
+                                  state__in=PROCESSED_STATES)
+             .exclude(provider_asset_id__isnull=True).exclude(provider_asset_id="").first())
+    if video is None:
+        return False
+    duration = video.duration_ms
+    if duration is None and video.duration_seconds is not None:
+        duration = video.duration_seconds * 1000
+    if not duration:
+        return False
+    rendition, cover = video.provider_asset_id, video.cover_time_ms
+    frame = cover if cover is not None else (1000 if duration > 1000 else 0)
+    poster_key = f"posters/{video.id}/{uuid4()}.jpg"
+    with TemporaryDirectory(prefix="kolovibe-cover-") as directory:
+        source, poster = Path(directory) / "playback.mp4", Path(directory) / "poster.jpg"
+        media_storage.download_playback(rendition, source)
+        try:
+            media_encoding.render_poster(source, poster, frame, duration)
+        except media_encoding.InvalidMedia:
+            return False
+        # Upload before taking the row lock: no network work under a lock. A discarded frame leaves an orphan
+        # private object under a fresh key, removed by the media lifecycle rule (RV2-04), never served.
+        media_storage.put_poster(poster_key, poster)
+        with transaction.atomic():
+            current = Video.objects.select_for_update().filter(pk=video.pk, deleted_at__isnull=True).first()
+            if (current is None or current.poster_asset_id is not None or current.provider_asset_id != rendition
+                    or current.cover_time_ms != cover or current.state not in PROCESSED_STATES):
+                return False
+            current.poster_asset_id = poster_key
+            current.save(update_fields=["poster_asset_id"])
+    return True

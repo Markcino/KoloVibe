@@ -21,7 +21,15 @@ def stalled_uploads(now, stalled_minutes=DEFAULT_STALLED_MINUTES):
             .order_by("expires_at", "id"))
 
 
-def requeue(now=None, *, limit=100, stalled_minutes=DEFAULT_STALLED_MINUTES, enqueue=None):
+def posterless_videos():
+    """Processed, undeleted videos whose poster was cleared by a cover edit and not yet re-rendered. Read-only."""
+    from service.media_processing import PROCESSED_STATES
+
+    return (Video.objects.filter(deleted_at__isnull=True, poster_asset_id__isnull=True, state__in=PROCESSED_STATES)
+            .exclude(provider_asset_id__isnull=True).exclude(provider_asset_id="").order_by("created_at", "id"))
+
+
+def requeue(now=None, *, limit=100, stalled_minutes=DEFAULT_STALLED_MINUTES, enqueue=None, enqueue_cover=None):
     """Re-publish the processing task for stalled videos; returns (requeued, failed) counts.
 
     Safe to repeat: the worker claims each video under a lease, so a duplicate message does nothing while another
@@ -33,6 +41,8 @@ def requeue(now=None, *, limit=100, stalled_minutes=DEFAULT_STALLED_MINUTES, enq
         raise ValueError("Stalled threshold must be between 5 and 1440 minutes")
     if enqueue is None:
         from service.media_api import _enqueue as enqueue
+    if enqueue_cover is None:
+        from service.media_api import _enqueue_cover as enqueue_cover
     now = now or timezone.now()
     requeued = failed = 0
     for video_id in list(stalled_uploads(now, stalled_minutes).values_list("video_id", flat=True)[:limit]):
@@ -41,12 +51,20 @@ def requeue(now=None, *, limit=100, stalled_minutes=DEFAULT_STALLED_MINUTES, enq
             requeued += 1
         except Exception:  # broker unavailable: leave it for the next run, never raise the identifier or message
             failed += 1
+    # Cover renders share the budget: a render is idempotent while the poster is missing (D-P2-01).
+    for video_id in list(posterless_videos().values_list("id", flat=True)[:max(0, limit - requeued - failed)]):
+        try:
+            enqueue_cover(video_id)
+            requeued += 1
+        except Exception:
+            failed += 1
     return requeued, failed
 
 
 class Command(BaseCommand):
     help = ("Re-publish the processing task for videos stuck in `processing` (lost broker message or exhausted "
-            "retries). Prints counts only; safe to repeat.")
+            "retries) and the cover render for processed videos left without a poster. Prints counts only; safe to "
+            "repeat.")
 
     def add_arguments(self, parser):
         parser.add_argument("--limit", type=int, default=100)

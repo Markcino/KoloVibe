@@ -34,7 +34,7 @@
 
 | | |
 | --- | --- |
-| What | Re-publishes the processing task for videos stuck in `processing` after a lost broker message or exhausted retries: a stored source, no live lease and past the stalled threshold. Safe to repeat: a worker claims each video under a lease, so a duplicate message does nothing while another worker holds it. Design: `docs/engineering/phase3/P3-01_requeue_stalled_media.md` |
+| What | Re-publishes the processing task for videos stuck in `processing` after a lost broker message or exhausted retries: a stored source, no live lease and past the stalled threshold. Safe to repeat: a worker claims each video under a lease, so a duplicate message does nothing while another worker holds it. Since D-P2-01 it also re-queues the cover render for processed videos whose poster a cover edit cleared (idempotent while the poster is missing; shares the `--limit` budget). Design: `docs/engineering/phase3/P3-01_requeue_stalled_media.md` |
 | Run | `python manage.py requeue_stalled_media --limit 100 --stalled-minutes 15` in the Content image (limit 1 to 500; threshold 5 to 1440 minutes) |
 | Output | `requeued: N` and `failed: M` |
 | Cadence | every 15 to 30 minutes during upload activity, and once after any broker or media-worker outage |

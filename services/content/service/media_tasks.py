@@ -60,3 +60,13 @@ def process_video(self, video_id):
         raise self.retry(countdown=60) from None
     except (media_storage.StorageUnavailable, media_encoding.EncoderUnavailable, DatabaseError, OSError):
         raise self.retry(countdown=min(30 * (self.request.retries + 1), 180)) from None
+
+
+@app.task(bind=True, name="kolovibe.content.render_cover", max_retries=12)
+def render_cover(self, video_id):
+    from .media_processing import render_cover as render
+
+    try:
+        render(video_id)
+    except (media_storage.StorageUnavailable, media_encoding.EncoderUnavailable, DatabaseError, OSError):
+        raise self.retry(countdown=min(30 * (self.request.retries + 1), 180)) from None
