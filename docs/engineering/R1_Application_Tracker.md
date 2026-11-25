@@ -201,6 +201,10 @@ Full record: [Phase 11 report](phase11/Phase11_Test_Report.md), [matrix](phase11
 | Validation before authorization; console overflow at 320 px (D11-005, D11-006) | Gateway, Business | n/a | console CSS | n/a | n/a | Low | T1_31, T4_23, T9_32 FAIL | **Defects (Low)** | None | None |
 | Accounts, sessions, MFA, object-level authorization, media validation, engagement and points on a real broker, Business isolation, console sessions and CSRF | all | n/a | yes | yes | yes | tested black-box | 122 PASS of 130 new tests | **Verified (local, repository scope)** | Device and staging gates | Owner |
 
+### Reverification Phase 3 (25 November 2026)
+
+Repository-side development, not deployed: [Phase 3 report](reverification/Phase3_Core_Completion_Report_2026-11-25.md). D-P2-01 fixed (PR #234), Creators and Content audit delivery D11-007 (PR #235), maintenance roles at zero replicas D11-009 (PR #236). **Correction:** M-050 to M-052 were already live in-flow states; the Phase 1 and 2 gap was a false positive. Dead letters stay **Blocked by approval** (RV2-03). Production NO-GO.
+
 ### Reverification Phase 2 (25 November 2026) — `main` at `8a6e7a0`
 
 Planning only: [Phase 2 requirements, architecture and plan](reverification/Phase2_Requirements_Architecture_Plan_2026-11-25.md) and the [R1 completion design (PROPOSED)](../architecture/R1_Completion_Design_PROPOSED.md). Nothing approved. Track A (no policy needed): poster re-render defect **D-P2-01**, Creators and Content audit delivery, M-050 to M-052, maintenance roles, dead-letter wiring. New decisions raised: RV2-01 (re-review of published-video edits), RV2-02 (consent record), RV2-03 (dead-letter values), RV2-04 (media retention values), X-01 (one monetary ledger).
