@@ -1,6 +1,6 @@
 # R1 application delivery tracker
 
-**Updated 25 November 2026 (Phase 12 section and reverification Phase 1 added).** Stage 3 (Technical Foundation) was **declared completed by the owner on 10 November**, while unresolved security, operations and recovery controls remain open. Stage 4 (R1 MVP implementation) and Stage 5 (verification) remain in progress on AWS staging. Production is **NO-GO**. See the [Stage 3 tracker](Stage3_Implementation_Tracker.csv) and the [current AWS release record](../operations/R1_AWS_Staging_Reconciliation_2026-11-23.md).
+**Updated 25 November 2026 (Phase 12 section and reverification Phases 1 and 2 added).** Stage 3 (Technical Foundation) was **declared completed by the owner on 10 November**, while unresolved security, operations and recovery controls remain open. Stage 4 (R1 MVP implementation) and Stage 5 (verification) remain in progress on AWS staging. Production is **NO-GO**. See the [Stage 3 tracker](Stage3_Implementation_Tracker.csv) and the [current AWS release record](../operations/R1_AWS_Staging_Reconciliation_2026-11-23.md).
 
 ## Current release checkpoint — v0.357.1 (23 November)
 
@@ -200,6 +200,10 @@ Full record: [Phase 11 report](phase11/Phase11_Test_Report.md), [matrix](phase11
 | Registration enumeration and no registration limit (D11-003, D11-004) | Identity | n/a | n/a | n/a | DOC-205 declares the 409 | ADR-013 | T1_03, T1_94 FAIL | **Defects (Medium)** | Fix, policy value | Owner |
 | Validation before authorization; console overflow at 320 px (D11-005, D11-006) | Gateway, Business | n/a | console CSS | n/a | n/a | Low | T1_31, T4_23, T9_32 FAIL | **Defects (Low)** | None | None |
 | Accounts, sessions, MFA, object-level authorization, media validation, engagement and points on a real broker, Business isolation, console sessions and CSRF | all | n/a | yes | yes | yes | tested black-box | 122 PASS of 130 new tests | **Verified (local, repository scope)** | Device and staging gates | Owner |
+
+### Reverification Phase 2 (25 November 2026) — `main` at `8a6e7a0`
+
+Planning only: [Phase 2 requirements, architecture and plan](reverification/Phase2_Requirements_Architecture_Plan_2026-11-25.md) and the [R1 completion design (PROPOSED)](../architecture/R1_Completion_Design_PROPOSED.md). Nothing approved. Track A (no policy needed): poster re-render defect **D-P2-01**, Creators and Content audit delivery, M-050 to M-052, maintenance roles, dead-letter wiring. New decisions raised: RV2-01 (re-review of published-video edits), RV2-02 (consent record), RV2-03 (dead-letter values), RV2-04 (media retention values), X-01 (one monetary ledger).
 
 ### Reverification Phase 1 (25 November 2026) — `main` at `d56e7ce`
 
