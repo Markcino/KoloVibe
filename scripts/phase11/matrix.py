@@ -17,7 +17,9 @@ GROUPS = {
 NOT_RUN = []
 PHASE12_NOTE = ("**Phase 12 regression.** Every applicable Phase 11 test was run again on the fixed build; no earlier PASS is reused. "
                 "A FAIL is either an open defect (listed in the [Phase 12 defect register](Phase12_Defect_Register.md)) or a static finding. "
-                "Every BLOCKED and NOT RUN row has a disposition and an owner in the last two columns. ")
+                "Every BLOCKED and NOT RUN row has a disposition and an owner in the last two columns. "
+                "**Follow-up (25 November 2026):** group 1 and the eight static rows were run again after the D11-003 and D12-001 fixes; "
+                "the earlier result files are kept in `results/superseded/`. ")
 
 
 def add(group, ident, name, status, reason):

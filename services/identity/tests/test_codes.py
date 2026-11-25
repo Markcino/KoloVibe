@@ -16,6 +16,7 @@ from service.models import (Account, CodeKind, EmailVerification, LoginSession, 
                             PasswordReset, SecurityEvent)
 
 EMAIL = "viewer@example.test"
+TOO_COMMON = "pass" "word"  # refused by the password validators
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
@@ -289,6 +290,71 @@ class CodeTests(TestCase):
                                                        "display_name": "Viewer"}).status_code, 201)
         self.assertEqual(self.post(accounts.register, {"email": "b@example.test", "password": self.password,
                                                        "display_name": "Viewer", "origin": "not-an-ip"}).status_code, 400)
+
+    # ---- D11-003: registration does not reveal existing accounts ------------------------------
+    def register_answer(self, email, password=None, display_name="Probe"):
+        response = self.post(accounts.register, {"email": email, "password": password or secrets.token_urlsafe(20),
+                                                 "display_name": display_name})
+        return response.status_code, json.loads(response.content)
+
+    def test_T1_03_registering_a_verified_address_answers_exactly_like_a_new_one_and_mails_only_the_owner(self):
+        account = self.verified_account()
+        before = len(mail.outbox)
+        existing = self.register_answer(EMAIL.upper())
+        new = self.register_answer("brand-new@example.test")
+        self.assertEqual(existing[0], new[0])
+        self.assertEqual(existing[0], 201)
+        self.assertEqual(set(existing[1]), set(new[1]))
+        self.assertEqual(existing[1]["verification_required"], True)
+        self.assertNotEqual(existing[1]["id"], str(account.id))  # the real identifier is never disclosed
+        self.assertFalse(Account.objects.filter(pk=existing[1]["id"]).exists())
+        self.assertEqual(Account.objects.filter(email=EMAIL).count(), 1)
+        notice = mail.outbox[before]
+        self.assertEqual(notice.to, [EMAIL])
+        self.assertIn("already has an account", notice.body)
+        self.assertFalse(re.search(r"[0-9]{6}", notice.body))  # a notice, never a code
+        account.refresh_from_db()
+        self.assertTrue(account.is_active)
+        self.assertEqual(self.post(accounts.login, {"email": EMAIL, "password": self.password}).status_code, 200)
+        self.assertTrue(SecurityEvent.objects.filter(kind="account.registration_attempt_existing",
+                                                     actor_id=account.id).exists())
+
+    def test_notices_to_an_existing_address_are_limited_per_address_and_the_answer_does_not_change(self):
+        self.verified_account()
+        before = len(mail.outbox)
+        answers = {self.register_answer(EMAIL)[0] for _ in range(accounts.CODE_SENDS_PER_HOUR + 3)}
+        self.assertEqual(answers, {201})
+        self.assertEqual(len(mail.outbox) - before, accounts.CODE_SENDS_PER_HOUR)
+
+    def test_registering_an_unverified_address_again_sends_a_fresh_code_that_replaces_the_first(self):
+        first = self.register()
+        self.age_rows(EmailVerification)
+        status, body = self.register_answer(EMAIL)
+        self.assertEqual((status, body["verification_required"]), (201, True))
+        second = self.code_in(mail.outbox[-1])
+        self.assertEqual(Account.objects.filter(email=EMAIL).count(), 1)
+        self.assertEqual(self.post(accounts.verify_email, {"email": EMAIL, "code": first}).status_code, 400)
+        self.assertEqual(self.post(accounts.verify_email, {"email": EMAIL, "code": second}).status_code, 200)
+        # Within the resend cool-down nothing is sent, and the answer is still the same.
+        before = len(mail.outbox)
+        Account.objects.filter(email=EMAIL).update(is_active=False, email_verified_at=None)
+        self.assertEqual(self.register_answer(EMAIL)[0], 201)
+        self.assertEqual(len(mail.outbox), before)
+
+    def test_invalid_input_for_an_existing_address_is_refused_exactly_as_for_a_new_one(self):
+        self.verified_account()
+        for email in (EMAIL, "fresh@example.test"):
+            with self.subTest(email=email):
+                self.assertEqual(self.register_answer(email, password=TOO_COMMON)[0], 400)
+                self.assertEqual(self.register_answer(email, display_name="x")[0], 400)
+
+    def test_mail_failure_for_an_existing_address_answers_like_a_new_one(self):
+        self.verified_account()
+        for email in (EMAIL, "fresh@example.test"):
+            with self.subTest(email=email), patch("service.accounts.send_mail", side_effect=smtplib.SMTPException), \
+                    self.assertLogs("service.accounts", level="ERROR"):
+                self.assertEqual(self.register_answer(email)[0], 503)
+        self.assertFalse(Account.objects.filter(email="fresh@example.test").exists())
 
     # ---- password reset --------------------------------------------------------------------
     def test_reset_code_flow_revokes_sessions_and_is_single_use(self):

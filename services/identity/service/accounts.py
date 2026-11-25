@@ -365,20 +365,56 @@ def register(request):
             spent = _send_budget_spent("register", origin, timezone.now())
         if spent:
             return _error("Too many attempts", 429)
-        with transaction.atomic():
-            account = Account.objects.create_user(email, password, display_name)
-            account.is_active = False
-            account.save(update_fields=["is_active"])
-            _send_verification(account, timezone.now())
-            record("account.registered", account.id)
+        try:
+            with transaction.atomic():
+                account = Account.objects.create_user(email, password, display_name)
+                account.is_active = False
+                account.save(update_fields=["is_active"])
+                _send_verification(account, timezone.now())
+                record("account.registered", account.id)
+            account_id = account.id
+        except IntegrityError:
+            # D11-003: an address that is already registered gets the same answer as a new one. Only its owner
+            # learns, by email, that someone tried to register it.
+            _notify_existing_registration(email.strip().casefold(), timezone.now())
+            account_id = uuid.uuid4()
     except (KeyError, ValueError, ValidationError, json.JSONDecodeError):
         return _error("Invalid registration")
-    except IntegrityError:
-        return _error("Account already exists", 409)
     except (smtplib.SMTPException, OSError):
         logger.error("Account verification email delivery failed")
         return _error("Email delivery unavailable", 503)
-    return JsonResponse({"id": str(account.id), "verification_required": True}, status=201)
+    return JsonResponse({"id": str(account_id), "verification_required": True}, status=201)
+
+
+def _notify_existing_registration(email, now):
+    """Mail the owner of a taken address instead of telling the caller it is taken (D11-003, ADR-013 amendment).
+
+    A still-unverified account gets a fresh verification code under the normal per-account send limit, so a
+    person who lost the first code can finish signing up. A verified account gets a notice pointing to sign-in
+    and password reset, at most CODE_SENDS_PER_HOUR an hour per address. Above either limit nothing is sent and
+    the caller still receives the same 201.
+    """
+    with transaction.atomic():
+        account = Account.objects.select_for_update().filter(email=email).first()
+        if account is None:
+            return
+        if not account.is_active and account.email_verified_at is None:
+            if _send_allowed(EmailVerification, account, now):
+                EmailVerification.objects.filter(account=account, used_at__isnull=True).update(used_at=now)
+                _send_verification(account, now)
+                record("account.verification_resent", account.id)
+            return
+        key = _guard_key("register-notice-address", email)
+        if _bucket_full(key, CODE_SENDS_PER_HOUR, now, CODE_HOUR):
+            return
+        _bucket_add(key, now, CODE_HOUR)
+        send_mail("Someone tried to create a KoloVibe account with your email",
+                  "Someone tried to create a new KoloVibe account with this email address, which already has an "
+                  "account.\n\nIf it was you, sign in instead, or reset your password from the sign-in screen if "
+                  "you have forgotten it. If it was not you, you can ignore this message: no new account was "
+                  "created and your account was not changed.",
+                  settings.DEFAULT_FROM_EMAIL, [account.email], fail_silently=False)
+        record("account.registration_attempt_existing", account.id)
 
 
 def _legacy_codes_accepted():

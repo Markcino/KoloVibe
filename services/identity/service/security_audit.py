@@ -7,7 +7,7 @@ KINDS = {
     "moderator.invitation_denied", "moderator.invitation_failed", "moderator.invitation_throttled",
     "account.administrator_role_granted", "account.creator_candidate_looked_up",
     "account.creator_role_granted",
-    "account.registered", "account.verified", "account.verification_resent",
+    "account.registered", "account.registration_attempt_existing", "account.verified", "account.verification_resent",
     "account.password_reset_code_failed", "account.password_reset_throttled", "account.verification_code_failed", "account.verification_throttled",
     "account.password_reset_requested", "account.password_reset", "account.password_changed",
     "account.profile_updated", "account.preferences_updated", "account.privacy_request_received",

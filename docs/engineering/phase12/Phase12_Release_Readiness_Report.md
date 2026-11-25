@@ -8,7 +8,9 @@
 >
 > Seven gates are open (section 3). The most serious: **the staging database still has the old ownership** (D11-002 is fixed and verified in the repository, but not on the real database), **no phone has ever run the application**, **no backup of the real database exists or has ever been restored**, and **the per-origin abuse limits are switched off as deployed** (D12-001). This is a statement about evidence, not about the quality of the code: on the environment available here, the code passes everything that can be run.
 
-**What would change it.** Closing blockers B1 to B5 and B7 (owner actions O-2, O-3, O-4, O-6, O-7, O-8, O-9) with evidence, and an owner decision on D11-003 (O-1), would support **READY ONLY FOR A RESTRICTED PILOT** (staging users on named devices). A general release additionally needs the items in section 3 table C. Neither state is approved by this document; both need the owner's written approval.
+> **Follow-up, 25 November 2026: the three FAIL rows now pass.** `T1_03` (D11-003, fixed after the owner chose to apply it), `T10_81` and `T10_87` (edge rate limiting and the trusted client header, D12-001 repository side). The matrix is now **244 rows: 162 PASS, 0 FAIL, 39 BLOCKED, 43 NOT RUN**. B6 is closed; B4 is reduced to an owner deploy-and-test step. **The conclusion is unchanged: NOT READY**, because B1, B2, B3, B5 and B7 need owner actions and evidence that cannot be produced in this environment.
+
+**What would change it.** Closing blockers B1 to B5 and B7 (owner actions O-2, O-3, O-4, O-6, O-7, O-8, O-9) with evidence (O-1 was decided and applied in the follow-up) would support **READY ONLY FOR A RESTRICTED PILOT** (staging users on named devices). A general release additionally needs the items in section 3 table C. Neither state is approved by this document; both need the owner's written approval.
 
 ## 1. What was done
 
@@ -28,8 +30,9 @@
 
 | Suite | Result |
 | --- | --- |
-| **Phase 11 black-box groups** (real stack: TLS PostgreSQL, nine services, console, RabbitMQ, FFmpeg, Chromium) | **Groups 1, 2, 3, 4, 9, 10: 130 results, 129 PASS, 1 FAIL (T1_03, D11-003)**; plus 8 static rows: 6 PASS, 2 FAIL (T10_81, T10_87); plus 24 baseline rows, all PASS |
-| Complete matrix | **244 rows: 159 PASS, 3 FAIL, 39 BLOCKED, 43 NOT RUN.** Phase 11 was 242 rows: 149 PASS, 11 FAIL |
+| **Phase 11 black-box groups** (real stack: TLS PostgreSQL, nine services, console, RabbitMQ, FFmpeg, Chromium) | **Groups 1, 2, 3, 4, 9, 10: 130 results, all PASS** (group 1 re-run in the follow-up: 43 of 43, including T1_03); plus 8 static rows, all PASS after the follow-up (T10_81, T10_87 were FAIL); plus 24 baseline rows, all PASS |
+| Complete matrix | **244 rows: 162 PASS, 0 FAIL, 39 BLOCKED, 43 NOT RUN** after the follow-up (Phase 12 first pass: 159 PASS, 3 FAIL). Phase 11 was 242 rows: 149 PASS, 11 FAIL |
+| Follow-up re-runs (25 November) | Nine service suites (Identity 165), console 179, scripts 475 (adds 7 edge tests, 3 on a real Nginx 1.24), Flutter 3.47.8 analyze clean and 1,824 tests, local journeys 11, TLS PostgreSQL foundations and Business, staging runtime, Bandit 0 medium or high, secret scan, `pip-audit` on four locks, OpenAPI valid. Groups 2, 3, 4, 9 and 10 were not re-run: none of their code paths changed |
 | Nine service suites | 1,098 tests pass (Phase 11: 1,089), no migration drift |
 | Console | 179 pass |
 | Scripts | 468 pass (Phase 11: 459); includes the poison-message, runtime-role and R-01 conversion tests |
@@ -50,9 +53,9 @@
 | **B1** | **Staging database ownership not converted** (D11-002 on the real database) | A stolen service credential on staging can still switch off the ledger and audit guards. `T10_94` BLOCKED | O-3 then O-2 done, read-back shows no login-owned object, and `T10_03` and `T10_04` repeated on staging | Infrastructure owner, DBA |
 | **B2** | **No device acceptance** (Group 8: 32 rows BLOCKED) | The mobile app has only run as widget tests. Real storage (Keychain, Keystore), session restore, playback, uploads and accessibility are unproven | iPhone and Android checklists passed with evidence (O-7) | Product owner with QA |
 | **B3** | **No backup of the real database was ever taken or restored**; ADR-016 open; no RPO or RTO | A failed migration or the B1 conversion has no proven way back. The restore drill passes only on the disposable fixture (`T10_30`) | A restore of a real backup into a scratch database with row counts compared (O-6) | Infrastructure owner |
-| **B4** | **Per-origin limits are inert as deployed** (D12-001) and the repository's Nginx has no rate limiting (`T10_81`, `T10_87`) | Sign-in, code and registration abuse controls count only when the Gateway knows the client address | O-4 done and tested through the real edge | Infrastructure owner |
+| **B4** | **Per-origin limits are inert on the live staging edge** until the follow-up configuration is deployed (D12-001). The repository now has edge rate limiting and the trusted header (`T10_81`, `T10_87` PASS) | Sign-in, code and registration abuse controls count only when the Gateway knows the client address | O-4: render the Nginx template with the real `TUNNEL_CONNECTOR_ADDRESS`, deploy it and the Gateway setting, and repeat `T1_94` and a header-spoof probe through the real edge | Infrastructure owner |
 | **B5** | **Real R2 and the media worker were never exercised** (G-2) | Upload, processing and playback against real storage is unproven | O-8 done and the upload-to-playback journey run on staging | Product owner (credentials) |
-| **B6** | **D11-003 open** | Account enumeration through registration remains (bounded only by B4's budget, which is inert today) | Owner decision (O-1), then the prepared change is applied, or the risk is accepted in writing | Product owner |
+| ~~B6~~ | **Closed in the follow-up.** D11-003 fixed after the owner chose to apply it (ADR-013 A-2); `T1_03` PASS | — | — | — |
 | **B7** | **Broker permissions and dead-letter policy unread on the live broker** (G-5) | D11-001 now stops the crash loop, but a rejected message is discarded with no record | O-9 | Infrastructure owner |
 
 ### B. Fixed code that needs a deployment change (do not deploy without these)
@@ -87,7 +90,7 @@ Development status is carried from the [Phase 10 matrix](../phase10/Phase10_Plat
 
 | # | Capability | Development | Phase 12 regression evidence | Acceptance |
 | --- | --- | --- | --- | --- |
-| 1 | Accounts, sessions, password, privileged MFA | Complete | Group 1: 42 of 43 pass (T1_03 open) | **Accepted in code**; B4, B6 open |
+| 1 | Accounts, sessions, password, privileged MFA | Complete | Group 1: 43 of 43 pass (follow-up) | **Accepted in code**; B4 open |
 | 2 | Roles and permissions | Complete | Groups 1, 9; role matrix; console route matrix | **Accepted in code** |
 | 3 | Creator profile and eligibility | Complete | Creators 84; group 2 | **Accepted in code** |
 | 4 | Creator restriction write path | Not implemented (D-8) | — | Out of scope until approved |
@@ -114,7 +117,7 @@ Development status is carried from the [Phase 10 matrix](../phase10/Phase10_Plat
 
 | Area | Evidence | Result |
 | --- | --- | --- |
-| Previously failed security cases | `T1_31` (order), `T1_94` (registration limit, with a trusted origin), `T3_35` (poison message), `T4_23` (Business order), `T10_03`, `T10_04` (guards, ownership) | **All PASS**; `T1_03` still FAIL (D11-003) |
+| Previously failed security cases | `T1_03` (registration enumeration, follow-up), `T1_31` (order), `T1_94` (registration limit, with a trusted origin), `T3_35` (poison message), `T4_23` (Business order), `T10_03`, `T10_04` (guards, ownership) | **All PASS** |
 | Authorization boundaries | Group 4: for every one of the 26 business-scoped operations a stranger gets the same answer as for a missing business; a refused actor now gets that answer for any body; console: 17 pages redirect anonymous visitors, moderator refused administrator pages | PASS |
 | MFA and refresh | Group 1: challenge only, wrong code, TOTP replay, recovery code single use, exhausted challenge, forged challenge, refresh rotation and family revocation on replay | PASS |
 | Object-level permissions | Creator A cannot reach creator B's video, points or analytics; customer cannot read another's inquiry | PASS |
@@ -124,7 +127,7 @@ Development status is carried from the [Phase 10 matrix](../phase10/Phase10_Plat
 | Cross-business and cross-organizer isolation | Business as above; **no organizer module exists** | PASS for Business; organizer NOT RUN |
 | Secrets | Over 40 harness secrets absent from every service log (`T10_90`); no database password in any process line | PASS |
 | Static gates | Bandit, secret scan, `pip-audit` (0 vulnerable), OpenAPI | PASS |
-| Edge | No Nginx rate limiting; trusted-header not configured | **FAIL** (B4) |
+| Edge | Follow-up: per-client `limit_req` and `limit_conn` in both vhosts; `CF-Connecting-IP` believed only from the tunnel connector, overwritten, and trusted by the Gateway; proven on a real Nginx (`scripts/test_edge_client_origin.py`) | **PASS in the repository**; real-edge test open (B4) |
 | Independent penetration test | Not performed | **NOT RUN** (O-14) |
 
 ## 6. Device acceptance summary
@@ -167,10 +170,10 @@ Evidence of a working rollback on staging does not exist yet: the documented rol
 
 | # | Action | Owner |
 | --- | --- | --- |
-| O-1 | Decide D11-003: keep the `409` (accept the risk in writing) or change registration and the M-012 flow | Product owner |
+| O-1 | ~~Decide D11-003~~ **Done 25 November 2026:** owner chose to change registration and the M-012 flow; applied and verified | Product owner |
 | O-2 | Run the R-01 conversion on staging with a verified backup; read back; repeat T10_03, T10_04, T10_94 | Infrastructure owner, DBA |
 | O-3 | Create migration logins and switch the migration job (prerequisite of O-2) | Infrastructure owner, DBA |
-| O-4 | Configure the trusted client-address header end to end (edge, Nginx pass-through, Gateway) and rate limits at the edge; test through the real edge | Infrastructure owner |
+| O-4 | Repository side done in the follow-up (Nginx limits and pass-through, Gateway setting). Remaining: render the template with the real `TUNNEL_CONNECTOR_ADDRESS`, deploy, and test through the real edge | Infrastructure owner |
 | O-5 | Confirm the registration budget (20 per hour per origin) | Product owner |
 | O-6 | Back up the real database, restore into a scratch database, compare, set RPO and RTO (ADR-016) | Infrastructure owner |
 | O-7 | Run the iPhone and Android acceptance checklists on devices against a staging build | Product owner with QA |

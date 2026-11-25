@@ -49,8 +49,6 @@ paths:
                 $ref: '#/components/schemas/RegistrationResponse'
         '400':
           description: Invalid request; application/problem+json
-        '409':
-          $ref: '#/components/responses/Conflict'
         '500':
           description: Unexpected server error; no internal details exposed
       requestBody:
@@ -60,7 +58,7 @@ paths:
             schema:
               $ref: '#/components/schemas/RegisterRequest'
       security: []
-      description: Creates an inactive local account and sends a single-use verification code. Requires configured mail delivery. Every attempt, for a new or an existing address, counts against a budget of 20 per hour per trusted network origin (the same budget as code emails); a spent budget answers 429 and creates nothing. With no trusted origin configured at the edge only the other limits apply. The 409 for an existing address is retained by owner decision (ADR-013, M-012); see Phase 12 defect D11-003.
+      description: Creates an inactive local account and sends a single-use verification code. Requires configured mail delivery. Every attempt, for a new or an existing address, counts against a budget of 20 per hour per trusted network origin (the same budget as code emails); a spent budget answers 429 and creates nothing. With no trusted origin configured at the edge only the other limits apply. An already registered address gets the same 201 and body shape as a new one, with a random identifier that names no account (ADR-013 amendment A-2, defect D11-003). Only the address owner is told. A still-unverified account receives a fresh verification code under the normal send limits, and a verified account receives a notice pointing to sign-in and password reset, at most 3 per hour per address. No 409 is returned.
   /auth/verification/resend:
     post:
       tags: [Identity]

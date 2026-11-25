@@ -203,6 +203,7 @@ class _LiveAccountFlowScreenState extends State<LiveAccountFlowScreen> {
       dirty = false;
     } on ApiFailure catch (failure) {
       if (id == 5 && failure.status == 409) {
+        // Only a server from before ADR-013 A-2 answers 409 here; kept for the rollout window.
         next = 12;
       } else if ({4, 15}.contains(id) && {400, 401}.contains(failure.status)) {
         next = 15;
@@ -559,6 +560,20 @@ class _LiveAccountFlowScreenState extends State<LiveAccountFlowScreen> {
                     minimumSize: const Size(44, 44),
                     textStyle: KoloVibeText.body(12)),
                 child: const Text('Wrong email? Return to registration.'),
+              ),
+            ),
+            // Registration answers the same for a new and an existing address (ADR-013 A-2), so M-012 is
+            // offered here instead of after a 409.
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: busy ? null : () => leave(12),
+                style: TextButton.styleFrom(
+                    foregroundColor: KoloVibeColors.muted,
+                    padding: EdgeInsets.zero,
+                    minimumSize: const Size(44, 44),
+                    textStyle: KoloVibeText.body(12)),
+                child: const Text('Already have an account?'),
               ),
             ),
           ],
