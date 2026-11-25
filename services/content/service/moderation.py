@@ -10,7 +10,7 @@ from django.views.decorators.http import require_POST
 
 from .models import ModerationReceipt, Video, RightsEvent, OriginalityAttestation
 from .copyright import audit, claim
-from . import media_storage as storage
+from . import media_storage as storage, security_audit
 
 
 TRANSITIONS = {
@@ -88,6 +88,7 @@ def _apply(video_id, action_id, action, revision, *, copyright=False, actor_id=N
         ])
         ModerationReceipt.objects.create(action_id=action_id, video_id=video_id,
                                          action=action, previous_revision=revision)
+        security_audit.record("video.moderated", video.id, UUID(actor_id) if copyright else None)
     return JsonResponse({"applied": True})
 
 
