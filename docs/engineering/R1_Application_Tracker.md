@@ -1,6 +1,6 @@
 # R1 application delivery tracker
 
-**Updated 24 November 2026 (Phase 5F section added).** Stage 3 (Technical Foundation) was **declared completed by the owner on 10 November**, while unresolved security, operations and recovery controls remain open. Stage 4 (R1 MVP implementation) and Stage 5 (verification) remain in progress on AWS staging. Production is **NO-GO**. See the [Stage 3 tracker](Stage3_Implementation_Tracker.csv) and the [current AWS release record](../operations/R1_AWS_Staging_Reconciliation_2026-11-23.md).
+**Updated 25 November 2026 (Phase 12 section added).** Stage 3 (Technical Foundation) was **declared completed by the owner on 10 November**, while unresolved security, operations and recovery controls remain open. Stage 4 (R1 MVP implementation) and Stage 5 (verification) remain in progress on AWS staging. Production is **NO-GO**. See the [Stage 3 tracker](Stage3_Implementation_Tracker.csv) and the [current AWS release record](../operations/R1_AWS_Staging_Reconciliation_2026-11-23.md).
 
 ## Current release checkpoint — v0.357.1 (23 November)
 
@@ -200,6 +200,20 @@ Full record: [Phase 11 report](phase11/Phase11_Test_Report.md), [matrix](phase11
 | Registration enumeration and no registration limit (D11-003, D11-004) | Identity | n/a | n/a | n/a | DOC-205 declares the 409 | ADR-013 | T1_03, T1_94 FAIL | **Defects (Medium)** | Fix, policy value | Owner |
 | Validation before authorization; console overflow at 320 px (D11-005, D11-006) | Gateway, Business | n/a | console CSS | n/a | n/a | Low | T1_31, T4_23, T9_32 FAIL | **Defects (Low)** | None | None |
 | Accounts, sessions, MFA, object-level authorization, media validation, engagement and points on a real broker, Business isolation, console sessions and CSRF | all | n/a | yes | yes | yes | tested black-box | 122 PASS of 130 new tests | **Verified (local, repository scope)** | Device and staging gates | Owner |
+
+### Phase 12 defect remediation, regression and release readiness (25 November 2026) — branch `claude/blissful-albattani-81b81r`
+
+Full record: [readiness report](phase12/Phase12_Release_Readiness_Report.md), [defect register](phase12/Phase12_Defect_Register.md), [matrix](phase12/Phase12_Test_Matrix.md). **Local disposable stack only; no deployment, no AWS or staging action.** **Conclusion: NOT READY — BLOCKERS REMAIN.**
+
+| Item | Status | Evidence | Blocker | Owner |
+| --- | --- | --- | --- | --- |
+| Points consumer poison pill (D11-001) | **Fixed, verified** | unit, real broker, T3_35 PASS | Dead-letter policy (broker) | Infrastructure owner |
+| Database ownership and append-only guards (D11-002, R-01) | **Fixed in the repository; NOT converted on staging** | T10_03, T10_04, T10_31 PASS; conversion script tested on a recreated legacy schema | Migration logins, conversion, read-back, backup first | Infrastructure owner, DBA |
+| Registration limit (D11-004) | **Fixed in code; inert as deployed (D12-001)** | T1_94 PASS with a trusted origin | Trusted client address at the edge | Infrastructure owner |
+| Registration enumeration (D11-003) | **Open: owner decision** (ADR-013, M-012) | T1_03 FAIL | Decision | Product owner |
+| Validation before authorization (D11-005); console reflow (D11-006) | **Fixed, verified** | T1_31, T4_23, T9_32 PASS | None | None |
+| Creators and Content audit (D11-007), copyright intake client (D11-008), maintenance scheduling (D11-009) | **Open** (runbook written) | — | Owner decisions and approvals | Product owner, Infrastructure owner |
+| Regression on the fixed build | 244 rows: 159 PASS, 3 FAIL, 39 BLOCKED, 43 NOT RUN; services 1,098, console 179, scripts 468, Flutter 1,823 | matrix | Devices, real R2, backup restore, edge | Owner |
 
 ## Earlier implementation and acceptance record
 
