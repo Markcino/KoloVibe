@@ -9,6 +9,8 @@ import '../../shared/widgets/kolo_components.dart';
 import '../system/system_ui.dart';
 import '../creators/creator_shell.dart';
 import 'live_account_repository.dart';
+import '../legal/legal_screens.dart';
+import '../legal/live_legal_repository.dart';
 
 const accountFormScreens = {4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 80, 82};
 
@@ -57,6 +59,9 @@ class _LiveAccountFlowScreenState extends State<LiveAccountFlowScreen> {
   final password = TextEditingController(), confirm = TextEditingController();
   final current = TextEditingController(), code = TextEditingController();
   bool busy = false, loading = false, dirty = false, agreed = false;
+  bool marketing = false;
+  LegalSummary? termsText, privacyText, marketingText;
+  Object? legalError;
   bool resendAcknowledged = false, resendUnavailable = false;
   bool resetRequested = false;
   int rejectedCodes = 0;
@@ -73,6 +78,26 @@ class _LiveAccountFlowScreenState extends State<LiveAccountFlowScreen> {
     resendAcknowledged = widget.completed;
     resendUnavailable = widget.unavailable;
     if (protected) loadAccount();
+    if (id == 5) loadLegal();
+  }
+
+  LiveLegalRepository get legal => LiveLegalRepository(widget.account);
+
+  /// Decision B: the current versions are fetched before the person can accept them.
+  Future<void> loadLegal() async {
+    setState(() => legalError = null);
+    try {
+      final docs = await Future.wait(legalKinds.map(legal.document));
+      if (mounted) {
+        setState(() {
+          termsText = docs[0].summary;
+          privacyText = docs[1].summary;
+          marketingText = docs[2].summary;
+        });
+      }
+    } catch (failure) {
+      if (mounted) setState(() => legalError = failure);
+    }
   }
 
   @override
@@ -149,8 +174,14 @@ class _LiveAccountFlowScreenState extends State<LiveAccountFlowScreen> {
 
   Future<void> submit(UiOperation operation) async {
     if (busy || !(form.currentState?.validate() ?? false)) return;
+    if (id == 5 && (termsText == null || privacyText == null)) {
+      setState(() => fieldError =
+          'The terms could not be loaded. Check your connection and try again.');
+      return;
+    }
     if (id == 5 && !agreed) {
-      setState(() => fieldError = 'Acknowledge the terms before continuing.');
+      setState(() => fieldError =
+          'Accept the Terms of Service and the Privacy Notice to continue.');
       return;
     }
     FocusScope.of(context).unfocus();
@@ -178,6 +209,11 @@ class _LiveAccountFlowScreenState extends State<LiveAccountFlowScreen> {
               'verificationCode': code.text.trim(),
               'Reset code': code.text.trim(),
               if (id == 82) 'Current password': current.text,
+              if (id == 5) ...{
+                'acceptedTerms': termsText!.version,
+                'acceptedPrivacy': privacyText!.version,
+                'marketingConsent': marketing ? 'true' : 'false',
+              },
             },
           ),
         );
@@ -202,7 +238,13 @@ class _LiveAccountFlowScreenState extends State<LiveAccountFlowScreen> {
       }
       dirty = false;
     } on ApiFailure catch (failure) {
-      if (id == 5 && failure.status == 409) {
+      if (id == 5 && isOutdatedLegalVersion(failure)) {
+        // A newer version was published while the form was open: show it and ask again.
+        agreed = false;
+        fieldError =
+            'The terms were just updated. Read the new version, then accept it to continue.';
+        loadLegal();
+      } else if (id == 5 && failure.status == 409) {
         // Only a server from before ADR-013 A-2 answers 409 here; kept for the rollout window.
         next = 12;
       } else if ({4, 15}.contains(id) && {400, 401}.contains(failure.status)) {
@@ -496,15 +538,56 @@ class _LiveAccountFlowScreenState extends State<LiveAccountFlowScreen> {
                 hint: 'Password',
                 helper:
                     'Use a unique password. Requirements are checked by the account service.'),
+            if (legalError != null)
+              TextButton(
+                  key: const ValueKey('legal-retry'),
+                  onPressed: loadLegal,
+                  child: const Text('The terms could not be loaded. Try again.'))
+            else if (termsText != null && privacyText != null) ...[
+              if (termsText!.pendingLegalReview || privacyText!.pendingLegalReview)
+                const LegalReviewNote(),
+              Wrap(
+                spacing: 4,
+                children: [
+                  TextButton(
+                      key: const ValueKey('read-terms'),
+                      onPressed: () => openLegalDocument(context, legal, 'terms'),
+                      child: const Text('Read the Terms of Service')),
+                  TextButton(
+                      key: const ValueKey('read-privacy'),
+                      onPressed: () => openLegalDocument(context, legal, 'privacy'),
+                      child: const Text('Read the Privacy Notice')),
+                ],
+              ),
+            ],
             CheckboxListTile(
+              key: const ValueKey('accept-legal'),
               value: agreed,
               contentPadding: EdgeInsets.zero,
               controlAffinity: ListTileControlAffinity.leading,
-              onChanged: (v) => setState(() {
-                agreed = v ?? false;
-                dirty = true;
-              }),
-              title: Text('I acknowledge the Terms and Privacy information.',
+              onChanged: termsText == null
+                  ? null
+                  : (v) => setState(() {
+                        agreed = v ?? false;
+                        dirty = true;
+                      }),
+              title: Text(
+                  'I accept the Terms of Service (version ${termsText?.version ?? '…'}) and the Privacy Notice (version ${privacyText?.version ?? '…'}).',
+                  style: KoloVibeText.body(12, height: 1.4)),
+            ),
+            CheckboxListTile(
+              key: const ValueKey('marketing-consent'),
+              value: marketing,
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              onChanged: marketingText == null
+                  ? null
+                  : (v) => setState(() {
+                        marketing = v ?? false;
+                        dirty = true;
+                      }),
+              title: Text(
+                  'Optional: send me news about new features and offers. I can turn this off at any time.',
                   style: KoloVibeText.body(12, height: 1.4)),
             ),
             const SizedBox(height: 8),

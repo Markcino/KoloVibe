@@ -9,7 +9,8 @@ row afterwards. Rows are only removed once that grace has passed, so nothing the
 * a refresh-replay marker is consulted only while its session could still refresh (`expires_at`);
 * sessions are kept for a month after expiry or revocation for investigation, then removed with their children.
 
-Accounts, security events, audit deliveries, moderator invitations, privacy requests and factors are never touched:
+Accounts, security events, audit deliveries, moderator invitations, privacy requests, legal acceptances, marketing
+consent records and factors are never touched:
 their retention is a policy decision (ADR-020, OD-08) and is not made here.
 """
 from datetime import timedelta

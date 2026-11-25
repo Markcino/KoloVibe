@@ -10,6 +10,8 @@ import '../features/videos/video_feed_screen.dart';
 import '../features/profile/profile_screen.dart';
 import '../features/system/compatibility.dart';
 import '../features/system/system_ui.dart';
+import '../features/legal/legal_screens.dart';
+import '../features/legal/live_legal_repository.dart';
 import 'app_dependencies.dart';
 import 'app_session.dart';
 import 'screen_route.dart';
@@ -41,6 +43,7 @@ class _KoloVibeAppState extends State<KoloVibeApp> {
   Future<int>? _initialScreenFuture;
   Future<CompatibilityPolicy>? _compatibility;
   bool _updateDismissed = false;
+  LegalGateController? _legal;
   @override
   void initState() {
     super.initState();
@@ -165,7 +168,32 @@ class _KoloVibeAppState extends State<KoloVibeApp> {
         ),
       );
     }
-    return featureScreen(route, design.data!);
+    final screen = featureScreen(route, design.data!);
+    final account = widget.dependencies.liveAccount;
+    final accountId = account?.signedInAccountId;
+    if (account == null ||
+        accountId == null ||
+        LegalAcceptanceGate.exemptScreens.contains(route.screen)) {
+      return screen;
+    }
+    _legal ??= LegalGateController(LiveLegalRepository(account));
+    return Builder(
+      builder: (context) => LegalAcceptanceGate(
+        controller: _legal!,
+        accountId: accountId,
+        onSignOut: () async {
+          await account.signOut();
+          if (!context.mounted) return;
+          const target = ScreenRoute(2);
+          Navigator.of(context).pushNamedAndRemoveUntil(target.name, (_) => false, arguments: target);
+        },
+        onPrivacy: () {
+          const target = ScreenRoute(84);
+          Navigator.of(context).pushNamed(target.name, arguments: target);
+        },
+        child: screen,
+      ),
+    );
   }
 
   static const List<DomainRouteBuilder> domainRoutes = [

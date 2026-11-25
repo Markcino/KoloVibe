@@ -13,6 +13,7 @@ KINDS = {
     "account.profile_updated", "account.preferences_updated", "account.privacy_request_received",
     "account.reauthenticated", "account.reauthentication_failed", "account.reauthentication_throttled",
     "account.step_up_issued", "account.step_up_consumed", "account.step_up_rejected",
+    "account.legal_accepted", "account.marketing_consent_changed",
     "login.failed", "login.throttled",
     "login.succeeded", "mfa.challenge", "mfa.failed", "mfa.enrolled",
     "mfa.succeeded", "mfa.recovery_used", "session.rotated", "session.replay",

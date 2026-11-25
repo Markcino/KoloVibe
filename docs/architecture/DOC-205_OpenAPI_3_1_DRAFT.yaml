@@ -41,6 +41,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '429':
           $ref: '#/components/responses/RateLimited'
+        '409':
+          description: 'The accepted version of the terms or privacy notice is not the current one; code legal_version_outdated. Nothing is created or sent.'
         '201':
           description: Success
           content:
@@ -58,7 +60,7 @@ paths:
             schema:
               $ref: '#/components/schemas/RegisterRequest'
       security: []
-      description: Creates an inactive local account and sends a single-use verification code. Requires configured mail delivery. Every attempt, for a new or an existing address, counts against a budget of 20 per hour per trusted network origin (the same budget as code emails); a spent budget answers 429 and creates nothing. With no trusted origin configured at the edge only the other limits apply. An already registered address gets the same 201 and body shape as a new one, with a random identifier that names no account (ADR-013 amendment A-2, defect D11-003). Only the address owner is told. A still-unverified account receives a fresh verification code under the normal send limits, and a verified account receives a notice pointing to sign-in and password reset, at most 3 per hour per address. No 409 is returned.
+      description: Creates an inactive local account and sends a single-use verification code. Requires configured mail delivery. Under Decision B, `accepted` must name the current versions of the terms and the privacy notice (from GET /legal/terms and /legal/privacy); Identity records each version and its text digest. `marketing_consent` is optional, false by default, and recorded separately; accepting the terms or the privacy notice is never marketing, advertising or tracking consent. The acceptance is checked before the attempt budget, the account or any email. Every attempt, for a new or an existing address, counts against a budget of 20 per hour per trusted network origin (the same budget as code emails); a spent budget answers 429 and creates nothing. With no trusted origin configured at the edge only the other limits apply. An already registered address gets the same 201 and body shape as a new one, with a random identifier that names no account (ADR-013 amendment A-2, defect D11-003); nothing is recorded for the existing account. Only the address owner is told. A still-unverified account receives a fresh verification code under the normal send limits, and a verified account receives a notice pointing to sign-in and password reset, at most 3 per hour per address. No 409 is returned.
   /auth/verification/resend:
     post:
       tags: [Identity]
@@ -462,6 +464,138 @@ paths:
         '400': {description: Generic reauthentication failure; no credential detail disclosed}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '429': {$ref: '#/components/responses/RateLimited'}
+        '503': {$ref: '#/components/responses/LocalUnavailable'}
+  /legal/terms:
+    get:
+      tags: [Identity]
+      operationId: getTermsOfService
+      x-implementation: local
+      summary: Current terms of service (Decision B)
+      description: >-
+        Public, so the text can be read before registration. Versioned, dated and pinned to a SHA-256 in Identity;
+        a changed text is a new version. status is pending_legal_review until counsel approves the text.
+      security: []
+      responses:
+        '200':
+          description: The current version and its text; may be cached for five minutes
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/LegalDocument'}
+        '503': {$ref: '#/components/responses/LocalUnavailable'}
+  /legal/privacy:
+    get:
+      tags: [Identity]
+      operationId: getPrivacyNotice
+      x-implementation: local
+      summary: Current privacy notice (Decision B)
+      description: >-
+        Public, so the text can be read before registration. Versioned, dated and pinned to a SHA-256 in Identity;
+        a changed text is a new version. status is pending_legal_review until counsel approves the text.
+      security: []
+      responses:
+        '200':
+          description: The current version and its text; may be cached for five minutes
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/LegalDocument'}
+        '503': {$ref: '#/components/responses/LocalUnavailable'}
+  /legal/marketing:
+    get:
+      tags: [Identity]
+      operationId: getMarketingConsentText
+      x-implementation: local
+      summary: Current wording of the optional marketing consent (Decision B)
+      description: >-
+        Public, so the text can be read before registration. Versioned, dated and pinned to a SHA-256 in Identity;
+        a changed text is a new version. status is pending_legal_review until counsel approves the text.
+      security: []
+      responses:
+        '200':
+          description: The current version and its text; may be cached for five minutes
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/LegalDocument'}
+        '503': {$ref: '#/components/responses/LocalUnavailable'}
+  /me/legal:
+    get:
+      tags: [Identity]
+      operationId: getLegalAcceptance
+      x-implementation: local
+      summary: What this account has accepted, and whether a newer version needs acceptance (Decision B)
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: Acceptance state; must not be cached
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/LegalState'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '503': {$ref: '#/components/responses/LocalUnavailable'}
+    post:
+      tags: [Identity]
+      operationId: acceptLegalDocuments
+      x-implementation: local
+      summary: Accept the current version of one or both required documents (Decision B)
+      description: >-
+        Each named version must be current, or the answer is 409 legal_version_outdated and nothing is recorded.
+        Accepting a version already accepted records nothing new. Records are append-only and keep the text digest.
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [accepted]
+              properties:
+                accepted:
+                  type: object
+                  additionalProperties: false
+                  minProperties: 1
+                  properties:
+                    terms: {type: string, minLength: 1, maxLength: 32}
+                    privacy: {type: string, minLength: 1, maxLength: 32}
+      responses:
+        '200':
+          description: The new acceptance state
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/LegalState'}
+        '400': {description: Invalid request}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '409': {description: 'A named version is not current; code legal_version_outdated'}
+        '503': {$ref: '#/components/responses/LocalUnavailable'}
+  /me/marketing-consent:
+    put:
+      tags: [Identity]
+      operationId: setMarketingConsent
+      x-implementation: local
+      summary: Grant or withdraw the optional marketing consent (Decision B)
+      description: >-
+        Separate from the terms and the privacy notice and off unless granted. version names the wording shown.
+        Only a change is recorded; every grant and withdrawal is kept. No marketing is sent by this release.
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [granted, version]
+              properties:
+                granted: {type: boolean}
+                version: {type: string, minLength: 1, maxLength: 32}
+      responses:
+        '200':
+          description: The new state
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/LegalState'}
+        '400': {description: Invalid request}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '409': {description: 'The wording version is not current; code legal_version_outdated'}
         '503': {$ref: '#/components/responses/LocalUnavailable'}
   /me/step-up:
     post:
@@ -7934,6 +8068,52 @@ components:
         minimum_version: null
         latest_version: null
         store_url: null
+    LegalDocument:
+      type: object
+      additionalProperties: false
+      required: [kind, title, version, effective_at, status, sha256, text]
+      properties:
+        kind: {type: string, enum: [terms, privacy, marketing]}
+        title: {type: string, minLength: 1, maxLength: 80}
+        version: {type: string, minLength: 1, maxLength: 32}
+        effective_at: {type: string, format: date}
+        status: {type: string, enum: [pending_legal_review, approved]}
+        sha256: {type: string, pattern: '^[0-9a-f]{64}$'}
+        text: {type: string, minLength: 1, maxLength: 32768, description: Markdown}
+    LegalState:
+      type: object
+      additionalProperties: false
+      required: [documents, acceptance_required, marketing]
+      properties:
+        documents:
+          type: array
+          description: The required documents, terms then privacy, with what this account last accepted.
+          minItems: 2
+          maxItems: 2
+          items:
+            type: object
+            additionalProperties: false
+            required: [kind, title, version, effective_at, status, sha256, accepted_version, accepted_at]
+            properties:
+              kind: {type: string, enum: [terms, privacy, marketing]}
+              title: {type: string, minLength: 1, maxLength: 80}
+              version: {type: string, minLength: 1, maxLength: 32}
+              effective_at: {type: string, format: date}
+              status: {type: string, enum: [pending_legal_review, approved]}
+              sha256: {type: string, pattern: '^[0-9a-f]{64}$'}
+              accepted_version: {type: [string, 'null'], maxLength: 32}
+              accepted_at: {type: [string, 'null'], format: date-time}
+        acceptance_required:
+          type: boolean
+          description: True when a required document's current version has not been accepted; the app asks again.
+        marketing:
+          type: object
+          additionalProperties: false
+          required: [granted, version, updated_at]
+          properties:
+            granted: {type: boolean}
+            version: {type: string, minLength: 1, maxLength: 32}
+            updated_at: {type: [string, 'null'], format: date-time}
     StepUpProof:
       type: object
       additionalProperties: false
@@ -7996,10 +8176,23 @@ components:
           type: string
           minLength: 2
           maxLength: 80
+        accepted:
+          type: object
+          description: Decision B. The versions of the required documents the person read and accepted.
+          additionalProperties: false
+          required: [terms, privacy]
+          properties:
+            terms: {type: string, minLength: 1, maxLength: 32}
+            privacy: {type: string, minLength: 1, maxLength: 32}
+        marketing_consent:
+          type: boolean
+          default: false
+          description: Optional and separate. Never implied by accepting the terms or the privacy notice.
       required:
       - email
       - password
       - display_name
+      - accepted
     LoginRequest:
       type: object
       additionalProperties: false
