@@ -205,6 +205,22 @@ Nothing below is approved. Each line needs a named approver, a date and evidence
 
 `384f4b5` Phase 11 source. Phase 12 changes: poison-message guard and Business, Identity, Gateway authorization ordering; ownership split, registration budget, console CSS and runbook; harness adjustments; defect register and results; matrix generator; this report. `git log 384f4b5..HEAD` lists them; they are on `claude/blissful-albattani-81b81r`.
 
+## 13A. Addendum (25 November 2026): blocked and not-run rows
+
+The BLOCKED and NOT RUN rows were re-examined. Seven now have recorded results (`results/unblock.json`, evidence in `unblock/`). The matrix is now **245 rows: 165 PASS, 4 FAIL, 37 BLOCKED, 39 NOT RUN** (T10_96 was split: runtime limits ran, logging and alerting is `T10_96L`).
+
+| Row | Result | How |
+| --- | --- | --- |
+| T10_92 Image scans | **FAIL** (media worker image, D12-002); shared, web and service images PASS | CI on main |
+| T10_93 OSV advisories | PASS | CI on main |
+| T10_96 Swarm resource limits | PASS on a local single-node Swarm | Rendered `staging-aws.yml`, real image, OOM drill |
+| T10_97 Swarm restart policy | PASS on a local single-node Swarm | Kill drill and crash loop |
+| T9_90 Firefox | PASS | Full group 9 suite (Firefox 155) |
+| T9_91 WebKit | PASS | Full group 9 suite (WebKit 26.6) |
+| T3_92 Broker load and failure injection | PASS on a local disposable broker | `test_g3_soak.py` |
+
+Local results show the configuration and the code behave correctly; they do not establish AWS capacity (O-13 stands). Everything still BLOCKED or NOT RUN needs staging, credentials, devices, an outside tester or an owner decision.
+
 ## 14. Stop point
 
 **STOP AFTER PHASE 12.** No deployment was started or requested. A separate owner approval is required for release deployment.

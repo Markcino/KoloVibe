@@ -9,6 +9,8 @@ cd scripts/phase11
 python runner.py OUT.json test_g1_accounts                    # groups: test_g1_accounts, test_g2_content, test_g3_engagement,
 python runner.py OUT.json test_g2_content test_g9_console     #         test_g4_business, test_g9_console, test_g10_infra
 P11_NO_BROKER=1 python runner.py OUT.json test_g2_content     # skip the broker when a group does not need it (g1, g2, g4, g9, g10)
+python runner.py OUT.json test_g3_soak                          # T3_92: load and failure injection on the broker (SOAK_VIEWS, SOAK_REPUBLISH)
+P11_NO_BROKER=1 P11_BROWSER=firefox P11_WS=ws://127.0.0.1:3001/ python runner.py OUT.json test_g9_console   # group 9 in Firefox or webkit through `npx playwright run-server`
 python matrix.py RESULTS_DIR docs/engineering/phase11/Phase11_Test_Matrix.md
 ```
 

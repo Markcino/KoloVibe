@@ -1,11 +1,11 @@
 {
-  "purpose": "Why each scanner exception for the FFmpeg 9.0.2 apk is safe: the vulnerable component is not part of the minimal build.",
+  "purpose": "Why each scanner exception for the FFmpeg 9.1 apk is safe: the vulnerable component is not part of the minimal build.",
   "decision": "Owner chose scoped, expiring exceptions on 19 November 2026 (option 2). Each row names the vulnerable component; CI proves it is absent from the built binary.",
   "evidence_quality": "Component names come from the VulnCheck CVE records as mirrored by cve.threatint.com and cross-checked in places against Red Hat and Debian trackers. They are third-party mirrors, not NVD, and were not verified against FFmpeg source in this environment.",
   "expires": "2026-12-31",
   "package": {
     "name": "ffmpeg",
-    "version": "9.0.2-r0",
+    "version": "9.1-r0",
     "type": "apk"
   },
   "build_must_have": [

@@ -383,7 +383,7 @@ jobs:
           run() { docker run --rm --entrypoint "$1" "kolovibe/media-worker:ci" "${@:2}" 2>&1; }
           version="$(run ffmpeg -hide_banner -version)"
           case "${version%%$'\n'*}" in
-            "ffmpeg version 9.0.2"*) ;;
+            "ffmpeg version 9.1"*) ;;
             *) echo "::error::Unexpected FFmpeg version line: ${version%%$'\n'*}"; exit 1 ;;
           esac
           protocols="$(run ffmpeg -hide_banner -protocols | grep -vE '^(Supported|Input|Output)' | tr -s ' \n' ' ')"

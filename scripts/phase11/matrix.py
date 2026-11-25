@@ -15,6 +15,8 @@ GROUPS = {
 }
 
 NOT_RUN = []
+# Phase 12 unblock (25 November 2026): T3_92, T9_90, T9_91, T10_92, T10_93, T10_96 and T10_97 now have recorded results in
+# docs/engineering/phase12/results/unblock.json (evidence in docs/engineering/phase12/unblock/), so they are no longer registered here.
 PHASE12_NOTE = ("**Phase 12 regression.** Every applicable Phase 11 test was run again on the fixed build; no earlier PASS is reused. "
                 "A FAIL is either an open defect (listed in the [Phase 12 defect register](Phase12_Defect_Register.md)) or a static finding. "
                 "Every BLOCKED and NOT RUN row has a disposition and an owner in the last two columns. "
@@ -49,20 +51,14 @@ add("T2", "T2_90", "Real Cloudflare R2 upload and playback object access", "BLOC
 add("T2", "T2_91", "Upload to playback lifecycle with fixture storage (draft, intent, encode, screen, moderate, publish, playback, unpublish)", "NOT RUN",
     "Covered by the existing upload-to-playback journey test in the baseline (B_CONTENT); not re-implemented as a black-box test")
 add("T3", "T3_91", "Approved points reversals", "NOT RUN", "No execution path exists (excluded by the R1 SRS); ledger constraints only are tested by the existing suite")
-add("T3", "T3_92", "Consumer recovery and retry on a real broker under load (sustained failure injection, many messages)", "NOT RUN", "Single-message and burst cases only; no soak or load test was run")
-add("T9", "T9_90", "Firefox", "NOT RUN", "Only Chromium is installed in this environment")
-add("T9", "T9_91", "Safari / WebKit", "NOT RUN", "WebKit is not installed in this environment")
 add("T9", "T9_92", "Screen reader (NVDA, VoiceOver, TalkBack) on the console", "NOT RUN", "No screen reader available; only structural accessibility was tested (T9_30 to T9_33)")
 add("T9", "T9_93", "Event review, advertising review and financial oversight pages", "NOT RUN", "These console pages do not exist")
 add("T9", "T9_94", "Creator verification, business verification, moderation decisions and appeals through the browser (full reviewer workflows)", "NOT RUN",
     "Reviewer workflows are covered by the existing real-HTTP console journeys (baseline B_JOURNEYS); only sign-in, authorization, sessions and rendering were re-tested in a browser here")
 add("T10", "T10_90X", "HTTPS termination and proxy security on the deployed edge (Cloudflare, host Nginx)", "BLOCKED", "No access to AWS or the deployed edge; repository configuration reviewed statically only")
-add("T10", "T10_92", "Container image vulnerability scans", "BLOCKED", "No Docker daemon, no scanner, and no images are built in this environment")
-add("T10", "T10_93", "Flutter dependency advisories (OSV)", "BLOCKED", "Egress to api.osv.dev is denied by the environment's network policy; the check runs in CI")
 add("T10", "T10_94", "Database grants and role ownership on the staging database", "BLOCKED", "No access to AWS; the repository's own schema script was tested on a disposable database (T10_01 to T10_04)")
 add("T10", "T10_95", "Deployed RabbitMQ accounts, permissions and queue policy", "BLOCKED", "No broker access; accounts from the generator's table were proven on a disposable broker (Phase 10, T3_*)")
-add("T10", "T10_96", "Resource limits enforced at runtime in Swarm and logging/alerting pipelines", "NOT RUN", "No Swarm and no monitoring stack here; limits reviewed statically (all workers 160 to 512 MiB)")
-add("T10", "T10_97", "Worker restart and failure recovery under Swarm restart policy", "NOT RUN", "No Swarm; process-level kill and restart were tested on the Points worker (T3_31, T3_35)")
+add("T10", "T10_96L", "Logging and alerting pipelines on the deployed Swarm", "NOT RUN", "No monitoring stack here; runtime limits passed on a local Swarm (T10_96)")
 add("T10", "T10_98", "Penetration test by an independent tester", "NOT RUN", "Not authorized or available; this phase is internal testing only")
 add("T10", "T10_99", "Mobile application security review on a device (binary, storage, pinning)", "BLOCKED", NO_DEVICE)
 
@@ -78,19 +74,13 @@ def disposition(row):
         "T2_90": ("Required before release: real R2 upload and playback once credentials are provisioned", "Product owner (R2) and Media engineering"),
         "T2_91": ("Accepted: covered by the baseline upload-to-playback journey (B_JOURNEYS, B_BROKER_PIPELINE)", "Engineering"),
         "T3_91": ("Accepted for R1: reversals are excluded by the SRS; no execution path exists", "Product owner"),
-        "T3_92": ("Required before scale-up: load and soak test with capacity known", "Owner (capacity) and Engineering"),
-        "T9_90": ("Accepted for R1 pilot: Chromium only; add Firefox before general release", "QA"),
-        "T9_91": ("Accepted for R1 pilot: add WebKit before general release", "QA"),
         "T9_92": ("Required before general release: screen-reader pass on the console", "QA / accessibility reviewer"),
         "T9_93": ("Out of R1 scope: the pages do not exist", "Product owner"),
         "T9_94": ("Accepted: covered by the baseline real-HTTP console journeys (B_JOURNEYS)", "Engineering"),
         "T10_90X": ("Required before release: edge verification on staging", "Infrastructure owner"),
-        "T10_92": ("Required before release: image scan in CI or a build host", "Infrastructure owner"),
-        "T10_93": ("Required before release: runs in CI where egress to OSV exists", "Engineering (CI)"),
         "T10_94": ("Required before release: read back grants on staging and run the R-01 conversion (runbook), then repeat T10_03, T10_04", "Infrastructure owner, DBA"),
         "T10_95": ("Required before release: read back broker permissions, adopt a dead-letter policy", "Infrastructure owner"),
-        "T10_96": ("Required before release: verify limits and logging on Swarm", "Infrastructure owner"),
-        "T10_97": ("Required before release: restart-policy drill on Swarm", "Infrastructure owner"),
+        "T10_96L": ("Required before release: verify logging and alerting on staging", "Infrastructure owner"),
         "T10_98": ("Required before general release: independent penetration test", "Product owner"),
         "T10_99": ("Required before release: device security review", "Product owner with QA"),
     }.get(i, ("UNASSIGNED: needs a disposition", "UNASSIGNED"))
