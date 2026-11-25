@@ -1872,6 +1872,8 @@ paths:
       - Content
       summary: Republish an approved private video
       operationId: post__videos_video_id_publish
+      description: Under Decision F, refused with 403 while a publishing or suspension measure is active on the
+        creator. An upload-only or monetization-only measure does not block publishing.
       x-implementation: local
       x-capability: media
       x-required-roles:
@@ -4118,6 +4120,367 @@ paths:
         assignment scope to Engagement. Account identifiers are redacted. Read-only;
         no fraud policy or hold mutation endpoint is introduced.
 
+  /creators/me/restrictions:
+    get:
+      tags:
+      - Creators
+      summary: List my measures and their appeals
+      operationId: get_own_creator_restrictions
+      x-implementation: local
+      x-capability: media
+      x-required-roles:
+      - viewer
+      - creator
+      description: Under Decision F (D-8). The newest 50 measures on the caller's creator profile, active or not. The
+        administrator's private reason and identity are never returned. A temporary measure ends at expires_at with no
+        scheduler. creator_id is null and items is empty for an account with no creator profile.
+      responses:
+        '200':
+          description: The caller's measures
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [creator_id, items]
+                properties:
+                  creator_id: {type: [string, 'null'], format: uuid}
+                  items:
+                    type: array
+                    maxItems: 50
+                    items:
+                      $ref: '#/components/schemas/CreatorRestriction'
+        '400':
+          description: Invalid restriction request
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Viewer or creator role with a verified email required
+        '404':
+          description: Not found
+        '409':
+          description: Conflicts with an existing measure, appeal or decision
+        '503':
+          description: Creator service unavailable
+  /creators/me/restrictions/{restriction_id}/appeals:
+    post:
+      tags:
+      - Creators
+      summary: Appeal one of my active measures
+      operationId: post_own_creator_restriction_appeal
+      x-implementation: local
+      x-capability: media
+      x-required-roles:
+      - viewer
+      - creator
+      description: Under Decision F. One appeal per measure, on an active measure the caller owns. Repeating the same
+        reason answers the existing appeal with 200; a different reason is a 409. An administrator other than the issuer
+        decides it.
+      parameters:
+      - name: restriction_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: {type: string, minLength: 10, maxLength: 2000}
+      responses:
+        '200':
+          description: The existing appeal (replay)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RestrictionAppealRef'
+        '201':
+          description: Appeal opened
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RestrictionAppealRef'
+        '400':
+          description: Invalid restriction request
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Viewer or creator role with a verified email required
+        '404':
+          description: Not found
+        '409':
+          description: Conflicts with an existing measure, appeal or decision
+        '503':
+          description: Creator service unavailable
+  /admin/creators/{creator_id}/restrictions:
+    get:
+      tags:
+      - Administration
+      summary: List the measures on one creator
+      operationId: list_admin_creator_restrictions
+      x-implementation: local
+      x-capability: media
+      x-required-roles:
+      - administrator
+      x-mfa-required: true
+      description: Under Decision F (D-8). The newest 50 measures with their private detail.
+      parameters:
+      - name: creator_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: The creator's measures
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    maxItems: 50
+                    items:
+                      $ref: '#/components/schemas/CreatorRestrictionDetail'
+        '400':
+          description: Invalid restriction request
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Administrator role and a live MFA-verified session required, or the same administrator
+        '404':
+          description: Not found
+        '409':
+          description: Conflicts with an existing measure, appeal or decision
+        '503':
+          description: Creator service unavailable
+    post:
+      tags:
+      - Administration
+      summary: Issue a warning, restriction or suspension
+      operationId: post_admin_creator_restriction
+      x-implementation: local
+      x-capability: media
+      x-required-roles:
+      - administrator
+      x-mfa-required: true
+      description: Under Decision F. warning blocks nothing; upload blocks new uploads; publishing blocks publishing;
+        monetization blocks future earnings (read by Finance when it exists); suspension blocks all three. One active
+        measure of a kind at a time (409). An administrator cannot restrict their own creator profile. A replay with the
+        same Idempotency-Key and body answers the recorded measure with 200. Already published videos are not
+        unpublished by a measure; removal stays a moderation decision.
+      parameters:
+      - name: creator_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{16,128}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [kind, reason_code, policy_version, reason, expires_at]
+              properties:
+                kind: {type: string, enum: [warning, upload, publishing, monetization, suspension]}
+                reason_code: {type: string, pattern: '^[A-Z][A-Z0-9_]{1,63}$'}
+                policy_version: {type: string, pattern: '^[A-Za-z0-9._-]{1,32}$'}
+                reason: {type: string, minLength: 10, maxLength: 2000}
+                expires_at:
+                  type: [string, 'null']
+                  format: date-time
+                  description: Null for an open-ended measure; otherwise in the future.
+      responses:
+        '200':
+          description: The recorded measure (replay)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatorRestrictionDetail'
+        '201':
+          description: Measure issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatorRestrictionDetail'
+        '400':
+          description: Invalid restriction request
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Administrator role and a live MFA-verified session required, or the same administrator
+        '404':
+          description: Not found
+        '409':
+          description: Conflicts with an existing measure, appeal or decision
+        '503':
+          description: Creator service unavailable
+  /admin/creator-restrictions/{restriction_id}/lift:
+    post:
+      tags:
+      - Administration
+      summary: Lift a measure and reinstate the creator
+      operationId: post_admin_creator_restriction_lift
+      x-implementation: local
+      x-capability: media
+      x-required-roles:
+      - administrator
+      x-mfa-required: true
+      description: Under Decision F. Needs an administrator other than the issuer. An open appeal on the measure is
+        closed as lifted. A replay by the same administrator with the same reason answers 200.
+      parameters:
+      - name: restriction_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: {type: string, minLength: 10, maxLength: 2000}
+      responses:
+        '200':
+          description: The lifted measure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatorRestrictionDetail'
+        '400':
+          description: Invalid restriction request
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Administrator role and a live MFA-verified session required, or the same administrator
+        '404':
+          description: Not found
+        '409':
+          description: Conflicts with an existing measure, appeal or decision
+        '503':
+          description: Creator service unavailable
+  /admin/creator-restriction-appeals:
+    get:
+      tags:
+      - Administration
+      summary: List open appeals against creator measures
+      operationId: list_admin_creator_restriction_appeals
+      x-implementation: local
+      x-capability: media
+      x-required-roles:
+      - administrator
+      x-mfa-required: true
+      description: Under Decision F. Oldest first, 20 per page.
+      parameters:
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: One page of open appeals
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items, next_cursor]
+                properties:
+                  items:
+                    type: array
+                    maxItems: 20
+                    items:
+                      $ref: '#/components/schemas/RestrictionAppealDetail'
+                  next_cursor:
+                    type: [string, 'null']
+                    format: uuid
+        '400':
+          description: Invalid restriction request
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Administrator role and a live MFA-verified session required, or the same administrator
+        '404':
+          description: Not found
+        '409':
+          description: Conflicts with an existing measure, appeal or decision
+        '503':
+          description: Creator service unavailable
+  /admin/creator-restriction-appeals/{appeal_id}/decision:
+    post:
+      tags:
+      - Administration
+      summary: Uphold or lift a measure on appeal
+      operationId: post_admin_creator_restriction_appeal_decision
+      x-implementation: local
+      x-capability: media
+      x-required-roles:
+      - administrator
+      x-mfa-required: true
+      description: Under Decision F. The decider must not be the issuer, the appellant or the creator. lift ends the
+        measure; uphold keeps it. A replay of the same decision answers 200; a different decision is a 409.
+      parameters:
+      - name: appeal_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [decision, reason]
+              properties:
+                decision: {type: string, enum: [uphold, lift]}
+                reason: {type: string, minLength: 10, maxLength: 2000}
+      responses:
+        '200':
+          description: The decided appeal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RestrictionAppealDetail'
+        '400':
+          description: Invalid restriction request
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Administrator role and a live MFA-verified session required, or the same administrator
+        '404':
+          description: Not found
+        '409':
+          description: Conflicts with an existing measure, appeal or decision
+        '503':
+          description: Creator service unavailable
   /admin/moderation/assignments:
     get:
       tags:
@@ -9183,6 +9546,55 @@ components:
         status: {type: string, enum: [open, denied, restored]}
         created_at: {type: string, format: date-time}
         reason: {type: string, minLength: 10, maxLength: 2000}
+    CreatorRestriction:
+      type: object
+      description: Under Decision F, a measure as the creator sees it. active is false once lifted or expired.
+      additionalProperties: false
+      required: [id, kind, reason_code, policy_version, issued_at, expires_at, lifted_at, active, appeal]
+      properties:
+        id: {type: string, format: uuid}
+        kind: {type: string, enum: [warning, upload, publishing, monetization, suspension]}
+        reason_code: {type: string, pattern: '^[A-Z][A-Z0-9_]{1,63}$'}
+        policy_version: {type: string, pattern: '^[A-Za-z0-9._-]{1,32}$'}
+        issued_at: {type: string, format: date-time}
+        expires_at: {type: [string, 'null'], format: date-time}
+        lifted_at: {type: [string, 'null'], format: date-time}
+        active: {type: boolean}
+        appeal:
+          oneOf:
+          - $ref: '#/components/schemas/RestrictionAppealRef'
+          - type: 'null'
+    CreatorRestrictionDetail:
+      description: Under Decision F, a measure with its administrator-only detail.
+      allOf:
+      - $ref: '#/components/schemas/CreatorRestriction'
+      - type: object
+        required: [creator_id, reason, issued_by, lifted_by, lift_reason]
+        properties:
+          creator_id: {type: string, format: uuid}
+          reason: {type: string, maxLength: 2000}
+          issued_by: {type: string, format: uuid}
+          lifted_by: {type: [string, 'null'], format: uuid}
+          lift_reason: {type: string, maxLength: 2000}
+    RestrictionAppealRef:
+      type: object
+      additionalProperties: false
+      required: [id, status]
+      properties:
+        id: {type: string, format: uuid}
+        status: {type: string, enum: [open, upheld, lifted]}
+    RestrictionAppealDetail:
+      type: object
+      additionalProperties: false
+      required: [id, status, created_at, reason, restriction, decided_at, decision_reason]
+      properties:
+        id: {type: string, format: uuid}
+        status: {type: string, enum: [open, upheld, lifted]}
+        created_at: {type: string, format: date-time}
+        reason: {type: string, maxLength: 2000}
+        restriction: {$ref: '#/components/schemas/CreatorRestrictionDetail'}
+        decided_at: {type: [string, 'null'], format: date-time}
+        decision_reason: {type: string, maxLength: 2000}
     EditValues:
       type: object
       additionalProperties: false

@@ -95,6 +95,13 @@ def _rules():
     add("gateway", "media", "DELETE", rf"/api/v1/videos/{UUID}")
     add("gateway", "media", "POST", r"/api/v1/videos", rf"/api/v1/videos/{UUID}/upload-intents", rf"/api/v1/videos/{UUID}/upload-status",
         rf"/api/v1/videos/{UUID}/(?:publish|unpublish)")
+    # Decision F (D-8): a creator reads and appeals their own measures; administrators manage them.
+    add("gateway", "media", "GET", r"/api/v1/creators/me/restrictions")
+    add("gateway", "media", "POST", rf"/api/v1/creators/me/restrictions/{UUID}/appeals")
+    add("gateway", "media", "GET POST", rf"/api/v1/admin/creators/{UUID}/restrictions", privileged=True)
+    add("gateway", "media", "POST", rf"/api/v1/admin/creator-restrictions/{UUID}/lift",
+        rf"/api/v1/admin/creator-restriction-appeals/{UUID}/decision", privileged=True)
+    add("gateway", "media", "GET", r"/api/v1/admin/creator-restriction-appeals", privileged=True)
     add("gateway", "analytics", "GET", r"/api/v1/creators/me/analytics", rf"/api/v1/creators/me/videos/{UUID}/analytics")
     add("gateway", "engagement", "GET PUT DELETE", rf"/api/v1/videos/{UUID}/like", rf"/api/v1/creators/{UUID}/follow")
     add("gateway", "engagement", "GET", r"/api/v1/videos/following")
@@ -134,6 +141,12 @@ def _rules():
     # standing stay behind the separate privileged creator-onboarding flag (KOLOVIBE_STAGING_CREATOR_ONBOARDING).
     add("creators", "media", "POST", r"/internal/creators/onboarding/eligibility",
         r"/internal/creators/onboarding/ownership", r"/internal/creators/onboarding/review_policy")
+
+    # Decision F: enforcement reads and the creator's own measures travel with the media journey; the
+    # administrator operations (issue, lift, list, appeal queue, decision) need the privileged switch.
+    add("creators", "media", "POST", r"/internal/creators/restrictions/(?:mine|appeal|capabilities)")
+    add("creators", "media", "POST", r"/internal/creators/restrictions/(?:issue|lift|list|appeals|decide)",
+        privileged=True)
 
     # ---- Content (internal) -----------------------------------------------------------------------
     add("content", "engagement", "POST", r"/internal/videos/lookup")

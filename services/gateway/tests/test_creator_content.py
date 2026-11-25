@@ -239,8 +239,11 @@ class CreatorContentGatewayTests(SimpleTestCase):
 
     def test_restricted_creator_cannot_create_or_republish_and_unpublish_needs_only_ownership(self):
         eligibility = JsonResponse({"upload_eligible": False, "creator_id": None})
+        caps = JsonResponse({"creator_id": self.creator, "upload": False, "publish": False, "monetization": False})
         with patch("service.media._owned_creator", return_value=(self.creator, None)), \
                 patch("service.media.creator_eligibility", return_value=eligibility), \
+                patch("service.media.authenticated_actor", return_value=(self.actor, "creator")), \
+                patch("service.media.restriction_capabilities", return_value=caps), \
                 patch("service.media.signed_internal_request") as call:
             self.assertEqual(media.create_video_draft(self.factory.post("/api/v1/videos", {
                 "title": "Original", "category": "hipco"}, content_type="application/json")).status_code, 403)
@@ -251,7 +254,7 @@ class CreatorContentGatewayTests(SimpleTestCase):
 
     def test_publish_review_required_code_and_upload_failure_status_are_preserved(self):
         with patch("service.media._owned_creator", return_value=(self.creator, None)), \
-                patch("service.media._eligible_creator", return_value=(self.creator, None)), \
+                patch("service.media._publish_blocked", return_value=None), \
                 patch("service.media.signed_internal_request") as call:
             call.side_effect = HTTPError("https://content.invalid", 409, "", {}, BytesIO(
                 b'{"detail":"Moderation approval required","code":"review_required"}'))

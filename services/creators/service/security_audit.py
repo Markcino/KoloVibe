@@ -5,7 +5,8 @@ from .models import AuditDelivery, AuditEvent
 
 # Exactly the vocabulary the Audit service accepts from this producer (services/audit/service/events.py).
 KINDS = {"creator.invited", "creator.invitation_revoked", "creator.application_submitted", "creator.approved",
-         "creator.rejected", "creator.profile_updated"}
+         "creator.rejected", "creator.profile_updated", "creator.warned", "creator.restricted", "creator.suspended",
+         "creator.restored", "creator.restriction_appealed", "creator.restriction_appeal_decided"}
 SUBJECT_TYPES = {"account", "creator"}
 
 

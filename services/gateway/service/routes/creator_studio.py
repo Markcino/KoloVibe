@@ -37,6 +37,25 @@ def patterns():
             path("api/v1/videos/<uuid:video_id>/publish", video_visibility, {"operation": "publish"}, name="api-video-publish"),
             path("api/v1/videos/<uuid:video_id>/unpublish", video_visibility, {"operation": "unpublish"}, name="api-video-unpublish"),
         ]
+    if enabled("media"):
+        # Decision F (D-8): measures on creators. Administrators issue, lift and decide appeals with an
+        # MFA-verified session; a creator reads and appeals only their own measures.
+        from ..creator_restrictions import creator_restrictions
+
+        routes += [
+            path("api/v1/creators/me/restrictions", creator_restrictions, {"operation": "mine"},
+                 name="api-own-restrictions"),
+            path("api/v1/creators/me/restrictions/<uuid:target_id>/appeals", creator_restrictions,
+                 {"operation": "appeal"}, name="api-own-restriction-appeal"),
+            path("api/v1/admin/creators/<uuid:target_id>/restrictions", creator_restrictions,
+                 {"operation": "admin_restrictions"}, name="api-admin-creator-restrictions"),
+            path("api/v1/admin/creator-restrictions/<uuid:target_id>/lift", creator_restrictions,
+                 {"operation": "lift"}, name="api-admin-restriction-lift"),
+            path("api/v1/admin/creator-restriction-appeals", creator_restrictions,
+                 {"operation": "appeals"}, name="api-admin-restriction-appeals"),
+            path("api/v1/admin/creator-restriction-appeals/<uuid:target_id>/decision", creator_restrictions,
+                 {"operation": "decide"}, name="api-admin-restriction-appeal-decision"),
+        ]
     if enabled("analytics"):
         from ..analytics import creator_analytics, creator_video_analytics
 
