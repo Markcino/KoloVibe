@@ -381,9 +381,15 @@ class ZBruteForce(unittest.TestCase):
         self.assertIn(429, statuses, "reset codes must be throttled: " + str(sorted(set(statuses))))
 
     def test_T1_94_registration_and_reset_requests_are_rate_limited(self):
+        # Phase 12: the budget is per trusted network origin, so the request carries the header the test Gateway trusts.
+        origin = {"X-Phase11-Client-IP": "198.51.100.%d" % (1 + secrets.randbelow(250))}
         statuses = [S().post("/auth/register", {"email": "flood%d%s@example.test" % (i, secrets.token_hex(2)), "display_name": "Flood User",
-                                                 "password": secrets.token_urlsafe(20)})[0] for i in range(40)]
+                                                 "password": secrets.token_urlsafe(20)}, headers=origin)[0] for i in range(40)]
         self.assertIn(429, statuses, "unbounded registration: " + str(sorted(set(statuses))))
+        self.assertEqual(statuses[:20], [201] * 20, "the first 20 attempts from one origin stay within the approved budget")
+        other = S().post("/auth/register", {"email": "other%s@example.test" % secrets.token_hex(3), "display_name": "Other User",
+                                            "password": secrets.token_urlsafe(20)}, headers={"X-Phase11-Client-IP": "203.0.113.%d" % (1 + secrets.randbelow(250))})
+        self.assertEqual(other[0], 201, "another network is not locked out by the flood")
 
     def _mail_count(self, action, attempts=8, prelude=None):
         """How many emails really go out: the capture file is rewritten on every send, so count its changes.

@@ -236,6 +236,9 @@ def stack(broker=True):
         for service in SERVICES:
             environment = dict(environments[service])
             if service == "gateway":
+                # Phase 12: per-origin limits only count when the edge vouches for a client address. A real edge overwrites this
+                # header on every request; here a test that wants an origin sends it. NOTE: no deployment manifest sets it (D12-001).
+                environment["KOLOVIBE_TRUSTED_CLIENT_IP_HEADER"] = "X-Phase11-Client-IP"
                 environment["KOLOVIBE_LOCAL_MEDIA_ENABLED"] = "1"
                 environment["KOLOVIBE_LOCAL_BUSINESS_ENABLED"] = "1"
                 for peer, key in keys.items():
