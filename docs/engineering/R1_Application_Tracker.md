@@ -205,6 +205,10 @@ Full record: [Phase 11 report](phase11/Phase11_Test_Report.md), [matrix](phase11
 
 [Phase 4 Business completion](reverification/Phase4_Business_Completion_2026-11-25.md). All approved Business functionality is development complete: all 57 operations are routed, 44 have a Flutter client and 13 have a console client, and only staff removal is refused by design. The eleven listed extensions are **Blocked by approval** (DR-BZ-14, 18, 19, 20, 25, 26, 29, 33). Not activated anywhere. Production NO-GO.
 
+### Reverification Phase 3 (25 November 2026)
+
+Repository-side development, not deployed: [Phase 3 report](reverification/Phase3_Core_Completion_Report_2026-11-25.md). D-P2-01 fixed (PR #234), Creators and Content audit delivery D11-007 (PR #235), maintenance roles at zero replicas D11-009 (PR #236). **Correction:** M-050 to M-052 were already live in-flow states; the Phase 1 and 2 gap was a false positive. Dead letters stay **Blocked by approval** (RV2-03). Production NO-GO.
+
 ### Reverification Phase 2 (25 November 2026) — `main` at `8a6e7a0`
 
 Planning only: [Phase 2 requirements, architecture and plan](reverification/Phase2_Requirements_Architecture_Plan_2026-11-25.md) and the [R1 completion design (PROPOSED)](../architecture/R1_Completion_Design_PROPOSED.md). Nothing approved. Track A (no policy needed): poster re-render defect **D-P2-01**, Creators and Content audit delivery, M-050 to M-052, maintenance roles, dead-letter wiring. New decisions raised: RV2-01 (re-review of published-video edits), RV2-02 (consent record), RV2-03 (dead-letter values), RV2-04 (media retention values), X-01 (one monetary ledger).
