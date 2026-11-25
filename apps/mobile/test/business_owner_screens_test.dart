@@ -10,6 +10,8 @@ import 'support/business_harness.dart';
 import 'support/business_screen_harness.dart';
 
 const biz = 'ff74369a-051e-4b9d-ba3f-3f419b1f493f';
+final stepUpToken = 'p' * 48;
+final typed = 'x' * 12;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -290,21 +292,80 @@ void main() {
       return (harness, bed);
     }
 
+    Reply liveAnswer(Recorded r) {
+      if (r.path == '/me/step-up') {
+        return (
+          status: 200,
+          body: {
+            'step_up_token': stepUpToken,
+            'purpose': 'business.contact_change',
+            'expires_at': DateTime.now()
+                .toUtc()
+                .add(const Duration(minutes: 5))
+                .toIso8601String()
+          }
+        );
+      }
+      if (r.method == 'PATCH') return fx('profile_edit');
+      return fx('profile_get', (b) {
+        (b['approved'] as Map)['contacts'] = [
+          {'kind': 'phone', 'value': '+231770000009', 'is_public': true}
+        ];
+      });
+    }
+
     testWidgets(
-        'on a live profile the editor is not shown: one explanation and the current values',
+        'on a live profile the editor is shown with the current values, and no password is asked before a change',
         (tester) async {
-      final (harness, _) = await open(
-          tester,
-          (r) => fx('profile_get', (b) {
-                (b['approved'] as Map)['contacts'] = [
-                  {'kind': 'phone', 'value': '+231770000009', 'is_public': true}
-                ];
-              }));
-      expect(find.byKey(const ValueKey('contacts-locked')), findsOneWidget);
+      final (harness, bed) = await open(tester, liveAnswer);
+      expect(find.byKey(const ValueKey('contacts-locked')), findsNothing);
       expect(find.text('+231770000009'), findsOneWidget);
-      expect(find.text('Add a contact'), findsNothing);
-      expect(find.text('Save draft'), findsNothing);
-      expect(harness.requests.where((r) => r.method == 'PATCH'), isEmpty);
+      expect(find.text('Add a contact'), findsOneWidget);
+      await bed.tap(tester, 'Save draft');
+      expect(find.byKey(const ValueKey('step-up-dialog')), findsNothing);
+      expect(harness.requests.where((r) => r.path == '/me/step-up'), isEmpty);
+    });
+
+    testWidgets(
+        'changing live contacts asks for the password and sends the proof with that one change',
+        (tester) async {
+      final (harness, bed) = await open(tester, liveAnswer);
+      await enter(tester, 0, '+231770000222');
+      await bed.tap(tester, 'Save draft');
+      expect(find.byKey(const ValueKey('step-up-dialog')), findsOneWidget);
+      await tester.enterText(
+          find.byKey(const ValueKey('step-up-password')), typed);
+      await tester.tap(find.byKey(const ValueKey('step-up-confirm')));
+      await settleAsync(tester);
+      final stepUp =
+          harness.requests.singleWhere((r) => r.path == '/me/step-up');
+      expect(stepUp.body, {
+        'current_password': typed,
+        'purpose': 'business.contact_change',
+        'resource_id': biz
+      });
+      final sent = harness.requests.singleWhere((r) => r.method == 'PATCH');
+      expect(sent.headers['X-Step-Up-Token'], stepUpToken);
+      expect(sent.body, {
+        'contacts': [
+          {'kind': 'phone', 'value': '+231770000222', 'is_public': true}
+        ]
+      });
+      expectKey(sent);
+      expect(find.byKey(const ValueKey('contacts-saved')), findsOneWidget);
+    });
+
+    testWidgets('cancelling the password on a live profile sends nothing',
+        (tester) async {
+      final (harness, bed) = await open(tester, liveAnswer);
+      await enter(tester, 0, '+231770000222');
+      await bed.tap(tester, 'Save draft');
+      await tester.tap(find.text('Cancel'));
+      await settleAsync(tester);
+      expect(
+          harness.requests
+              .where((r) => r.method == 'PATCH' || r.path == '/me/step-up'),
+          isEmpty);
     });
 
     testWidgets(
@@ -357,20 +418,34 @@ void main() {
     });
 
     testWidgets(
+        'a wrong password and a refused proof are each stated, and the change is not sent',
+        (tester) async {
+      final (harness, bed) = await open(
+          tester,
+          (r) => r.path == '/me/step-up'
+              ? (status: 400, body: {'detail': 'Reauthentication failed'})
+              : liveAnswer(r));
+      await enter(tester, 0, '+231770000222');
+      await bed.tap(tester, 'Save draft');
+      await tester.enterText(
+          find.byKey(const ValueKey('step-up-password')), 'y' * 12);
+      await tester.tap(find.byKey(const ValueKey('step-up-confirm')));
+      await settleAsync(tester);
+      expect(find.text('That password is not correct. Nothing was changed.'),
+          findsOneWidget);
+      expect(harness.requests.where((r) => r.method == 'PATCH'), isEmpty);
+    });
+
+    testWidgets(
         'if the service still refuses for step-up, the reason is stated',
         (tester) async {
       final (_, bed) = await open(
           tester,
           (r) => r.method == 'PATCH'
-              ? (
-                  status: 403,
-                  body: {'detail': 'x', 'code': 'step_up_unavailable'}
-                )
+              ? (status: 403, body: {'detail': 'x', 'code': 'step_up_required'})
               : fx('profile_get_working'));
       await bed.tap(tester, 'Save draft');
-      expect(
-          find.text(
-              'This change needs an extra security check that is not available yet.'),
+      expect(find.text('Confirm your password again to make this change.'),
           findsOneWidget);
     });
   });

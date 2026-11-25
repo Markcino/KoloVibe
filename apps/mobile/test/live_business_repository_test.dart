@@ -1,12 +1,19 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kolovibe/core/network/api_client.dart';
+import 'package:kolovibe/features/account/live_account_repository.dart';
 import 'package:kolovibe/features/business/business_models.dart';
 import 'package:kolovibe/features/business/live_business_repository.dart';
 
 import 'support/business_harness.dart';
 
 const key = 'k-0123456789abcdef';
+final proofToken = 'p' * 48;
+final typed = 'x' * 12;
+
+StepUpProof proofFor(String purpose) => StepUpProof(
+    proofToken, purpose, DateTime.now().add(const Duration(minutes: 5)));
 const base = '/me/businesses/$businessId';
 
 /// One row per operation the app calls: what must go out, and which real service answer must parse.
@@ -315,6 +322,14 @@ final cases = <Case>[
   Case('redeem', 'POST', '/me/business-invitations/redeem', 'staff_redeem',
       (r) => r.redeem('abcdefghijklmnop0123', key: key),
       body: {'code': 'abcdefghijklmnop0123'}, mutating: true),
+  Case(
+      'remove member',
+      'DELETE',
+      '$base/members/$otherId',
+      'member_remove',
+      (r) => r.removeMember(businessId, otherId,
+          proof: proofFor('business.member_remove'), key: key),
+      mutating: true),
   Case('leave', 'POST', '$base/leave', 'member_leave',
       (r) => r.leave(businessId, key: key),
       body: <String, Object?>{}, mutating: true),
@@ -365,9 +380,7 @@ void main() {
     }
   });
 
-  test(
-      'every operation in the contract is covered, except the one deliberately left out',
-      () {
+  test('every operation in the contract is covered', () {
     final contract = (jsonDecode(File('test/fixtures/business/_operations.json')
             .readAsStringSync()) as List)
         .cast<String>()
@@ -376,13 +389,97 @@ void main() {
       for (final c in cases)
         '${c.method} ${c.path.replaceAll(RegExp(r'[0-9a-f]{8}-[0-9a-f-]{27}'), '{id}')}'
     };
-    // Removing a staff member fails closed until step-up exists (P6B-04, DR-BZ-33): the app does not offer it.
-    const left = {'DELETE /me/businesses/{id}/members/{id}'};
-    expect(contract.difference(covered), left,
+    expect(contract.difference(covered), isEmpty,
         reason:
             'an operation of the contract has no repository method or no test');
     expect(covered.difference(contract), isEmpty,
         reason: 'the app calls something the contract does not have');
-    expect(covered.length, 43);
+    expect(covered.length, 44);
+  });
+
+  group('Decision G step-up', () {
+    test(
+        'a proof is asked for this business and purpose, and the answer is checked',
+        () async {
+      final harness = BusinessHarness(
+          answer: (_) => (
+                status: 200,
+                body: {
+                  'step_up_token': proofToken,
+                  'purpose': 'business.member_remove',
+                  'expires_at': DateTime.now()
+                      .toUtc()
+                      .add(const Duration(minutes: 5))
+                      .toIso8601String()
+                }
+              ));
+      final proof = await harness.repository.confirmForBusiness(
+          businessId, 'business.member_remove', typed);
+      expect([harness.last.method, harness.last.path], ['POST', '/me/step-up']);
+      expect(harness.last.body, {
+        'current_password': typed,
+        'purpose': 'business.member_remove',
+        'resource_id': businessId
+      });
+      expect(harness.last.headers.containsKey('X-Step-Up-Token'), isFalse);
+      expect(proof.purpose, 'business.member_remove');
+    });
+
+    test('an answer for another purpose or a malformed token is refused',
+        () async {
+      for (final body in [
+        {
+          'step_up_token': proofToken,
+          'purpose': 'business.close',
+          'expires_at': '2999-01-01T00:00:00Z'
+        },
+        {
+          'step_up_token': 'short',
+          'purpose': 'business.member_remove',
+          'expires_at': '2999-01-01T00:00:00Z'
+        },
+        {
+          'step_up_token': proofToken,
+          'purpose': 'business.member_remove',
+          'expires_at': '2000-01-01T00:00:00Z'
+        },
+      ]) {
+        final harness =
+            BusinessHarness(answer: (_) => (status: 200, body: body));
+        await expectLater(
+            harness.repository.confirmForBusiness(
+                businessId, 'business.member_remove', typed),
+            throwsA(anything));
+      }
+    });
+
+    test(
+        'the proof travels in its own header, once, and only on the request it was obtained for',
+        () async {
+      final harness = BusinessHarness(answer: always('member_remove'));
+      final proof = proofFor('business.member_remove');
+      await harness.repository
+          .removeMember(businessId, otherId, proof: proof, key: key);
+      expect(harness.last.headers['X-Step-Up-Token'], proofToken);
+      final before = harness.requests.length;
+      await expectLater(
+          harness.repository
+              .removeMember(businessId, otherId, proof: proof, key: key),
+          throwsA(isA<ApiFailure>()));
+      expect(harness.requests.length, before,
+          reason: 'a used proof is never sent again');
+      harness.answer = always('member_list');
+      await harness.repository.team(businessId);
+      expect(harness.last.headers.containsKey('X-Step-Up-Token'), isFalse);
+    });
+
+    test('a proof for another purpose cannot remove a member', () async {
+      final harness = BusinessHarness(answer: always('member_remove'));
+      expect(
+          () => harness.repository.removeMember(businessId, otherId,
+              proof: proofFor('business.contact_change'), key: key),
+          throwsArgumentError);
+      expect(harness.requests, isEmpty);
+    });
   });
 }

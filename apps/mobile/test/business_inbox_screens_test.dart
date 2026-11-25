@@ -15,6 +15,11 @@ const biz = 'ff74369a-051e-4b9d-ba3f-3f419b1f493f';
 const thread = 'b64cc15f-3662-471e-9644-b1ffd4bfd0a6';
 const review = '61604c4b-22e7-4b06-980f-af57ec9cf597';
 
+const staffMember = '3bee5959-a32f-4af1-8d01-f7b030972d6e';
+const ownerMember = 'd781e33c-77f6-46fc-942a-99c7a8669790';
+final stepUpToken = 'p' * 48;
+final typed = 'x' * 12;
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -379,15 +384,98 @@ void main() {
     }
 
     testWidgets(
-        'shows people and pending invitations, and has no control to remove a member',
+        'shows people and pending invitations, and offers removal only for staff who are not you',
         (tester) async {
       await open(tester, answer);
       expect(find.textContaining('you'), findsWidgets);
       expect(find.text('Cashier'), findsOneWidget);
-      expect(find.byKey(const ValueKey('team-removal-unavailable')),
+      expect(
+          find.byKey(const ValueKey('team-removal-unavailable')), findsNothing);
+      expect(find.byKey(const ValueKey('remove-$staffMember')), findsOneWidget);
+      expect(find.byKey(const ValueKey('remove-$ownerMember')), findsNothing);
+    });
+
+    Reply stepUpAnswer(Recorded r) {
+      if (r.path == '/me/step-up') {
+        return (
+          status: 200,
+          body: {
+            'step_up_token': stepUpToken,
+            'purpose': 'business.member_remove',
+            'expires_at': DateTime.now()
+                .toUtc()
+                .add(const Duration(minutes: 5))
+                .toIso8601String()
+          }
+        );
+      }
+      if (r.method == 'DELETE') return fx('member_remove');
+      return answer(r);
+    }
+
+    testWidgets(
+        'removing a member asks for the password, sends the proof once and reloads',
+        (tester) async {
+      final (harness, _) = await open(tester, stepUpAnswer);
+      await tester
+          .ensureVisible(find.byKey(const ValueKey('remove-$staffMember')));
+      await tester.tap(find.byKey(const ValueKey('remove-$staffMember')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('step-up-dialog')), findsOneWidget);
+      await tester.enterText(
+          find.byKey(const ValueKey('step-up-password')), typed);
+      await tester.tap(find.byKey(const ValueKey('step-up-confirm')));
+      await settleAsync(tester);
+      final stepUp =
+          harness.requests.singleWhere((r) => r.path == '/me/step-up');
+      expect(stepUp.body, {
+        'current_password': typed,
+        'purpose': 'business.member_remove',
+        'resource_id': biz
+      });
+      final removal = harness.requests.singleWhere((r) => r.method == 'DELETE');
+      expect(removal.path, '/me/businesses/$biz/members/$staffMember');
+      expect(removal.headers['X-Step-Up-Token'], stepUpToken);
+      expectKey(removal);
+      expect(harness.requests.last.method, 'GET',
+          reason: 'the list is reloaded');
+      expect(
+          harness.requests
+              .where((r) => r.headers.containsKey('X-Step-Up-Token'))
+              .length,
+          1);
+    });
+
+    testWidgets('cancelling the password sends nothing', (tester) async {
+      final (harness, _) = await open(tester, stepUpAnswer);
+      final before = harness.requests.length;
+      await tester
+          .ensureVisible(find.byKey(const ValueKey('remove-$staffMember')));
+      await tester.tap(find.byKey(const ValueKey('remove-$staffMember')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(harness.requests.length, before);
+    });
+
+    testWidgets('a wrong password is explained and nothing is removed',
+        (tester) async {
+      final (harness, _) = await open(
+          tester,
+          (r) => r.path == '/me/step-up'
+              ? (status: 400, body: {'detail': 'Current password is incorrect'})
+              : answer(r));
+      await tester
+          .ensureVisible(find.byKey(const ValueKey('remove-$staffMember')));
+      await tester.tap(find.byKey(const ValueKey('remove-$staffMember')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+          find.byKey(const ValueKey('step-up-password')), 'y' * 12);
+      await tester.tap(find.byKey(const ValueKey('step-up-confirm')));
+      await settleAsync(tester);
+      expect(harness.requests.where((r) => r.method == 'DELETE'), isEmpty);
+      expect(find.text('That password is not correct. Nothing was changed.'),
           findsOneWidget);
-      expect(find.text('Remove'), findsNothing);
-      expect(find.text('Remove member'), findsNothing);
     });
 
     testWidgets(

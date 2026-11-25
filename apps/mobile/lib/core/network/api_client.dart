@@ -71,9 +71,14 @@ class ApiClient {
       Map<String, Object?>? body,
       String? accessToken,
       String? idempotencyKey,
+      String? stepUpToken,
       Map<String, String>? query}) async {
     if (!path.startsWith('/') || path.contains('..') || path.contains('?')) {
       throw ArgumentError('Invalid API path');
+    }
+    if (stepUpToken != null &&
+        !RegExp(r'^[A-Za-z0-9_-]{32,128}$').hasMatch(stepUpToken)) {
+      throw ArgumentError('Invalid step-up proof');
     }
     if (idempotencyKey != null &&
         !RegExp(r'^[A-Za-z0-9_-]{16,128}$').hasMatch(idempotencyKey)) {
@@ -92,6 +97,9 @@ class ApiClient {
     }
     if (idempotencyKey != null) {
       request.headers['Idempotency-Key'] = idempotencyKey;
+    }
+    if (stepUpToken != null) {
+      request.headers['X-Step-Up-Token'] = stepUpToken;
     }
     try {
       final streamed =
