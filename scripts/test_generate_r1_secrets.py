@@ -148,6 +148,29 @@ class GeneratorTests(unittest.TestCase):
             self.assertIn("secret inspect", (scripts / "create-secrets.sh").read_text())  # never replaces
             self.assertIn("add_user", (scripts / "broker-setup.sh").read_text())
 
+    def test_broker_accounts_get_least_privilege_grants_never_a_wildcard(self):
+        import subprocess
+
+        self.assertEqual(set(gen.BROKER_PERMISSIONS), set(gen.BROKER_ACCOUNTS))
+        _, text = gen.scripts_text(Path("/nonexistent/secrets"), ["kolovibe_points_rabbitmq_url_r1_v1"])
+        self.assertNotIn("'.*'", text)
+        self.assertIn("'$conf' '$wr' '$rd'", text)
+        block = text[text.index('  case "$svc" in'):text.index("  esac") + len("  esac")]
+        for service, expected in gen.BROKER_PERMISSIONS.items():
+            for pattern in expected:
+                self.assertTrue(pattern.startswith("^") and pattern.endswith("$"), pattern)  # anchored, never open-ended
+            # Run the generated shell itself: the patterns must reach the remote command literally (backslashes and $).
+            result = subprocess.run(["bash", "-c", f'svc={service}\n{block}\nprintf "%s\\n" "$conf" "$wr" "$rd"'],
+                                    capture_output=True, text=True, check=True)
+            self.assertEqual(tuple(result.stdout.splitlines()), expected)
+        # Engagement may write to the Points exchange but must be unable to configure or read it.
+        configure, write, read = gen.BROKER_PERMISSIONS["engagement"]
+        self.assertIn("kolovibe\\.points", write)
+        self.assertNotIn("points", configure + read)
+        # Nothing the service does not own appears in its grants.
+        self.assertNotIn("engagement", "".join(gen.BROKER_PERMISSIONS["points"]))
+        self.assertNotIn("points", "".join(gen.BROKER_PERMISSIONS["content"]))
+
 
 class ValidatorRejectionTests(unittest.TestCase):
     def mutate(self, name, change):

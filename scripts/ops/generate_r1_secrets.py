@@ -27,6 +27,15 @@ from staging_runtime import capabilities as policy  # noqa: E402
 
 BROKER_HOST, BROKER_PORT, BROKER_VHOST = "kolovibe-rabbitmq", 5671, "/kolovibe"
 BROKER_ACCOUNTS = {"content": "kolovibe_content", "engagement": "kolovibe_engagement", "points": "kolovibe_points"}
+# Least-privilege RabbitMQ grants per service: (configure, write, read) regular expressions over resource names in the vhost.
+# Content owns its media queue. Points owns its queue and exchange. Engagement owns its queue and may only WRITE to the
+# pre-provisioned Points exchange (it must not read, consume or declare it). Proven against a real broker by
+# scripts/verify_event_pipeline_broker.py, which provisions accounts from this table.
+BROKER_PERMISSIONS = {
+    "content": (r"^kolovibe\.content\.media$",) * 3,
+    "engagement": (r"^kolovibe\.engagement$", r"^(kolovibe\.engagement|kolovibe\.points)$", r"^kolovibe\.engagement$"),
+    "points": (r"^kolovibe\.points$",) * 3,
+}
 RECEIVERS = ("identity", "content", "creators", "engagement", "points", "moderation")
 ALL_CAPS = frozenset(policy.CAPABILITIES) - {"audit_read"}
 APPROVAL_REFERENCES = ("identity", "smtp", "credentials", "transport", "mfa", "audit")
@@ -189,13 +198,23 @@ def scripts_text(directory, names):
         create.append(f'if ssh -o BatchMode=yes {manager} "sudo -n docker secret inspect {name} >/dev/null 2>&1"; then echo "EXISTS (skipped): {name}"; '
                       f'else ssh -o BatchMode=yes {manager} "sudo -n docker secret create {name} -" < "{name}" >/dev/null && echo "created: {name}"; fi')
     users = " ".join(f"{s}:{u}" for s, u in BROKER_ACCOUNTS.items())
+    # Each account gets only its own resources (BROKER_PERMISSIONS), never a wildcard. The patterns sit in single quotes, so
+    # they stay literal; the remote command receives them by variable expansion, which is not parsed again.
+    grants = ["  case \"$svc\" in"]
+    for service, (configure, write, read) in BROKER_PERMISSIONS.items():
+        for value in (configure, write, read):
+            if "'" in value:
+                raise ValueError("A broker permission pattern cannot contain a single quote")
+        grants.append(f"    {service}) conf='{configure}'; wr='{write}'; rd='{read}';;")
+    grants += ["    *) echo \"no broker permissions defined for $svc\" >&2; exit 1;;", "  esac"]
     broker = ["#!/bin/bash", "# Creates the three per-service RabbitMQ accounts in the existing vhost, with the passwords already inside the",
-              "# generated URI files (read here, never printed). Run only after approval.", "set -euo pipefail", f'cd "{directory}"',
+              "# generated URI files (read here, never printed). Each account is limited to its own queues and exchanges.",
+              "# Run only after approval.", "set -euo pipefail", f'cd "{directory}"',
               f'WORKER=swarm-worker; VHOST="{BROKER_VHOST}"', f'for pair in {users}; do',
-              '  svc="${pair%%:*}"; user="${pair##*:}"',
+              '  svc="${pair%%:*}"; user="${pair##*:}"', *grants,
               '  pw="$(python3 -c \'import sys,urllib.parse as u; print(u.urlsplit(open(sys.argv[1]).read()).password)\' "kolovibe_${svc}_rabbitmq_url_r1_v1")"',
               '  ssh -o BatchMode=yes $WORKER "CID=\\$(sudo -n docker ps -q --filter label=com.docker.swarm.service.name=kolovibe-rabbitmq | head -1); '
-              'sudo -n docker exec \\$CID rabbitmqctl -q add_user $user \'$pw\' && sudo -n docker exec \\$CID rabbitmqctl -q set_permissions -p $VHOST $user \'.*\' \'.*\' \'.*\'" >/dev/null',
+              'sudo -n docker exec \\$CID rabbitmqctl -q add_user $user \'$pw\' && sudo -n docker exec \\$CID rabbitmqctl -q set_permissions -p $VHOST $user \'$conf\' \'$wr\' \'$rd\'" >/dev/null',
               '  echo "account ready: $user"', "done"]
     return "\n".join(create) + "\n", "\n".join(broker) + "\n"
 
