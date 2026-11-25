@@ -8,7 +8,7 @@ version: "3.8"
 #
 # The eight API services already run on AWS and are moved to the R1 configuration with
 # `kolovibe_cluster.py update --profile aws-staging --enable-r1-capabilities` (see README), not by this file.
-# This file adds the seven processes that do not exist yet. Six are the same shared image digest as the
+# This file adds the nine processes that do not exist yet. Eight are the same shared image digest as the
 # APIs, selected by `--role` (the media worker alone uses the separate media-worker image: only it carries FFmpeg,
 # on the Alpine 3.24 base; both digests come from the same `published-image-<sha>` CI artifact); each mounts
 # exactly the secrets of the API service it belongs to (the staging
@@ -89,7 +89,7 @@ services:
       KOLOVIBE_R2_ACCESS_KEY_FILE: /run/secrets/r2_access_key
       KOLOVIBE_R2_SECRET_KEY_FILE: /run/secrets/r2_secret_key
       KOLOVIBE_R2_HTTPS_PROXY: http://kolovibe-r2-proxy:3128
-    secrets:
+    secrets: &content-secrets
       - {source: content_django, target: django_key, uid: "10001", gid: "10001", mode: 0400}
       - {source: content_db, target: db_password, uid: "10001", gid: "10001", mode: 0400}
       - {source: content_tls_cert, target: tls_cert, uid: "10001", gid: "10001", mode: 0400}
@@ -107,6 +107,34 @@ services:
       resources:
         limits: {cpus: "1.0", memory: 512M}
         reservations: {cpus: "0.25", memory: 256M}
+
+  # --- Content: re-publish stalled processing jobs (maintenance; Phase 3 A5) ---------------------------------
+  # Reads the Content schema and publishes to the media queue only. It never reaches R2, so it carries the Content
+  # R2 configuration the runtime validates but no route to the R2 proxy. Off until the maintenance schedule is
+  # approved (O-12); the interval and batch are proposals.
+  content-requeue:
+    <<: *process
+    command: ["--role", "requeue-media", "--interval", "900", "--limit", "100"]
+    networks: [private, data_private, broker_private]
+    environment:
+      <<: [*environment, *broker]
+      KOLOVIBE_SERVICE_NAME: content
+      KOLOVIBE_ALLOWED_HOSTS: content
+      KOLOVIBE_DB_USER: ${CONTENT_DB_USER:?runtime database login required}
+      KOLOVIBE_STAGING_ACCOUNTS: "0"
+      KOLOVIBE_STAGING_PRIVILEGED: "0"
+      KOLOVIBE_STAGING_CAPABILITIES: analytics,engagement,media,moderation
+      KOLOVIBE_R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:?R2 account identifier required (not a secret)}
+      KOLOVIBE_R2_MEDIA_BUCKET: ${R2_MEDIA_BUCKET:?private R2 media bucket required}
+      KOLOVIBE_R2_ACCESS_KEY_FILE: /run/secrets/r2_access_key
+      KOLOVIBE_R2_SECRET_KEY_FILE: /run/secrets/r2_secret_key
+      KOLOVIBE_R2_HTTPS_PROXY: http://kolovibe-r2-proxy:3128
+    secrets: *content-secrets
+    deploy:
+      <<: *deploy
+      resources:
+        limits: {cpus: "0.5", memory: 160M}
+        reservations: {cpus: "0.1", memory: 80M}
 
   # --- Engagement: queue consumer and outbox dispatcher -----------------------------------------------------
   engagement-consumer:
@@ -243,7 +271,7 @@ services:
     <<: *process
     command: ["--role", "deliver-security-audit", "--interval", "30", "--limit", "100"]
     networks: [private, data_private]
-    environment:
+    environment: &identity-environment
       <<: *environment
       KOLOVIBE_SERVICE_NAME: identity
       KOLOVIBE_ALLOWED_HOSTS: identity
@@ -260,7 +288,7 @@ services:
       KOLOVIBE_MFA_ENCRYPTION_KEY_FILE: /run/secrets/mfa_encryption_key
       KOLOVIBE_OUTBOUND_KEY_FILE: /run/secrets/audit_signing_key
       KOLOVIBE_TRUSTED_PEERS_FILE: /run/secrets/audit_peers
-    secrets:
+    secrets: &identity-secrets
       - {source: identity_django, target: django_key, uid: "10001", gid: "10001", mode: 0400}
       - {source: identity_db, target: db_password, uid: "10001", gid: "10001", mode: 0400}
       - {source: identity_tls_cert, target: tls_cert, uid: "10001", gid: "10001", mode: 0400}
@@ -275,6 +303,20 @@ services:
       - {source: identity_audit_signing, target: audit_signing_key, uid: "10001", gid: "10001", mode: 0400}
       - {source: identity_audit_peers, target: audit_peers, uid: "10001", gid: "10001", mode: 0400}
       - {source: kolovibe_account_approval_r1_v1, target: account_approvals, uid: "10001", gid: "10001", mode: 0400}
+    deploy:
+      <<: *deploy
+      resources:
+        limits: {cpus: "0.5", memory: 160M}
+        reservations: {cpus: "0.1", memory: 80M}
+
+  # --- Identity: retention of expired throttle, code, challenge and session rows (maintenance; Phase 3 A5) -------
+  # Accounts, security events and audit rows are never touched. Off until the maintenance schedule is approved (O-12).
+  identity-purge:
+    <<: *process
+    command: ["--role", "purge-security-rows", "--interval", "3600", "--limit", "1000"]
+    networks: [private, data_private]
+    environment: *identity-environment
+    secrets: *identity-secrets
     deploy:
       <<: *deploy
       resources:

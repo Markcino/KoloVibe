@@ -1,6 +1,6 @@
 # R1 maintenance commands: manual runbook (D11-009)
 
-**Status: documentation, written 25 November 2026. Nothing here is scheduled and nothing was run.** Three Django management commands keep tables from growing without bound or recover work a lost message left behind. None of them has a scheduled role in the Swarm stack (`infra/swarm/staging-aws.yml` declares seven worker and job processes; these three are not among them). Until the owner approves a scheduler as a separate deployment change, the **documented manual run** below is the control. The tracker row "Scheduled maintenance commands: three unscheduled, one undocumented" is closed by this document only for the *documentation* half; the *scheduling* half stays open with the owner (see the release-readiness package).
+**Status: documentation, written 25 November 2026. Nothing here is scheduled and nothing was run.** Three Django management commands keep tables from growing without bound or recover work a lost message left behind. Two of them now have a **candidate** scheduled role in the Swarm stack at zero replicas (Phase 3 A5, 25 November 2026): `identity-purge` and `content-requeue` in `infra/swarm/staging-aws.yml`, which now declares nine worker and job processes. Neither runs until the owner approves the schedule (O-12) and scales it to 1. The console's `purge_expired_web_sessions` runs in the separate web image and stack and still has no role. Until O-12 is approved, the **documented manual run** below is the control. The tracker row "Scheduled maintenance commands: three unscheduled, one undocumented" is closed by this document only for the *documentation* half; the *scheduling* half stays open with the owner (see the release-readiness package).
 
 ## Rules that apply to all three
 
@@ -42,4 +42,13 @@
 
 ## What this does not do
 
-It does not schedule anything, add a role to a stack file, change a retention period, or touch accounts, security events or audit rows. Retention of those is an owner policy decision (ADR-020, OD-08). Adding the three as scheduled roles needs a reviewed change to `staging-aws.yml` and its validators and an owner approval; it is recorded as open owner action **O-12** in the release-readiness package.
+It does not start anything, change a retention period, or touch accounts, security events or audit rows. Retention of those is an owner policy decision (ADR-020, OD-08).
+
+### Candidate scheduled roles (off until O-12 is approved)
+
+| Process | Role | Proposed schedule | Network | Notes |
+| --- | --- | --- | --- | --- |
+| `identity-purge` | `purge-security-rows` (capability `account_management`) | `--interval 3600 --limit 1000` (hourly, the runtime's slowest allowed interval) | service and data only | same flag row and secret mounts as `identity-audit` |
+| `content-requeue` | `requeue-media` (capability `media`) | `--interval 900 --limit 100` | service, data and messaging; **no** R2 proxy route | carries the Content R2 settings the runtime validates, but cannot reach R2 |
+
+Both are at `replicas: 0`. The interval and batch values are proposals for the owner to confirm with O-12. To start one after approval: `docker service scale <stack>_identity-purge=1`; to stop: scale to `0`. The console purge stays manual until a web-stack role is designed. Validated offline by `python scripts/validate_staging_stack.py --aws-stack` and `scripts/test_aws_stack.py`.

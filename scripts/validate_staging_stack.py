@@ -131,7 +131,8 @@ AWS_ROLES = {
     "media-worker": ("content", "media-worker"), "engagement-consumer": ("engagement", "consumer"),
     "engagement-dispatch": ("engagement", "dispatch-events"), "points-consumer": ("points", "consumer"),
     "points-audit": ("points", "deliver-audit"), "moderation-audit": ("moderation", "deliver-audit"),
-    "identity-audit": ("identity", "deliver-security-audit"),
+    "identity-audit": ("identity", "deliver-security-audit"), "identity-purge": ("identity", "purge-security-rows"),
+    "content-requeue": ("content", "requeue-media"),
 }
 AWS_NETWORKS = {"private": "kolovibe_services", "data_private": "kolovibe_data", "broker_private": "kolovibe_messaging",
                 "r2_proxy_clients": "kolovibe_r2_proxy_clients"}
@@ -174,7 +175,7 @@ def validate_aws(stack):
     cluster, roles = _aws_references()
     profile = cluster.AWS_STAGING
     if set(stack["services"]) != set(AWS_ROLES):
-        raise ValueError("The AWS stack must define exactly the seven R1 worker and job services")
+        raise ValueError("The AWS stack must define exactly the nine R1 worker and job services")
     for name, expected in AWS_NETWORKS.items():
         if stack["networks"].get(name) != {"external": True, "name": expected}:
             raise ValueError("AWS networks must be the existing approved external overlays")
@@ -230,8 +231,10 @@ def validate_aws(stack):
                 or ("r2_proxy_clients" in definition["networks"]) != r2:
             raise ValueError("A worker joins the service and data networks, the messaging network only if it uses the broker, "
                              "and the R2 proxy client network only if it is the media worker")
-        if environment.get("KOLOVIBE_R2_HTTPS_PROXY") != ("http://kolovibe-r2-proxy:3128" if r2 else None):
-            raise ValueError("Only the media worker carries the R2 proxy address, and it is the approved private proxy")
+        # A Content process validates the same R2 configuration as the Content API (staging_runtime), so it carries the
+        # approved proxy address; only the media worker is given a route to it.
+        if environment.get("KOLOVIBE_R2_HTTPS_PROXY") != ("http://kolovibe-r2-proxy:3128" if service == "content" else None):
+            raise ValueError("Only Content processes carry the R2 proxy address, and it is the approved private proxy")
         placement = definition["deploy"].get("placement", {}).get("constraints")
         if placement != [profile.worker_constraint]:
             raise ValueError("AWS processes must carry the exact hostname pin and no label constraint")
