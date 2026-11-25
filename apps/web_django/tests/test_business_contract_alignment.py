@@ -83,6 +83,14 @@ class ConsoleContractAlignmentTests(unittest.TestCase):
         for method, path, _ in console_requests():
             self.assertTrue(path.startswith(("/moderation/", "/admin/", "/business-categories")), path)
 
+    def test_every_privileged_business_operation_has_a_console_consumer(self):
+        """Phase 4 F: with the app's own coverage test, no declared Business operation is left without a client."""
+        sent = {(method, path) for method, path, _ in console_requests()}
+        for key, operation in sorted(self.operations.items()):
+            if operation["x-capability"] == "business_review_admin":
+                with self.subTest(" ".join(key)):
+                    self.assertIn(key, sent, "an administrator or reviewer operation has no console page")
+
 
 if __name__ == "__main__":
     unittest.main()
