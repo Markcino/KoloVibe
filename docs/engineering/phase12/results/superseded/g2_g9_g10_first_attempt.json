@@ -1,0 +1,436 @@
+{
+ "results": [
+  {
+   "id": "T2_20",
+   "test": "CreatorApi.test_T2_20_a_viewer_cannot_create_videos",
+   "status": "PASS",
+   "seconds": 0.04,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_21",
+   "test": "CreatorApi.test_T2_21_a_creator_can_create_a_draft_and_it_starts_private",
+   "status": "PASS",
+   "seconds": 0.15,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_22",
+   "test": "CreatorApi.test_T2_22_draft_input_is_validated",
+   "status": "PASS",
+   "seconds": 0.25,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_23",
+   "test": "CreatorApi.test_T2_23_upload_intents_enforce_size_limits_and_the_originality_attestation",
+   "status": "PASS",
+   "seconds": 0.64,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_24",
+   "test": "CreatorApi.test_T2_24_one_creator_cannot_touch_anothers_videos",
+   "status": "PASS",
+   "seconds": 1.15,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_25",
+   "test": "CreatorApi.test_T2_25_a_draft_without_a_finished_upload_cannot_be_published",
+   "status": "PASS",
+   "seconds": 0.17,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_26",
+   "test": "CreatorApi.test_T2_26_an_unpublished_or_unknown_video_has_no_playback",
+   "status": "PASS",
+   "seconds": 0.15,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_27",
+   "test": "CreatorApi.test_T2_27_published_playback_returns_a_short_lived_signed_url_only_for_signed_in_viewers",
+   "status": "PASS",
+   "seconds": 0.04,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_01",
+   "test": "Media.test_T2_01_a_valid_video_is_converted_to_a_clean_h264_aac_mp4",
+   "status": "PASS",
+   "seconds": 0.47,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_02",
+   "test": "Media.test_T2_02_a_full_hd_upload_is_scaled_down_and_dimensions_are_even",
+   "status": "PASS",
+   "seconds": 0.46,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_03",
+   "test": "Media.test_T2_03_oversized_dimensions_are_refused",
+   "status": "PASS",
+   "seconds": 0.12,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_04",
+   "test": "Media.test_T2_04_a_video_longer_than_five_minutes_is_refused",
+   "status": "PASS",
+   "seconds": 0.13,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_05",
+   "test": "Media.test_T2_05_files_that_are_not_valid_videos_are_refused",
+   "status": "PASS",
+   "seconds": 0.6,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_06",
+   "test": "Media.test_T2_06_playlists_and_concat_files_cannot_make_ffmpeg_read_local_files_or_the_network",
+   "status": "PASS",
+   "seconds": 0.2,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_07",
+   "test": "Media.test_T2_07_appended_data_in_a_polyglot_file_does_not_survive_conversion",
+   "status": "PASS",
+   "seconds": 0.43,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_08",
+   "test": "Media.test_T2_08_metadata_such_as_titles_and_gps_is_stripped",
+   "status": "PASS",
+   "seconds": 0.24,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_09",
+   "test": "Media.test_T2_09_the_rendition_is_streamable_and_within_the_size_limit",
+   "status": "PASS",
+   "seconds": 0.27,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_10",
+   "test": "Media.test_T2_10_a_corrupted_header_in_the_middle_of_a_valid_file_does_not_hang_or_crash_the_encoder",
+   "status": "PASS",
+   "seconds": 0.46,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_01",
+   "test": "Console.test_T9_01_an_administrator_signs_in_with_password_and_mfa_and_reaches_the_dashboard",
+   "status": "PASS",
+   "seconds": 2.5,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_02",
+   "test": "Console.test_T9_02_a_moderator_signs_in_and_cannot_reach_administrator_only_pages",
+   "status": "PASS",
+   "seconds": 1.78,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_03",
+   "test": "Console.test_T9_03_a_viewer_cannot_sign_in_to_the_console",
+   "status": "PASS",
+   "seconds": 0.79,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_04",
+   "test": "Console.test_T9_04_wrong_password_and_unknown_email_get_the_same_page",
+   "status": "PASS",
+   "seconds": 1.54,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_05",
+   "test": "Console.test_T9_05_a_wrong_mfa_code_does_not_open_a_session",
+   "status": "PASS",
+   "seconds": 1.46,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_06",
+   "test": "Console.test_T9_06_every_console_page_redirects_an_anonymous_visitor_to_sign_in",
+   "status": "PASS",
+   "seconds": 0.99,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_07",
+   "test": "Console.test_T9_07_login_does_not_follow_an_external_next_parameter_and_changes_the_session_id",
+   "status": "PASS",
+   "seconds": 1.62,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_10",
+   "test": "Console.test_T9_10_logout_ends_the_session_and_the_old_cookie_no_longer_works",
+   "status": "PASS",
+   "seconds": 2.01,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_11",
+   "test": "Console.test_T9_11_a_get_request_to_the_logout_url_does_not_sign_you_out",
+   "status": "PASS",
+   "seconds": 1.74,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_12",
+   "test": "Console.test_T9_12_state_changing_posts_without_a_csrf_token_are_refused",
+   "status": "PASS",
+   "seconds": 1.65,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_13",
+   "test": "Console.test_T9_13_an_idle_session_expires_after_thirty_minutes",
+   "status": "PASS",
+   "seconds": 1.69,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_14",
+   "test": "Console.test_T9_14_a_privileged_session_expires_fifteen_minutes_after_sign_in_even_if_active",
+   "status": "PASS",
+   "seconds": 1.62,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_20",
+   "test": "Console.test_T9_20_security_headers_and_a_content_security_policy_that_forbids_scripts",
+   "status": "PASS",
+   "seconds": 1.89,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_21",
+   "test": "Console.test_T9_21_no_console_page_triggers_a_csp_violation_or_a_javascript_error",
+   "status": "PASS",
+   "seconds": 3.75,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_22",
+   "test": "Console.test_T9_22_administrator_pages_load_without_a_server_error_and_without_leaking_internals",
+   "status": "PASS",
+   "seconds": 3.57,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_30",
+   "test": "Console.test_T9_30_every_form_control_and_button_has_an_accessible_name_and_the_page_has_landmarks",
+   "status": "PASS",
+   "seconds": 3.29,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_31",
+   "test": "Console.test_T9_31_the_sign_in_form_works_with_the_keyboard_alone_and_focus_is_visible",
+   "status": "PASS",
+   "seconds": 1.38,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_32",
+   "test": "Console.test_T9_32_pages_fit_a_narrow_phone_width_and_200_percent_zoom_without_horizontal_scroll",
+   "status": "PASS",
+   "seconds": 2.54,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_33",
+   "test": "Console.test_T9_33_interactive_targets_are_large_enough_to_activate",
+   "status": "PASS",
+   "seconds": 1.9,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T10_01",
+   "test": "Database.test_T10_01_a_service_login_cannot_read_another_services_tables",
+   "status": "PASS",
+   "seconds": 0.69,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T10_02",
+   "test": "Database.test_T10_02_a_service_login_has_no_superuser_file_program_or_ddl_reach",
+   "status": "PASS",
+   "seconds": 0.02,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T10_03",
+   "test": "Database.test_T10_03_a_service_login_cannot_switch_off_the_append_only_guards_on_its_own_ledger",
+   "status": "PASS",
+   "seconds": 0.04,
+   "doc": "R-01: the runtime login inherits the role that OWNS its tables, so it can drop the triggers that make its ledger append-only.",
+   "detail": ""
+  },
+  {
+   "id": "T10_04",
+   "test": "Database.test_T10_04_service_logins_do_not_inherit_the_role_that_owns_their_tables",
+   "status": "PASS",
+   "seconds": 0.04,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T10_05",
+   "test": "Database.test_T10_05_database_connections_require_verified_tls",
+   "status": "PASS",
+   "seconds": 0.02,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T10_06",
+   "test": "Database.test_T10_06_database_secrets_are_private_files_and_never_in_process_arguments",
+   "status": "PASS",
+   "seconds": 0.0,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T10_30",
+   "test": "Database.test_T10_30_a_backup_restores_completely_and_the_guards_survive",
+   "status": "PASS",
+   "seconds": 1.24,
+   "doc": "The tested backup and recovery drill the pre-test rules ask for, on the disposable fixture (not on staging).",
+   "detail": ""
+  },
+  {
+   "id": "T10_31",
+   "test": "Database.test_T10_31_migrations_are_idempotent_and_the_latest_ones_reverse_and_reapply",
+   "status": "FAIL",
+   "seconds": 6.14,
+   "doc": "",
+   "detail": "differ: [('engagement', '0005', 'django.db.utils.P[258 chars]nt')] != []\n\nFirst list contains 3 additional elements.\nFirst extra element 0:\n('engagement', '0005', 'django.db.utils.ProgrammingError: must be owner of table service_fraudhold')\n\n+ []\n- [('engagement',\n-   '0005',\n-   'django.db.utils.ProgrammingError: must be owner of table service_fraudhold'),\n-  ('business',\n-   '0006',\n-   'django.db.utils.ProgrammingError: must be owner of table service_review'),\n-  ('creators',\n-   '0005',\n-   'django.db.utils.ProgrammingError: must be owner of table '\n-   'service_onboardingevent')] : [('engagement', '0005', 'django.db.utils.ProgrammingError: must be owner of table service_fraudhold'), ('business', '0006', 'django.db.utils.ProgrammingError: must be owner of table service_review'), ('creators', '0005', 'django.db.utils.ProgrammingError: must be owner of table service_onboardingevent')]\n"
+  },
+  {
+   "id": "T10_10",
+   "test": "Perimeter.test_T10_10_internal_service_ports_refuse_every_unsigned_request",
+   "status": "PASS",
+   "seconds": 0.14,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T10_11",
+   "test": "Perimeter.test_T10_11_spoofed_identity_and_forwarding_headers_do_not_open_internal_routes",
+   "status": "PASS",
+   "seconds": 0.01,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T10_20",
+   "test": "Perimeter.test_T10_20_no_cors_is_granted_and_dangerous_methods_are_refused",
+   "status": "PASS",
+   "seconds": 0.08,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T10_21",
+   "test": "Perimeter.test_T10_21_path_and_method_tricks_do_not_bypass_authorization",
+   "status": "PASS",
+   "seconds": 0.41,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T10_22",
+   "test": "Perimeter.test_T10_22_oversized_headers_bodies_and_urls_are_refused_and_the_service_stays_up",
+   "status": "PASS",
+   "seconds": 0.02,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T10_23",
+   "test": "Perimeter.test_T10_23_a_burst_of_public_reads_does_not_cause_server_errors",
+   "status": "PASS",
+   "seconds": 1.26,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T10_24",
+   "test": "Perimeter.test_T10_24_hostile_json_and_unicode_do_not_cause_server_errors",
+   "status": "PASS",
+   "seconds": 0.09,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T10_90",
+   "test": "ZSecretsAndLogs.test_T10_90_no_credential_or_token_created_during_the_run_appears_in_any_service_log",
+   "status": "PASS",
+   "seconds": 0.01,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T10_91",
+   "test": "ZSecretsAndLogs.test_T10_91_service_logs_record_requests_without_query_strings_that_carry_secrets",
+   "status": "PASS",
+   "seconds": 0.03,
+   "doc": "",
+   "detail": ""
+  }
+ ]
+}
