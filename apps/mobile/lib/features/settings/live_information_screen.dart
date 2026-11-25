@@ -7,6 +7,8 @@ import '../../core/network/api_client.dart';
 import '../../core/platform/device_bridge.dart';
 import '../../core/presentation/design_node.dart';
 import '../account/live_account_repository.dart';
+import '../legal/legal_screens.dart';
+import '../legal/live_legal_repository.dart';
 import '../creators/creator_shell.dart';
 import '../system/system_ui.dart';
 
@@ -257,6 +259,14 @@ class _LiveInformationScreenState extends State<LiveInformationScreen> {
               ),
             const Text(
               'Read the complete, current documents. Available requests and actions depend on applicable policy.',
+            ),
+            OutlinedButton(
+              key: const ValueKey('read-current-document'),
+              onPressed: () => openLegalDocument(context,
+                  LiveLegalRepository(widget.account), terms ? 'terms' : 'privacy'),
+              child: Text(terms
+                  ? 'Read the Terms of Service in the app'
+                  : 'Read the Privacy Notice in the app'),
             ),
             if (webLink(
               terms ? 'Read current Terms' : 'Read current Privacy Policy',

@@ -335,6 +335,12 @@ class LiveAccountRepository implements AccountRepository {
             'email': fields['Email address'] ?? '',
             'password': fields['Password'] ?? '',
             'display_name': fields['Full name'] ?? fields['Display name'] ?? '',
+            // Decision B: the versions the person was shown and accepted; marketing is a separate, optional choice.
+            'accepted': {
+              'terms': fields['acceptedTerms'] ?? '',
+              'privacy': fields['acceptedPrivacy'] ?? '',
+            },
+            'marketing_consent': fields['marketingConsent'] == 'true',
           },
         );
         return const UiResult.success(

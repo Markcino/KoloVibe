@@ -88,3 +88,28 @@ class AccountFixture {
   late final LiveAccountRepository account;
   final requests = <http.Request>[];
 }
+
+/// Decision B: a current legal text as the Gateway serves it (shape checked by the Gateway tests and the journey).
+Map<String, Object?> legalDocument(String kind, {String version = '2026-11-25'}) => {
+      'kind': kind,
+      'title': {'terms': 'Terms of Service', 'privacy': 'Privacy Notice', 'marketing': 'Marketing messages'}[kind],
+      'version': version,
+      'effective_at': '2026-11-25',
+      'status': 'pending_legal_review',
+      'sha256': 'a' * 64,
+      'text': '# Title\n\n**DRAFT. PENDING LEGAL REVIEW.**\n\n## Section\n\n- one item\n',
+    };
+
+/// Decision B: the signed-in acceptance state.
+Map<String, Object?> legalState({bool required = false, bool marketing = false, String version = '2026-11-25'}) => {
+      'documents': [
+        for (final kind in ['terms', 'privacy'])
+          {
+            ...legalDocument(kind, version: version)..remove('text'),
+            'accepted_version': required ? null : version,
+            'accepted_at': required ? null : '2026-11-25T10:00:00+00:00',
+          }
+      ],
+      'acceptance_required': required,
+      'marketing': {'granted': marketing, 'version': '2026-11-25', 'updated_at': null},
+    };

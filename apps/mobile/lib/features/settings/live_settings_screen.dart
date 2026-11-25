@@ -11,6 +11,7 @@ import '../creators/creator_shell.dart';
 import '../account/live_account_repository.dart';
 import '../system/system_ui.dart';
 import 'live_settings_repository.dart';
+import '../legal/live_legal_repository.dart';
 
 class LiveSettingsScreen extends StatefulWidget {
   const LiveSettingsScreen({
@@ -41,6 +42,7 @@ class _LiveSettingsScreenState extends State<LiveSettingsScreen> {
   Object? error;
   String? validation;
   NotificationChoices? choices;
+  LegalState? legalState;
   LiveAccount? account;
   List<PrivacyReceipt> receipts = [];
   Reauthentication? proof;
@@ -72,6 +74,14 @@ class _LiveSettingsScreenState extends State<LiveSettingsScreen> {
       if (user == null) throw const ApiFailure(401, 'Sign in again.');
       account = user;
       if (id == 86) choices = await widget.repository.preferences();
+      if (id == 84) {
+        // The marketing switch is optional on this screen; privacy requests stay usable if it cannot load.
+        try {
+          legalState = await LiveLegalRepository(widget.account).state();
+        } catch (_) {
+          legalState = null;
+        }
+      }
       if ({93, 94}.contains(id)) {
         receipts = widget.receipt == null
             ? await widget.repository.privacyRequests()
@@ -145,6 +155,29 @@ class _LiveSettingsScreenState extends State<LiveSettingsScreen> {
       if (mounted) {
         choices = saved;
         notifySuccess(context, 'Notification preferences saved.');
+      }
+    } catch (failure) {
+      error = failure;
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  /// Decision B: marketing consent is separate from the terms and the privacy notice, and can be withdrawn any time.
+  Future<void> saveMarketing(bool granted) async {
+    final current = legalState;
+    if (busy || current == null) return;
+    setState(() {
+      busy = true;
+      error = null;
+    });
+    try {
+      final saved = await LiveLegalRepository(widget.account)
+          .setMarketing(granted, current.marketingVersion);
+      if (mounted) {
+        legalState = saved;
+        notifySuccess(context,
+            granted ? 'Marketing messages turned on.' : 'Marketing messages turned off.');
       }
     } catch (failure) {
       error = failure;
@@ -253,6 +286,15 @@ class _LiveSettingsScreenState extends State<LiveSettingsScreen> {
             row('Account information', 85),
             row('Privacy policy', 88),
             row('Delete account request', 91),
+            if (legalState case final legal?)
+              SwitchListTile(
+                key: const ValueKey('marketing-switch'),
+                title: const Text('Marketing messages'),
+                subtitle: const Text(
+                    'News about new features and offers. Optional, separate from the terms, and never used for advertising or tracking.'),
+                value: legal.marketingGranted,
+                onChanged: busy ? null : saveMarketing,
+              ),
             note(
               'Recent searches stay on your phone, are kept for 14 days, and can be cleared from Search. They are never sent to KoloVibe.',
             ),

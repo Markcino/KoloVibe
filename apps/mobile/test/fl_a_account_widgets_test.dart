@@ -53,6 +53,9 @@ void main() {
   Future<AccountFixture> form(WidgetTester tester, int id,
       {int? failure, bool offline = false}) async {
     final fixture = AccountFixture(handler: (request) async {
+      if (request.url.path.contains('/legal/')) {
+        return jsonResponse(legalDocument(request.url.pathSegments.last));
+      }
       if (offline) throw http.ClientException('Offline');
       if (failure != null) {
         return jsonResponse({'detail': 'Action was not accepted.'}, failure);
@@ -80,9 +83,9 @@ void main() {
       await enter(tester, 'Full name', 'Mark');
       await enter(tester, 'Password', 'typed value'.padRight(32, 'x'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.byType(CheckboxListTile));
+      await tester.ensureVisible(find.byKey(const ValueKey('accept-legal')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byType(CheckboxListTile));
+      await tester.tap(find.byKey(const ValueKey('accept-legal')));
       await tester.pumpAndSettle();
     }
     if ({4, 15}.contains(id)) {
