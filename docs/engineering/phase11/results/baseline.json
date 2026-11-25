@@ -1,0 +1,188 @@
+{
+ "results": [
+  {
+   "id": "B_SVC_gateway",
+   "test": "test_B_SVC_gateway_gateway_service_suite,_makemigrations_check",
+   "status": "PASS",
+   "seconds": "",
+   "doc": "",
+   "detail": "223 tests OK, 18 skipped (shared service-identity template; inspected), no migration drift"
+  },
+  {
+   "id": "B_SVC_identity",
+   "test": "test_B_SVC_identity_identity_service_suite,_makemigrations_check",
+   "status": "PASS",
+   "seconds": "",
+   "doc": "",
+   "detail": "157 tests OK, 1 skipped (shared service-identity template; inspected), no migration drift"
+  },
+  {
+   "id": "B_SVC_creators",
+   "test": "test_B_SVC_creators_creators_service_suite,_makemigrations_check",
+   "status": "PASS",
+   "seconds": "",
+   "doc": "",
+   "detail": "84 tests OK, 1 skipped (shared service-identity template; inspected), no migration drift"
+  },
+  {
+   "id": "B_SVC_content",
+   "test": "test_B_SVC_content_content_service_suite,_makemigrations_check",
+   "status": "PASS",
+   "seconds": "",
+   "doc": "",
+   "detail": "135 tests OK, 2 skipped (shared service-identity template; inspected), no migration drift"
+  },
+  {
+   "id": "B_SVC_engagement",
+   "test": "test_B_SVC_engagement_engagement_service_suite,_makemigrations_check",
+   "status": "PASS",
+   "seconds": "",
+   "doc": "",
+   "detail": "73 tests OK, 1 skipped (shared service-identity template; inspected), no migration drift"
+  },
+  {
+   "id": "B_SVC_points",
+   "test": "test_B_SVC_points_points_service_suite,_makemigrations_check",
+   "status": "PASS",
+   "seconds": "",
+   "doc": "",
+   "detail": "68 tests OK, 1 skipped (shared service-identity template; inspected), no migration drift"
+  },
+  {
+   "id": "B_SVC_moderation",
+   "test": "test_B_SVC_moderation_moderation_service_suite,_makemigrations_check",
+   "status": "PASS",
+   "seconds": "",
+   "doc": "",
+   "detail": "71 tests OK, 1 skipped (shared service-identity template; inspected), no migration drift"
+  },
+  {
+   "id": "B_SVC_audit",
+   "test": "test_B_SVC_audit_audit_service_suite,_makemigrations_check",
+   "status": "PASS",
+   "seconds": "",
+   "doc": "",
+   "detail": "51 tests OK, 1 skipped (shared service-identity template; inspected), no migration drift"
+  },
+  {
+   "id": "B_SVC_business",
+   "test": "test_B_SVC_business_business_service_suite,_makemigrations_check",
+   "status": "PASS",
+   "seconds": "",
+   "doc": "",
+   "detail": "227 tests OK, 1 skipped (shared service-identity template; inspected), no migration drift"
+  },
+  {
+   "id": "B_WEB_try1",
+   "test": "test_B_WEB_try1_Console_suite,_first_attempt",
+   "status": "FAIL",
+   "seconds": "",
+   "doc": "",
+   "detail": "Runner error, not a product defect: KOLOVIBE_GATEWAY_URL was not set (RuntimeError: Web gateway origin is not approved). Superseded by B_WEB."
+  },
+  {
+   "id": "B_WEB",
+   "test": "test_B_WEB_Console_suite,_check_and_makemigrations",
+   "status": "PASS",
+   "seconds": "",
+   "doc": "",
+   "detail": "179 tests OK; manage.py check clean; no migration drift"
+  },
+  {
+   "id": "B_SCRIPTS",
+   "test": "test_B_SCRIPTS_Script_suites_(scripts/test_*.py)",
+   "status": "PASS",
+   "seconds": "",
+   "doc": "",
+   "detail": "459 tests OK"
+  },
+  {
+   "id": "B_PG_try1",
+   "test": "test_B_PG_try1_PostgreSQL_integration_scripts,_first_attempt_(7_scripts)",
+   "status": "FAIL",
+   "seconds": "",
+   "doc": "",
+   "detail": "Runner error, not a product defect: `runuser` was not on PATH in my script (exit 127 for all seven). Superseded by the seven rows below."
+  },
+  {
+   "id": "B_FOUNDATIONS",
+   "test": "test_B_FOUNDATIONS_TLS_PostgreSQL:_every_service's_migrations,_isolation,_ledger",
+   "status": "PASS",
+   "seconds": "",
+   "doc": "",
+   "detail": "9 service blocks OK (50 checks)"
+  },
+  {
+   "id": "B_BUSINESS_PG",
+   "test": "test_B_BUSINESS_PG_Business_on_TLS_PostgreSQL",
+   "status": "PASS",
+   "seconds": "",
+   "doc": "",
+   "detail": "15 checks OK"
+  },
+  {
+   "id": "B_JOURNEYS",
+   "test": "test_B_JOURNEYS_Real-HTTP_gateway,_mail,_web_journeys",
+   "status": "PASS",
+   "seconds": "",
+   "doc": "",
+   "detail": "11 of 11 OK"
+  },
+  {
+   "id": "B_STAGING_RUNTIME",
+   "test": "test_B_STAGING_RUNTIME_Staging_runtime:_8_profiles,_Gunicorn/TLS,_route_and_secret_gates",
+   "status": "PASS",
+   "seconds": "",
+   "doc": "",
+   "detail": "exit 0, PASS line printed"
+  },
+  {
+   "id": "B_DB_PREFLIGHT",
+   "test": "test_B_DB_PREFLIGHT_R1_database_preflight",
+   "status": "PASS",
+   "seconds": "",
+   "doc": "",
+   "detail": "16 tests OK"
+  },
+  {
+   "id": "B_EVENT_PIPELINE",
+   "test": "test_B_EVENT_PIPELINE_Engagement_to_Points,_recording_publisher",
+   "status": "PASS",
+   "seconds": "",
+   "doc": "",
+   "detail": "8 tests OK"
+  },
+  {
+   "id": "B_BROKER_PIPELINE",
+   "test": "test_B_BROKER_PIPELINE_Engagement_to_Points_on_a_real_TLS_RabbitMQ",
+   "status": "PASS",
+   "seconds": "",
+   "doc": "",
+   "detail": "6 tests OK"
+  },
+  {
+   "id": "B_FLUTTER_ANALYZE",
+   "test": "test_B_FLUTTER_ANALYZE_Flutter_3.47.8_analyze",
+   "status": "PASS",
+   "seconds": "",
+   "doc": "",
+   "detail": "No issues found"
+  },
+  {
+   "id": "B_FLUTTER_TEST",
+   "test": "test_B_FLUTTER_TEST_Flutter_3.47.8_tests_(widget_and_unit;_not_device)",
+   "status": "PASS",
+   "seconds": "",
+   "doc": "",
+   "detail": "All tests passed, 1823"
+  },
+  {
+   "id": "B_OPENAPI",
+   "test": "test_B_OPENAPI_OpenAPI_validation_(DOC-205_and_health)",
+   "status": "PASS",
+   "seconds": "",
+   "doc": "",
+   "detail": "Validated in Phase 10 at this commit; the contract files are unchanged"
+  }
+ ]
+}

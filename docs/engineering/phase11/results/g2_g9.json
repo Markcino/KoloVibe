@@ -1,0 +1,300 @@
+{
+ "results": [
+  {
+   "id": "T2_20",
+   "test": "CreatorApi.test_T2_20_a_viewer_cannot_create_videos",
+   "status": "PASS",
+   "seconds": 0.04,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_21",
+   "test": "CreatorApi.test_T2_21_a_creator_can_create_a_draft_and_it_starts_private",
+   "status": "PASS",
+   "seconds": 0.12,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_22",
+   "test": "CreatorApi.test_T2_22_draft_input_is_validated",
+   "status": "PASS",
+   "seconds": 0.26,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_23",
+   "test": "CreatorApi.test_T2_23_upload_intents_enforce_size_limits_and_the_originality_attestation",
+   "status": "PASS",
+   "seconds": 0.66,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_24",
+   "test": "CreatorApi.test_T2_24_one_creator_cannot_touch_anothers_videos",
+   "status": "PASS",
+   "seconds": 1.5,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_25",
+   "test": "CreatorApi.test_T2_25_a_draft_without_a_finished_upload_cannot_be_published",
+   "status": "PASS",
+   "seconds": 0.16,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_26",
+   "test": "CreatorApi.test_T2_26_an_unpublished_or_unknown_video_has_no_playback",
+   "status": "PASS",
+   "seconds": 0.14,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_27",
+   "test": "CreatorApi.test_T2_27_published_playback_returns_a_short_lived_signed_url_only_for_signed_in_viewers",
+   "status": "PASS",
+   "seconds": 0.04,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_01",
+   "test": "Media.test_T2_01_a_valid_video_is_converted_to_a_clean_h264_aac_mp4",
+   "status": "PASS",
+   "seconds": 0.52,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_02",
+   "test": "Media.test_T2_02_a_full_hd_upload_is_scaled_down_and_dimensions_are_even",
+   "status": "PASS",
+   "seconds": 0.46,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_03",
+   "test": "Media.test_T2_03_oversized_dimensions_are_refused",
+   "status": "PASS",
+   "seconds": 0.13,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_04",
+   "test": "Media.test_T2_04_a_video_longer_than_five_minutes_is_refused",
+   "status": "PASS",
+   "seconds": 0.11,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_05",
+   "test": "Media.test_T2_05_files_that_are_not_valid_videos_are_refused",
+   "status": "PASS",
+   "seconds": 0.58,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_06",
+   "test": "Media.test_T2_06_playlists_and_concat_files_cannot_make_ffmpeg_read_local_files_or_the_network",
+   "status": "PASS",
+   "seconds": 0.33,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_07",
+   "test": "Media.test_T2_07_appended_data_in_a_polyglot_file_does_not_survive_conversion",
+   "status": "PASS",
+   "seconds": 0.37,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_08",
+   "test": "Media.test_T2_08_metadata_such_as_titles_and_gps_is_stripped",
+   "status": "PASS",
+   "seconds": 0.28,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_09",
+   "test": "Media.test_T2_09_the_rendition_is_streamable_and_within_the_size_limit",
+   "status": "PASS",
+   "seconds": 0.23,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T2_10",
+   "test": "Media.test_T2_10_a_corrupted_header_in_the_middle_of_a_valid_file_does_not_hang_or_crash_the_encoder",
+   "status": "PASS",
+   "seconds": 0.46,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_01",
+   "test": "Console.test_T9_01_an_administrator_signs_in_with_password_and_mfa_and_reaches_the_dashboard",
+   "status": "PASS",
+   "seconds": 2.63,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_02",
+   "test": "Console.test_T9_02_a_moderator_signs_in_and_cannot_reach_administrator_only_pages",
+   "status": "PASS",
+   "seconds": 3.05,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_03",
+   "test": "Console.test_T9_03_a_viewer_cannot_sign_in_to_the_console",
+   "status": "PASS",
+   "seconds": 1.2,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_04",
+   "test": "Console.test_T9_04_wrong_password_and_unknown_email_get_the_same_page",
+   "status": "PASS",
+   "seconds": 2.76,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_05",
+   "test": "Console.test_T9_05_a_wrong_mfa_code_does_not_open_a_session",
+   "status": "PASS",
+   "seconds": 2.22,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_06",
+   "test": "Console.test_T9_06_every_console_page_redirects_an_anonymous_visitor_to_sign_in",
+   "status": "PASS",
+   "seconds": 1.6,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_07",
+   "test": "Console.test_T9_07_login_does_not_follow_an_external_next_parameter_and_changes_the_session_id",
+   "status": "PASS",
+   "seconds": 2.6,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_10",
+   "test": "Console.test_T9_10_logout_ends_the_session_and_the_old_cookie_no_longer_works",
+   "status": "PASS",
+   "seconds": 2.83,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_11",
+   "test": "Console.test_T9_11_a_get_request_to_the_logout_url_does_not_sign_you_out",
+   "status": "PASS",
+   "seconds": 2.64,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_12",
+   "test": "Console.test_T9_12_state_changing_posts_without_a_csrf_token_are_refused",
+   "status": "PASS",
+   "seconds": 2.49,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_13",
+   "test": "Console.test_T9_13_an_idle_session_expires_after_thirty_minutes",
+   "status": "PASS",
+   "seconds": 2.63,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_14",
+   "test": "Console.test_T9_14_a_privileged_session_expires_fifteen_minutes_after_sign_in_even_if_active",
+   "status": "PASS",
+   "seconds": 2.78,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_20",
+   "test": "Console.test_T9_20_security_headers_and_a_content_security_policy_that_forbids_scripts",
+   "status": "PASS",
+   "seconds": 2.94,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_21",
+   "test": "Console.test_T9_21_no_console_page_triggers_a_csp_violation_or_a_javascript_error",
+   "status": "PASS",
+   "seconds": 5.11,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_22",
+   "test": "Console.test_T9_22_administrator_pages_load_without_a_server_error_and_without_leaking_internals",
+   "status": "PASS",
+   "seconds": 5.11,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_30",
+   "test": "Console.test_T9_30_every_form_control_and_button_has_an_accessible_name_and_the_page_has_landmarks",
+   "status": "PASS",
+   "seconds": 4.24,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_31",
+   "test": "Console.test_T9_31_the_sign_in_form_works_with_the_keyboard_alone_and_focus_is_visible",
+   "status": "PASS",
+   "seconds": 1.91,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T9_32",
+   "test": "Console.test_T9_32_pages_fit_a_narrow_phone_width_and_200_percent_zoom_without_horizontal_scroll",
+   "status": "FAIL",
+   "seconds": 3.1,
+   "doc": "",
+   "detail": "AssertionError: Lists differ: [('/admin/', 13), ('/admin/points/', 13), [124 chars] 13)] != []\n\nFirst list contains 7 additional elements.\nFirst extra element 0:\n('/admin/', 13)\n\n+ []\n- [('/admin/', 13),\n-  ('/admin/points/', 13),\n-  ('/admin/fraud/', 13),\n-  ('/admin/creators/', 13),\n-  ('/admin/team/', 13),\n-  ('/admin/account/', 13),\n-  ('/admin/account/sessions/', 13)] : [('/admin/', 13), ('/admin/points/', 13), ('/admin/fraud/', 13), ('/admin/creators/', 13), ('/admin/team/', 13), ('/admin/account/', 13), ('/admin/account/sessions/', 13)]\n"
+  },
+  {
+   "id": "T9_33",
+   "test": "Console.test_T9_33_interactive_targets_are_large_enough_to_activate",
+   "status": "PASS",
+   "seconds": 2.75,
+   "doc": "",
+   "detail": ""
+  }
+ ]
+}

@@ -189,6 +189,18 @@ Full record: [Phase 10 report](phase10/Phase10_Platform_Integration_Report_2026-
 | Copyright claimant intake in the app | backend complete | no client | via moderation | n/a | declared | n/a | local journey | **Partial** | Copyright policy is a draft | Owner |
 | Scheduled maintenance commands | three unscheduled; one undocumented | n/a | n/a | n/a | n/a | row growth | none | **Partial** | Add roles or document | Owner |
 
+### Phase 11 comprehensive testing (25 November 2026) — branch `claude/blissful-albattani-81b81r`, no pull request
+
+Full record: [Phase 11 report](phase11/Phase11_Test_Report.md), [matrix](phase11/Phase11_Test_Matrix.md), [defect register](phase11/Phase11_Defect_Register.md), [release blockers](phase11/Phase11_Release_Blockers.md). **Local disposable stack only; no AWS, device, R2 or image was available. Not UAT acceptance; production NO-GO.** 242 rows: 149 PASS, 11 FAIL (8 product defects, 1 static finding, 2 runner errors of the test script itself), 39 BLOCKED, 43 NOT RUN. Events, Advertising, Finance (no code) and all physical-device tests are not run.
+
+| Item | Backend | Mobile | Admin web | Database | Contract | Security | Tests | Status | Blocker | Owner |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Service database ownership and append-only guards (D11-002, R-01) | n/a | n/a | n/a | login inherits table owner: 117 of 117 tables | n/a | a service credential can disable the ledger and audit guards | T10_03, T10_04 FAIL | **Defect (High, release blocker)** | Separate owner role; staging read-back | Owner |
+| Points consumer poison pill (D11-001) | worker dies and crash-loops on a malformed task envelope | n/a | n/a | n/a | n/a | needs broker write access | T3_35 FAIL | **Defect (Medium, release blocker for shared environments)** | Fix, dead-letter policy | Owner |
+| Registration enumeration and no registration limit (D11-003, D11-004) | Identity | n/a | n/a | n/a | DOC-205 declares the 409 | ADR-013 | T1_03, T1_94 FAIL | **Defects (Medium)** | Fix, policy value | Owner |
+| Validation before authorization; console overflow at 320 px (D11-005, D11-006) | Gateway, Business | n/a | console CSS | n/a | n/a | Low | T1_31, T4_23, T9_32 FAIL | **Defects (Low)** | None | None |
+| Accounts, sessions, MFA, object-level authorization, media validation, engagement and points on a real broker, Business isolation, console sessions and CSRF | all | n/a | yes | yes | yes | tested black-box | 122 PASS of 130 new tests | **Verified (local, repository scope)** | Device and staging gates | Owner |
+
 ## Earlier implementation and acceptance record
 
 | Area | Status recorded before this reconciliation | Evidence | Remaining gate at that time |
