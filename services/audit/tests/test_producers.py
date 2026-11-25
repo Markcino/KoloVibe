@@ -60,6 +60,23 @@ class ProducerTests(TestCase):
             request.service_caller = "moderation"
             self.assertEqual(ingest(request).status_code, 400)
 
+    def test_creators_and_content_delivery_payloads_are_ingested_and_producer_bound(self):
+        # Exact shapes emitted by the Creators and Content deliver_audit_events commands (D11-007).
+        for producer, kind, actor, subject_type in (
+                ("creators", "creator.invitation_revoked", str(uuid4()), "account"),
+                ("creators", "creator.application_submitted", str(uuid4()), "creator"),
+                ("content", "video.processing_succeeded", None, "video"),
+                ("content", "video.upload_intent_created", str(uuid4()), "video")):
+            payload = {"id": str(uuid4()), "actor_id": actor, "kind": kind, "occurred_at": timezone.now().isoformat(),
+                       "subject_type": subject_type, "subject_id": str(uuid4())}
+            request = RequestFactory().post("/internal/security-events", payload, content_type="application/json")
+            request.service_caller = producer
+            self.assertEqual(ingest(request).status_code, 201)
+            self.assertEqual(ingest(request).status_code, 200)
+            self.assertEqual(SecurityEvent.objects.get(pk=payload["id"]).producer, producer)
+            request.service_caller = "content" if producer == "creators" else "creators"
+            self.assertEqual(ingest(request).status_code, 400)
+
     def test_optional_subject_is_paired_strict_and_producer_cannot_be_spoofed(self):
         for extra in ({"subject_type": "video"}, {"subject_id": str(uuid4())},
                       {"subject_type": "video", "subject_id": "bad"},

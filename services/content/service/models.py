@@ -177,3 +177,27 @@ class ScreeningRecord(models.Model):
 
     class Meta:
         indexes = [models.Index(fields=["video", "created_at"], name="screening_video_time_idx")]
+
+
+class AuditEvent(models.Model):
+    """Immutable evidence of a video change, written in the deciding transaction and delivered to Audit (FR-015).
+
+    Identifiers and the kind only: no title, description, tag, reason or storage key enters an event. The actor is
+    null when Content does not know the account (the creator profile owns the video; the worker acts on its own).
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    kind = models.CharField(max_length=64)
+    actor_id = models.UUIDField(null=True)
+    occurred_at = models.DateTimeField(default=timezone.now)
+    subject_type = models.CharField(max_length=32, default="video")
+    subject_id = models.UUIDField()
+
+    class Meta:
+        db_table = "content_audit_event"
+
+
+class AuditDelivery(models.Model):
+    event = models.OneToOneField(AuditEvent, primary_key=True, on_delete=models.PROTECT)
+    attempts = models.PositiveIntegerField(default=0)
+    delivered_at = models.DateTimeField(null=True)
+    next_attempt_at = models.DateTimeField(default=timezone.now)

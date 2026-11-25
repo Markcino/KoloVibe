@@ -399,6 +399,11 @@ def service_tests(service):
         suite.addTests(unittest.defaultTestLoader.loadTestsFromName("tests.test_copyright"))
     if service == "content":
         suite.addTest(Foundations("test_concurrent_copyright_duplicates_cannot_both_bypass_review"))
+    if service in {"creators", "content"}:
+        # D11-007: evidence is written by the runtime login, append-only at the database and delivered unchanged.
+        prefix = "Creator" if service == "creators" else "Content"
+        for case in ("AuditEvidenceTests", "AuditDeliveryTests"):
+            suite.addTests(unittest.defaultTestLoader.loadTestsFromName(f"tests.test_audit_evidence.{prefix}{case}"))
     if service == "creators":
         suite.addTests(unittest.defaultTestLoader.loadTestsFromName("tests.test_copyright_policy"))
     if service == "points":

@@ -15,6 +15,7 @@ from kombu.exceptions import KombuError
 
 from . import media_storage as storage
 from .models import MediaUpload, Video, OriginalityAttestation
+from . import security_audit
 from .copyright import ATTESTATION_VERSION, audit
 from .video_metadata import FIELDS, item, metadata
 
@@ -31,7 +32,9 @@ def _error(detail, status):
 
 def _draft(creator_id, data):
     values = metadata({key: value for key, value in data.items() if key in FIELDS}, creating=True)
-    video = Video.objects.create(creator_id=creator_id, **values)
+    with transaction.atomic():
+        video = Video.objects.create(creator_id=creator_id, **values)
+        security_audit.record("video.created", video.id)
     return JsonResponse(item(video), status=201)
 
 
@@ -82,6 +85,7 @@ def _intent(video_id, creator_id, data):
         if created:
             audit(video, "originality_attested", "Creator accepted originality and permission attestation",
                   actor=actor, payload={"version": ATTESTATION_VERSION, "upload_id": str(upload_id)})
+            security_audit.record("video.upload_intent_created", video.id, actor)
         video.rights_status = Video.RightsStatus.ATTESTED
         video.failure_reason = None
         video.provider_asset_id = video.poster_asset_id = None
@@ -148,6 +152,7 @@ def _manage(video_id, creator_id, data, operation):
             video.moderation_revision += 1
             video.save(update_fields=["deleted_at", "visibility", "moderation_revision"])
             MediaUpload.objects.filter(video=video).update(expires_at=now, lease_id=None, lease_until=None)
+            security_audit.record("video.deleted", video.id)
             return JsonResponse({"video_id": str(video_id), "deleted": True})
         if operation in {"publish", "unpublish"}:
             if (video.state != Video.State.PUBLISHED or not video.moderation_approved_at
@@ -161,6 +166,7 @@ def _manage(video_id, creator_id, data, operation):
                 if desired == Video.Visibility.PUBLIC and video.published_at is None:
                     video.published_at = timezone.now()
                 video.save(update_fields=["visibility", "moderation_revision", "published_at"])
+                security_audit.record("video.published" if operation == "publish" else "video.unpublished", video.id)
             return JsonResponse(_owned_item(video))
         if video.state not in {Video.State.DRAFT, Video.State.FAILED, Video.State.REJECTED, Video.State.PUBLISHED}:
             return _error("Video cannot be edited in its current state", 409)
@@ -182,6 +188,7 @@ def _manage(video_id, creator_id, data, operation):
             # M-054 says "Save changes" and does not request another review.
             video.moderation_revision += 1
             video.save(update_fields=[*changed, "moderation_revision"])
+            security_audit.record("video.updated", video.id)
         return JsonResponse(_owned_item(video))
 
 
@@ -248,6 +255,7 @@ def _complete(video_id, creator_id):
                 video.state = Video.State.PROCESSING
                 video.failure_reason = None
                 video.save(update_fields=["state", "failure_reason"])
+                security_audit.record("video.upload_completed", video.id)
     if video.state == Video.State.DRAFT:
         return _error("Upload reservation not found", 409)
     if video.state == Video.State.PROCESSING:

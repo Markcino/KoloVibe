@@ -9,7 +9,7 @@ from django.db import DatabaseError, transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from . import media_encoding, media_storage, screening, copyright
+from . import media_encoding, media_storage, screening, copyright, security_audit
 from .models import Fingerprint, MediaUpload, ScreeningRecord, Video
 
 
@@ -87,6 +87,9 @@ def _finish(upload, token, state, *, key=None, duration=None, poster=None, failu
         video.save(update_fields=["failure_reason"])
         if failure:
             copyright.audit(video, "processing_failed", failure)
+        if state is not None:
+            security_audit.record("video.processing_failed" if state == Video.State.FAILED
+                                  else "video.processing_succeeded", video.id)
         reservation.lease_id = reservation.lease_until = None
         reservation.save(update_fields=["lease_id", "lease_until"])
 
