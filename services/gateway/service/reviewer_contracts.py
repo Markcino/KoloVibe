@@ -7,7 +7,9 @@ RIGHTS_STATUSES = {"attested", "flagged", "claimed", "removed", "restored"}
 
 def valid_detail(value):
     try:
-        if not isinstance(value, dict) or set(value) != {"record", "video", "preview", "reports", "decisions", "history_truncated"}:
+        if not isinstance(value, dict) or set(value) != {"record", "video", "preview", "copyright", "reports", "decisions", "history_truncated"}:
+            return False
+        if not valid_copyright_context(value["copyright"]):
             return False
         video = value["video"]
         if (set(video) != {"id", "title", "description", "state", "duration_seconds", "rights_status"}
@@ -52,6 +54,30 @@ def valid_detail(value):
                 return False
         return True
     except (ValueError, TypeError, KeyError, AttributeError):
+        return False
+
+
+COPYRIGHT_FIELDS = {"work_reference", "claimant_verified", "organisation", "claimant_claims", "claimant_dismissed",
+                    "creator_active_strikes"}
+
+
+def valid_copyright_context(value):
+    """Decision E: reviewer-only signals on a copyright record. It never carries the claimant's identity."""
+    if value is None:
+        return True
+    try:
+        counts = [value[name] for name in ("claimant_claims", "claimant_dismissed", "creator_active_strikes")]
+        return (isinstance(value, dict) and set(value) == COPYRIGHT_FIELDS
+                and type(value["claimant_verified"]) is bool
+                and (value["work_reference"] is None or isinstance(value["work_reference"], str)
+                     and 1 <= len(value["work_reference"]) <= 500)
+                and (value["organisation"] is None or isinstance(value["organisation"], str)
+                     and 1 <= len(value["organisation"]) <= 200)
+                and (value["organisation"] is None or value["claimant_verified"])
+                and all(count is None or type(count) is int and 0 <= count <= 1_000_000 for count in counts)
+                and (value["claimant_claims"] is None) == (value["claimant_dismissed"] is None)
+                and (value["claimant_claims"] is None or value["claimant_dismissed"] <= value["claimant_claims"]))
+    except (TypeError, KeyError):
         return False
 
 

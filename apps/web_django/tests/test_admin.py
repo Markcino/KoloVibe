@@ -62,7 +62,7 @@ class AdminConsoleTests(TestCase):
     def detail(self, kind):
         return {"record": self.record(kind), "video": {"id": self.target, "title": "Review this video",
                 "description": "Video description", "state": "review", "duration_seconds": 30, "rights_status": "flagged"},
-                "preview": None, "reports": [], "decisions": [], "history_truncated": {"reports": False, "decisions": False}}
+                "preview": None, "copyright": None, "reports": [], "decisions": [], "history_truncated": {"reports": False, "decisions": False}}
 
     def detail_url(self, kind, target=None):
         return reverse(f"moderation-{kind}-detail", args=[target or self.target])

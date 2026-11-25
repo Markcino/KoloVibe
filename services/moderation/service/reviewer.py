@@ -7,7 +7,8 @@ from django.db import transaction
 from django.http import JsonResponse, HttpResponse
 from django.utils import timezone
 from .internal_client import signed_internal_request
-from .models import ModeratorAssignment, Report, Appeal, ModerationAction, ReviewerPreview
+from .models import (Appeal, CopyrightNotice, CopyrightStrike, ModerationAction, ModeratorAssignment, Report,
+                     ReviewerPreview)
 from .security_audit import record
 
 MAX_PREVIEW = 50 * 1024 * 1024
@@ -24,6 +25,35 @@ def allowed(actor, role, scope, target):
         moderator_id=actor, queue_scope=scope, target_id=target, active=True).exists()
 
 
+def copyright_context(report, removal, content, video_id):
+    """Decision E: what a reviewer weighs on a copyright record, as signals only; nothing is decided here.
+
+    The claimant's identity is never returned; only whether they were a verified rights holder, the organisation,
+    and how many copyright claims they made and how many were dismissed (a misuse signal). The creator's active
+    strike count supports repeat-infringer review; any measure is an administrator's separate decision.
+    """
+    if report is None and removal is None:
+        return None
+    if report is not None and report.reason != "copyright" or removal is not None and not removal.copyright:
+        return None
+    report = report or removal.report
+    notice = CopyrightNotice.objects.filter(report=report).first() if report is not None else None
+    creator = removal.creator_id if removal is not None else None
+    if creator is None:
+        snapshot = content("inspect", {"video_id": str(video_id)})
+        creator = UUID(snapshot["creator_id"]) if snapshot and snapshot.get("creator_id") else None
+    claims = Report.objects.filter(reporter_id=report.reporter_id, reason="copyright") if report is not None else None
+    return {
+        "work_reference": notice.work_reference if notice else None,
+        "claimant_verified": bool(notice and notice.claimant_verified),
+        "organisation": notice.organisation or None if notice else None,
+        "claimant_claims": claims.count() if claims is not None else None,
+        "claimant_dismissed": claims.filter(status="dismissed").count() if claims is not None else None,
+        "creator_active_strikes": (CopyrightStrike.objects.filter(creator_id=creator, reversed_by__isnull=True).count()
+                                   if creator is not None else None),
+    }
+
+
 def detail(operation, actor, role, data, content):
     scope = {"video_detail": "videos", "report_detail": "reports", "appeal_detail": "appeals"}[operation]
     target = UUID(data["target_id"])
@@ -37,13 +67,15 @@ def detail(operation, actor, role, data, content):
         if item is None:
             return JsonResponse({"detail": "Resource unavailable"}, status=404)
         video_id, receipt = item.video_id, _report_data(item, reviewer=True)
+        rights = copyright_context(item, None, content, video_id)
     elif scope == "appeals":
         item = Appeal.objects.select_related("removal").filter(pk=target).first()
         if item is None:
             return JsonResponse({"detail": "Resource unavailable"}, status=404)
         video_id, receipt = item.removal.video_id, _appeal_data(item, reviewer=True)
+        rights = copyright_context(None, item.removal, content, video_id)
     else:
-        video_id, receipt = target, None
+        video_id, receipt, rights = target, None, None
     video = content("detail", {"video_id": str(video_id)})
     if video is None:
         return JsonResponse({"detail": "Resource unavailable"}, status=404)
@@ -67,7 +99,7 @@ def detail(operation, actor, role, data, content):
                                                video_id=video_id, expires_at=now + timedelta(seconds=60))
         preview = {"id": str(lease.id), "url": f"/api/v1/moderation/previews/{lease.id}",
                    "expires_at": lease.expires_at.isoformat()}
-    return JsonResponse({"record": receipt, "video": video, "preview": preview,
+    return JsonResponse({"record": receipt, "video": video, "preview": preview, "copyright": rights,
         "reports": [_report_data(item, reviewer=True) for item in report_rows[:20]],
         "decisions": [{"id": str(item.id), "action": item.action, "reason": item.reason,
                        "status": item.status, "created_at": item.created_at.isoformat()} for item in decision_rows[:20]],

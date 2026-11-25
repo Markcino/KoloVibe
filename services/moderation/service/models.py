@@ -109,6 +109,32 @@ class CopyrightNotice(models.Model):
     work_reference = models.CharField(max_length=500)
     version = models.CharField(max_length=32, default="R1-copyright-intake-v1")
     submitted_at = models.DateTimeField(auto_now_add=True)
+    # Decision E: whether the claimant was a verified rights holder when the claim arrived, and for whom.
+    # Shown to reviewers only, never to the creator.
+    claimant_verified = models.BooleanField(default=False, db_default=False)
+    organisation = models.CharField(max_length=200, blank=True, default="", db_default="")
+
+
+class RightsHolder(models.Model):
+    """Decision E (D11-008): an account an administrator verified as acting for a rights holder.
+
+    Verification marks a claim for reviewers; it never decides one. The evidence note is administrator-only.
+    """
+    account_id = models.UUIDField(primary_key=True)
+    organisation = models.CharField(max_length=200)
+    evidence = models.TextField(max_length=2000)
+    verified_by = models.UUIDField()
+    verified_at = models.DateTimeField(default=timezone.now)
+    revoked_by = models.UUIDField(null=True)
+    revoked_at = models.DateTimeField(null=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=~Q(verified_by=models.F("account_id")), name="mod_rights_holder_not_self"),
+            models.CheckConstraint(condition=Q(revoked_by__isnull=True, revoked_at__isnull=True)
+                                   | Q(revoked_by__isnull=False, revoked_at__isnull=False),
+                                   name="mod_rights_holder_revoke_pair"),
+        ]
 
 
 class CounterNotice(models.Model):

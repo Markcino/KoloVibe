@@ -120,6 +120,8 @@ def _rules():
         rf"/api/v1/moderation/previews/{UUID}", r"/api/v1/moderation/totals", r"/api/v1/engagement/fraud-holds", privileged=True)
 
     add("gateway", "moderation", "GET POST", r"/api/v1/admin/moderation/assignments(?:/summary)?", privileged=True)
+    add("gateway", "moderation", "GET POST", r"/api/v1/admin/rights-holders", privileged=True)  # Decision E
+    add("gateway", "moderation", "POST", rf"/api/v1/admin/rights-holders/{UUID}/revoke", privileged=True)
 
     add("gateway", "audit_read", "GET", r"/api/v1/admin/audit", privileged=True)
     add("audit", "audit_read", "POST", r"/internal/audit/read")

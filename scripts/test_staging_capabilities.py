@@ -111,7 +111,8 @@ class PolicyDefinitionTests(unittest.TestCase):
                           rf"/api/v1/admin/creator-restrictions/{policy.UUID}/lift",
                           rf"/api/v1/admin/creator-restriction-appeals/{policy.UUID}/decision",
                           r"/api/v1/admin/creator-restriction-appeals",
-                          r"/internal/creators/restrictions/(?:issue|lift|list|appeals|decide)"})
+                          r"/internal/creators/restrictions/(?:issue|lift|list|appeals|decide)",
+                          r"/api/v1/admin/rights-holders", rf"/api/v1/admin/rights-holders/{policy.UUID}/revoke"})
 
     def test_creator_restriction_admin_routes_need_the_privileged_switch(self):
         media = frozenset({"media"})
