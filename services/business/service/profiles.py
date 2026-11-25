@@ -17,14 +17,12 @@ from . import authz, hours, limits, listings, security_audit, step_up
 from .api import Result, operation
 from .errors import ApiError, not_found
 from .models import (Business, BusinessCategory, ContactChannel, HoursException, HoursRule, ProfileRevision)
-from .validation import boolean, clean_text, page_params, parse, uuid_text
+from .validation import PAGE, boolean, clean_text, code_text, page_params, parse, uuid_text
 
-CUSTOMER = ("viewer", "creator")
-REVIEWERS = ("moderator", "administrator")
+CUSTOMER, REVIEWERS = authz.CUSTOMER, authz.REVIEWERS
 OWNER, STAFF = authz.OWNER, authz.STAFF
 State = ProfileRevision.State
 SLUG = re.compile(r"[a-z0-9-]{2,60}")
-CODE = re.compile(r"[a-z][a-z_]{2,39}")
 COUNTY = re.compile(r"[a-z0-9_]{2,40}")
 PHONE = re.compile(r"\+?[0-9][0-9 ()\-]{5,24}")
 SCALARS = ("display_name", "category", "description", "county_code", "city", "address_line", "address_public",
@@ -33,12 +31,6 @@ SCALARS = ("display_name", "category", "description", "county_code", "city", "ad
 
 def _slug(value):
     if not isinstance(value, str) or not SLUG.fullmatch(value):
-        raise ApiError(400, "Invalid request")
-    return value
-
-
-def _code(value):
-    if not isinstance(value, str) or not CODE.fullmatch(value):
         raise ApiError(400, "Invalid request")
     return value
 
@@ -310,7 +302,7 @@ def _category_view(category):
             "parent": category.parent.slug if category.parent_id else None}
 
 
-@operation("category_list", roles=("anonymous",) + CUSTOMER + REVIEWERS)
+@operation("category_list", roles=authz.EVERYONE)
 def category_list(ctx, data):
     parse(data, {})
     items = BusinessCategory.objects.select_related("parent").filter(active=True).order_by("slug")
@@ -355,7 +347,7 @@ def _revision_for_reviewer(ctx, revision_id, *, lock=False):
 
 @operation("profile_queue", roles=REVIEWERS, mfa=True, budget="read")
 def profile_queue(ctx, data):
-    cursor, limit = page_params(parse(data, {"cursor": (lambda v: v, False), "limit": (lambda v: v, False)}),
+    cursor, limit = page_params(parse(data, PAGE),
                                 limits.PAGE_SIZE)
     everything, targets = authz.granted_targets(ctx.actor_id, "profile_review")
     query = ProfileRevision.objects.select_related("business").filter(state=State.PENDING_REVIEW).order_by("id")
@@ -386,7 +378,7 @@ def profile_revision(ctx, data):
 
 @operation("profile_decide", roles=REVIEWERS, mfa=True, idempotent=True)
 def profile_decide(ctx, data):
-    fields = parse(data, {"revision_id": (uuid_text, True), "decision": (lambda v: v, True), "reason_code": (_code, True)})
+    fields = parse(data, {"revision_id": (uuid_text, True), "decision": (lambda v: v, True), "reason_code": (code_text, True)})
     if fields["decision"] not in ("approve", "reject"):
         raise ApiError(400, "Invalid request")
     now = timezone.now()

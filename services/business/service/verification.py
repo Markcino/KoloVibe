@@ -13,10 +13,9 @@ from . import authz, limits, listings, security_audit
 from .api import Result, operation
 from .errors import ApiError, not_found
 from .models import Business, VerificationCase, VerificationDecision, VerificationEvidence
-from .validation import boolean, clean_text, page_params, parse, uuid_text
+from .validation import PAGE, boolean, clean_text, code_text, page_params, parse, uuid_text
 
-CUSTOMER = ("viewer", "creator")
-REVIEWERS = ("moderator", "administrator")
+CUSTOMER, REVIEWERS = authz.CUSTOMER, authz.REVIEWERS
 OWNER = authz.OWNER
 S, C = Business.State, VerificationCase.State
 
@@ -26,7 +25,6 @@ BUSINESS_TRANSITIONS = {
     S.SUBMITTED: {S.UNDER_REVIEW}, S.UNDER_REVIEW: {S.NEEDS_INFO, S.VERIFIED, S.REJECTED},
     S.VERIFIED: {S.REVOKED}, S.REVOKED: {S.SUBMITTED},
 }
-CODE = re.compile(r"[a-z][a-z_]{2,39}")
 
 
 def move(business, target):
@@ -37,16 +35,10 @@ def move(business, target):
     business.save(update_fields=["state", "version"])
 
 
-def _code(value):
-    if not isinstance(value, str) or not CODE.fullmatch(value):
-        raise ApiError(400, "Invalid request")
-    return value
-
-
 def _evidence(value):
     if not isinstance(value, list) or not limits.MIN_EVIDENCE_ITEMS <= len(value) <= limits.MAX_EVIDENCE_ITEMS:
         raise ApiError(400, "Invalid request")
-    return [parse(item, {"kind": (_code, True), "value": (lambda v: clean_text(v, 2, 300), True)}) for item in value]
+    return [parse(item, {"kind": (code_text, True), "value": (lambda v: clean_text(v, 2, 300), True)}) for item in value]
 
 
 def _normal(name):
@@ -83,7 +75,7 @@ def _attach(case, items):
 
 @operation("verification_submit", roles=CUSTOMER, idempotent=True, budget="verification_submit")
 def verification_submit(ctx, data):
-    fields = parse(data, {"business_id": (uuid_text, True), "method": (_code, True),
+    fields = parse(data, {"business_id": (uuid_text, True), "method": (code_text, True),
                           "declaration": (boolean, True), "evidence": (_evidence, True)})
     if fields["declaration"] is not True:
         raise ApiError(400, "Invalid request")
@@ -144,7 +136,7 @@ def _conflict_of_interest(ctx, case):
 
 @operation("verification_queue", roles=REVIEWERS, mfa=True, budget="read")
 def verification_queue(ctx, data):
-    cursor, limit = page_params(parse(data, {"cursor": (lambda v: v, False), "limit": (lambda v: v, False)}),
+    cursor, limit = page_params(parse(data, PAGE),
                                 limits.PAGE_SIZE)
     everything, targets = authz.granted_targets(ctx.actor_id, "verification")
     query = VerificationCase.objects.select_related("business").filter(state__in=VerificationCase.OPEN).order_by("id")
@@ -200,7 +192,7 @@ def verification_claim(ctx, data):
 
 @operation("verification_decide", roles=REVIEWERS, mfa=True, idempotent=True)
 def verification_decide(ctx, data):
-    fields = parse(data, {"case_id": (uuid_text, True), "decision": (lambda v: v, True), "reason_code": (_code, True),
+    fields = parse(data, {"case_id": (uuid_text, True), "decision": (lambda v: v, True), "reason_code": (code_text, True),
                           "note": (lambda v: clean_text(v, 0, 500, multiline=True), False)})
     if fields["decision"] not in limits.REVIEWER_DECISIONS:
         raise ApiError(400, "Invalid request")

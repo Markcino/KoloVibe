@@ -13,6 +13,11 @@ OWNER, STAFF = BusinessMembership.Role.OWNER, BusinessMembership.Role.STAFF
 ACTIVE = BusinessMembership.Status.ACTIVE
 ANY = (OWNER, STAFF)
 
+# The identity roles an operation may name. Moderators and administrators can never hold a membership (conflict of interest).
+CUSTOMER = ("viewer", "creator")
+REVIEWERS = ("moderator", "administrator")
+EVERYONE = ("anonymous",) + CUSTOMER + REVIEWERS
+
 
 def require_member(actor_id, business_id, roles=ANY, *, lock=False):
     """Return (business, membership) for an active membership with an allowed role, else 404."""

@@ -13,9 +13,6 @@ import 'business_screens.dart';
 import 'business_ui.dart';
 import 'live_business_repository.dart';
 
-void _signIn(BuildContext context, int returnTo) =>
-    openBusiness(context, 4, returnTo: returnTo);
-
 // ---- M-109 Businesses home ----------------------------------------------------------------------------------------
 
 class BusinessHomeScreen extends StatefulWidget {
@@ -405,7 +402,7 @@ class BusinessDetailScreen extends StatelessWidget {
         title: 'Business',
         scroll: false,
         child: BusinessLoader<BusinessDetail>(
-          onSignIn: () => _signIn(context, BusinessScreens.detail),
+          onSignIn: () => signInForBusiness(context, BusinessScreens.detail),
           load: () => repository.detail(businessId),
           builder: (context, detail, reload) => _body(context, detail),
         ),
@@ -568,7 +565,7 @@ class BusinessContactScreen extends StatelessWidget {
               'Contact details are shown to signed-in people with a verified email address.',
           icon: Icons.lock_outline,
           actionLabel: 'Sign in',
-          onAction: () => _signIn(context, BusinessScreens.contact),
+          onAction: () => signInForBusiness(context, BusinessScreens.contact),
         );
       case ContactAccess.verifiedEmailRequired:
         return KoloInlineState(

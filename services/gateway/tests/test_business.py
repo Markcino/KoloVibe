@@ -83,6 +83,32 @@ class BusinessGatewayTests(SimpleTestCase):
 
     @patch("service.business.signed_internal_request")
     @patch("service.business.authenticated_actor", return_value=(ACTOR, "viewer"))
+    def test_a_client_cannot_put_authority_into_the_signed_envelope(self, actor, peer):
+        """The envelope's actor, role, MFA and email flags come from the session; a body can only add to `data`."""
+        peer.return_value = Response(b'{"id":"x"}')
+        forged = {"actor_id": str(uuid4()), "role": "administrator", "mfa_verified": True, "email_verified": True,
+                  "idempotency_key": "forged-key-0123456789", "origin": "10.0.0.1", "data": {"x": 1}}
+        self.call({"POST": "register"}, body={"display_name": "Shop", **forged}, headers={"HTTP_IDEMPOTENCY_KEY": KEY})
+        envelope = json.loads(peer.call_args.kwargs["payload"])
+        self.assertEqual((envelope["actor_id"], envelope["role"], envelope["mfa_verified"], envelope["idempotency_key"], envelope["origin"]),
+                         (ACTOR, "viewer", False, KEY, None))
+        self.assertEqual(set(envelope), {"actor_id", "role", "mfa_verified", "email_verified", "idempotency_key", "origin", "data"})
+        self.assertEqual(envelope["data"]["role"], "administrator")  # carried as data, where the service refuses the field (400)
+
+    @patch("service.business.signed_internal_request")
+    @patch("service.business.authenticated_actor", return_value=(ACTOR, "viewer"))
+    def test_bodies_that_are_not_one_small_json_object_never_reach_the_service(self, actor, peer):
+        factory = RequestFactory()
+        for content_type, body in (("multipart/form-data; boundary=x", b"--x\r\nContent-Disposition: form-data; name=f; filename=a.png\r\n\r\nPNG\r\n--x--"),
+                                   ("image/png", b"\x89PNG\r\n\x1a\n"), ("application/json", b"\xff\xfe not utf-8"),
+                                   ("application/json", b'{"a":' + b"1" * 5000 + b"}"), ("application/json", b"[]"),
+                                   ("application/json", b"null"), ("text/plain", b"display_name=x")):
+            request = factory.generic("POST", "/api/v1/x", body, content_type=content_type, HTTP_IDEMPOTENCY_KEY=KEY)
+            self.assertEqual(business_endpoint(request, {"POST": "register"}).status_code, 400, content_type)
+        peer.assert_not_called()
+
+    @patch("service.business.signed_internal_request")
+    @patch("service.business.authenticated_actor", return_value=(ACTOR, "viewer"))
     def test_wrong_method_is_405_and_path_ids_are_bound_into_data(self, actor, peer):
         self.assertEqual(self.call({"GET": "get_mine"}, method="POST", business_id=uuid4()).status_code, 405)
         peer.return_value = Response(b'{"status":"ok"}')

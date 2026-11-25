@@ -16,12 +16,6 @@ import 'business_screens.dart';
 import 'business_ui.dart';
 import 'live_business_repository.dart';
 
-void _go(BuildContext context, int screen, {String? entityId}) =>
-    openBusiness(context, screen, entityId: entityId);
-
-void _signIn(BuildContext context, int returnTo) =>
-    openBusiness(context, 4, returnTo: returnTo);
-
 /// A failed send, with a sign-in button when the session ended.
 class SendError extends StatelessWidget {
   const SendError(
@@ -42,7 +36,7 @@ class SendError extends StatelessWidget {
           icon: Icons.error_outline,
           actionLabel: needsSignIn(error) ? 'Sign in' : null,
           onAction:
-              needsSignIn(error) ? () => _signIn(context, returnTo) : null,
+              needsSignIn(error) ? () => signInForBusiness(context, returnTo) : null,
         ),
       );
 }
@@ -70,7 +64,7 @@ class BusinessMyBusinessesScreen extends StatelessWidget {
     final account = repository.account.signedInAccountId;
     if (account != null) await context?.select(account, business.id);
     if (!screen.mounted) return;
-    _go(screen,
+    openBusiness(screen,
         business.isOwner ? BusinessScreens.manage : BusinessScreens.staffHome,
         entityId: business.id);
   }
@@ -82,17 +76,17 @@ class BusinessMyBusinessesScreen extends StatelessWidget {
         title: 'My businesses',
         scroll: false,
         child: BusinessPagedList<MyBusiness>(
-          onSignIn: () => _signIn(screen, BusinessScreens.myBusinesses),
+          onSignIn: () => signInForBusiness(screen, BusinessScreens.myBusinesses),
           fetch: (cursor) => repository.myBusinesses(cursor: cursor),
           header: Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: Wrap(spacing: 8, runSpacing: 8, children: [
               KoloPillButton(
                   label: 'Register a business',
-                  onPressed: () => _go(screen, BusinessScreens.register)),
+                  onPressed: () => openBusiness(screen, BusinessScreens.register)),
               KoloPillButton(
                   label: 'Join a business team',
-                  onPressed: () => _go(screen, BusinessScreens.redeem)),
+                  onPressed: () => openBusiness(screen, BusinessScreens.redeem)),
             ]),
           ),
           empty: const KoloInlineState(
@@ -266,7 +260,7 @@ class BusinessManageScreen extends StatelessWidget {
         catalog: catalog,
         title: title,
         child: BusinessLoader<HomeData>(
-          onSignIn: () => _signIn(context, BusinessScreens.myBusinesses),
+          onSignIn: () => signInForBusiness(context, BusinessScreens.myBusinesses),
           load: () async {
             try {
               return await loadHome(repository, businessId);
@@ -295,7 +289,7 @@ class BusinessHomeBody extends StatelessWidget {
     final business = data.business;
     final id = business.id;
     final owner = business.isOwner;
-    void open(int screen) => _go(context, screen, entityId: id);
+    void open(int screen) => openBusiness(context, screen, entityId: id);
     final listing = data.listing;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -353,11 +347,11 @@ class BusinessHomeBody extends StatelessWidget {
               onTap: () => open(BusinessScreens.leave)),
         KoloListRow(
             title: 'Switch business',
-            onTap: () => _go(context, BusinessScreens.switcher)),
+            onTap: () => openBusiness(context, BusinessScreens.switcher)),
         KoloListRow(
             title: 'My businesses',
             divider: false,
-            onTap: () => _go(context, BusinessScreens.myBusinesses)),
+            onTap: () => openBusiness(context, BusinessScreens.myBusinesses)),
       ],
     );
   }
@@ -382,7 +376,7 @@ class BusinessEditProfileScreen extends StatelessWidget {
         title: 'Business details',
         showNavigation: false,
         child: BusinessLoader<(BusinessProfile, List<BusinessCategory>)>(
-          onSignIn: () => _signIn(context, BusinessScreens.myBusinesses),
+          onSignIn: () => signInForBusiness(context, BusinessScreens.myBusinesses),
           load: () async => (
             await repository.profile(businessId),
             await repository.categories()
@@ -589,7 +583,7 @@ class _ProfileFormState extends State<_ProfileForm> {
                 child: Text(_busy ? 'Saving…' : 'Save draft')),
             if (_saved)
               TextButton(
-                  onPressed: () => _go(context, BusinessScreens.profileStatus,
+                  onPressed: () => openBusiness(context, BusinessScreens.profileStatus,
                       entityId: widget.businessId),
                   child: const Text('Go to Profile review')),
           ],
@@ -616,7 +610,7 @@ class BusinessEditContactsScreen extends StatelessWidget {
         title: 'Contact details',
         showNavigation: false,
         child: BusinessLoader<BusinessProfile>(
-          onSignIn: () => _signIn(context, BusinessScreens.myBusinesses),
+          onSignIn: () => signInForBusiness(context, BusinessScreens.myBusinesses),
           load: () => repository.profile(businessId),
           builder: (context, profile, reload) => profile.approved != null
               ? _LiveContacts(
@@ -863,7 +857,7 @@ class BusinessEditHoursScreen extends StatelessWidget {
         title: 'Opening hours',
         showNavigation: false,
         child: BusinessLoader<BusinessProfile>(
-          onSignIn: () => _signIn(context, BusinessScreens.myBusinesses),
+          onSignIn: () => signInForBusiness(context, BusinessScreens.myBusinesses),
           load: () => repository.profile(businessId),
           builder: (context, profile, reload) => _HoursForm(
               repository: repository,
@@ -1150,7 +1144,7 @@ class BusinessProfileStatusScreen extends StatelessWidget {
         title: 'Profile review',
         showNavigation: false,
         child: BusinessLoader<BusinessProfile>(
-          onSignIn: () => _signIn(context, BusinessScreens.myBusinesses),
+          onSignIn: () => signInForBusiness(context, BusinessScreens.myBusinesses),
           load: () => repository.profile(businessId),
           builder: (context, profile, reload) => _ProfileStatus(
               repository: repository,
@@ -1260,7 +1254,7 @@ class _ProfileStatusState extends State<_ProfileStatus> {
               child: Text(_busy ? 'Submitting…' : 'Submit for review')),
         if (working == null)
           OutlinedButton(
-              onPressed: () => _go(context, BusinessScreens.editProfile,
+              onPressed: () => openBusiness(context, BusinessScreens.editProfile,
                   entityId: widget.businessId),
               child: const Text('Edit business details')),
       ],
@@ -1287,7 +1281,7 @@ class BusinessVerificationScreen extends StatelessWidget {
         title: 'Verification',
         showNavigation: false,
         child: BusinessLoader<VerificationStatus>(
-          onSignIn: () => _signIn(context, BusinessScreens.myBusinesses),
+          onSignIn: () => signInForBusiness(context, BusinessScreens.myBusinesses),
           load: () => repository.verificationStatus(businessId),
           builder: (context, status, reload) => _Verification(
               repository: repository,
@@ -1513,7 +1507,7 @@ class BusinessListingScreen extends StatelessWidget {
         title: 'Listing',
         showNavigation: false,
         child: BusinessLoader<ListingStatus>(
-          onSignIn: () => _signIn(context, BusinessScreens.myBusinesses),
+          onSignIn: () => signInForBusiness(context, BusinessScreens.myBusinesses),
           load: () => repository.listingStatus(businessId),
           builder: (context, status, reload) => _Listing(
               repository: repository, businessId: businessId, initial: status),

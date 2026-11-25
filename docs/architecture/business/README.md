@@ -32,6 +32,7 @@
 | 18 | **Exact owner decisions required (gates A, B, C)** | [BIZ-Owner_Decisions_Required_PHASE6A.md](BIZ-Owner_Decisions_Required_PHASE6A.md) |
 | 19 | **Flutter Business screen inventory and design approvals (Phase 6D; owner decisions recorded 24 November 2026)** | [BIZ-Flutter_Screen_Inventory_PROPOSED.md](BIZ-Flutter_Screen_Inventory_PROPOSED.md) |
 | 20 | **Phase 6D results: the 36 Flutter Business screens (M-109 to M-144), operation list, test evidence, device recipes** | [Phase6D_Business_Mobile_Results_2026-11-24.md](../../engineering/phase6/Phase6D_Business_Mobile_Results_2026-11-24.md) |
+| 21 | **Phase 6E results: contract reconciliation, the real-HTTP end-to-end journey, security hardening, code quality, status (development integration, not UAT)** | [Phase6E_Business_Integration_Results_2026-11-25.md](../../engineering/phase6/Phase6E_Business_Integration_Results_2026-11-25.md) |
 
 ## Reading order for the approver
 

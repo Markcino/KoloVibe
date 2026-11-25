@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../app/screen_route.dart';
 import '../../core/presentation/design_node.dart';
 import '../../core/theme/kolovibe_theme.dart';
 import '../../shared/widgets/kolo_components.dart';
@@ -13,14 +12,6 @@ import 'business_page.dart';
 import 'business_screens.dart';
 import 'business_ui.dart';
 import 'live_business_repository.dart';
-
-void _signIn(BuildContext context, int returnTo) =>
-    openBusiness(context, 4, returnTo: returnTo);
-
-void _replace(BuildContext context, int screen, {String? entityId}) {
-  final route = ScreenRoute(screen, entityId: entityId);
-  Navigator.of(context).pushReplacementNamed(route.name, arguments: route);
-}
 
 // ---- M-140 Accept an invitation -----------------------------------------------------------------------------------
 
@@ -74,7 +65,7 @@ class _BusinessRedeemScreenState extends State<BusinessRedeemScreen> {
       _done = true;
       _code.clear();
       notifySuccess(context, 'You joined ${business.name}');
-      _replace(context, BusinessScreens.staffHome, entityId: business.id);
+      replaceBusiness(context, BusinessScreens.staffHome, entityId: business.id);
     } catch (error) {
       if (mounted) setState(() => _error = error);
     } finally {
@@ -184,7 +175,7 @@ class BusinessSwitcherScreen extends StatelessWidget {
         title: 'Switch business',
         child: BusinessLoader<
             ({List<MyBusiness> businesses, String? current, bool lost})>(
-          onSignIn: () => _signIn(screen, BusinessScreens.switcher),
+          onSignIn: () => signInForBusiness(screen, BusinessScreens.switcher),
           load: _load,
           builder: (screen, data, reload) => Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -221,7 +212,7 @@ class BusinessSwitcherScreen extends StatelessWidget {
                       await context?.select(account, business.id);
                     }
                     if (!screen.mounted) return;
-                    _replace(
+                    replaceBusiness(
                         screen,
                         business.isOwner
                             ? BusinessScreens.manage
@@ -282,7 +273,7 @@ class BusinessLeaveScreen extends StatelessWidget {
         title: 'Leave business',
         showNavigation: false,
         child: BusinessLoader<MyBusiness>(
-          onSignIn: () => _signIn(screen, BusinessScreens.myBusinesses),
+          onSignIn: () => signInForBusiness(screen, BusinessScreens.myBusinesses),
           errorBuilder: (screen, error) =>
               accessLost(error) ? const AccessRemovedBody() : null,
           load: () => repository.business(businessId),
@@ -330,7 +321,7 @@ class _LeaveState extends State<_Leave> {
       }
       if (!mounted) return;
       notifySuccess(context, 'You left ${widget.business.name}');
-      _replace(context, BusinessScreens.myBusinesses);
+      replaceBusiness(context, BusinessScreens.myBusinesses);
     } catch (error) {
       if (mounted) setState(() => _error = error);
     } finally {

@@ -15,6 +15,8 @@ from uuid import uuid4
 
 import yaml
 
+from service.models import VerificationCase
+
 from .test_reviews import ReviewBase
 
 FIXTURES = Path(__file__).resolve().parents[3] / "apps" / "mobile" / "test" / "fixtures" / "business"
@@ -138,6 +140,11 @@ class MobileFixtureTests(ReviewBase):
         take("verification_submit", self.call("verification_submit", {"business_id": nid, "method": "manual_review", "declaration": True,
                                                                        "evidence": [{"kind": "registration_number", "value": "LBR-1"}]}, actor=newcomer))
         take("verification_status_pending", self.call("verification_status", {"business_id": nid}, actor=newcomer))
+        case = str(VerificationCase.objects.get(business_id=nid).id)
+        self.rv("verification_claim", {"case_id": case})
+        self.rv("verification_decide", {"case_id": case, "decision": "request_info", "reason_code": "need_more_detail"})
+        take("verification_respond", self.call("verification_respond", {"business_id": nid, "evidence": [{"kind": "note", "value": "More detail."}]},
+                                               actor=newcomer))
         take("register_no_invitation", self.call("register", {"display_name": "No Invite", "legal_name": "No Invite Ltd"}, actor=uuid4()))
         return out
 

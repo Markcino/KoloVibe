@@ -12,12 +12,6 @@ import 'business_screens.dart';
 import 'business_ui.dart';
 import 'live_business_repository.dart';
 
-void _go(BuildContext context, int screen, {String? entityId}) =>
-    openBusiness(context, screen, entityId: entityId);
-
-void _signIn(BuildContext context, int returnTo) =>
-    openBusiness(context, 4, returnTo: returnTo);
-
 // ---- M-135 Inbox --------------------------------------------------------------------------------------------------
 
 class BusinessInboxScreen extends StatelessWidget {
@@ -37,7 +31,7 @@ class BusinessInboxScreen extends StatelessWidget {
         title: 'Inbox',
         scroll: false,
         child: BusinessPagedList<BusinessInquiry>(
-          onSignIn: () => _signIn(context, BusinessScreens.myBusinesses),
+          onSignIn: () => signInForBusiness(context, BusinessScreens.myBusinesses),
           fetch: (cursor) => repository.inbox(businessId, cursor: cursor),
           empty: const KoloInlineState(
             title: 'No questions yet',
@@ -52,7 +46,7 @@ class BusinessInboxScreen extends StatelessWidget {
               inquiry.state == InquiryState.open ? 'Open' : 'Closed',
               dateLabel(inquiry.createdAt),
             ].join(' · '),
-            onTap: () => _go(context, BusinessScreens.inboxThread,
+            onTap: () => openBusiness(context, BusinessScreens.inboxThread,
                 entityId: ReviewTarget(businessId, inquiry.id).encoded),
           ),
         ),
@@ -78,7 +72,7 @@ class BusinessInboxThreadScreen extends StatelessWidget {
         title: 'Conversation',
         showNavigation: false,
         child: BusinessLoader<(BusinessInquiry, MyBusiness)>(
-          onSignIn: () => _signIn(context, BusinessScreens.myBusinesses),
+          onSignIn: () => signInForBusiness(context, BusinessScreens.myBusinesses),
           load: () async => (
             await repository.inboxThread(target.businessId, target.threadId!),
             await repository.business(target.businessId)
@@ -279,7 +273,7 @@ class _ThreadState extends State<_Thread> {
             Text(dateLabel(message.createdAt), style: KoloVibeText.body(11)),
             if (!message.removed && !mine)
               TextButton(
-                onPressed: () => _go(context, BusinessScreens.report,
+                onPressed: () => openBusiness(context, BusinessScreens.report,
                     entityId:
                         ReportTarget('inquiry_message', message.id).encoded),
                 child: const Text('Report'),
@@ -310,7 +304,7 @@ class BusinessOwnerReviewsScreen extends StatelessWidget {
         title: 'Reviews and replies',
         scroll: false,
         child: BusinessPagedList<PublicReview>(
-          onSignIn: () => _signIn(context, BusinessScreens.myBusinesses),
+          onSignIn: () => signInForBusiness(context, BusinessScreens.myBusinesses),
           fetch: (cursor) => repository.reviews(businessId, cursor: cursor),
           header: const Padding(
             padding: EdgeInsets.only(bottom: 12),
@@ -487,7 +481,7 @@ class _OwnerReviewTileState extends State<_OwnerReviewTile> {
                         onPressed: _busy ? null : _remove,
                         child: const Text('Remove reply')),
                   TextButton(
-                      onPressed: () => _go(context, BusinessScreens.report,
+                      onPressed: () => openBusiness(context, BusinessScreens.report,
                           entityId: ReportTarget('review', review.id).encoded),
                       child: const Text('Report review')),
                 ],
@@ -628,7 +622,7 @@ class BusinessTeamScreen extends StatelessWidget {
         title: 'Team',
         showNavigation: false,
         child: BusinessLoader<Team>(
-          onSignIn: () => _signIn(context, BusinessScreens.myBusinesses),
+          onSignIn: () => signInForBusiness(context, BusinessScreens.myBusinesses),
           load: () => repository.team(businessId),
           builder: (context, team, reload) => _TeamBody(
               repository: repository, businessId: businessId, initial: team),
