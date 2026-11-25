@@ -4,10 +4,10 @@ index,ADR_ID,Title,Current_status,Required_decision_or_evidence,Suggested_owner,
 2,ADR-013,Client authentication and sessions,Design approved — implementation and verification open,"Owner approved ADR-013 v1.0 on 2026-11-01; complete executable contracts, implementation and DOC-206 verification",Platform/Security,Before production acceptance
 3,ADR-014,Nginx-to-Swarm private transport,Open — decision required,"Network diagram, firewall audit and MITM test",Platform/Security,Before Stage 2 final sign-off
 4,ADR-015,Swarm control-plane sizing and availability,Open — decision required,Quorum and node-loss drill,SRE/Platform,Before Stage 2 final sign-off
-5,ADR-016,PostgreSQL hosting and DR targets,Open — decision required,Timed isolated restore and failover test,SRE/Platform,Before Stage 2 final sign-off
-6,ADR-017,Observability and audit pipeline,Proposed — needs approval,End-to-end trace and redaction tests,SRE/Platform,Before implementation of affected component
+5,ADR-016,PostgreSQL hosting and DR targets,"Partly approved 25 Nov 2026 (Decision D: backups, restore tests, RTO/RPO); hosting model still open",Timed isolated restore and failover test,SRE/Platform,Before Stage 2 final sign-off
+6,ADR-017,Observability and audit pipeline,Approved 25 Nov 2026 (Decision D); see docs/planning/Owner_Decisions_A-J_2026-11-25.md,End-to-end trace and redaction tests,SRE/Platform,Before implementation of affected component
 7,ADR-018,"Secrets, images and CI/CD controls",Proposed — needs approval,Secret scan and unsigned-image rejection,Platform/Security,Before implementation of affected component
 8,ADR-019,Qualified view and points parameters,Partially approved — DEC-003 restricted-pilot parameters approved 10 Nov 2026; general-release parameters open,Approved rule examples and boundary tests,Product/Security,Before Stage 2 final sign-off
-9,ADR-020,Privacy retention and data residency,Open — legal/product decision required,Privacy review and deletion/hold tests,Product/Security,Before Stage 2 final sign-off
+9,ADR-020,Privacy retention and data residency,Mechanism approved 25 Nov 2026 (Decision C); retention periods need legal approval,Privacy review and deletion/hold tests,Product/Security,Before Stage 2 final sign-off
 10,ADR-021,Nginx high availability and TLS ownership,Open — decision required,"Origin-bypass, expiry and failover tests",SRE/Platform,Before Stage 2 final sign-off
 11,ADR-022,API versioning and event contracts,Proposed — needs approval,Backward-compatibility CI test,SRE/Platform,Before implementation of affected component
