@@ -14,6 +14,7 @@ def patterns():
     from ..moderation import moderation_endpoint
     from ..standing import standing
     from ..admin_reads import fraud_holds, moderation_assignments, moderation_assignment_summary
+    from ..rights_holders import rights_holders
 
     routes = [
         path("api/v1/copyright/reports", moderation_endpoint, {"operation": "copyright_report"}),
@@ -23,6 +24,11 @@ def patterns():
         path("api/v1/engagement/fraud-holds", fraud_holds),
         path("api/v1/admin/moderation/assignments", moderation_assignments),
         path("api/v1/admin/moderation/assignments/summary", moderation_assignment_summary),
+        # Decision E (D11-008): administrators verify rights holders.
+        path("api/v1/admin/rights-holders", rights_holders, {"operation": "rights-holders"},
+             name="admin-rights-holders"),
+        path("api/v1/admin/rights-holders/<uuid:target_id>/revoke", rights_holders,
+             {"operation": "rights-holder-revoke"}, name="admin-rights-holder-revoke"),
         path("api/v1/me/standing", standing, name="own-standing"),
         path("api/v1/creators/me/videos/<uuid:target_id>/notice", moderation_endpoint,
              {"operation": "notice"}, name="own-video-notice"),

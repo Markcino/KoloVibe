@@ -43,11 +43,14 @@ FIELDS = {
     "notice": {"video_id", "creator_id"}, "standing": {"creator_id"},
     "edit_queue": {"cursor"}, "edit_detail": {"target_id"},
     "edit_decision": {"target_id", "action", "reason", "key"},
+    "rights-holders": {"cursor"}, "rights-holder-verify": {"account_id", "organisation", "evidence"},
+    "rights-holder-revoke": {"account_id"},
     **{operation: {"target_id", "action", "reason", "key"} for operation in DECISIONS},
 }
 
 
 ASSIGNMENT_OPERATIONS = {"assignment_list", "assignment_set", "assignment_summary"}
+RIGHTS_HOLDER_OPERATIONS = {"rights-holders", "rights-holder-verify", "rights-holder-revoke"}  # Decision E
 
 
 class ContentUnavailable(Exception):
@@ -145,7 +148,11 @@ def _report(actor, data):
                 if created:
                     audit_record("moderation.report_created", actor, "report", report.id)
                     if data.get("work_reference"):
-                        CopyrightNotice.objects.create(report=report, work_reference=data["work_reference"])
+                        from .rights_holders import active as rights_holder
+                        holder = rights_holder(actor)
+                        CopyrightNotice.objects.create(report=report, work_reference=data["work_reference"],
+                                                       claimant_verified=holder is not None,
+                                                       organisation=holder.organisation if holder else "")
         except IntegrityError:
             if Report.objects.filter(video_id=video_id, reporter_id=actor, status="open").exists():
                 return JsonResponse({"detail": "An open report already exists", "code": "already_reported"}, status=409)
@@ -453,7 +460,7 @@ def moderation_workflow(request, operation):
             raise ValueError("Invalid moderation operation")
         allowed = ({"creator"} if operation in {"notice", "copyright_status", "counter_notice"} else VIEWERS | REVIEWERS if operation == "standing" else VIEWERS if operation in ("appeal", "own_appeals", "own_appeal") else
                    VIEWERS | REVIEWERS if operation in ("report", "copyright_report", "own_reports", "own_report") else REVIEWERS)
-        if operation in ASSIGNMENT_OPERATIONS:
+        if operation in ASSIGNMENT_OPERATIONS | RIGHTS_HOLDER_OPERATIONS:
             allowed = {"administrator"}
         if role not in allowed:
             return _error("Forbidden", 403)
@@ -462,6 +469,11 @@ def moderation_workflow(request, operation):
                 return _error("MFA-verified reviewer session required", 403)
             from .operations import assignments
             return assignments(operation, actor, data, _content)
+        if operation in RIGHTS_HOLDER_OPERATIONS:
+            if envelope.get("mfa_verified") is not True:
+                return _error("MFA-verified administrator session required", 403)
+            from .rights_holders import dispatch as rights_holders
+            return rights_holders(operation, actor, data)
         if operation in DECISIONS or operation in {"review_queue", "reports", "appeals", "video_detail", "report_detail", "appeal_detail", "preview", "totals", "fraud_scope", "edit_queue", "edit_detail", "edit_decision"}:
             if envelope.get("mfa_verified") is not True:
                 return _error("MFA-verified reviewer session required", 403)

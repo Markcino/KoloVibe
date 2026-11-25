@@ -30,7 +30,8 @@ DELEGATED = {
 # Administrator-only at the gateway itself.
 ADMIN_ONLY = {"/api/v1/admin/moderation/assignments", "/api/v1/admin/moderation/assignments/summary",
               "/api/v1/admin/creators/{id}/restrictions", "/api/v1/admin/creator-restrictions/{id}/lift",
-              "/api/v1/admin/creator-restriction-appeals", "/api/v1/admin/creator-restriction-appeals/{id}/decision"}
+              "/api/v1/admin/creator-restriction-appeals", "/api/v1/admin/creator-restriction-appeals/{id}/decision",
+              "/api/v1/admin/rights-holders", "/api/v1/admin/rights-holders/{id}/revoke"}
 INSUFFICIENT = ("viewer:nomfa", "creator:nomfa", "moderator:nomfa", "administrator:nomfa")
 
 

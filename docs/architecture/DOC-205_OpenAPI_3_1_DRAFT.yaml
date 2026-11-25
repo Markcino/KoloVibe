@@ -3438,10 +3438,13 @@ paths:
                 - record
                 - video
                 - preview
+                - copyright
                 - reports
                 - decisions
                 - history_truncated
                 properties:
+                  copyright:
+                    $ref: '#/components/schemas/CopyrightClaimContext'
                   record:
                     type: object
                     additionalProperties: false
@@ -3618,10 +3621,13 @@ paths:
                 - record
                 - video
                 - preview
+                - copyright
                 - reports
                 - decisions
                 - history_truncated
                 properties:
+                  copyright:
+                    $ref: '#/components/schemas/CopyrightClaimContext'
                   record:
                     $ref: '#/components/schemas/PilotReportQueueItem'
                   video:
@@ -3788,10 +3794,13 @@ paths:
                 - record
                 - video
                 - preview
+                - copyright
                 - reports
                 - decisions
                 - history_truncated
                 properties:
+                  copyright:
+                    $ref: '#/components/schemas/CopyrightClaimContext'
                   record:
                     $ref: '#/components/schemas/PilotAppealQueueItem'
                   video:
@@ -4481,6 +4490,143 @@ paths:
           description: Conflicts with an existing measure, appeal or decision
         '503':
           description: Creator service unavailable
+  /admin/rights-holders:
+    get:
+      tags:
+      - Administration
+      summary: List verified and revoked rights holders
+      operationId: list_admin_rights_holders
+      x-implementation: local
+      x-capability: moderation
+      x-required-roles:
+      - administrator
+      x-mfa-required: true
+      description: Under Decision E (D11-008). Ordered by account, 20 per page.
+      parameters:
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: One page of rights holders
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items, next_cursor]
+                properties:
+                  items:
+                    type: array
+                    maxItems: 20
+                    items:
+                      $ref: '#/components/schemas/RightsHolder'
+                  next_cursor:
+                    type: [string, 'null']
+                    format: uuid
+        '400':
+          description: Invalid rights holder request
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Administrator role and a live MFA-verified session required, or the caller's own account
+        '404':
+          description: Rights holder not found
+        '409':
+          description: Already verified with different details
+        '503':
+          description: Moderation temporarily unavailable
+    post:
+      tags:
+      - Administration
+      summary: Verify an account as acting for a rights holder
+      operationId: post_admin_rights_holder
+      x-implementation: local
+      x-capability: moderation
+      x-required-roles:
+      - administrator
+      x-mfa-required: true
+      description: Under Decision E. Verification marks that account's later copyright claims for reviewers; it never
+        decides a claim. An administrator cannot verify their own account. Repeating the same details answers 200;
+        a revoked account can be verified again.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [account_id, organisation, evidence]
+              properties:
+                account_id: {type: string, format: uuid}
+                organisation: {type: string, minLength: 2, maxLength: 200}
+                evidence: {type: string, minLength: 10, maxLength: 2000}
+      responses:
+        '200':
+          description: Already verified with these details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RightsHolder'
+        '201':
+          description: Verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RightsHolder'
+        '400':
+          description: Invalid rights holder request
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Administrator role and a live MFA-verified session required, or the caller's own account
+        '404':
+          description: Rights holder not found
+        '409':
+          description: Already verified with different details
+        '503':
+          description: Moderation temporarily unavailable
+  /admin/rights-holders/{account_id}/revoke:
+    post:
+      tags:
+      - Administration
+      summary: Revoke a rights-holder verification
+      operationId: post_admin_rights_holder_revoke
+      x-implementation: local
+      x-capability: moderation
+      x-required-roles:
+      - administrator
+      x-mfa-required: true
+      description: Under Decision E. Later claims from the account are no longer marked verified; claims already made
+        keep the status they had when submitted. Repeating a revoke answers 200.
+      parameters:
+      - name: account_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RightsHolder'
+        '400':
+          description: Invalid rights holder request
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Administrator role and a live MFA-verified session required, or the caller's own account
+        '404':
+          description: Rights holder not found
+        '409':
+          description: Already verified with different details
+        '503':
+          description: Moderation temporarily unavailable
   /admin/moderation/assignments:
     get:
       tags:
@@ -9595,6 +9741,36 @@ components:
         restriction: {$ref: '#/components/schemas/CreatorRestrictionDetail'}
         decided_at: {type: [string, 'null'], format: date-time}
         decision_reason: {type: string, maxLength: 2000}
+    CopyrightClaimContext:
+      type: [object, 'null']
+      description: Under Decision E (D11-008), reviewer-only signals on a copyright report or on an appeal against a
+        copyright takedown; null for anything else. It never carries the claimant's identity and decides nothing.
+        claimant_claims and claimant_dismissed count the claimant's copyright reports (a misuse signal).
+        creator_active_strikes counts upheld takedowns not reversed; any measure on the creator is an administrator's
+        separate decision.
+      additionalProperties: false
+      required: [work_reference, claimant_verified, organisation, claimant_claims, claimant_dismissed, creator_active_strikes]
+      properties:
+        work_reference: {type: [string, 'null'], maxLength: 500}
+        claimant_verified: {type: boolean}
+        organisation: {type: [string, 'null'], maxLength: 200, description: Set only for a verified rights holder}
+        claimant_claims: {type: [integer, 'null'], minimum: 0}
+        claimant_dismissed: {type: [integer, 'null'], minimum: 0}
+        creator_active_strikes: {type: [integer, 'null'], minimum: 0}
+    RightsHolder:
+      type: object
+      description: Under Decision E, an account an administrator verified as acting for a rights holder. evidence is
+        the administrator's private note on how authority was checked.
+      additionalProperties: false
+      required: [account_id, organisation, evidence, verified_by, verified_at, revoked_at, active]
+      properties:
+        account_id: {type: string, format: uuid}
+        organisation: {type: string, minLength: 2, maxLength: 200}
+        evidence: {type: string, minLength: 10, maxLength: 2000}
+        verified_by: {type: string, format: uuid}
+        verified_at: {type: string, format: date-time}
+        revoked_at: {type: [string, 'null'], format: date-time}
+        active: {type: boolean}
     EditValues:
       type: object
       additionalProperties: false

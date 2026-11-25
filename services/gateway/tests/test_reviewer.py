@@ -29,7 +29,7 @@ class ReviewerGatewayTests(SimpleTestCase):
         video = str(uuid4())
         detail = {"record": {"id": video, "title": "Title"}, "video": {"id": video, "title": "Title", "description": "",
             "state": "review", "duration_seconds": 30, "rights_status": "flagged"}, "preview": None,
-            "reports": [], "decisions": [], "history_truncated": {"reports": False, "decisions": False}}
+            "copyright": None, "reports": [], "decisions": [], "history_truncated": {"reports": False, "decisions": False}}
         self.assertTrue(valid_detail(detail))
         for state in ("attested", "flagged", "claimed", "removed", "restored"):
             detail["video"]["rights_status"] = state
