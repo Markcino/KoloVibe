@@ -69,7 +69,8 @@ class Broker:
                 raise RuntimeError(f"Port {TLS_PORT} is already in use; stop the other broker first")
         self.sbin, self.base = find_sbin(), Path(base)
         self.ca, self.name = self.base / "ca.pem", f"kvtest{secrets.token_hex(3)}@localhost"
-        self.passwords = {name: secrets.token_urlsafe(24) for name in ("admin", *gen.BROKER_ACCOUNTS)}
+        # A password never starts with "-": rabbitmqctl would read it as an option (a 1-in-32 harness flake).
+        self.passwords = {name: "p" + secrets.token_urlsafe(24) for name in ("admin", *gen.BROKER_ACCOUNTS)}
         self.process = None
         self.env = {
             "PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(self.base),
