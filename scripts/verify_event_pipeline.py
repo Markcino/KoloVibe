@@ -3,7 +3,8 @@
 Runs the real Engagement and Points code in separate processes against the disposable TLS PostgreSQL used by CI, one
 database role per service, exchanging only JSON exactly as Celery would carry it (scripts/event_pipeline_steps.py).
 The broker itself is replaced by a recording publisher: the message, exchange, routing key and no-declare flags are
-asserted, but RabbitMQ permission behaviour is NOT exercised here and remains an owner staging check.
+asserted, but RabbitMQ itself is NOT exercised here. scripts/verify_event_pipeline_broker.py runs the same services against
+a real, disposable TLS RabbitMQ with least-privilege accounts; the deployed broker remains an owner staging check.
 
 Run from the repository root with PostgreSQL tools on PATH:  python scripts/verify_event_pipeline.py
 """

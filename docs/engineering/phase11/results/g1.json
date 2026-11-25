@@ -1,0 +1,348 @@
+{
+ "results": [
+  {
+   "id": "T1_01",
+   "test": "Accounts.test_T1_01_registration_creates_an_unverified_account_and_leaks_nothing",
+   "status": "PASS",
+   "seconds": 0.12,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_02",
+   "test": "Accounts.test_T1_02_an_unverified_account_cannot_sign_in",
+   "status": "PASS",
+   "seconds": 0.06,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_03",
+   "test": "Accounts.test_T1_03_duplicate_registration_is_not_distinguishable_from_a_new_one",
+   "status": "FAIL",
+   "seconds": 0.09,
+   "doc": "",
+   "detail": "AssertionError: 409 != 201 : registering an existing email must not reveal that it exists\n"
+  },
+  {
+   "id": "T1_04",
+   "test": "Accounts.test_T1_04_email_case_does_not_create_a_second_account",
+   "status": "PASS",
+   "seconds": 0.1,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_05",
+   "test": "Accounts.test_T1_05_weak_passwords_are_refused",
+   "status": "PASS",
+   "seconds": 0.09,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_06",
+   "test": "Accounts.test_T1_06_a_wrong_verification_code_is_refused_and_the_right_one_still_works",
+   "status": "PASS",
+   "seconds": 0.08,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_07",
+   "test": "Accounts.test_T1_07_a_verification_code_is_single_use",
+   "status": "PASS",
+   "seconds": 0.07,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_10",
+   "test": "Accounts.test_T1_10_wrong_password_and_unknown_email_look_the_same",
+   "status": "PASS",
+   "seconds": 0.1,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_11",
+   "test": "Accounts.test_T1_11_protected_routes_reject_missing_malformed_and_tampered_tokens",
+   "status": "PASS",
+   "seconds": 0.16,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_12",
+   "test": "Accounts.test_T1_12_refresh_rotates_and_a_replayed_refresh_token_is_refused",
+   "status": "PASS",
+   "seconds": 0.12,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_13",
+   "test": "Accounts.test_T1_13_replaying_an_old_refresh_token_revokes_the_whole_family",
+   "status": "PASS",
+   "seconds": 0.16,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_14",
+   "test": "Accounts.test_T1_14_logout_revokes_the_session_immediately",
+   "status": "PASS",
+   "seconds": 0.14,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_15",
+   "test": "Accounts.test_T1_15_session_restoration_after_the_access_token_expires_uses_the_refresh_token",
+   "status": "PASS",
+   "seconds": 0.13,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_16",
+   "test": "Accounts.test_T1_16_sessions_list_only_the_owner_and_revoking_another_session_is_immediate",
+   "status": "PASS",
+   "seconds": 0.18,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_17",
+   "test": "Accounts.test_T1_17_one_account_cannot_revoke_or_see_another_accounts_sessions",
+   "status": "PASS",
+   "seconds": 0.25,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_20",
+   "test": "Accounts.test_T1_20_password_change_needs_the_current_password_and_revokes_other_sessions",
+   "status": "PASS",
+   "seconds": 0.21,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_21",
+   "test": "Accounts.test_T1_21_password_reset_does_not_reveal_whether_an_email_exists",
+   "status": "PASS",
+   "seconds": 0.09,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_22",
+   "test": "Accounts.test_T1_22_password_reset_with_the_emailed_code_works_once_and_ends_old_sessions",
+   "status": "PASS",
+   "seconds": 0.23,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_30",
+   "test": "Accounts.test_T1_30_cross_account_reads_return_nothing_of_anothers",
+   "status": "PASS",
+   "seconds": 0.46,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_31",
+   "test": "Accounts.test_T1_31_a_viewer_cannot_reach_privileged_or_creator_routes",
+   "status": "FAIL",
+   "seconds": 0.09,
+   "doc": "",
+   "detail": "AssertionError: 400 not found in (401, 403, 404, 405) : POST /admin/accounts/lookup -> 400\n"
+  },
+  {
+   "id": "T1_32",
+   "test": "Accounts.test_T1_32_a_role_change_takes_effect_at_once_and_the_old_session_cannot_keep_the_old_role",
+   "status": "PASS",
+   "seconds": 0.29,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_33",
+   "test": "Accounts.test_T1_33_a_disabled_account_loses_access_immediately",
+   "status": "PASS",
+   "seconds": 0.16,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_40",
+   "test": "Accounts.test_T1_40_privacy_requests_are_recorded_for_the_owner_only",
+   "status": "PASS",
+   "seconds": 0.24,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_41",
+   "test": "Accounts.test_T1_41_a_privacy_request_needs_the_current_password",
+   "status": "PASS",
+   "seconds": 0.11,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_42",
+   "test": "Accounts.test_T1_42_preferences_validate_their_input",
+   "status": "PASS",
+   "seconds": 0.09,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_50",
+   "test": "Accounts.test_T1_50_oversized_malformed_and_hostile_input_is_refused_safely",
+   "status": "PASS",
+   "seconds": 0.06,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_51",
+   "test": "Accounts.test_T1_51_error_and_success_responses_do_not_leak_server_internals",
+   "status": "PASS",
+   "seconds": 0.0,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_52",
+   "test": "Accounts.test_T1_52_unknown_and_method_tampered_routes_are_refused",
+   "status": "PASS",
+   "seconds": 0.09,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_60",
+   "test": "Mfa.test_T1_60_a_privileged_password_sign_in_returns_a_challenge_and_no_tokens",
+   "status": "PASS",
+   "seconds": 2.55,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_61",
+   "test": "Mfa.test_T1_61_a_wrong_code_is_refused_and_does_not_open_a_session",
+   "status": "PASS",
+   "seconds": 1.27,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_62",
+   "test": "Mfa.test_T1_62_a_correct_code_opens_a_session_once_and_the_same_code_cannot_be_replayed",
+   "status": "PASS",
+   "seconds": 28.91,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_63",
+   "test": "Mfa.test_T1_63_a_recovery_code_works_exactly_once",
+   "status": "PASS",
+   "seconds": 1.23,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_64",
+   "test": "Mfa.test_T1_64_a_challenge_is_single_use_after_success",
+   "status": "PASS",
+   "seconds": 28.72,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_65",
+   "test": "Mfa.test_T1_65_repeated_wrong_codes_exhaust_the_challenge_even_for_the_right_code",
+   "status": "PASS",
+   "seconds": 29.9,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_66",
+   "test": "Mfa.test_T1_66_a_forged_or_foreign_challenge_token_is_refused",
+   "status": "PASS",
+   "seconds": 2.51,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_67",
+   "test": "Mfa.test_T1_67_a_moderator_session_cannot_perform_administrator_only_actions",
+   "status": "PASS",
+   "seconds": 1.16,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_90",
+   "test": "ZBruteForce.test_T1_90_repeated_wrong_passwords_are_throttled",
+   "status": "PASS",
+   "seconds": 0.68,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_91",
+   "test": "ZBruteForce.test_T1_91_a_throttled_account_does_not_accept_the_right_password_during_the_lockout",
+   "status": "PASS",
+   "seconds": 0.66,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_92",
+   "test": "ZBruteForce.test_T1_92_repeated_wrong_verification_codes_are_throttled",
+   "status": "PASS",
+   "seconds": 0.81,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_93",
+   "test": "ZBruteForce.test_T1_93_repeated_wrong_reset_codes_are_throttled",
+   "status": "PASS",
+   "seconds": 0.88,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_94",
+   "test": "ZBruteForce.test_T1_94_registration_and_reset_requests_are_rate_limited",
+   "status": "FAIL",
+   "seconds": 0.95,
+   "doc": "",
+   "detail": "AssertionError: 429 not found in [201, 201, 201, 201, 201, 201, 201, 201, 201, 201, 201, 201, 201, 201, 201, 201, 201, 201, 201, 201, 201, 201, 201, 201, 201, 201, 201, 201, 201, 201, 201, 201, 201, 201, 201, 201, 201, 201, 201, 201] : unbounded registration: [201]\n"
+  },
+  {
+   "id": "T1_95",
+   "test": "ZBruteForce.test_T1_95_verification_resend_sends_at_most_three_emails_an_hour_per_account",
+   "status": "PASS",
+   "seconds": 2.03,
+   "doc": "",
+   "detail": ""
+  },
+  {
+   "id": "T1_96",
+   "test": "ZBruteForce.test_T1_96_password_reset_sends_at_most_three_emails_an_hour_and_answers_identically",
+   "status": "PASS",
+   "seconds": 1.91,
+   "doc": "",
+   "detail": ""
+  }
+ ]
+}
