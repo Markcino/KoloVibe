@@ -2,6 +2,7 @@
 
 from datetime import timedelta
 import json
+import logging
 import re
 from uuid import UUID, uuid5
 
@@ -14,8 +15,11 @@ from kombu.exceptions import KombuError
 
 from . import media_storage as storage
 from .models import MediaUpload, Video, OriginalityAttestation
+from . import security_audit
 from .copyright import ATTESTATION_VERSION, audit
 from .video_metadata import FIELDS, item, metadata
+
+logger = logging.getLogger(__name__)
 
 
 UPLOAD_LIFETIME = timedelta(minutes=10)
@@ -28,7 +32,9 @@ def _error(detail, status):
 
 def _draft(creator_id, data):
     values = metadata({key: value for key, value in data.items() if key in FIELDS}, creating=True)
-    video = Video.objects.create(creator_id=creator_id, **values)
+    with transaction.atomic():
+        video = Video.objects.create(creator_id=creator_id, **values)
+        security_audit.record("video.created", video.id)
     return JsonResponse(item(video), status=201)
 
 
@@ -79,6 +85,7 @@ def _intent(video_id, creator_id, data):
         if created:
             audit(video, "originality_attested", "Creator accepted originality and permission attestation",
                   actor=actor, payload={"version": ATTESTATION_VERSION, "upload_id": str(upload_id)})
+            security_audit.record("video.upload_intent_created", video.id, actor)
         video.rights_status = Video.RightsStatus.ATTESTED
         video.failure_reason = None
         video.provider_asset_id = video.poster_asset_id = None
@@ -145,6 +152,7 @@ def _manage(video_id, creator_id, data, operation):
             video.moderation_revision += 1
             video.save(update_fields=["deleted_at", "visibility", "moderation_revision"])
             MediaUpload.objects.filter(video=video).update(expires_at=now, lease_id=None, lease_until=None)
+            security_audit.record("video.deleted", video.id)
             return JsonResponse({"video_id": str(video_id), "deleted": True})
         if operation in {"publish", "unpublish"}:
             if (video.state != Video.State.PUBLISHED or not video.moderation_approved_at
@@ -158,6 +166,7 @@ def _manage(video_id, creator_id, data, operation):
                 if desired == Video.Visibility.PUBLIC and video.published_at is None:
                     video.published_at = timezone.now()
                 video.save(update_fields=["visibility", "moderation_revision", "published_at"])
+                security_audit.record("video.published" if operation == "publish" else "video.unpublished", video.id)
             return JsonResponse(_owned_item(video))
         if video.state not in {Video.State.DRAFT, Video.State.FAILED, Video.State.REJECTED, Video.State.PUBLISHED}:
             return _error("Video cannot be edited in its current state", 409)
@@ -167,16 +176,19 @@ def _manage(video_id, creator_id, data, operation):
         values = metadata({key: value for key, value in data.items() if key in FIELDS}, duration_ms=duration)
         changed = {name: value for name, value in values.items() if getattr(video, name) != value}
         if "cover_time_ms" in changed:
-            # A processed cover edit clears the stale frame. Re-rendering is
-            # deferred rather than doing network/FFmpeg work in a request lock.
+            # A cover edit clears the stale frame. For a processed video the media worker renders the new one
+            # from the private rendition after commit (D-P2-01); no network or FFmpeg work runs under this lock.
             video.poster_asset_id = None
             changed["poster_asset_id"] = None
+            if video.provider_asset_id:
+                transaction.on_commit(lambda video_id=video.id: _queue_cover(video_id))
         for name, value in changed.items():
             setattr(video, name, value)
         if changed:
             # M-054 says "Save changes" and does not request another review.
             video.moderation_revision += 1
             video.save(update_fields=[*changed, "moderation_revision"])
+            security_audit.record("video.updated", video.id)
         return JsonResponse(_owned_item(video))
 
 
@@ -192,6 +204,26 @@ def _enqueue(video_id):
         routing_key="kolovibe.content.media",
         retry=False,
     )
+
+
+def _enqueue_cover(video_id):
+    from .media_tasks import render_cover
+
+    render_cover.apply_async(
+        args=[str(video_id)],
+        queue="kolovibe.content.media",
+        exchange="kolovibe.content.media",
+        routing_key="kolovibe.content.media",
+        retry=False,
+    )
+
+
+def _queue_cover(video_id):
+    """Best effort after commit: a broker outage never fails the saved edit; `requeue_stalled_media` recovers it."""
+    try:
+        _enqueue_cover(video_id)
+    except (KombuError, OSError, RuntimeError, ImportError):
+        logger.warning("Cover render could not be queued; recovery will retry")
 
 
 def _complete(video_id, creator_id):
@@ -223,6 +255,7 @@ def _complete(video_id, creator_id):
                 video.state = Video.State.PROCESSING
                 video.failure_reason = None
                 video.save(update_fields=["state", "failure_reason"])
+                security_audit.record("video.upload_completed", video.id)
     if video.state == Video.State.DRAFT:
         return _error("Upload reservation not found", 409)
     if video.state == Video.State.PROCESSING:

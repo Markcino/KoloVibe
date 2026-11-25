@@ -31,7 +31,7 @@ class AwsStackTests(unittest.TestCase):
     def test_the_committed_stack_passes_and_reports_its_memory_budget(self):
         budget = validate_aws(stack())
         self.assertEqual(set(budget), set(AWS_ROLES))
-        self.assertEqual(sum(budget.values()), memory_bytes("1536M"))
+        self.assertEqual(sum(budget.values()), memory_bytes("1856M"))
 
     def test_the_oracle_stack_validator_still_refuses_aws(self):
         with self.assertRaisesRegex(ValueError, "oracle-staging candidate"):
@@ -101,6 +101,11 @@ class AwsStackRejectionTests(unittest.TestCase):
         self.rejected("job batch too large", lambda d: s(d, "points-audit").update(
             command=["--role", "deliver-audit", "--interval", "30", "--limit", "5000"]))
         self.rejected("job without bounds", lambda d: s(d, "points-audit").update(command=["--role", "deliver-audit"]))
+        self.rejected("purge job without bounds", lambda d: s(d, "identity-purge").update(command=["--role", "purge-security-rows"]))
+        self.rejected("requeue batch too large", lambda d: s(d, "content-requeue").update(
+            command=["--role", "requeue-media", "--interval", "900", "--limit", "5000"]))
+        self.rejected("purge role on content", lambda d: s(d, "content-requeue").update(
+            command=["--role", "purge-security-rows", "--interval", "900", "--limit", "100"]))
         self.rejected("extra capability", lambda d: s(d)["environment"].update(
             KOLOVIBE_STAGING_CAPABILITIES="analytics,engagement,media,moderation,points"))
         self.rejected("capability dropped", lambda d: s(d)["environment"].update(KOLOVIBE_STAGING_CAPABILITIES="media"))
@@ -131,6 +136,16 @@ class AwsStackRejectionTests(unittest.TestCase):
             networks=["private", "data_private", "broker_private"]))
         self.rejected("proxy network on another worker", lambda d: s(d, "points-consumer").update(
             networks=["private", "data_private", "broker_private", "r2_proxy_clients"]))
+        self.rejected("proxy network on the requeue job", lambda d: s(d, "content-requeue").update(
+            networks=["private", "data_private", "broker_private", "r2_proxy_clients"]))
+        self.rejected("no broker network on the requeue job", lambda d: s(d, "content-requeue").update(
+            networks=["private", "data_private"]))
+        self.rejected("broker network on the purge job", lambda d: s(d, "identity-purge").update(
+            networks=["private", "data_private", "broker_private"]))
+        self.rejected("requeue job without the content proxy setting", lambda d: s(d, "content-requeue")["environment"].pop(
+            "KOLOVIBE_R2_HTTPS_PROXY"))
+        self.rejected("proxy address on a non-content worker", lambda d: s(d, "points-consumer")["environment"].update(
+            KOLOVIBE_R2_HTTPS_PROXY="http://kolovibe-r2-proxy:3128"))
         self.rejected("no proxy address", lambda d: s(d)["environment"].pop("KOLOVIBE_R2_HTTPS_PROXY"))
         self.rejected("proxy address changed", lambda d: s(d)["environment"].update(
             KOLOVIBE_R2_HTTPS_PROXY="http://other-proxy:3128"))

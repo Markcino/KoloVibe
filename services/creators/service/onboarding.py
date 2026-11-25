@@ -9,6 +9,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from . import security_audit
 from .models import CreatorApplication as Application, CreatorProfile, CopyrightReviewPolicy, OnboardingEvent
 
 
@@ -28,8 +29,14 @@ def _summary(application):
             "creator_id": str(application.profile_id) if application.profile_id else None}
 
 
+AUDIT_KINDS = {OnboardingEvent.Action.INVITED: "creator.invited", OnboardingEvent.Action.REINVITED: "creator.invited",
+               OnboardingEvent.Action.REVOKED: "creator.invitation_revoked",
+               OnboardingEvent.Action.APPROVED: "creator.approved", OnboardingEvent.Action.REJECTED: "creator.rejected"}
+
+
 def _record(account_id, actor, action):
     OnboardingEvent.objects.create(account_id=account_id, actor_id=actor, action=action)
+    security_audit.record(AUDIT_KINDS[action], actor, "account", account_id)
 
 
 def _invite(actor, role, account_id):
@@ -117,6 +124,7 @@ def _submit(actor, data):
         application.attestation_version = POLICY_VERSION
         application.submitted_at = timezone.now()
         application.save(update_fields=["profile", "status", "attestation_version", "submitted_at"])
+        security_audit.record("creator.application_submitted", actor, "creator", profile.id)
     return JsonResponse(_summary(application), status=201)
 
 

@@ -3,6 +3,7 @@
 import uuid
 
 from django.db import models
+from django.utils import timezone
 from django.db.models import Q
 from django.db.models.functions import Lower
 
@@ -57,7 +58,7 @@ class CreatorApplication(models.Model):
 class OnboardingEvent(models.Model):
     """Service-owned record of each administrative onboarding change; rows are only ever added.
 
-    Creators has no Audit delivery credential, so this is the durable who/what/when until one is provisioned.
+    Kept as the service's own onboarding history; the platform audit trail is AuditEvent below (D11-007).
     """
     class Action(models.TextChoices):
         INVITED = "invited", "Invited"
@@ -88,3 +89,26 @@ class CopyrightReviewPolicy(models.Model):
 
     class Meta:
         constraints = [models.CheckConstraint(condition=Q(sample_percent__lte=100), name="copyright_sample_percent")]
+
+
+class AuditEvent(models.Model):
+    """Immutable evidence of a creator change, written in the deciding transaction and delivered to Audit (FR-015).
+
+    Identifiers and the event kind only: no handle, name, bio or reason text ever enters an event.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    kind = models.CharField(max_length=64)
+    actor_id = models.UUIDField()
+    occurred_at = models.DateTimeField(default=timezone.now)
+    subject_type = models.CharField(max_length=32)
+    subject_id = models.UUIDField()
+
+    class Meta:
+        db_table = "creators_audit_event"
+
+
+class AuditDelivery(models.Model):
+    event = models.OneToOneField(AuditEvent, primary_key=True, on_delete=models.PROTECT)
+    attempts = models.PositiveIntegerField(default=0)
+    delivered_at = models.DateTimeField(null=True)
+    next_attempt_at = models.DateTimeField(default=timezone.now)

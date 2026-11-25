@@ -9,6 +9,7 @@ from django.db.models import Q
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 
+from . import security_audit
 from .models import CreatorProfile
 
 
@@ -116,6 +117,7 @@ def own_profile(request):
                 setattr(profile, name, value)
             if fields:
                 profile.save(update_fields=list(fields))
+                security_audit.record("creator.profile_updated", actor, "creator", profile.id)
         return JsonResponse(_profile_data(profile))
     except (ValueError, TypeError, KeyError, AttributeError, UnicodeError):
         return JsonResponse({"detail": "Invalid creator profile"}, status=400)

@@ -180,6 +180,22 @@ def download_upload(key, etag, expected_bytes, path):
             raise ObjectChanged
 
 
+def download_playback(key, path):
+    """Stream a private rendition to a local file, bounded by the playback size limit; never signs a public URL."""
+    with _request("GET", key) as response, path.open("wb") as target:
+        length = _length(response)
+        if length is None or not 0 < length <= MAX_BYTES:
+            raise StorageUnavailable
+        count = 0
+        while chunk := response.read(1024 * 1024):
+            count += len(chunk)
+            if count > length:
+                raise StorageUnavailable
+            target.write(chunk)
+        if count != length:
+            raise StorageUnavailable
+
+
 def put_playback(key, path):
     if not 0 < path.stat().st_size <= MAX_BYTES:
         raise StorageUnavailable

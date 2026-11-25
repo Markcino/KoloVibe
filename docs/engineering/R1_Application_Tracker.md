@@ -201,6 +201,9 @@ Full record: [Phase 11 report](phase11/Phase11_Test_Report.md), [matrix](phase11
 | Validation before authorization; console overflow at 320 px (D11-005, D11-006) | Gateway, Business | n/a | console CSS | n/a | n/a | Low | T1_31, T4_23, T9_32 FAIL | **Defects (Low)** | None | None |
 | Accounts, sessions, MFA, object-level authorization, media validation, engagement and points on a real broker, Business isolation, console sessions and CSRF | all | n/a | yes | yes | yes | tested black-box | 122 PASS of 130 new tests | **Verified (local, repository scope)** | Device and staging gates | Owner |
 
+### Reverification Phase 4: Business (25 November 2026)
+
+[Phase 4 Business completion](reverification/Phase4_Business_Completion_2026-11-25.md). All approved Business functionality is development complete: all 57 operations are routed, 44 have a Flutter client and 13 have a console client, and only staff removal is refused by design. The eleven listed extensions are **Blocked by approval** (DR-BZ-14, 18, 19, 20, 25, 26, 29, 33). Not activated anywhere. Production NO-GO.
 ### Reverification Phase 3 (25 November 2026)
 
 Repository-side development, not deployed: [Phase 3 report](reverification/Phase3_Core_Completion_Report_2026-11-25.md). D-P2-01 fixed (PR #234), Creators and Content audit delivery D11-007 (PR #235), maintenance roles at zero replicas D11-009 (PR #236). **Correction:** M-050 to M-052 were already live in-flow states; the Phase 1 and 2 gap was a false positive. Dead letters stay **Blocked by approval** (RV2-03). Production NO-GO.
