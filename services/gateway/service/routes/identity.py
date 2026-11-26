@@ -6,11 +6,17 @@ def patterns():
     from .. import accounts
     from ..compatibility import compatibility
     from ..preferences_privacy import preferences, privacy_requests
-    from .. import account_lookup, legal, moderator_invitations
+    from .. import account_lookup, legal, moderator_invitations, privacy_review
 
     return [
         path("api/v1/admin/moderator-invitations", moderator_invitations.collection),
         path("api/v1/admin/accounts/lookup", account_lookup.lookup),
+        # Decision C: privacy request review and account holds (Identity authorises the administrator).
+        path("api/v1/admin/privacy-requests", privacy_review.collection),
+        *[path(f"api/v1/admin/privacy-requests/<uuid:target_id>/{operation}", privacy_review.step,
+               {"operation": operation}) for operation in privacy_review.STEPS],
+        path("api/v1/admin/accounts/<uuid:target_id>/holds", privacy_review.holds),
+        path("api/v1/admin/account-holds/<uuid:target_id>/release", privacy_review.release),
         path("api/v1/admin/moderator-invitations/<uuid:invitation_id>/revoke", moderator_invitations.revoke),
         path("api/v1/auth/moderator-invitations/setup", moderator_invitations.accept),
         path("api/v1/auth/moderator-invitations/complete", moderator_invitations.accept, {"complete": True}),

@@ -390,10 +390,11 @@ paths:
         current login session. current_password remains accepted for compatibility,
         with the same account-wide reauthentication attempt budget. If both are
         supplied, the token takes precedence with no password fallback. A valid
-        token is consumed even when an open request returns 409. Only received or
-        in_review requests block another request of the same kind. Existing
-        received receipts retain their status. Deletion is intake-only under
-        ADR-020; this operation never disables accounts or purges data.
+        token is consumed even when an open request returns 409. A received,
+        in_review or processing request blocks another request of the same kind.
+        This operation never disables accounts or purges data: an administrator
+        reviews each request (Decision C), and an approved deletion deactivates
+        the account. Erasure in every service, and completed, come later.
       security: [{bearerAuth: []}]
       requestBody:
         required: true
@@ -4831,6 +4832,310 @@ paths:
           description: Administrator role or MFA required
         '503':
           description: Service unavailable
+  /admin/privacy-requests:
+    get:
+      tags:
+      - Administration
+      summary: List privacy requests for review
+      operationId: list_admin_privacy_requests
+      x-implementation: local
+      x-capability: account_management
+      x-required-roles:
+      - administrator
+      x-mfa-required: true
+      description: Under Decision C. Newest first, 50 per page; filter by status.
+      parameters:
+      - name: status
+        in: query
+        schema: {type: string, enum: [received, in_review, processing, completed, declined]}
+      - name: cursor
+        in: query
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: One page of privacy requests
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items, next_cursor]
+                properties:
+                  items:
+                    type: array
+                    maxItems: 50
+                    items:
+                      $ref: '#/components/schemas/PrivacyRequestReview'
+                  next_cursor: {type: [string, 'null'], format: uuid}
+        '400':
+          description: Invalid privacy review request
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Administrator role and an MFA-verified session required; writes need MFA within five minutes
+        '404':
+          description: Request, account or hold not found
+        '409':
+          description: The request is not in the state this step needs, or the account is on hold. code is one of request_not_received, request_not_in_review, request_not_deletion,
+            own_account or account_on_hold
+        '503':
+          description: Identity temporarily unavailable
+  /admin/privacy-requests/{request_id}/review:
+    post:
+      tags:
+      - Administration
+      summary: Open the review of a privacy request
+      operationId: post_admin_privacy_request_review
+      x-implementation: local
+      x-capability: account_management
+      x-required-roles:
+      - administrator
+      x-mfa-required: true
+      description: Under Decision C. received to in_review; repeating it answers the same state.
+      parameters:
+      - name: request_id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: The request after this step
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrivacyRequestReview'
+        '400':
+          description: Invalid privacy review request
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Administrator role and an MFA-verified session required; writes need MFA within five minutes
+        '404':
+          description: Request, account or hold not found
+        '409':
+          description: The request is not in the state this step needs, or the account is on hold. code is one of request_not_received, request_not_in_review, request_not_deletion,
+            own_account or account_on_hold
+        '503':
+          description: Identity temporarily unavailable
+  /admin/privacy-requests/{request_id}/decline:
+    post:
+      tags:
+      - Administration
+      summary: Decline a privacy request under review
+      operationId: post_admin_privacy_request_decline
+      x-implementation: local
+      x-capability: account_management
+      x-required-roles:
+      - administrator
+      x-mfa-required: true
+      description: Under Decision C. in_review to declined with a fixed code. Declining never deactivates the account.
+      parameters:
+      - name: request_id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [decline_code]
+              properties:
+                decline_code: {type: string, enum: [IDENTITY_NOT_CONFIRMED, DUPLICATE_REQUEST, WITHDRAWN]}
+      responses:
+        '200':
+          description: The request after this step
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrivacyRequestReview'
+        '400':
+          description: Invalid privacy review request
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Administrator role and an MFA-verified session required; writes need MFA within five minutes
+        '404':
+          description: Request, account or hold not found
+        '409':
+          description: The request is not in the state this step needs, or the account is on hold. code is one of request_not_received, request_not_in_review, request_not_deletion,
+            own_account or account_on_hold
+        '503':
+          description: Identity temporarily unavailable
+  /admin/privacy-requests/{request_id}/approve-deletion:
+    post:
+      tags:
+      - Administration
+      summary: Approve a deletion request
+      operationId: post_admin_privacy_request_approve_deletion
+      x-implementation: local
+      x-capability: account_management
+      x-required-roles:
+      - administrator
+      x-mfa-required: true
+      description: Under Decision C. in_review to processing. In the same transaction the account is deactivated and every session revoked. Refused while the account has an open hold, and for the administrator's own account. Erasure in every service is a later slice; nothing marks the request completed by hand.
+      parameters:
+      - name: request_id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: The request after this step
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrivacyRequestReview'
+        '400':
+          description: Invalid privacy review request
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Administrator role and an MFA-verified session required; writes need MFA within five minutes
+        '404':
+          description: Request, account or hold not found
+        '409':
+          description: The request is not in the state this step needs, or the account is on hold. code is one of request_not_received, request_not_in_review, request_not_deletion,
+            own_account or account_on_hold
+        '503':
+          description: Identity temporarily unavailable
+  /admin/accounts/{account_id}/holds:
+    get:
+      tags:
+      - Administration
+      summary: List an account's holds
+      operationId: list_admin_account_holds
+      x-implementation: local
+      x-capability: account_management
+      x-required-roles:
+      - administrator
+      x-mfa-required: true
+      description: Under Decision C. Newest first, at most 50.
+      parameters:
+      - name: account_id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: The account's holds
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    maxItems: 50
+                    items:
+                      $ref: '#/components/schemas/AccountHold'
+        '400':
+          description: Invalid privacy review request
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Administrator role and an MFA-verified session required; writes need MFA within five minutes
+        '404':
+          description: Request, account or hold not found
+        '409':
+          description: The request is not in the state this step needs, or the account is on hold. code is one of request_not_received, request_not_in_review, request_not_deletion,
+            own_account or account_on_hold
+        '503':
+          description: Identity temporarily unavailable
+    post:
+      tags:
+      - Administration
+      summary: Place a hold on an account
+      operationId: post_admin_account_hold
+      x-implementation: local
+      x-capability: account_management
+      x-required-roles:
+      - administrator
+      x-mfa-required: true
+      description: Under Decision C. A hold stops a deletion from being approved until it is released. One open hold per reason; repeating answers it with 200. Hold durations are not decided here (ADR-020).
+      parameters:
+      - name: account_id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason_code, note]
+              properties:
+                reason_code: {type: string, enum: [LEGAL_CLAIM, AUTHORITY_REQUEST, FRAUD_INVESTIGATION]}
+                note: {type: string, minLength: 3, maxLength: 500}
+      responses:
+        '201':
+          description: Hold placed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountHold'
+        '200':
+          description: The open hold for that reason
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountHold'
+        '400':
+          description: Invalid privacy review request
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Administrator role and an MFA-verified session required; writes need MFA within five minutes
+        '404':
+          description: Request, account or hold not found
+        '409':
+          description: The request is not in the state this step needs, or the account is on hold. code is one of request_not_received, request_not_in_review, request_not_deletion,
+            own_account or account_on_hold
+        '503':
+          description: Identity temporarily unavailable
+  /admin/account-holds/{hold_id}/release:
+    post:
+      tags:
+      - Administration
+      summary: Release a hold
+      operationId: post_admin_account_hold_release
+      x-implementation: local
+      x-capability: account_management
+      x-required-roles:
+      - administrator
+      x-mfa-required: true
+      description: Under Decision C. Releasing twice answers the released hold.
+      parameters:
+      - name: hold_id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: The released hold
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountHold'
+        '400':
+          description: Invalid privacy review request
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Administrator role and an MFA-verified session required; writes need MFA within five minutes
+        '404':
+          description: Request, account or hold not found
+        '409':
+          description: The request is not in the state this step needs, or the account is on hold. code is one of request_not_received, request_not_in_review, request_not_deletion,
+            own_account or account_on_hold
+        '503':
+          description: Identity temporarily unavailable
   /admin/accounts/lookup:
     post:
       tags:
@@ -8810,7 +9115,7 @@ components:
       properties:
         id: {type: string, format: uuid}
         kind: {type: string, enum: [access, deletion]}
-        status: {type: string, enum: [received, in_review, completed, declined]}
+        status: {type: string, enum: [received, in_review, processing, completed, declined]}
         created_at: {type: string, format: date-time}
     User:
       type: object
@@ -9761,6 +10066,38 @@ components:
         claimant_claims: {type: [integer, 'null'], minimum: 0}
         claimant_dismissed: {type: [integer, 'null'], minimum: 0}
         creator_active_strikes: {type: [integer, 'null'], minimum: 0}
+    PrivacyRequestReview:
+      type: object
+      description: Under Decision C, a privacy request as an administrator reviews it. held is true while the
+        account has an open hold.
+      additionalProperties: false
+      required: [id, account_id, kind, status, created_at, review_started_at, decided_at, decline_code, held]
+      properties:
+        id: {type: string, format: uuid}
+        account_id: {type: string, format: uuid}
+        kind: {type: string, enum: [access, deletion]}
+        status: {type: string, enum: [received, in_review, processing, completed, declined]}
+        created_at: {type: string, format: date-time}
+        review_started_at: {type: [string, 'null'], format: date-time}
+        decided_at: {type: [string, 'null'], format: date-time}
+        decline_code:
+          type: [string, 'null']
+          enum: [IDENTITY_NOT_CONFIRMED, DUPLICATE_REQUEST, WITHDRAWN, null]
+        held: {type: boolean}
+    AccountHold:
+      type: object
+      description: Under Decision C, a legal or investigative hold. note is the administrator's private explanation
+        and is never sent to the account holder.
+      additionalProperties: false
+      required: [id, account_id, reason_code, note, placed_by, placed_at, released_at]
+      properties:
+        id: {type: string, format: uuid}
+        account_id: {type: string, format: uuid}
+        reason_code: {type: string, enum: [LEGAL_CLAIM, AUTHORITY_REQUEST, FRAUD_INVESTIGATION]}
+        note: {type: string, minLength: 3, maxLength: 500}
+        placed_by: {type: string, format: uuid}
+        placed_at: {type: string, format: date-time}
+        released_at: {type: [string, 'null'], format: date-time}
     RightsHolder:
       type: object
       description: Under Decision E, an account an administrator verified as acting for a rights holder. evidence is

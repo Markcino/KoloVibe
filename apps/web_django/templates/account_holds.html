@@ -1,0 +1,19 @@
+{% extends 'base_admin.html' %}{% load admin_display %}
+{% block title %}{{ title }} · KoloVibe{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Privacy</p><h1>{{ title }}</h1><p class="supporting-text">Account <code>{{ account_id }}</code>. An open hold stops this account's deletion from being approved until it is released. Notes are private to administrators. How long a hold may last is a legal decision and is not set here.</p></div><a class="button button-outline" href="{% url 'privacy-requests' %}">Back to privacy requests</a></div>
+{% if notice %}<p class="notice" role="status">{{ notice }}</p>{% endif %}
+{% if error %}<p class="notice error" role="alert">{{ error }}</p>{% endif %}
+{% if available %}<section class="panel" aria-labelledby="place-title"><div class="section-heading"><div><p class="eyebrow">Hold</p><h2 id="place-title">Place a hold</h2></div><span class="status-chip">Audited</span></div>
+<form method="post">{% csrf_token %}<input type="hidden" name="operation" value="place"><input type="hidden" name="intent" value="{{ place_intent }}">
+<label>Reason<select name="reason_code" required><option value="">Choose…</option>{% for value, label in reasons %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
+<label>Note (private)<textarea name="note" minlength="3" maxlength="500" rows="3" required></textarea></label>
+<div class="status-actions"><button type="submit">Place hold</button></div></form></section>
+<section class="panel table-panel" aria-labelledby="holds-title"><div class="section-heading"><div><p class="eyebrow">Register</p><h2 id="holds-title">Holds on this account</h2></div></div>
+<div class="table-scroll" role="region" aria-label="Account holds" tabindex="0"><table><caption class="visually-hidden">Account holds</caption>
+<thead><tr><th scope="col">Reason</th><th scope="col">Note</th><th scope="col">Placed</th><th scope="col">Status</th></tr></thead><tbody>
+{% for row in rows %}<tr><td data-label="Reason"><strong>{{ row.reason_label }}</strong></td><td data-label="Note"><small>{{ row.note }}</small></td>
+<td data-label="Placed"><time datetime="{{ row.placed_at }}" title="{{ row.placed_at|utc_stamp }}">{{ row.placed_at|age }}</time></td>
+<td data-label="Status">{% if row.intent %}<form method="post" class="status-actions">{% csrf_token %}<input type="hidden" name="operation" value="release"><input type="hidden" name="hold_id" value="{{ row.id }}"><input type="hidden" name="intent" value="{{ row.intent }}"><span class="status-chip" data-state="alert">Open</span><button type="submit" class="button-outline" aria-label="Release {{ row.reason_label }} hold">Release</button></form>{% else %}<span class="status-chip">Released <time datetime="{{ row.released_at }}">{{ row.released_at|utc_stamp }}</time></span>{% endif %}</td></tr>
+{% empty %}<tr><td colspan="4">No holds on this account.</td></tr>{% endfor %}</tbody></table></div></section>{% endif %}
+{% endblock %}

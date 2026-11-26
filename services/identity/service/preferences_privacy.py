@@ -1,6 +1,6 @@
 """Identity-owned preferences and privacy request receipts.
 
-No notification delivery or personal-data deletion is performed here.
+No notification delivery or personal-data deletion is performed here; review is in privacy_review.py.
 """
 
 from django.db import transaction
@@ -99,7 +99,7 @@ def privacy_requests(request):
             record("account.reauthenticated", account.id)
         if PrivacyRequest.objects.filter(
             account=account, kind=data["kind"],
-            status__in=(PrivacyRequest.Status.RECEIVED, PrivacyRequest.Status.IN_REVIEW),
+            status__in=PrivacyRequest.OPEN,
         ).exists():
             return JsonResponse({"detail": "An open request already exists", "code": "request_open"}, status=409)
         row = PrivacyRequest.objects.create(account=account, kind=data["kind"])

@@ -64,6 +64,10 @@ def _invoke(path, data, success_statuses, *, max_response=MAX_RESPONSE):
         if (error.code == 409 and path == "/internal/auth/privacy-requests"
                 and result.get("code") == "request_open"):
             payload["code"] = "request_open"
+        if error.code == 409 and path == "/internal/auth/privacy-review":
+            from .privacy_review import CONFLICTS
+            if result.get("code") in CONFLICTS:
+                payload["code"] = result["code"]
         if (error.code == 409 and path in ("/internal/auth/register", "/internal/auth/legal")
                 and result.get("code") == "legal_version_outdated"):
             payload["code"] = "legal_version_outdated"

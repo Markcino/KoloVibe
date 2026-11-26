@@ -16,12 +16,18 @@ ROOT = Path(__file__).resolve().parents[1]
 PRIVILEGED_PREFIXES = ("/api/v1/admin/", "/api/v1/moderation/", "/api/v1/creator-invitations",
                        "/api/v1/creator-applications", "/api/v1/engagement/fraud-holds")
 REFUSED = {401, 403, 404, 405}
-# The gateway authenticates the caller; the owning service authorises the role (Identity for moderator invitations
-# and account lookup, Creators for creator onboarding) and each has its own role tests.
+# The gateway authenticates the caller; the owning service authorises the role (Identity for moderator invitations,
+# account lookup and privacy review, Creators for creator onboarding) and each has its own role tests.
 DELEGATED = {
     "/api/v1/admin/accounts/lookup",
     "/api/v1/admin/moderator-invitations",
     "/api/v1/admin/moderator-invitations/{id}/revoke",
+    "/api/v1/admin/privacy-requests",
+    "/api/v1/admin/privacy-requests/{id}/review",
+    "/api/v1/admin/privacy-requests/{id}/decline",
+    "/api/v1/admin/privacy-requests/{id}/approve-deletion",
+    "/api/v1/admin/accounts/{id}/holds",
+    "/api/v1/admin/account-holds/{id}/release",
     "/api/v1/creator-invitations",
     "/api/v1/creator-invitations/{id}/revoke",
     "/api/v1/creator-applications",

@@ -10,7 +10,7 @@ from . import business_views
 from . import creator_views
 from . import edit_views
 from . import restriction_views
-from . import rights_holder_views
+from . import privacy_views, rights_holder_views
 
 handler400 = views.error_400
 handler403 = views.error_403
@@ -31,6 +31,8 @@ urlpatterns = [
     path("admin/team/", invitation_views.team, name="team"),
     path("admin/creators/", creator_views.creators, name="creators"),
     path("admin/rights-holders/", rights_holder_views.rights_holders, name="rights-holders"),
+    path("admin/privacy-requests/", privacy_views.privacy_requests, name="privacy-requests"),
+    path("admin/accounts/<uuid:target_id>/holds/", privacy_views.account_holds, name="account-holds"),
     path("admin/creators/measures/", restriction_views.find, name="creator-measures-find"),
     path("admin/creators/measures/appeals/", restriction_views.appeals, name="creator-measure-appeals"),
     path("admin/creators/<uuid:target_id>/measures/", restriction_views.creator, name="creator-measures"),
