@@ -49,6 +49,10 @@ The permanent principal engineering directive allows two apps only: Flutter for 
 
 The owner chose **"Policies page only"**. A public, static page may serve the terms of service and privacy notice, as app store listings require. It has no accounts, feeds, ads or forms. Copyright claims stay in Flutter, with a contact address published in the copyright policy. There is no public claim form. This narrowly amends the no-public-website rule for that page only. The other rows of section 3 keep the interpretation shown.
 
+### Owner ruling on the deletion page (26 November 2026, 11:39 UTC)
+
+The owner chose **"Static policies + deletion page"**. The static site may also serve an account-deletion request page, because Google Play requires a web resource outside the app where people can ask for account and data deletion. Deletion still starts in the app, as Apple 5.1.1(v) requires. The page has no form: it describes the in-app request and an email route. Nothing else becomes public. The app links only the terms, privacy and deletion pages.
+
 ## 4. Unchanged restrictions
 
-Production remains NO-GO. No live payouts, real payments, live advertisements or production deployment. Staging deployment is allowed only when every gate in the instruction is met, and only to the authorized staging environment. Live streaming stays excluded. A public website stays excluded except for the static policy page above.
+Production remains NO-GO. No live payouts, real payments, live advertisements or production deployment. Staging deployment is allowed only when every gate in the instruction is met, and only to the authorized staging environment. Live streaming stays excluded. A public website stays excluded except for the static policy and deletion pages above.
