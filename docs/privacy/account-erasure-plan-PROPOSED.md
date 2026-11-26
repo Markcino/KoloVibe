@@ -20,7 +20,8 @@ When a deletion is approved, every service removes or de-identifies the personal
 
 ## Mechanism
 
-1. **Jobs.** Approval creates one erasure job per participating service, in the same Identity transaction that deactivates the account. It also records one outbox event per job, `privacy.erasure_requested`, carrying `{request_id, account_id}` and nothing else.
+1. **Jobs.** Approval creates one erasure job per participating service, in the same Identity transaction that deactivates the account. It also records an outbox event, `privacy.erasure_requested`, carrying `{request_id, account_id}` and nothing else, for each job that can start at once.
+   - Moderation (and, in 2c, Content) key a creator's records by the creator profile id, which only Creators knows, and Creators deletes the profile while it erases. Their requests are therefore recorded only when Creators confirms, and carry the profile id Creators reported, or null for someone who was never a creator.
 2. **Dispatch.** An Identity dispatcher (`dispatch_identity_events`) publishes each event to that service's existing queue, for example `kolovibe.engagement`. It uses the existing outbox pattern: publish, then mark sent; at-least-once delivery.
    - Identity gets a broker account that may *write* only to those exchanges, and *read* only `kolovibe.identity`.
    - The grants are in `generate_r1_secrets.PROPOSED_BROKER_PERMISSIONS`. They are proposed and not applied to staging.
@@ -56,16 +57,17 @@ What remains is an opaque UUID. It is still needed to prove which terms version 
 | --- | --- | --- | --- |
 | Identity | Email, display name, password, MFA, sessions, preferences, codes | Delete, or clear on the kept `Account` row (above) | None for the mechanism |
 | Identity | Legal acceptances, marketing consent history, privacy requests, holds | Retain as evidence | Retention period (ADR-020) |
-| Creators | Creator profile (name, bio, photo), application, onboarding events | Delete the profile and photo; de-identify onboarding events | None |
-| Creators | Measures and appeals | Retain as enforcement evidence | Retention period |
+| Creators | Creator profile (handle, name, location, bio), application, copyright review grant, onboarding events | Delete the application and the grant. Delete the profile, or, when measures point at it (`PROTECT`), keep the row de-identified: a meaningless handle, no name, location or bio, status `suspended`. De-identify onboarding events. Creators stores no photo | None |
+| Creators | Measures, appeals, and the append-only audit trail | Retain as enforcement evidence | Retention period |
 | Content | Videos, media objects in R2, metadata revisions, upload records | Delete, including the R2 objects through the media worker | None |
 | Content | Originality attestations, fingerprints, rights events | Retain as copyright evidence | Retention period, copyright counsel |
 | Engagement | Likes, follows, shares, watch sessions | Delete (counts drop accordingly) | None |
 | Engagement | Qualified watches, fraud holds | De-identify (Points evidence and abuse records) | Retention period |
 | Points | Ledger entries, receipts, daily counts | Retain (append-only ledger; non-cash) | Retention period; whether a closed account's ledger is pseudonymized |
-| Moderation | Reports the person made | De-identify the reporter | None |
-| Moderation | Decisions, appeals, strikes, copyright and counter notices | Retain as evidence | Retention period, copyright counsel |
-| Moderation | Rights-holder verification | Revoke and de-identify the evidence note | None |
+| Moderation | Reports the person made, other than copyright claims | De-identify the reporter. Clear the free-text details, unless a decision cites the report; then the details are retained with that decision | Retention period, for cited details only |
+| Moderation | Decisions, appeals, strikes, copyright claims and counter notices, decisions the person took as staff, the append-only audit trail | Retain as evidence | Retention period, copyright counsel |
+| Moderation | Rights-holder verification | Revoke it and replace the evidence note with a fixed line. `revoked_by` holds the erasure request id, since no administrator acts at that moment | None |
+| Moderation | Reviewer previews, moderator assignments | Delete the previews; deactivate the assignments | None |
 | Business | Memberships, invitations, registration grant | Delete; remove memberships | Ownership of a business the person solely owns: **DR-BZ-08** |
 | Business | Reviews written, inquiry threads and messages | Retain, decision pending | **DR-BZ-25** (already waiting on the owner) |
 | Business | Verification evidence submitted | Retain as evidence | Retention period |
@@ -75,9 +77,9 @@ What remains is an opaque UUID. It is still needed to prove which terms version 
 ## Delivery in slices
 
 - **2a (built):** the Identity outbox, jobs, dispatcher and confirmation worker, plus one participating service, Engagement (likes, follows, shares and watch sessions). Proven end to end on a real local RabbitMQ over TLS by `scripts/verify_erasure_pipeline_broker.py`.
-- **2b:** Creators and Moderation.
+- **2b (built):** Creators and Moderation, each with its own outbox, inbox, worker and dispatcher (`dispatch_creators_events`, `dispatch_moderation_events`). The same real-broker script proves all three services end to end and the proposed grants least-privilege.
 - **2c:** Content, including R2 object removal through the media worker, with the fake object store locally.
 - **2d:** Business, limited to categories that need no pending decision.
 - **2e:** Identity's own de-identification, completion, the restore re-apply command, and the console's "waiting on" view.
 
-Staging needs new broker accounts and queues for Identity, Creators, Moderation and Business, worker and dispatch roles in `staging_runtime/roles.py`, and the secrets and stack entries for them. That is a broker change, so it needs an approved staging plan before it is applied. The repository side (the secrets generator, the permissions table and the verification script) changes with each slice.
+Staging needs new broker accounts and queues for Identity, Creators, Moderation and Business, the `account_management` capability for the Creators and Moderation workers (they refuse to start in staging without it), worker and dispatch roles in `staging_runtime/roles.py`, and the secrets and stack entries for them. That is a broker change, so it needs an approved staging plan before it is applied. The repository side (the secrets generator, the permissions table and the verification script) changes with each slice.
