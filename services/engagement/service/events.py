@@ -11,6 +11,10 @@ SERVICE = "engagement"
 TASK_NAME = f"kolovibe.{SERVICE}.event"
 QUALIFIED_VIEW = "dec003.qualified_view"
 ERASURE_CONFIRMED = "privacy.erasure_confirmed"
+NEXT_EVENT = ("SELECT id,event_type,payload FROM event_outbox WHERE published_at IS NULL "
+              "ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1")
+NEXT_PRIVACY_EVENT = ("SELECT id,event_type,payload FROM event_outbox WHERE published_at IS NULL AND event_type = %s "
+                      "ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1")
 
 def record_event(event_type, payload):
     if not connection.in_atomic_block:
@@ -60,12 +64,10 @@ def dispatch_one(celery_app, privacy_only=False):
     """
     with transaction.atomic():
         with connection.cursor() as cur:
-            cur.execute(
-                "SELECT id,event_type,payload FROM event_outbox "
-                "WHERE published_at IS NULL" + (" AND event_type = %s" if privacy_only else "")
-                + " ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1",
-                [ERASURE_CONFIRMED] if privacy_only else None,
-            )
+            if privacy_only:
+                cur.execute(NEXT_PRIVACY_EVENT, [ERASURE_CONFIRMED])
+            else:
+                cur.execute(NEXT_EVENT)
             row = cur.fetchone()
             if row is None:
                 return False

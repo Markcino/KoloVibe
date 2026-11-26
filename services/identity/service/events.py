@@ -19,6 +19,8 @@ ERASURE_REQUESTED = "privacy.erasure_requested"
 ERASURE_CONFIRMED = "privacy.erasure_confirmed"
 # Decision C slice 2a: the services that erase their own data, in the order they were added.
 ERASURE_SERVICES = ("engagement",)
+INSERT_POSTGRES = "INSERT INTO event_outbox (id,event_type,payload) VALUES (%s,%s,%s::jsonb)"
+INSERT_SQLITE = "INSERT INTO event_outbox (id,event_type,payload) VALUES (%s,%s,%s)"  # the test fixture has no jsonb
 
 
 def record_event(event_type, payload):
@@ -28,8 +30,7 @@ def record_event(event_type, payload):
         raise ValueError("Invalid event")
     ident = uuid.uuid4()
     with connection.cursor() as cur:
-        cast = "::jsonb" if connection.vendor == "postgresql" else ""  # the SQLite test fixture has no jsonb
-        cur.execute(f"INSERT INTO event_outbox (id,event_type,payload) VALUES (%s,%s,%s{cast})",
+        cur.execute(INSERT_POSTGRES if connection.vendor == "postgresql" else INSERT_SQLITE,
                     [str(ident), event_type, json.dumps(payload, separators=(",", ":"), allow_nan=False)])
     return str(ident)
 
