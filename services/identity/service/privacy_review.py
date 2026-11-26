@@ -20,7 +20,7 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 
-from . import erasure
+from . import erasure, events
 from .accounts import _body, _error, _locked_account, _session_for_access
 from .mfa import privileged_enabled
 from .models import Account, AccountHold, LoginSession, PrivacyRequest
@@ -55,12 +55,22 @@ def _held(account_id):
     return AccountHold.objects.filter(account_id=account_id, released_at__isnull=True).exists()
 
 
+def _erasure(item):
+    """Each service's part of an approved deletion: whether it confirmed and the categories it kept. Category names
+    only, so an administrator sees what the request is waiting on without any of the person's data."""
+    order = {service: index for index, service in enumerate(events.ERASURE_SERVICES)}
+    jobs = sorted(item.erasure_jobs.all(), key=lambda job: order.get(job.service, len(order)))
+    return [{"service": job.service, "confirmed": job.confirmed_at is not None, "retained": list(job.retained)}
+            for job in jobs]
+
+
 def request_row(item):
     return {"id": str(item.id), "account_id": str(item.account_id), "kind": item.kind, "status": item.status,
             "created_at": item.created_at.isoformat(),
             "review_started_at": item.review_started_at.isoformat() if item.review_started_at else None,
             "decided_at": item.decided_at.isoformat() if item.decided_at else None,
-            "decline_code": item.decline_code or None, "held": _held(item.account_id)}
+            "decline_code": item.decline_code or None, "held": _held(item.account_id),
+            "erasure": _erasure(item)}
 
 
 def hold_row(item):
@@ -106,7 +116,7 @@ def _list(data):
         if cursor is None:
             return _error("Invalid cursor")
         rows = rows.filter(Q(created_at__lt=cursor.created_at) | Q(created_at=cursor.created_at, id__lt=cursor.id))
-    page = list(rows[:PAGE + 1])
+    page = list(rows.prefetch_related("erasure_jobs")[:PAGE + 1])
     return JsonResponse({"items": [request_row(item) for item in page[:PAGE]],
                          "next_cursor": str(page[PAGE - 1].id) if len(page) > PAGE else None})
 

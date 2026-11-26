@@ -20,6 +20,8 @@ HOLD_REASONS = {"LEGAL_CLAIM", "AUTHORITY_REQUEST", "FRAUD_INVESTIGATION"}
 STEPS = {"review": "start-review", "decline": "decline", "approve-deletion": "approve-deletion"}
 CONFLICTS = {"request_not_received", "request_not_in_review", "request_not_deletion", "own_account",
              "account_on_hold"}
+ERASURE_SERVICES = ("engagement", "creators", "moderation", "content", "business")
+CATEGORY = re.compile(r"[a-z][a-z0-9_]{0,39}")
 ZONED = re.compile(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)")
 
 
@@ -31,16 +33,26 @@ def _time(value, nullable=False):
     return value is None and nullable or isinstance(value, str) and ZONED.fullmatch(value) is not None
 
 
+def _valid_erasure(jobs):
+    return (isinstance(jobs, list) and len(jobs) <= len(ERASURE_SERVICES)
+            and all(isinstance(job, dict) and set(job) == {"service", "confirmed", "retained"}
+                    and job["service"] in ERASURE_SERVICES and type(job["confirmed"]) is bool
+                    and isinstance(job["retained"], list) and len(job["retained"]) <= 20
+                    and all(isinstance(name, str) and CATEGORY.fullmatch(name) for name in job["retained"])
+                    for job in jobs)
+            and len({job["service"] for job in jobs}) == len(jobs))
+
+
 def valid_request(item):
     return (isinstance(item, dict)
             and set(item) == {"id", "account_id", "kind", "status", "created_at", "review_started_at",
-                              "decided_at", "decline_code", "held"}
+                              "decided_at", "decline_code", "held", "erasure"}
             and _id(item["id"]) and _id(item["account_id"]) and item["kind"] in {"access", "deletion"}
             and item["status"] in STATUSES and _time(item["created_at"])
             and _time(item["review_started_at"], True) and _time(item["decided_at"], True)
             and (item["decline_code"] in DECLINE_CODES) == (item["status"] == "declined")
             and (item["decline_code"] is None or item["status"] == "declined")
-            and type(item["held"]) is bool)
+            and type(item["held"]) is bool and _valid_erasure(item["erasure"]))
 
 
 def valid_hold(item):

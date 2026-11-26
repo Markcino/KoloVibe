@@ -10069,9 +10069,10 @@ components:
     PrivacyRequestReview:
       type: object
       description: Under Decision C, a privacy request as an administrator reviews it. held is true while the
-        account has an open hold.
+        account has an open hold. erasure lists each participating service's part of an approved deletion, empty
+        before approval, with whether it confirmed and the categories it kept pending a retention decision, by name only.
       additionalProperties: false
-      required: [id, account_id, kind, status, created_at, review_started_at, decided_at, decline_code, held]
+      required: [id, account_id, kind, status, created_at, review_started_at, decided_at, decline_code, held, erasure]
       properties:
         id: {type: string, format: uuid}
         account_id: {type: string, format: uuid}
@@ -10084,6 +10085,21 @@ components:
           type: [string, 'null']
           enum: [IDENTITY_NOT_CONFIRMED, DUPLICATE_REQUEST, WITHDRAWN, null]
         held: {type: boolean}
+        erasure:
+          type: array
+          maxItems: 5
+          items:
+            type: object
+            additionalProperties: false
+            required: [service, confirmed, retained]
+            properties:
+              service: {type: string, enum: [engagement, creators, moderation, content, business]}
+              confirmed: {type: boolean}
+              retained:
+                type: array
+                maxItems: 20
+                uniqueItems: true
+                items: {type: string, pattern: '^[a-z][a-z0-9_]{0,39}$'}
     AccountHold:
       type: object
       description: Under Decision C, a legal or investigative hold. note is the administrator's private explanation

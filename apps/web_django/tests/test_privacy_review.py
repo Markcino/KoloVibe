@@ -19,7 +19,7 @@ class PrivacyReviewConsoleTests(TestCase):
     def row(self, **extra):
         return {"id": self.request_id, "account_id": self.person, "kind": "deletion", "status": "received",
                 "created_at": "2026-11-26T10:00:00+00:00", "review_started_at": None, "decided_at": None,
-                "decline_code": None, "held": False} | extra
+                "decline_code": None, "held": False, "erasure": []} | extra
 
     def hold(self, **extra):
         return {"id": str(uuid.uuid4()), "account_id": self.person, "reason_code": "LEGAL_CLAIM",
@@ -60,6 +60,21 @@ class PrivacyReviewConsoleTests(TestCase):
         self.assertNotContains(response, "Approve deletion")
         response, _ = self.open([self.row(status="declined")])
         self.assertContains(response, "unavailable", msg_prefix="declined without a code is refused")
+
+    def test_an_approved_deletion_names_who_it_waits_on_and_what_was_kept(self):
+        self.login()
+        jobs = [{"service": "engagement", "confirmed": True, "retained": []},
+                {"service": "creators", "confirmed": True, "retained": ["measures", "audit_events"]},
+                {"service": "moderation", "confirmed": False, "retained": []},
+                {"service": "content", "confirmed": False, "retained": []},
+                {"service": "business", "confirmed": True, "retained": []}]
+        response, _ = self.open([self.row(status="processing", erasure=jobs)])
+        self.assertContains(response, "Waiting on Moderation, Content")
+        self.assertContains(response, "Creators kept pending a decision: measures, audit events")
+        self.assertNotContains(response, "Engagement kept")
+        response, _ = self.open([self.row(status="processing", erasure=[
+            {"service": "creators", "confirmed": True, "retained": ["<b>x</b>"]}])])
+        self.assertContains(response, "unavailable", msg_prefix="a category that is not a plain name is refused")
 
     def test_approve_needs_the_bound_intent_and_the_confirmation(self):
         self.login()

@@ -12,8 +12,8 @@ from cryptography.fernet import Fernet
 from django.test import RequestFactory, TestCase, override_settings
 from django.utils import timezone
 
-from service import accounts, privacy_review
-from service.models import Account, AccountHold, LoginSession, PrivacyRequest, SecurityEvent, TotpFactor
+from service import accounts, events, privacy_review
+from service.models import Account, AccountHold, ErasureJob, LoginSession, PrivacyRequest, SecurityEvent, TotpFactor
 
 
 @override_settings(STAGING_PRIVILEGED=True, PASSWORD_HASHERS=["django.contrib.auth.hashers.MD5PasswordHasher"])
@@ -89,7 +89,8 @@ class PrivacyReviewTests(TestCase):
         self.assertIsNone(page["next_cursor"])
         item = page["items"][0]
         self.assertEqual(set(item), {"id", "account_id", "kind", "status", "created_at", "review_started_at",
-                                     "decided_at", "decline_code", "held"})
+                                     "decided_at", "decline_code", "held", "erasure"})
+        self.assertEqual(item["erasure"], [])
         self.assertEqual(self.call("list", status="declined")[1]["items"], [])
         self.assertEqual(self.call("list", cursor=str(uuid.uuid4()))[0], 400)
 
@@ -119,6 +120,13 @@ class PrivacyReviewTests(TestCase):
         self.call("start-review", id=target)
         status, row = self.call("approve-deletion", id=target)
         self.assertEqual((status, row["status"]), (200, "processing"))
+        self.assertEqual(row["erasure"], [{"service": service, "confirmed": False, "retained": []}
+                                          for service in events.ERASURE_SERVICES])
+        ErasureJob.objects.filter(request=self.deletion, service="creators").update(
+            confirmed_at=timezone.now(), counts={"profile": 1}, retained=["measures"])
+        listed = next(item for item in self.call("list", status="processing")[1]["items"] if item["id"] == target)
+        self.assertIn({"service": "creators", "confirmed": True, "retained": ["measures"]}, listed["erasure"])
+        self.assertNotIn("counts", listed["erasure"][1])
         self.person.refresh_from_db()
         self.assertFalse(self.person.is_active)
         self.assertFalse(LoginSession.objects.filter(account=self.person, revoked_at__isnull=True).exists())

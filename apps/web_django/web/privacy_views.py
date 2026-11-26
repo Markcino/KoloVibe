@@ -3,9 +3,11 @@
 Identity decides who may act (administrator, MFA within five minutes for a change) and applies each step. This page
 validates every answer, never echoes Identity's error text, and carries a signed, session-bound intent per change.
 Approving a deletion deactivates the account, revokes its sessions and starts erasure in each participating service
-(Decision C slices 2a to 2d: every participating service). The page never offers "completed" and says so.
+(Decision C slices 2a to 2d: every participating service). Identity marks the request completed once every service
+confirmed and none kept a category; until then the page names the services it waits on and the categories kept
+pending a retention decision (names only, never the person's data).
 """
-
+import re
 from datetime import datetime
 from urllib.parse import urlencode
 
@@ -26,7 +28,11 @@ DECLINE = {"IDENTITY_NOT_CONFIRMED": "Identity could not be confirmed", "DUPLICA
            "WITHDRAWN": "Withdrawn by the person"}
 HOLD_REASONS = {"LEGAL_CLAIM": "Legal claim or dispute", "AUTHORITY_REQUEST": "Request from a competent authority",
                 "FRAUD_INVESTIGATION": "Fraud or security investigation"}
-ROW = {"id", "account_id", "kind", "status", "created_at", "review_started_at", "decided_at", "decline_code", "held"}
+ROW = {"id", "account_id", "kind", "status", "created_at", "review_started_at", "decided_at", "decline_code", "held",
+       "erasure"}
+SERVICE_LABELS = {"engagement": "Engagement", "creators": "Creators", "moderation": "Moderation",
+                  "content": "Content", "business": "Business"}
+CATEGORY = re.compile(r"[a-z][a-z0-9_]{0,39}")
 HOLD = {"id", "account_id", "reason_code", "note", "placed_by", "placed_at", "released_at"}
 UNAVAILABLE = "Privacy requests are unavailable right now. They may not be enabled in this environment."
 CONFLICT = {"request_not_received": "This request is no longer waiting for review.",
@@ -47,12 +53,31 @@ def _stamp(value, nullable=False):
         return False
 
 
+def _valid_erasure(jobs):
+    return (isinstance(jobs, list) and len(jobs) <= len(SERVICE_LABELS)
+            and all(isinstance(job, dict) and set(job) == {"service", "confirmed", "retained"}
+                    and job["service"] in SERVICE_LABELS and type(job["confirmed"]) is bool
+                    and isinstance(job["retained"], list) and len(job["retained"]) <= 20
+                    and all(isinstance(name, str) and CATEGORY.fullmatch(name) for name in job["retained"])
+                    for job in jobs)
+            and len({job["service"] for job in jobs}) == len(jobs))
+
+
+def _erasure_summary(jobs):
+    """Who an approved deletion is waiting on, and what each service kept pending a retention decision."""
+    return {"waiting": [SERVICE_LABELS[job["service"]] for job in jobs if not job["confirmed"]],
+            "retained": [{"service": SERVICE_LABELS[job["service"]],
+                          "categories": ", ".join(name.replace("_", " ") for name in job["retained"])}
+                         for job in jobs if job["confirmed"] and job["retained"]]}
+
+
 def valid_row(item):
     try:
         return (isinstance(item, dict) and set(item) == ROW and valid_id(item["id"]) and valid_id(item["account_id"])
                 and item["kind"] in ("access", "deletion") and item["status"] in STATUSES
                 and _stamp(item["created_at"]) and _stamp(item["review_started_at"], True)
                 and _stamp(item["decided_at"], True) and type(item["held"]) is bool
+                and _valid_erasure(item["erasure"])
                 and (item["decline_code"] in DECLINE) == (item["status"] == "declined")
                 and (item["decline_code"] is None or item["decline_code"] in DECLINE))
     except (TypeError, KeyError):
@@ -105,7 +130,8 @@ def _rows_with_actions(request, items):
             if item["kind"] == "deletion" and not item["held"]:
                 actions["approve"] = _intent(request, "approve-deletion", item["id"])
         rows.append({**item, "actions": actions, "status_label": STATUS_LABELS[item["status"]],
-                     "decline_label": DECLINE.get(item["decline_code"])})
+                     "decline_label": DECLINE.get(item["decline_code"]),
+                     "erasure_summary": _erasure_summary(item["erasure"])})
     return rows
 
 
