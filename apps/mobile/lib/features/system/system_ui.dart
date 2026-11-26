@@ -355,7 +355,13 @@ class MediaPermissionScreen extends StatelessWidget {
 }
 
 /// Optional official web links. Invalid/unconfigured origins expose no links.
+///
+/// Owner ruling, 26 November 2026: the only public web pages are the static
+/// policies page and the account-deletion request page. No other path is
+/// ever linked, so the app cannot point at a product website.
 class PublicLinks {
+  static const allowedPaths = {'/terms', '/privacy', '/delete-account'};
+
   PublicLinks(
       [String value =
           const String.fromEnvironment('KOLOVIBE_PUBLIC_WEB_ORIGIN')])
@@ -384,5 +390,5 @@ class PublicLinks {
   }
 
   Uri? page(String path) =>
-      RegExp(r'^/[a-z-]+$').hasMatch(path) ? origin?.resolve(path) : null;
+      allowedPaths.contains(path) ? origin?.resolve(path) : null;
 }

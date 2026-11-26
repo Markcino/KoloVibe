@@ -136,8 +136,15 @@ void main() {
     final links = PublicLinks('https://web.example.test/');
     expect(
         links.page('/privacy').toString(), 'https://web.example.test/privacy');
+    expect(links.page('/delete-account').toString(),
+        'https://web.example.test/delete-account');
     expect(links.page('//untrusted.example.test'), isNull);
     expect(links.page('/../secret'), isNull);
+    // Owner ruling (26 November): nothing beyond the policies and deletion
+    // pages, so no help, guidelines or product pages on the web.
+    for (final path in ['/help', '/community-guidelines', '/videos', '/']) {
+      expect(links.page(path), isNull, reason: path);
+    }
   });
   test(
       'compatibility requests installed platform/version and validates response',

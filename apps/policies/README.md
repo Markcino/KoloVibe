@@ -1,6 +1,6 @@
 # KoloVibe policies page
 
-The one public web page the owner allowed ("Policies page only", 25 November 2026): a static site that serves the
+The only public web pages the owner allowed ("Policies page only", 25 November 2026, widened on 26 November to add the account-deletion request page): a static site that serves the
 current terms of service and privacy notice, as app store listings require. It has no accounts, feeds, ads, forms,
 scripts, cookies or third-party resources.
 
@@ -9,8 +9,14 @@ The texts are not copied here. `scripts/build_policy_site.py` renders the exact 
 
     python scripts/build_policy_site.py build/policies
 
-writes `index.html`, `terms/index.html`, `privacy/index.html` and `policies.css`. The paths match the app's
-`/terms` and `/privacy` links (`KOLOVIBE_PUBLIC_WEB_ORIGIN`). Every page carries the "pending legal review" banner
+writes `index.html`, `terms/index.html`, `privacy/index.html`, `delete-account/index.html` and `policies.css`.
+
+**Deletion request page** (owner ruling, 26 November 2026: "static policies page plus account-deletion page", and
+nothing else public). Google Play requires a resource outside the app where people can ask for their account and data
+to be deleted; it is declared in the Data safety form. The page is rendered from `delete-account.md` here. It has no
+form: it describes the in-app request and an email route, whose address is still a placeholder for the owner to supply.
+It is a draft pending legal review, like the other texts. The app links only `/terms`, `/privacy` and
+`/delete-account` under `KOLOVIBE_PUBLIC_WEB_ORIGIN` (`PublicLinks.allowedPaths`), which match these paths. Every page carries the "pending legal review" banner
 while the status is pending, and states the version and effective date.
 
 **Not hosted.** Choosing where to serve it (and its domain, TLS and response headers) is an operations decision that

@@ -225,10 +225,6 @@ class _LiveInformationScreenState extends State<LiveInformationScreen> {
             const Text(
               'Content decisions and review options follow the applicable moderation policy.',
             ),
-            if (webLink('Read current community guidelines',
-                    '/community-guidelines')
-                case final link?)
-              link,
           ],
         88 => [
             Wrap(
@@ -283,9 +279,6 @@ class _LiveInformationScreenState extends State<LiveInformationScreen> {
             row('Upload or review status', 40,
                 'Understand your video’s next step'),
             row('Lone Stars explained', 68, 'Non-cash community recognition'),
-            if (webLink('View available support options', '/help')
-                case final link?)
-              link,
             const Text(
               'Support channels and availability are shown by the service. No response time is guaranteed.',
             ),
