@@ -8,7 +8,7 @@ Every result below was observed in the running app on the iOS Simulator, against
 | --- | --- |
 | Commit | `b907486` (`main`, PR #255 merged) |
 | Device | iPhone 17 Pro simulator, iOS 26.3 (402 × 874 pt) |
-| Host | macOS 15.8.2, Xcode 26.3, Flutter 3.50.1 (the repository's run card names 3.47.8; the lockfile resolved and the build succeeded) |
+| Host | macOS 15.8.2, Xcode 26.3, Flutter 3.50.1. The run card names Flutter 3.47.8. With this newer SDK, `pub get` re-resolved a few SDK-pinned transitive packages (for example `test_api`, `stack_trace`, `clock`, and a new transitive `listen`), so the app was built from a slightly different `pubspec.lock` than the committed one. I restored the committed lockfile afterwards and did not commit the change. A rerun on Flutter 3.47.8 would remove this difference |
 | App build | `flutter build ios --simulator --debug`, `KOLOVIBE_API_URL=http://127.0.0.1:<gateway>/api/v1`. The simulator supports debug builds only, and the app accepts plain HTTP only for loopback in debug. |
 | Backend | The repository's own disposable stack, [`scripts/phase11/stack_up.py`](../../../../scripts/phase11/stack_up.py) with `P11_NO_BROKER=1`: task-owned TLS PostgreSQL with one role per service, Identity, Content, Creators, Moderation, Engagement, Points, Audit, Business, Gateway and the console on loopback, captured mail. All ten answered `/health/live` with 200 ([service-health.txt](service-health.txt)). |
 | Not available | Docker (not installed, so `infra/docker` was not used), RabbitMQ (not installed), real Cloudflare R2 storage and media. The harness gives Content throwaway R2 values, so upload transfers and playback cannot complete. |

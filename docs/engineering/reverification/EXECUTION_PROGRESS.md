@@ -2,7 +2,7 @@
 
 **Read this file first when resuming.** Then check the repository state (`git log origin/main`, open PRs) before continuing. This tracker covers the owner's mandate "Complete application reverification, development completion, testing and final acceptance", in its 25 November 2026 form. The mandate was re-issued that day; this file continues the existing work and does not restart it.
 
-Updated: 25 November 2026, `main` at `e01776a`. **Production is NO-GO.** Nothing in this file is deployed to staging unless a row says so.
+Updated: 26 November 2026, `main` at `b907486`. A first simulator test of the app ran that day against a local stack ([results](simulator-run-2026-11-26/results.md)). **Production is NO-GO.** Nothing in this file is deployed to staging unless a row says so.
 
 ## Where the other records live
 
@@ -16,6 +16,7 @@ This file does not duplicate the authoritative records; it points to them.
 | Owner decisions | [Owner decisions A to J](../../planning/Owner_Decisions_A-J_2026-11-25.md) |
 | Feature and release history | [R1 application tracker](../R1_Application_Tracker.md) |
 | Last defect register and readiness assessment | [Phase 12 defect register](../phase12/Phase12_Defect_Register.md) and [readiness report](../phase12/Phase12_Release_Readiness_Report.md) |
+| Simulator application test (26 November, local stack, not staging) | [Simulator run results](simulator-run-2026-11-26/results.md), with screenshots and the gateway access log |
 | Development completeness gate, master test plan, test execution, security, regression, infrastructure, staging and final acceptance reports | **Not created yet.** They are due at Phases 09 to 14, and each will be added here when its phase starts. |
 
 ## Status vocabulary
@@ -58,7 +59,8 @@ The phase statuses are NOT STARTED, IN PROGRESS, COMPLETED, FAILED and BLOCKED.
 | G Identity step-up | DR-BZ-33 | #240, #241 (via #245) | IMPLEMENTED BUT UNVERIFIED | Staging |
 | B Terms and privacy acceptance, separate marketing consent, policies page | RV2-02 | #243 (backend from #242), #244 | IMPLEMENTED BUT UNVERIFIED | Legal texts are drafts marked "pending legal review"; staging |
 | A Re-review of published-video edits | RV2-01 | #246 backend, #247 app, #248 dashboard | IMPLEMENTED BUT UNVERIFIED | Staging; device UAT |
-| F Creator warnings, restrictions, suspensions and appeals | D-8 (administrator only, the proposed answer) | #250 backend, #251 console, #252 app | IMPLEMENTED BUT UNVERIFIED | Staging; device UAT; visual approval of the app section |
+| F Creator warnings, restrictions, suspensions and appeals | D-8 (administrator only, the proposed answer) | #250 backend, #251 console, #252 app | IMPLEMENTED BUT UNVERIFIED | Staging; device UAT; visual approval of the app section. The no-measure Account status screen was seen working on the simulator on 26 November; applying a measure was not tried |
+| E Copyright: verified rights holders and reviewer copyright signals | D11-008 | #254 backend and reviewer signals, #255 console page | IMPLEMENTED BUT UNVERIFIED | Staging; the copyright contact is still a placeholder; not exercised on the simulator |
 
 Local test evidence for package A, recorded on 25 November:
 - Content 166 passed, Moderation 78, Gateway 233, Audit 52, console 184 and scripts 475.
@@ -78,12 +80,13 @@ What package F deliberately leaves out:
 
 ## Remaining work, in order
 
-1. **E Copyright workflow** (D11-008). The copyright contact stays a placeholder, and claims stay in the app.
-2. **C Privacy processing and retention** (ADR-020). Retention periods are proposed only. Deletion must handle `LegalAcceptance` (`on_delete=PROTECT`).
-3. **D Backups and observability**, repository side (ADR-016 in part, ADR-017).
-4. **RV2-03 Dead letters.** The proposed values (retry ceiling 10, kept 14 days, administrator-only replay) are flagged as proposed.
-5. **J Finance ledger**, sandbox only, followed by **H Events** and **I Advertising**. Check current Google documentation before building advertising. No invented payout thresholds, shares, exchange rates or tax rules.
-6. Then Phase 07, Phase 08 (needs access and an approved plan), the Phase 09 gate and Phases 10 to 14.
+1. ~~E Copyright workflow~~ merged in #254 and #255 (see above).
+2. **Fix the simulator-run defects SIM-01 and SIM-04 to SIM-10** (all Low). SIM-02 (sharing needs a public web origin, which the directive excludes) needs an owner decision first. See the [simulator results](simulator-run-2026-11-26/results.md#defects-found).
+3. **C Privacy processing and retention** (ADR-020). Retention periods are proposed only. Deletion must handle `LegalAcceptance` (`on_delete=PROTECT`).
+4. **D Backups and observability**, repository side (ADR-016 in part, ADR-017).
+5. **RV2-03 Dead letters.** The proposed values (retry ceiling 10, kept 14 days, administrator-only replay) are flagged as proposed.
+6. **J Finance ledger**, sandbox only, followed by **H Events** and **I Advertising**. Check current Google documentation before building advertising. No invented payout thresholds, shares, exchange rates or tax rules.
+7. Then Phase 07, Phase 08 (needs access and an approved plan), the Phase 09 gate and Phases 10 to 14.
 
 **Still waiting on the owner:**
 - DR-BZ-25: what happens to reviews and messages after a business closes.
@@ -91,7 +94,14 @@ What package F deliberately leaves out:
 - RV2-04: media retention values.
 - Legal review of the draft texts.
 - Staging access and approval for any AWS, secret, database or RabbitMQ change.
+- SIM-02: where a shared video link should lead, given there is no public website (or whether sharing stays off).
+
+## Simulator application test (26 November 2026)
+
+The app was built from `b907486` and driven on an iPhone 17 Pro simulator (iOS 26.3) against the repository's disposable local stack: TLS PostgreSQL, all nine services and the console, with no RabbitMQ, no Docker and no real R2. Counted by row: 33 PASS, 0 FAIL, 4 BLOCKED, 10 NOT RUN. Ten defects were found, nine Low and one Medium needing an owner decision. No crash occurred. Full table: [results](simulator-run-2026-11-26/results.md).
+
+What it shows: the account lifecycle, discovery, likes, follows, reports, creator library and publish controls, settings and the Business invitation gate work end to end through the gateway. Playback, the upload transfer, processing, qualified views and points could not be observed, because they need R2, the media worker and RabbitMQ. This is local evidence only, not staging or device acceptance.
 
 ## Next executable task
 
-Start decision E (copyright workflow, D11-008) on a new branch from `main`. Read the existing Moderation copyright reports and counter-notices first. The copyright contact stays a placeholder.
+Fix the Low simulator defects (SIM-01, SIM-04 to SIM-10) in one small app PR from `main`, then continue with decision C (privacy processing, ADR-020). Ask the owner about SIM-02.
