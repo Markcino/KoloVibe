@@ -69,9 +69,10 @@ What remains is an opaque UUID. It is still needed to prove which terms version 
 | Moderation | Decisions, appeals, strikes, copyright claims and counter notices, decisions the person took as staff, the append-only audit trail | Retain as evidence | Retention period, copyright counsel |
 | Moderation | Rights-holder verification | Revoke it and replace the evidence note with a fixed line. `revoked_by` holds the erasure request id, since no administrator acts at that moment | None |
 | Moderation | Reviewer previews, moderator assignments | Delete the previews; deactivate the assignments | None |
-| Business | Memberships, invitations, registration grant | Delete; remove memberships | Ownership of a business the person solely owns: **DR-BZ-08** |
-| Business | Reviews written, inquiry threads and messages | Retain, decision pending | **DR-BZ-25** (already waiting on the owner) |
-| Business | Verification evidence submitted | Retain as evidence | Retention period |
+| Business | Staff memberships, open invitations they created, reviewer grants, registration grant | Revoke the memberships, invitations and grants (rows stay as history, as every revocation there does); delete the registration grant | None |
+| Business | Owner memberships | Retain, decision pending: the last owner cannot be removed except by closing the business (BZ-R-002) | **DR-BZ-08** |
+| Business | Reviews written, inquiry threads, messages and blocks | Retain, decision pending | **DR-BZ-25** (already waiting on the owner) |
+| Business | Verification cases and decisions, profile revisions submitted or reviewed, the append-only audit trail | Retain as evidence | Retention period |
 | Audit | Security events | Retain (append-only, separate store) | Retention period |
 | Every service | Idempotency records and throttle counters | Expire on their normal schedule | None |
 
@@ -80,7 +81,7 @@ What remains is an opaque UUID. It is still needed to prove which terms version 
 - **2a (built):** the Identity outbox, jobs, dispatcher and confirmation worker, plus one participating service, Engagement (likes, follows, shares and watch sessions). Proven end to end on a real local RabbitMQ over TLS by `scripts/verify_erasure_pipeline_broker.py`.
 - **2b (built):** Creators and Moderation, each with its own outbox, inbox, worker and dispatcher (`dispatch_creators_events`, `dispatch_moderation_events`). The same real-broker script proves all three services end to end and the proposed grants least-privilege.
 - **2c (built):** Content on its media worker, which alone holds the R2 credentials, removing objects before any database change. The real-broker script runs the real media worker with a file-backed stand-in for the bucket. Real R2 deletion also needs the staging R2 token to allow `DELETE`, which is not yet verified.
-- **2d:** Business, limited to categories that need no pending decision.
+- **2d (built):** Business, limited to categories that need no pending decision. Its worker reads the broker URI from settings and starts only locally, because Business is not deployed to staging.
 - **2e:** Identity's own de-identification, completion, the restore re-apply command, and the console's "waiting on" view.
 
 Staging needs new broker accounts and queues for Identity, Creators, Moderation and Business, the `account_management` capability for the Creators and Moderation workers (they refuse to start in staging without it), worker and dispatch roles in `staging_runtime/roles.py`, and the secrets and stack entries for them. That is a broker change, so it needs an approved staging plan before it is applied. The repository side (the secrets generator, the permissions table and the verification script) changes with each slice.
