@@ -1138,7 +1138,8 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
                       ],
                       const SizedBox(height: 4),
                       Text(
-                          '${engagementController?.likeCount ?? video.likeCount ?? 'Unavailable'} likes',
+                          likeCountLabel(engagementController?.likeCount ??
+                              video.likeCount),
                           style: KoloVibeText.body(14,
                               weight: FontWeight.w600,
                               color: KoloVibeColors.navy)),
@@ -1266,3 +1267,8 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
         )),
       );
 }
+
+/// SIM-10: "1 like", "2 likes", and plain words when the count is unknown.
+String likeCountLabel(int? count) => count == null
+    ? 'Likes unavailable'
+    : '$count ${count == 1 ? 'like' : 'likes'}';

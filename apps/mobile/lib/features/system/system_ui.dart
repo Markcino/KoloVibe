@@ -165,8 +165,12 @@ class _SystemLoadingState extends State<SystemLoading> {
 }
 
 class SystemEmpty extends StatelessWidget {
-  const SystemEmpty({super.key, this.query = '', this.onEdit});
+  const SystemEmpty({super.key, this.query = '', this.category, this.onEdit});
   final String query;
+
+  /// The category label still filtering the results, named so an empty
+  /// result is not mistaken for a missing video (SIM-05).
+  final String? category;
   final VoidCallback? onEdit;
   @override
   Widget build(BuildContext context) => Padding(
@@ -178,7 +182,9 @@ class SystemEmpty extends StatelessWidget {
           headline: 'No stories found. Yet.',
           message: query.isEmpty
               ? 'Try a different search.'
-              : 'No results for “$query”.',
+              : category == null
+                  ? 'No results for “$query”.'
+                  : 'No results for “$query” in $category. Remove the category to search everything.',
           actions: [
             if (onEdit != null)
               OutlinedButton(

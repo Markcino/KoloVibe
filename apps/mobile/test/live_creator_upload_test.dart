@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -7,6 +8,13 @@ import 'package:kolovibe/core/security/credential_store.dart';
 import 'package:kolovibe/features/account/live_account_repository.dart';
 import 'package:kolovibe/features/content/live_content_repository.dart';
 import 'package:kolovibe/features/creators/live_creator_onboarding_repository.dart';
+
+/// Storage that never connects: it neither reads the body nor answers.
+class _UnreachableStorage extends http.BaseClient {
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) =>
+      Completer<http.StreamedResponse>().future;
+}
 
 class _Credentials implements CredentialStore {
   String? value = 'refresh';
@@ -500,6 +508,42 @@ void main() {
       expect(() => normalizeTags(['x' * 31]), throwsFormatException);
       expect(() => normalizeTags(['1', '2', '3', '4', '5', '6']),
           throwsFormatException);
+    });
+
+    test('a transfer that storage never accepts stops early (SIM-09)',
+        () async {
+      final intent = UploadIntent.fromJson({
+        'video_id': videoId,
+        'upload_id': uploadId,
+        'upload_url': 'https://media.example.test/upload?signature=opaque',
+        'upload_headers': {
+          'Content-Type': 'video/mp4',
+          'Content-Length': '12',
+          'If-None-Match': '*',
+        },
+        'expires_at': expiry.toIso8601String(),
+        'max_bytes': 50 * 1024 * 1024,
+      }, videoId, 12);
+      final repository = LiveContentRepository(
+          LiveAccountRepository(
+              ApiClient('https://api.example.test/api/v1',
+                  client: MockClient((_) async => http.Response('{}', 500))),
+              _Credentials()),
+          uploadClient: _UnreachableStorage(),
+          stallLimit: const Duration(milliseconds: 50));
+      final seen = <int>[];
+      final started = DateTime.now();
+      await expectLater(
+          repository.uploadToProvider(
+              intent, Stream.value(List.filled(12, 0)), 12,
+              onProgress: seen.add),
+          throwsA(isA<ApiFailure>()
+              .having((f) => f.status, 'status', 503)
+              .having(
+                  (f) => f.message, 'message', contains('stopped moving'))));
+      expect(seen, isEmpty);
+      expect(DateTime.now().difference(started),
+          lessThan(const Duration(seconds: 5)));
     });
 
     test('transfer reports progress and treats existing objects as success',

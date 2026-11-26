@@ -256,6 +256,9 @@ void main() {
       await standing(tester);
       expect(find.text('Your creator account is active.'), findsOneWidget);
       expect(find.text('Publishing is available'), findsOneWidget);
+      // SIM-08: the note's body does not repeat its title.
+      expect(find.text('Publishing is available.'), findsNothing);
+      expect(find.text('You can publish your originals.'), findsOneWidget);
       expect(find.text('No content notices.'), findsOneWidget);
       expect(find.textContaining('suspended'), findsNothing);
     });

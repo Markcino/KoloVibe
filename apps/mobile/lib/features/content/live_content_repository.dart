@@ -381,10 +381,14 @@ class VideoUploadStatus {
 }
 
 class LiveContentRepository {
-  const LiveContentRepository(this.account, {this.uploadClient});
+  const LiveContentRepository(this.account,
+      {this.uploadClient, this.stallLimit = uploadStallLimit});
 
   final LiveAccountRepository account;
   final http.Client? uploadClient;
+
+  /// See [uploadStallLimit]; shorter only in tests.
+  final Duration stallLimit;
 
   Future<OwnedVideo> createDraft(
       {required String title,
@@ -456,18 +460,36 @@ class LiveContentRepository {
       ..followRedirects = false
       ..contentLength = sizeBytes
       ..headers.addAll(intent.headers);
+    // SIM-09: storage that accepts no bytes for [stallLimit] is treated
+    // as an interruption at once, instead of after the whole 3-minute limit.
+    final stalled = Completer<void>();
+    Timer? watchdog;
+    void watch() {
+      watchdog?.cancel();
+      watchdog = Timer(stallLimit, () {
+        if (!stalled.isCompleted) stalled.complete();
+      });
+    }
+
+    Future<T> guarded<T>(Future<T> work) => Future.any([
+          work,
+          stalled.future.then<T>((_) => throw const _UploadStalled()),
+        ]);
+    Future<http.StreamedResponse>? responseFuture;
     try {
-      final responseFuture =
-          client.send(request).timeout(const Duration(minutes: 3));
+      responseFuture = client.send(request).timeout(const Duration(minutes: 3));
       var sent = 0;
-      final counted = onProgress == null
-          ? bytes
-          : bytes.map((chunk) {
-              sent += chunk.length;
-              onProgress(sent);
-              return chunk;
-            });
-      await request.sink.addStream(counted).timeout(const Duration(minutes: 3));
+      watch();
+      final counted = bytes.map((chunk) {
+        sent += chunk.length;
+        watch();
+        onProgress?.call(sent);
+        return chunk;
+      });
+      await guarded(
+          request.sink.addStream(counted).timeout(const Duration(minutes: 3)));
+      // Every byte was handed over; the answer keeps the 3-minute limit.
+      watchdog?.cancel();
       await request.sink.close();
       final response = await responseFuture;
       await response.stream.drain<void>();
@@ -475,12 +497,18 @@ class LiveContentRepository {
         throw ApiFailure(
             response.statusCode, 'The video upload failed. Try again.');
       }
+    } on _UploadStalled {
+      // The abandoned request ends when the client closes; its error is moot.
+      responseFuture?.ignore();
+      throw const ApiFailure(503,
+          'The video upload stopped moving. Check your connection, then try again.');
     } on TimeoutException {
       throw const ApiFailure(503, 'The video upload timed out. Try again.');
     } on http.ClientException {
       throw const ApiFailure(
           503, 'The video upload was interrupted. Try again.');
     } finally {
+      watchdog?.cancel();
       if (uploadClient == null) client.close();
     }
   }
@@ -697,4 +725,12 @@ class LiveContentRepository {
       throw const FormatException('Invalid deletion response');
     }
   }
+}
+
+/// How long the storage may accept no bytes before an upload counts as
+/// interrupted (SIM-09). An app responsiveness setting, not a policy value.
+const uploadStallLimit = Duration(seconds: 30);
+
+class _UploadStalled implements Exception {
+  const _UploadStalled();
 }
