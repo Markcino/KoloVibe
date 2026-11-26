@@ -2,7 +2,11 @@
 
 **Updated 26 November 2026 (simulator application test added; earlier: Phase 12 section and reverification Phases 1 and 2).** Stage 3 (Technical Foundation) was **declared completed by the owner on 10 November**, while unresolved security, operations and recovery controls remain open. Stage 4 (R1 MVP implementation) and Stage 5 (verification) remain in progress on AWS staging. Production is **NO-GO**. See the [Stage 3 tracker](Stage3_Implementation_Tracker.csv) and the [current AWS release record](../operations/R1_AWS_Staging_Reconciliation_2026-11-23.md).
 
-## Current release checkpoint — v0.357.1 (23 November)
+## Staging checkpoint — 26 November 2026
+
+Live AWS staging runs **v0.531.1** (source `677eec3a`, rolled out that day outside the cluster tool) with the **v0.542.1** schema migrations (Identity 0016, Content 0013) applied. The v0.542.1 images (`38d0380`) are verified and pulled on VM2; their service rollout waits for the operator's registry token. Evidence, test results (63/63 edge probes; local journeys 11/11, event pipeline 8/8) and new defects D13-001 to D13-007 (#271 to #275, #149): [AWS staging verification](../operations/R1_AWS_Staging_Verification_2026-11-26.md). The v0.357.1 section below is historical.
+
+## Release checkpoint — v0.357.1 (23 November, historical)
 
 The operator supplied deployment and smoke-test output for immutable release `807b1edc6e80454bd6bfcb4a78761fa284cd6bee` (published by [successful CI run 45196093209](https://github.com/Markcino/KoloVibe/actions/runs/45196093209)): **16/16** services updated (eight APIs, six background jobs, media worker and web) and **six/six** public HTTPS checks passed. Identity migration `0011_moderator_invitations` was previously applied and retained. This records a verified **deployment**, not full API/mobile acceptance.
 

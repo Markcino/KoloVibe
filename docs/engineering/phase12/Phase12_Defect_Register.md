@@ -17,6 +17,24 @@
 | D11-009 | Low | Documentation / operations | **Documentation FIXED. Scheduling OPEN** (owner approval) |
 | **D12-001** | **Medium** | Integration failure (a security control that is configured off) | **FIXED in the repository and verified on a real Nginx** (`T10_81`, `T10_87` PASS). **NOT verified through the real Cloudflare edge** (owner deploy and test) |
 
+### Staging verification, 26 November 2026
+
+Findings and status changes from the [26 November AWS staging verification](../../operations/R1_AWS_Staging_Verification_2026-11-26.md) (live v0.531.1 with the v0.542.1 schema). New defects take the D13 prefix; root causes and acceptance criteria are in each issue.
+
+| ID | Sev. | Class | Status | Issue |
+| --- | --- | --- | --- | --- |
+| D11-002 | High | Data integrity | **Verified on staging** (runtime logins only in `_rt`; no TRIGGER, TRUNCATE, CREATE or ownership) | #146 |
+| D11-007 | Medium | Integration failure | **OPEN, now with root cause:** no runtime role, stack job or Audit caller for Content/Creators delivery; 6 Content events undelivered (see D13-002) | #272 |
+| D11-009 | Low | Operations | Scheduling still OPEN; also blocked by D13-004 | #274 |
+| D12-001 | Medium | Integration failure | **Confirmed not deployed on staging** (no real-IP trust in Nginx, no trusted header on the Gateway) | #151 |
+| D13-001 | P1 | Integration failure | OPEN: Points→Audit signing-key mismatch since 22 Nov; 11 events undelivered | #271 |
+| D13-002 | P1 | Integration failure | OPEN (supersedes the D11-007 description) | #272 |
+| D13-003 | P1 | Missing deployment | OPEN: erasure dispatchers, consumers and queues absent on staging; needs the broker plan approval | #273 |
+| D13-004 | P2 | Infrastructure capacity | OPEN: VM2 CPU reservations 2000m of 2000m | #274 |
+| D13-005 | P2 | Release process | Tool unblocked by #269 and #270; process OPEN (roll out only through the reviewed tool, which stamps labels) | #269 |
+| D13-006 | P1 | CI / release | OPEN: `pubspec.lock` from `d9993ea` fails pinned Flutter 3.47.8; publish blocked | #275 |
+| D13-007 | P2 | Reliability | UNDER INVESTIGATION: one video in `processing` since 21 Nov | #149 |
+
 ## 2. Triage and root cause
 
 ### D11-001 — Points worker poison-pill crash loop (Reliability, Medium) — FIXED

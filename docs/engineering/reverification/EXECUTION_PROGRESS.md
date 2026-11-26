@@ -2,7 +2,7 @@
 
 **Read this file first when resuming.** Then check the repository state (`git log origin/main`, open PRs) before continuing. This tracker covers the owner's mandate "Complete application reverification, development completion, testing and final acceptance", in its 25 November 2026 form. The mandate was re-issued that day; this file continues the existing work and does not restart it.
 
-Updated: 26 November 2026, `main` at `b1ac5bd`. A first simulator test of the app ran that day against a local stack ([results](simulator-run-2026-11-26/results.md)). The mandate was re-issued again that day as "Continue verified end-to-end development, final design and acceptance"; this file continues under it. **Production is NO-GO.** Nothing in this file is deployed to staging unless a row says so.
+Updated: 26 November 2026, `main` at `68d8df6`. A staging deployment and verification ran that evening ([record](../../operations/R1_AWS_Staging_Verification_2026-11-26.md)): live staging is **v0.531.1** with the v0.542.1 schema migrations applied; the v0.542.1 service rollout waits for the operator's registry token. Earlier that day a first simulator test of the app ran that day against a local stack ([results](simulator-run-2026-11-26/results.md)). The mandate was re-issued again that day as "Continue verified end-to-end development, final design and acceptance"; this file continues under it. **Production is NO-GO.** Nothing in this file is deployed to staging unless a row says so.
 
 ## Where the other records live
 
@@ -16,6 +16,7 @@ This file does not duplicate the authoritative records; it points to them.
 | Owner decisions | [Owner decisions A to J](../../planning/Owner_Decisions_A-J_2026-11-25.md) |
 | Feature and release history | [R1 application tracker](../R1_Application_Tracker.md) |
 | Last defect register and readiness assessment | [Phase 12 defect register](../phase12/Phase12_Defect_Register.md) and [readiness report](../phase12/Phase12_Release_Readiness_Report.md) |
+| Staging deployment, test execution and new defects D13-001 to D13-007 (26 November) | [AWS staging verification](../../operations/R1_AWS_Staging_Verification_2026-11-26.md) and the [defect register](../phase12/Phase12_Defect_Register.md) staging section |
 | Simulator application test (26 November, local stack, not staging) | [Simulator run results](simulator-run-2026-11-26/results.md), with screenshots and the gateway access log |
 | Development completeness gate, master test plan, test execution, security, regression, infrastructure, staging and final acceptance reports | **Not created yet.** They are due at Phases 09 to 14, and each will be added here when its phase starts. |
 
@@ -46,7 +47,7 @@ The phase statuses are NOT STARTED, IN PROGRESS, COMPLETED, FAILED and BLOCKED.
 | 05 Flutter | IN PROGRESS | Done alongside each work package |
 | 06 Web and administration | IN PROGRESS | Done alongside each work package |
 | 07 Security hardening | NOT STARTED | Run as a dedicated pass |
-| 08 Infrastructure and DevSecOps | NOT STARTED | Needs AWS staging access and an approved plan |
+| 08 Infrastructure and DevSecOps | IN PROGRESS | 26 November: staging access used; v0.542.1 images verified and its two migrations applied; service rollout pending the registry token. Open: #271 to #275, D12-001 undeployed |
 | 09 Completeness gate | NOT STARTED | Starts only when 03 to 06 are complete |
 | 10 to 14 Testing, defects, regression, staging, acceptance | NOT STARTED | Starts only after the gate passes |
 
@@ -116,5 +117,8 @@ The app was built from `b907486` and driven on an iPhone 17 Pro simulator (iOS 2
 What it shows: the account lifecycle, discovery, likes, follows, reports, creator library and publish controls, settings and the Business invitation gate work end to end through the gateway. Playback, the upload transfer, processing, qualified views and points could not be observed, because they need R2, the media worker and RabbitMQ. This is local evidence only, not staging or device acceptance.
 
 ## Next executable task
+
+**Staging first (26 November):** the operator runs the prepared v0.542.1 rollout (registry token at the tool's prompt), then the jobs, media worker and web; then fix #275 so `main` can publish again, and decide #271 (Points key) and #274 (capacity) before #272 and #273.
+
 
 Build the static policies and account-deletion request page (item 2a), then continue with decision C (privacy processing, ADR-020).
