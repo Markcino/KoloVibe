@@ -58,7 +58,8 @@ def _signed_url(method, key, seconds, headers, now=None):
     bucket = os.environ.get("KOLOVIBE_R2_MEDIA_BUCKET", "")
     if (not re.fullmatch(r"[0-9a-f]{32}", account)
             or not re.fullmatch(r"[a-z0-9][a-z0-9-]{1,61}[a-z0-9]", bucket)
-            or not re.fullmatch(r"(?:originals/[0-9a-f-]{36}\.mp4|playback/[0-9a-f-]{36}/[0-9a-f-]{36}\.(?:mp4|jpg))", key)
+            or not re.fullmatch(r"(?:originals/[0-9a-f-]{36}\.mp4|playback/[0-9a-f-]{36}/[0-9a-f-]{36}\.(?:mp4|jpg)"
+                                r"|posters/[0-9a-f-]{36}/[0-9a-f-]{36}\.jpg)", key)
             or method not in ("GET", "PUT", "HEAD") or not 1 <= seconds <= 604800):
         raise StorageUnavailable
     access, secret = _secret("KOLOVIBE_R2_ACCESS_KEY_FILE"), _secret("KOLOVIBE_R2_SECRET_KEY_FILE")

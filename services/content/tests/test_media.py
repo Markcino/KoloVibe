@@ -193,11 +193,13 @@ class R2MediaTests(TestCase):
         with TemporaryDirectory() as directory, patch.dict("os.environ", self._credentials(directory)):
             url = media_storage.sign_upload(f"originals/{uuid4()}.mp4", 1234, 60)
             poster = media_storage.sign_playback(f"playback/{uuid4()}/{uuid4()}.jpg", 300)
+            rerendered = media_storage.sign_playback(f"posters/{uuid4()}/{uuid4()}.jpg", 300)
         query = parse_qs(urlsplit(url).query)
         self.assertEqual(query["X-Amz-SignedHeaders"], ["content-length;content-type;host;if-none-match"])
         self.assertEqual(query["X-Amz-Expires"], ["60"])
         self.assertEqual(parse_qs(urlsplit(poster).query)["X-Amz-Expires"], ["300"])
         self.assertTrue(urlsplit(poster).path.endswith(".jpg"))
+        self.assertIn("/posters/", urlsplit(rerendered).path, "a re-rendered cover can be served")
         self.assertEqual(len(query["X-Amz-Signature"][0]), 64)
 
     def test_signing_is_refused_for_bad_inputs_and_unprotected_credentials(self):
@@ -206,7 +208,8 @@ class R2MediaTests(TestCase):
             environment = self._credentials(directory)
             with patch.dict("os.environ", environment):
                 for bad in (("PUT", "originals/../x.mp4", 60), ("DELETE", key, 60), ("PUT", key, 0),
-                            ("PUT", key, 604801), ("PUT", f"other/{uuid4()}.mp4", 60)):
+                            ("PUT", key, 604801), ("PUT", f"other/{uuid4()}.mp4", 60),
+                            ("PUT", f"posters/{uuid4()}/{uuid4()}.mp4", 60), ("GET", f"posters/{uuid4()}.jpg", 60)):
                     with self.subTest(bad), self.assertRaises(media_storage.StorageUnavailable):
                         media_storage._signed_url(bad[0], bad[1], bad[2], {})
                 Path(environment["KOLOVIBE_R2_SECRET_KEY_FILE"]).chmod(0o644)
@@ -236,7 +239,9 @@ class R2MediaTests(TestCase):
         moment = datetime(2026, 11, 14, 12, 34, 56, tzinfo=dt_timezone.utc)
         cases = (("PUT", f"originals/{uuid4()}.mp4", 600, media_storage.upload_headers(4321)),
                  ("GET", f"playback/{uuid4()}/{uuid4()}.mp4", 300, {}),
-                 ("GET", f"playback/{uuid4()}/{uuid4()}.jpg", 300, {}))
+                 ("GET", f"playback/{uuid4()}/{uuid4()}.jpg", 300, {}),
+                 # A re-rendered cover (media_processing.render_cover) lives under posters/<video>/<uuid>.jpg.
+                 ("GET", f"posters/{uuid4()}/{uuid4()}.jpg", 300, {}))
         with TemporaryDirectory() as directory:
             environment = self._credentials(directory)
             access = Path(environment["KOLOVIBE_R2_ACCESS_KEY_FILE"]).read_text().strip()
