@@ -32,7 +32,7 @@ def _checked(result, kind):
 def _checked_receipt(item):
     if (not isinstance(item, dict) or set(item) != {"id", "kind", "status", "created_at"}
             or item["kind"] not in {"access", "deletion"}
-            or item["status"] not in {"received", "in_review", "completed", "declined"}
+            or item["status"] not in {"received", "in_review", "processing", "completed", "declined"}
             or not isinstance(item["created_at"], str)
             or len(item["created_at"]) > 64):
         raise ValueError

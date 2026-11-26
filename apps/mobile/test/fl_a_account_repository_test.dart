@@ -206,6 +206,21 @@ void main() {
           throwsA(isA<ApiFailure>()));
       expect(fixture.requests.length, count);
     });
+    test('$kind duplicate also finds an approved (processing) receipt',
+        () async {
+      final fixture = AccountFixture(
+          handler: (request) async => request.method == 'POST'
+              ? jsonResponse({'code': 'request_open'}, 409)
+              : jsonResponse({
+                  'items': [privacyData(kind, 'processing')]
+                }));
+      final receipt = await LiveSettingsRepository(fixture.account)
+          .requestPrivacyWithProof(
+              kind,
+              Reauthentication(transientProof,
+                  DateTime.now().add(const Duration(minutes: 5))));
+      expect((receipt.existing, receipt.status), (true, 'processing'));
+    });
     for (final status in [400, 401, 403, 409, 429, 503, 0]) {
       test('$kind privacy failure $status consumes proof', () async {
         final fixture = AccountFixture(handler: (_) async {

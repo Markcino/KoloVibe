@@ -162,7 +162,12 @@ class NotificationPreferences(models.Model):
 
 
 class PrivacyRequest(models.Model):
-    """Receipt only. Processing awaits the approved retention/deletion policy."""
+    """A person's access or deletion request and its administrative review (Decision C).
+
+    received -> in_review -> declined, or -> processing once an administrator approves. An approved deletion
+    deactivates the account and revokes its sessions at once; `completed` is reached only when every service has
+    confirmed its part (not built yet), never by hand. Retention periods are not decided here (ADR-020).
+    """
 
     class Kind(models.TextChoices):
         ACCESS = "access", "Access"
@@ -171,19 +176,64 @@ class PrivacyRequest(models.Model):
     class Status(models.TextChoices):
         RECEIVED = "received", "Received"
         IN_REVIEW = "in_review", "In review"
+        PROCESSING = "processing", "Processing"
         COMPLETED = "completed", "Completed"
         DECLINED = "declined", "Declined"
+
+    OPEN = ("received", "in_review", "processing")
+
+    class Decline(models.TextChoices):
+        IDENTITY_NOT_CONFIRMED = "IDENTITY_NOT_CONFIRMED", "The requester's identity could not be confirmed"
+        DUPLICATE_REQUEST = "DUPLICATE_REQUEST", "The same request is already being handled"
+        WITHDRAWN = "WITHDRAWN", "The person withdrew the request"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     account = models.ForeignKey(Account, on_delete=models.PROTECT)
     kind = models.CharField(max_length=8, choices=Kind.choices)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.RECEIVED, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    reviewed_by = models.UUIDField(null=True, blank=True)
+    review_started_at = models.DateTimeField(null=True, blank=True)
+    decided_at = models.DateTimeField(null=True, blank=True)
+    decline_code = models.CharField(max_length=32, choices=Decline.choices, blank=True, db_default="")
 
     class Meta:
-        constraints = [models.UniqueConstraint(
-            fields=["account", "kind"], condition=models.Q(status__in=["received", "in_review"]),
-            name="unique_open_privacy_request_kind")]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["account", "kind"], condition=models.Q(status__in=["received", "in_review", "processing"]),
+                name="unique_open_privacy_request_kind"),
+            models.CheckConstraint(
+                condition=~models.Q(status="declined") | ~models.Q(decline_code=""),
+                name="privacy_request_decline_has_code"),
+        ]
+
+
+class AccountHold(models.Model):
+    """A legal or investigative hold that stops an account's deletion from being approved (Decision C).
+
+    Which situations justify a hold, and for how long, is a legal decision; these codes only name the reason.
+    `note` is the administrator's private explanation and is never sent to the account holder.
+    """
+
+    class Reason(models.TextChoices):
+        LEGAL_CLAIM = "LEGAL_CLAIM", "A legal claim or dispute"
+        AUTHORITY_REQUEST = "AUTHORITY_REQUEST", "A request from a competent authority"
+        FRAUD_INVESTIGATION = "FRAUD_INVESTIGATION", "A fraud or security investigation"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    account = models.ForeignKey(Account, on_delete=models.PROTECT, related_name="holds")
+    reason_code = models.CharField(max_length=32, choices=Reason.choices)
+    note = models.CharField(max_length=500)
+    placed_by = models.UUIDField()
+    placed_at = models.DateTimeField()
+    released_by = models.UUIDField(null=True, blank=True)
+    released_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.CheckConstraint(
+            condition=models.Q(released_by__isnull=True, released_at__isnull=True)
+            | models.Q(released_by__isnull=False, released_at__isnull=False),
+            name="account_hold_release_pair")]
 
 
 class TotpFactor(models.Model):

@@ -1,0 +1,20 @@
+{% extends 'base_admin.html' %}{% load admin_display %}
+{% block title %}{{ title }} · KoloVibe{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Privacy</p><h1>{{ title }}</h1><p class="supporting-text">Access and deletion requests from the app. Approving a deletion deactivates the account and signs out every session at once. Erasing the person's data in each service is not built yet, so an approved deletion stays "Approved, erasure pending" and is never marked completed by hand. Access exports are not built yet either. Retention periods are not decided here.</p></div></div>
+{% if notice %}<p class="notice" role="status">{{ notice }}</p>{% endif %}
+{% if error %}<p class="notice error" role="alert">{{ error }}</p>{% endif %}
+<nav class="filter-row" aria-label="Filter by status"><a href="{% url 'privacy-requests' %}"{% if not selected %} aria-current="page"{% endif %}>All</a>{% for value, label in statuses %}<a href="?status={{ value }}"{% if selected == value %} aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}</nav>
+{% if available %}<section class="panel table-panel" aria-labelledby="requests-title"><div class="section-heading"><div><p class="eyebrow">Queue</p><h2 id="requests-title">Requests</h2></div><span class="status-chip">Audited</span></div>
+<div class="table-scroll" role="region" aria-label="Privacy requests" tabindex="0"><table><caption class="visually-hidden">Privacy requests</caption>
+<thead><tr><th scope="col">Request</th><th scope="col">Account</th><th scope="col">Received</th><th scope="col">Status</th><th scope="col">Action</th></tr></thead><tbody>
+{% for row in rows %}<tr><td data-label="Request"><strong>{% if row.kind == 'deletion' %}Deletion{% else %}Access{% endif %}</strong></td>
+<td data-label="Account"><a href="{% url 'account-holds' row.account_id %}" title="{{ row.account_id }}"><code>{{ row.account_id|slice:':8' }}</code></a>{% if row.held %} <span class="status-chip" data-state="alert">On hold</span>{% endif %}</td>
+<td data-label="Received"><time datetime="{{ row.created_at }}" title="{{ row.created_at|utc_stamp }}">{{ row.created_at|age }}</time></td>
+<td data-label="Status"><span class="status-chip">{{ row.status_label }}</span>{% if row.decline_label %}<small> {{ row.decline_label }}</small>{% endif %}</td>
+<td data-label="Action">{% if row.actions.review %}<form method="post">{% csrf_token %}<input type="hidden" name="operation" value="review"><input type="hidden" name="request_id" value="{{ row.id }}"><input type="hidden" name="intent" value="{{ row.actions.review }}"><button type="submit" class="button-outline">Open review</button></form>{% endif %}
+{% if row.actions.decline %}<form method="post" class="status-actions">{% csrf_token %}<input type="hidden" name="operation" value="decline"><input type="hidden" name="request_id" value="{{ row.id }}"><input type="hidden" name="intent" value="{{ row.actions.decline }}"><label>Reason<select name="decline_code" required><option value="">Choose…</option>{% for value, label in decline_codes %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label><button type="submit" class="button-outline">Decline</button></form>{% endif %}
+{% if row.actions.approve %}<form method="post" class="status-actions">{% csrf_token %}<input type="hidden" name="operation" value="approve-deletion"><input type="hidden" name="request_id" value="{{ row.id }}"><input type="hidden" name="intent" value="{{ row.actions.approve }}"><label><input type="checkbox" name="confirm" value="yes" required> I confirmed the requester and there is no hold</label><button type="submit">Approve deletion</button></form>{% elif row.status == 'in_review' and row.kind == 'deletion' and row.held %}<small>Release the hold to approve.</small>{% endif %}</td></tr>
+{% empty %}<tr><td colspan="5">No privacy requests{% if selected %} with this status{% endif %}.</td></tr>{% endfor %}</tbody></table></div>
+{% if next_query %}<nav class="pagination" aria-label="Privacy request pages"><a rel="next" href="?{{ next_query }}">Next page</a></nav>{% endif %}</section>{% endif %}
+{% endblock %}

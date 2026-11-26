@@ -87,6 +87,12 @@ def _rules():
     add("gateway", "account_management", "DELETE", rf"/api/v1/me/sessions/{UUID}")
     add("gateway", "account_management", "GET POST", r"/api/v1/admin/moderator-invitations", privileged=True)
     add("gateway", "account_management", "POST", r"/api/v1/admin/accounts/lookup", privileged=True)
+    # Decision C: privacy request review and account holds, administrator only (Identity checks the role).
+    add("gateway", "account_management", "GET", r"/api/v1/admin/privacy-requests", privileged=True)
+    add("gateway", "account_management", "POST",
+        rf"/api/v1/admin/privacy-requests/{UUID}/(?:review|decline|approve-deletion)",
+        rf"/api/v1/admin/account-holds/{UUID}/release", privileged=True)
+    add("gateway", "account_management", "GET POST", rf"/api/v1/admin/accounts/{UUID}/holds", privileged=True)
     add("gateway", "account_management", "POST", rf"/api/v1/admin/moderator-invitations/{UUID}/revoke",
         r"/api/v1/auth/moderator-invitations/(?:setup|complete)", privileged=True)
     add("gateway", "media", "GET", r"/api/v1/creators/me", r"/api/v1/creators/me/videos",
@@ -131,6 +137,7 @@ def _rules():
 
     # ---- Identity (internal) ----------------------------------------------------------------------
     add("identity", "account_management", "POST", r"/internal/auth/account-lookup", privileged=True)
+    add("identity", "account_management", "POST", r"/internal/auth/privacy-review", privileged=True)
     add("identity", "account_management", "POST", r"/internal/auth/moderator-invitations",
         r"/internal/auth/moderator-invitations/(?:setup|complete)", privileged=True)
     add("identity", "account_management", "POST",

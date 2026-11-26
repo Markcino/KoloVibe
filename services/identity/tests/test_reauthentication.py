@@ -132,14 +132,22 @@ class ReauthenticationTests(TestCase):
             {"access_token": self.tokens[0]["access_token"]}).status_code, 200)
 
     def test_list_exposes_only_canonical_statuses_and_own_receipts(self):
-        for status in PrivacyRequest.Status.values:
-            PrivacyRequest.objects.create(account=self.account,
-                kind="access" if status == "received" else "deletion", status=status)
+        # One open request per kind: "processing" is shown by moving the access request on afterwards.
+        access = PrivacyRequest.objects.create(account=self.account, kind="access", status="received")
+        for status in ("in_review", "completed", "declined"):
+            PrivacyRequest.objects.create(account=self.account, kind="deletion", status=status,
+                                          decline_code="WITHDRAWN" if status == "declined" else "")
         PrivacyRequest.objects.create(account=self.other, kind="access")
-        response = self.post(preferences_privacy.privacy_requests, {
-            "access_token": self.tokens[0]["access_token"], "operation": "list"})
-        items = json.loads(response.content)["items"]
+
+        def listed():
+            response = self.post(preferences_privacy.privacy_requests, {
+                "access_token": self.tokens[0]["access_token"], "operation": "list"})
+            return json.loads(response.content)["items"]
+
+        items = listed()
         self.assertEqual(len(items), 4)
+        PrivacyRequest.objects.filter(pk=access.pk).update(status="processing")
+        items += listed()
         self.assertEqual({item["status"] for item in items}, set(PrivacyRequest.Status.values))
         self.assertTrue(all(set(item) == {"id", "kind", "status", "created_at"} for item in items))
 

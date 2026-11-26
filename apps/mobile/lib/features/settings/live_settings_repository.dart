@@ -38,7 +38,8 @@ class PrivacyReceipt {
         !isApiId(id) ||
         kind is! String ||
         !{'access', 'deletion'}.contains(kind) ||
-        !{'received', 'in_review', 'completed', 'declined'}.contains(status) ||
+        !{'received', 'in_review', 'processing', 'completed', 'declined'}
+            .contains(status) ||
         created is! String ||
         !RegExp(r'(Z|[+-]\d\d:\d\d)$').hasMatch(created)) {
       throw const FormatException('Invalid privacy receipt');
@@ -111,7 +112,7 @@ class LiveSettingsRepository {
       final open = (await privacyRequests()).where(
         (item) =>
             item.kind == kind &&
-            {'received', 'in_review'}.contains(item.status),
+            {'received', 'in_review', 'processing'}.contains(item.status),
       );
       if (open.isEmpty) rethrow;
       final item = open.first;
