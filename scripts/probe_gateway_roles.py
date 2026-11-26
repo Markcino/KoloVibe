@@ -72,6 +72,8 @@ def main():
         reached.append(audience)
         raise ConnectionError("blocked by the role probe")
 
+    # Load every view module first, so each one's internal-call function is replaced below.
+    get_resolver().url_patterns
     for name, module in list(sys.modules.items()):
         if name.startswith("service") and hasattr(module, "signed_internal_request"):
             module.signed_internal_request = simulate

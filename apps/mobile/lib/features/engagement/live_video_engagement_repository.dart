@@ -53,6 +53,8 @@ class LiveVideoEngagementRepository {
     likeCounts[id] = count as int?;
   }
 
+  /// Owner decision SIM-02: the link is an app link (`/open/videos/<id>`)
+  /// that opens KoloVibe, or the app store when it is not installed.
   Future<Uri> share(String videoId) async {
     final data = await account.authenticatedRequest('${_path(videoId)}/shares',
         method: 'POST');
@@ -66,7 +68,7 @@ class LiveVideoEngagementRepository {
         url.userInfo.isNotEmpty ||
         url.hasFragment ||
         url.hasQuery ||
-        url.path != '/videos/$videoId') {
+        url.path != '/open/videos/$videoId') {
       throw const FormatException('Invalid share response');
     }
     return url;

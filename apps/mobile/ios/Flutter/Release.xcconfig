@@ -1,1 +1,5 @@
 #include "Generated.xcconfig"
+// Owner decision SIM-02: the Universal Links host for shared videos (the Gateway's KOLOVIBE_APP_LINK_ORIGIN host).
+// Override it in the untracked AppLinks.xcconfig; the default is a reserved name that never verifies.
+KOLOVIBE_APP_LINK_HOST = app-links.invalid
+#include? "AppLinks.xcconfig"

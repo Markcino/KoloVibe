@@ -235,6 +235,19 @@ Resume from [EXECUTION_PROGRESS.md](reverification/EXECUTION_PROGRESS.md), which
 
 [Decision record](../planning/Owner_Decisions_A-J_2026-11-25.md). Approved for development and staging testing: published-edit re-review (A, RV2-01), terms and privacy acceptance (B, RV2-02), privacy processing (C, ADR-020 mechanism), backup and observability (D, ADR-016 in part, ADR-017), copyright (E, D11-008), creator restrictions (F, D-8), Identity step-up (G, DR-BZ-33), Events (H), Advertising (I) and Finance owning the only ledger (J, X-01). Values, legal text and five conflicts with the standing directive stay open (sections 2 and 3). Production NO-GO.
 
+### Owner decision SIM-02: shared video links open the app (26 November 2026) — follow-up to PR #256
+
+The simulator run in PR #256 found that Share failed (`POST /videos/{id}/shares` 503 `share_unavailable`) because share links pointed at a public web origin, which the standing directive forbids. On 26 November the owner chose **App deep link only**: a shared link opens the KoloVibe app, sends people without the app to the app store, and uses no public website. A failed Share must say so in the app.
+
+| Part | Change | Classification | Evidence | Still needed |
+| --- | --- | --- | --- | --- |
+| Gateway share link | `share_url` is `KOLOVIBE_APP_LINK_ORIGIN` + `/open/videos/<id>`. It is issued only for a video Content returns as public (private, unpublished, unapproved or missing videos keep their 404 or 503 and get no link), only to viewer or creator accounts, and only when an app can claim the link; otherwise 503 `share_unavailable` and nothing is recorded. `KOLOVIBE_PUBLIC_WEB_ORIGIN` is no longer used by the Gateway | **Development complete** | `services/gateway/tests/test_shares.py` | Staging configuration (operations plan) |
+| App-link files and store fallback | The Gateway serves `/.well-known/apple-app-site-association` and `/.well-known/assetlinks.json` claiming only `/open/videos/*`, and `GET /open/videos/<id>` only redirects an iPhone or Android browser to the configured store (`KOLOVIBE_APP_STORE_URL_IOS` / `_ANDROID`). It never looks the video up, serves no HTML, and other browsers get one plain-text line. Behind the `engagement` capability, with staging route rules | **Development complete** | `services/gateway/tests/test_app_links.py` | Apple Team ID, Android signing fingerprint and store URLs; DNS/edge routing of the link host to the Gateway |
+| App opens shared links | iOS Universal Links (Associated Domains entitlement, `FlutterDeepLinkingEnabled`) and verified Android App Links for `/open/videos/` on a build-time host; the link opens the video detail screen, which reads the video through the normal API, so the server still decides whether it is shown | **Development complete**; native link handling not yet built or run on a device | `apps/mobile/test/app_links_test.dart` | iOS and Android builds with the real host, then a device test of installed and not-installed paths |
+| In-app error on a failed Share | A specific message inline under Share and as a snack bar: unavailable (503), private or removed (403/404), too many attempts (429), or connection failure | **Ready for comprehensive testing** | `apps/mobile/test/fl_b_widgets_test.dart` | Re-run simulator row E7 |
+
+Not deployed or activated anywhere. Production NO-GO.
+
 ### Reverification Phase 4: Business (25 November 2026)
 
 [Phase 4 Business completion](reverification/Phase4_Business_Completion_2026-11-25.md). All approved Business functionality is development complete: all 57 operations are routed, 44 have a Flutter client and 13 have a console client, and only staff removal is refused by design. The eleven listed extensions are **Blocked by approval** (DR-BZ-14, 18, 19, 20, 25, 26, 29, 33). Not activated anywhere. Production NO-GO.

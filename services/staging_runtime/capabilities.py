@@ -106,6 +106,9 @@ def _rules():
     add("gateway", "engagement", "GET PUT DELETE", rf"/api/v1/videos/{UUID}/like", rf"/api/v1/creators/{UUID}/follow")
     add("gateway", "engagement", "GET", r"/api/v1/videos/following")
     add("gateway", "engagement", "POST", rf"/api/v1/videos/{UUID}/shares")
+    # Owner decision SIM-02: app-link association files and the no-app store redirect for shared videos.
+    add("gateway", "engagement", "GET", r"/\.well-known/apple-app-site-association", r"/\.well-known/assetlinks\.json",
+        rf"/open/videos/{UUID}")
     add("gateway", "points", "GET", r"/api/v1/creators/me/points", r"/api/v1/creators/me/points/entries",
         rf"/api/v1/creators/me/points/entries/{UUID}")
     add("gateway", "points", "GET", r"/api/v1/admin/points/balances", rf"/api/v1/admin/points/accounts/{UUID}", privileged=True)

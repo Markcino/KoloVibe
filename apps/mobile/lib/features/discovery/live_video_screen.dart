@@ -233,6 +233,23 @@ class _LiveVideoScreenState extends State<LiveVideoScreen> {
               )));
 }
 
+/// SIM-02: the in-app message for a Share that produced no link. It states
+/// only what happened; no link was created or opened in any of these cases.
+String shareFailureMessage(Object failure) {
+  if (failure is ApiFailure && !failure.offline) {
+    switch (failure.status) {
+      case 403:
+      case 404:
+        return 'This video can’t be shared. It may be private or no longer available.';
+      case 429:
+        return 'Too many share attempts. Wait a moment and try again.';
+      case 503:
+        return 'Sharing isn’t available right now. No link was created. Try again later.';
+    }
+  }
+  return 'We couldn’t create a share link. Check your connection and try again.';
+}
+
 class LiveVideoDetailScreen extends StatefulWidget {
   const LiveVideoDetailScreen(
       {super.key,
@@ -266,6 +283,7 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
   String? playerError;
   bool? shownPlaying;
   bool buffering = false, slow = false, starting = false, sharing = false;
+  String? shareError;
   bool slowDismissed = false;
   int attempt = 0;
   bool likedToast = false;
@@ -322,7 +340,10 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
       navigate(4);
       return;
     }
-    setState(() => sharing = true);
+    setState(() {
+      sharing = true;
+      shareError = null;
+    });
     try {
       final url = await widget.engagement!.share(widget.id);
       if (!mounted) return;
@@ -332,13 +353,23 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
       if (failure is ApiFailure && failure.status == 401) {
         navigate(4);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text(
-                'Sharing is unavailable right now. No share link was opened.')));
+        _showShareError(shareFailureMessage(failure));
       }
     } finally {
       if (mounted) setState(() => sharing = false);
     }
+  }
+
+  /// SIM-02: a failed Share always says so in the app: inline under the
+  /// detail Share button and as a snack bar, which also covers the feed.
+  void _showShareError(String message) {
+    setState(() => shareError = message);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+          content: Text(message),
+          duration: const Duration(seconds: 6),
+          showCloseIcon: true));
   }
 
   /// M-031 (404) and M-035 (403): the designed state layout. The text states
@@ -414,8 +445,9 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
       });
 
   /// M-030: the designed share sheet. The share was already recorded and the
-  /// link is the server's public video URL; the device sheet and the clipboard
-  /// are the only destinations offered.
+  /// link is the server's app link (owner decision SIM-02): it opens KoloVibe,
+  /// or the app store without it. The device sheet and the clipboard are the
+  /// only destinations offered.
   Future<void> _shareSheet(Uri url) async {
     final title = item?.title ?? 'Original';
     final choice = await showModalBottomSheet<String>(
@@ -908,8 +940,7 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
           // actions after the caption, rail and player controls so none of them
           // can paint over the sheet or intercept its buttons.
           if (buffering && slow && !slowDismissed) ...[
-            const Positioned.fill(
-                child: ColoredBox(color: Color(0x99001539))),
+            const Positioned.fill(child: ColoredBox(color: Color(0x99001539))),
             Positioned(
                 left: 0,
                 right: 0,
@@ -1115,6 +1146,15 @@ class _LiveVideoDetailScreenState extends State<LiveVideoDetailScreen>
                       OutlinedButton(
                           onPressed: sharing ? null : share,
                           child: const Text('Share')),
+                      if (shareError != null) ...[
+                        const SizedBox(height: 12),
+                        KoloNote(
+                            key: const ValueKey('share-error'),
+                            title: 'Share failed',
+                            message: shareError!,
+                            icon: Icons.error_outline,
+                            tone: KoloNoteTone.alert),
+                      ],
                       if (buffering && slow && !slowDismissed)
                         SlowConnectionSheet(
                             key: const ValueKey('M-034'),

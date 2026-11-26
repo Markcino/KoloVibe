@@ -124,19 +124,36 @@ class _KoloVibeAppState extends State<KoloVibeApp> {
                 return child!;
               },
             ),
-            onGenerateRoute: (settings) {
-              final route = settings.arguments is ScreenRoute
-                  ? settings.arguments as ScreenRoute
-                  : ScreenRoute(startup.data ?? widget.initialScreen);
-              if (!route.valid) throw ArgumentError('Unknown mobile screen');
-              return MaterialPageRoute<void>(
-                settings: RouteSettings(name: route.name, arguments: route),
-                builder: (context) => _buildRoute(route, design, startup),
-              );
-            },
+            // A shared video link opened the app from cold: start normally,
+            // with the video on top so Back returns to the app (SIM-02).
+            onGenerateInitialRoutes: (location) => [
+              _page(ScreenRoute(startup.data ?? widget.initialScreen), design,
+                  startup),
+              if (ScreenRoute.fromAppLink(location) case final link?)
+                _page(link, design, startup),
+            ],
+            onGenerateRoute: (settings) => _page(
+                settings.arguments is ScreenRoute
+                    ? settings.arguments as ScreenRoute
+                    : ScreenRoute.fromAppLink(settings.name) ??
+                        ScreenRoute(startup.data ?? widget.initialScreen),
+                design,
+                startup),
           ),
         ),
       );
+
+  Route<void> _page(
+    ScreenRoute route,
+    AsyncSnapshot<DesignCatalog> design,
+    AsyncSnapshot<int> startup,
+  ) {
+    if (!route.valid) throw ArgumentError('Unknown mobile screen');
+    return MaterialPageRoute<void>(
+      settings: RouteSettings(name: route.name, arguments: route),
+      builder: (context) => _buildRoute(route, design, startup),
+    );
+  }
 
   Widget _buildRoute(
     ScreenRoute route,
@@ -185,7 +202,9 @@ class _KoloVibeAppState extends State<KoloVibeApp> {
           await account.signOut();
           if (!context.mounted) return;
           const target = ScreenRoute(2);
-          Navigator.of(context).pushNamedAndRemoveUntil(target.name, (_) => false, arguments: target);
+          Navigator.of(context).pushNamedAndRemoveUntil(
+              target.name, (_) => false,
+              arguments: target);
         },
         onPrivacy: () {
           const target = ScreenRoute(84);
