@@ -19,7 +19,7 @@ V0_200_1 = cluster.REPOSITORY + '@sha256:c681a909334f6196c1144dfe6569876b4df0920
 V0_205_1 = AWS.reviewed_releases[2]
 V0_271_1 = AWS.reviewed_releases[3]
 V0_290_1 = cluster.REPOSITORY + '@sha256:03dcdb201d4c2e0e2891dc20b4bdc6836f765ba70a671dcf8af4c17153762333'
-V0_531_1 = cluster.REPOSITORY + '@sha256:fa00b7f475cff2247237d885859e815b159b2eae7427be8b8034a22d0bb7ffac'
+V0_531_1 = AWS.reviewed_releases[6]
 UNLISTED = cluster.REPOSITORY + '@sha256:' + 'b' * 64
 OTHER_REPOSITORY = 'ghcr.io/someone-else/services@sha256:' + 'c' * 64
 ORDER = ['audit', 'identity', 'creators', 'content', 'engagement', 'points', 'moderation', 'gateway']
@@ -41,7 +41,9 @@ class ReviewedReleaseTableTests(unittest.TestCase):
         self.assertEqual(AWS.reviewed_releases, (V0_187_2, V0_200_1, V0_205_1, V0_271_1, V0_290_1,
             'ghcr.io/markcino/kolovibe/services@sha256:42ac22a9dd94649e190db48aa16068bc39af20468fac0222a6daf5dd82c91c6a',
             V0_531_1))
-        self.assertTrue(V0_531_1.endswith('2eae7427be8b8034a22d0bb7ffac'))
+        self.assertTrue(V0_531_1.startswith(cluster.REPOSITORY + '@sha256:fa00b7f4'))
+        self.assertTrue(V0_531_1.endswith('2d0bb7ffac'))
+        self.assertEqual(len(V0_531_1), len(cluster.REPOSITORY) + len('@sha256:') + 64)
         self.assertTrue(V0_205_1.startswith(cluster.REPOSITORY + '@sha256:a43d0cfb'))
         self.assertTrue(V0_205_1.endswith('c5ba8d66' + '4ee509c5'))
         self.assertEqual(len(V0_205_1), len(cluster.REPOSITORY) + len('@sha256:') + 64)
