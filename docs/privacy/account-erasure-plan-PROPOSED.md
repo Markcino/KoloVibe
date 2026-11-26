@@ -82,6 +82,13 @@ What remains is an opaque UUID. It is still needed to prove which terms version 
 - **2b (built):** Creators and Moderation, each with its own outbox, inbox, worker and dispatcher (`dispatch_creators_events`, `dispatch_moderation_events`). The same real-broker script proves all three services end to end and the proposed grants least-privilege.
 - **2c (built):** Content on its media worker, which alone holds the R2 credentials, removing objects before any database change. The real-broker script runs the real media worker with a file-backed stand-in for the bucket. Real R2 deletion also needs the staging R2 token to allow `DELETE`, which is not yet verified.
 - **2d (built):** Business, limited to categories that need no pending decision. Its worker reads the broker URI from settings and starts only locally, because Business is not deployed to staging.
-- **2e:** Identity's own de-identification, completion, the restore re-apply command, and the console's "waiting on" view.
+- **2e (built, except the console view):**
+  - Identity's own de-identification and completion, in one transaction with the last clean confirmation.
+  - A later confirmation of the same job replaces the earlier counts, so a request completes once a retention decision lets every service erase the rest.
+  - `reapply_erasures` asks every service to erase again after a restore. It is listed in the deployment and rollback runbook, and is idempotent.
+- **Still to build:**
+  - The console's "waiting on <service>" view (2f).
+  - Reading confirmations back from Audit after a restore of Identity itself. That needs an Audit read contract, which does not exist yet.
+  - The completion notice email, which is still undecided (step 4).
 
 Staging needs new broker accounts and queues for Identity, Creators, Moderation and Business, the `account_management` capability for the Creators and Moderation workers (they refuse to start in staging without it), worker and dispatch roles in `staging_runtime/roles.py`, and the secrets and stack entries for them. That is a broker change, so it needs an approved staging plan before it is applied. The repository side (the secrets generator, the permissions table and the verification script) changes with each slice.
