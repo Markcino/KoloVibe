@@ -1,6 +1,7 @@
 """Decision C slices 2a and 2b: erasure jobs open with an approval, and confirmations apply once."""
 import json
 import uuid
+from io import StringIO
 from unittest.mock import patch
 
 from django.db import connection
@@ -97,6 +98,75 @@ class ErasureTests(TestCase):
                     self.confirmation(service="creators", creator_id="nope")):
             with self.subTest(bad=bad):
                 self.assertFalse(erasure.valid_confirmation(bad))
+
+    def confirm_all(self, retained=(), creator_id=None):
+        for service in events.ERASURE_SERVICES:
+            extra = {"creator_id": creator_id} if service == "creators" else {}
+            erasure.confirm(str(uuid.uuid4()), self.confirmation(service=service, counts={"rows": 1},
+                                                                 retained=list(retained), **extra))
+
+    def test_completion_waits_for_every_service_and_then_de_identifies_the_account(self):
+        from service.models import Account, LoginSession, NotificationPreferences, TotpFactor
+        self.approve()
+        NotificationPreferences.objects.create(account=self.person)
+        TotpFactor.objects.create(account=self.person, encrypted_secret="x")
+        for service in events.ERASURE_SERVICES[:-1]:
+            extra = {"creator_id": None} if service == "creators" else {}
+            erasure.confirm(str(uuid.uuid4()), self.confirmation(service=service, retained=[], **extra))
+        self.deletion.refresh_from_db()
+        self.assertEqual(self.deletion.status, "processing", "one service has not confirmed yet")
+        erasure.confirm(str(uuid.uuid4()), self.confirmation(service=events.ERASURE_SERVICES[-1], retained=[]))
+        self.deletion.refresh_from_db()
+        self.assertEqual(self.deletion.status, "completed")
+        person = Account.objects.get(pk=self.person.pk)
+        self.assertEqual((person.email, person.display_name, person.is_active, person.role),
+                         (f"erased-{person.id.hex}@invalid", "", False, "viewer"))
+        self.assertFalse(person.has_usable_password())
+        for model in (LoginSession, NotificationPreferences, TotpFactor):
+            self.assertFalse(model.objects.filter(account=person).exists(), model.__name__)
+        self.assertTrue(PrivacyRequest.objects.filter(account=person).exists(), "the evidence row stays")
+        self.assertEqual(SecurityEvent.objects.filter(kind="account.privacy_erasure_completed").count(), 1)
+
+    def test_a_retained_category_keeps_the_request_processing_until_a_later_confirmation_clears_it(self):
+        self.approve()
+        self.confirm_all(retained=["appeals"])
+        self.deletion.refresh_from_db()
+        self.assertEqual(self.deletion.status, "processing")
+        self.person.refresh_from_db()
+        self.assertEqual(self.person.email, "person@example.test", "nothing is de-identified early")
+        self.confirm_all()  # e.g. re-applied once a retention decision let every service erase the rest
+        self.deletion.refresh_from_db()
+        self.assertEqual(self.deletion.status, "completed")
+
+    def test_reapply_sends_every_service_its_request_again_with_the_stored_profile_id(self):
+        from io import StringIO
+        from django.core.management import call_command
+        self.approve()
+        profile = str(uuid.uuid4())
+        self.confirm_all(retained=["appeals"], creator_id=profile)
+        before = len(self.outbox())
+        out = StringIO()
+        call_command("reapply_erasures", "--all", stdout=out)
+        sent = self.outbox()[before:]
+        self.assertEqual(sorted(row[1]["service"] for row in sent), sorted(events.ERASURE_SERVICES))
+        self.assertTrue(all(row[1].get("creator_id") == profile for row in sent
+                            if row[1]["service"] in events.AFTER_CREATORS))
+        self.assertIn("Re-applied 1 erasures (5 service requests)", out.getvalue())
+        self.assertNotIn(str(self.person.id), out.getvalue())
+        self.assertEqual(SecurityEvent.objects.filter(kind="account.privacy_erasure_reapplied").count(), 1)
+
+    def test_reapply_skips_requests_creators_has_not_answered_and_completed_ones_accept_confirmations(self):
+        from django.core.management import call_command
+        self.approve()
+        before = len(self.outbox())
+        call_command("reapply_erasures", "--request", str(self.deletion.id), stdout=StringIO())
+        self.assertEqual(len(self.outbox()), before, "Creators' first answer releases the rest")
+        self.confirm_all()
+        self.deletion.refresh_from_db()
+        self.assertEqual(self.deletion.status, "completed")
+        again = self.confirmation(service="engagement", retained=[])
+        self.assertTrue(erasure.confirm(str(uuid.uuid4()), again), "a re-applied erasure is accepted")
+        self.assertEqual(SecurityEvent.objects.filter(kind="account.privacy_erasure_completed").count(), 1)
 
     def test_only_erasure_requests_may_enter_the_outbox(self):
         from django.db import transaction

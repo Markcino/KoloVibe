@@ -166,7 +166,7 @@ class PrivacyRequest(models.Model):
 
     received -> in_review -> declined, or -> processing once an administrator approves. An approved deletion
     deactivates the account and revokes its sessions at once; `completed` is reached only when every service has
-    confirmed its part (not built yet), never by hand. Retention periods are not decided here (ADR-020).
+    confirmed its part with nothing retained and Identity has de-identified the account, never by hand. Retention periods are not decided here (ADR-020).
     """
 
     class Kind(models.TextChoices):
@@ -222,6 +222,8 @@ class ErasureJob(models.Model):
     confirmed_at = models.DateTimeField(null=True, blank=True)
     counts = models.JSONField(default=dict)
     retained = models.JSONField(default=list)
+    # Creators job only: the creator profile id Creators reported, which Moderation and Content key records by.
+    creator_id = models.UUIDField(null=True, blank=True)
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["request", "service"], name="one_erasure_job_per_service")]

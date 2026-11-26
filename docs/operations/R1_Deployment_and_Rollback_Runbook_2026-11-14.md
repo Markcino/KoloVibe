@@ -124,6 +124,8 @@ Expected impact: stop-first single-replica updates mean each service is briefly 
 | Schema or data problem | Restore from the validated restore point; the owner decides | Migrations are forward-only. Export Points 0005, Moderation 0003 and Audit 0004 evidence rows before a restore |
 | OPA lockout (if OPA was adopted) | Host root: restore saved `daemon.json` or the policy file, reload/restart Docker | Drilled in T13 |
 
+After any restore of a service database, re-apply approved account deletions (Decision C) so the restore cannot bring an erased account's data back: run Identity's `python manage.py reapply_erasures --all`, then its `dispatch_identity_events`, and let each service's worker and dispatcher answer. The command is idempotent and prints counts only. It needs the erasure broker plan to be approved and applied first; until then, it only records the requests in Identity's outbox. Restoring Identity's own database to a point before a deletion was approved also needs the Audit-held confirmations to be read back, and no Audit read contract for that exists yet (see `docs/privacy/account-erasure-plan-PROPOSED.md`).
+
 Rollback owner and data-restore decision-maker are named in the approval. After a rollback, run `verify-worker` and `verify-edge` and attach the output.
 
 ## 9. Post-deployment tests
