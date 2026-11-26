@@ -313,7 +313,10 @@ class _LiveCreateOriginalScreenState extends State<LiveCreateOriginalScreen> {
 
   List<Widget> _uploading() {
     final c = controller;
-    final progress = c.progress;
+    // SIM-09: before storage accepts the first byte, say so instead of a
+    // frozen 0 %; a stall then ends in the interrupted state with Retry.
+    final connecting = c.progress == 0;
+    final progress = connecting ? null : c.progress;
     return [
       ..._steps('3 · Upload'),
       Container(
@@ -326,7 +329,10 @@ class _LiveCreateOriginalScreenState extends State<LiveCreateOriginalScreen> {
               Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Row(children: [
               Expanded(
-                  child: Text('Transferring securely',
+                  child: Text(
+                      connecting
+                          ? 'Connecting to storage'
+                          : 'Transferring securely',
                       style: KoloVibeText.body(14,
                           weight: FontWeight.w600,
                           color: KoloVibeColors.navy))),
@@ -340,7 +346,7 @@ class _LiveCreateOriginalScreenState extends State<LiveCreateOriginalScreen> {
               container: true,
               label: 'Upload progress',
               value: progress == null
-                  ? null
+                  ? (connecting ? 'Connecting' : null)
                   : '${(progress * 100).round()} percent',
               child: ClipRRect(
                   borderRadius: BorderRadius.circular(4),

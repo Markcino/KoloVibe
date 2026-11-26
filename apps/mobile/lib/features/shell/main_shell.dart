@@ -50,8 +50,15 @@ class MainShell extends StatelessWidget {
         .where((n) => n.kind == 'text')
         .toList()
         .indexWhere((n) => n.style['color'] == 0xffe02736);
-    final selected =
-        designed < 0 || BusinessScreens.contains(screen) ? fallback : designed;
+    // SIM-06: a screen that is itself a tab's destination selects that tab.
+    // The Creator Studio export (M-037) marks Profile, but the Create tab
+    // opens it, so Create stays selected there.
+    final own = targets.indexOf(screen);
+    final selected = own >= 0
+        ? own
+        : designed < 0 || BusinessScreens.contains(screen)
+            ? fallback
+            : designed;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: surface,

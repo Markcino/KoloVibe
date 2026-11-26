@@ -262,8 +262,10 @@ class _LiveInformationScreenState extends State<LiveInformationScreen> {
             ),
             OutlinedButton(
               key: const ValueKey('read-current-document'),
-              onPressed: () => openLegalDocument(context,
-                  LiveLegalRepository(widget.account), terms ? 'terms' : 'privacy'),
+              onPressed: () => openLegalDocument(
+                  context,
+                  LiveLegalRepository(widget.account),
+                  terms ? 'terms' : 'privacy'),
               child: Text(terms
                   ? 'Read the Terms of Service in the app'
                   : 'Read the Privacy Notice in the app'),
@@ -299,6 +301,8 @@ class _LiveInformationScreenState extends State<LiveInformationScreen> {
             const Text(
               'You’ll need to sign in again to access your profile, Following feed and creator tools. Make sure any upload has completed first.',
             ),
+            // SIM-07: the action is separated from the explanation.
+            const SizedBox(height: 16),
             FilledButton(
               onPressed: busy ? null : logout,
               child: const Text('Sign out'),

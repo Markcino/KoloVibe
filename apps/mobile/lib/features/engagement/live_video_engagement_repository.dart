@@ -1,5 +1,6 @@
 import '../../core/network/api_client.dart';
 import '../account/live_account_repository.dart';
+import 'like_counts.dart';
 
 class PlaybackGrant {
   const PlaybackGrant(this.url, this.expiresAt, this.sessionId);
@@ -51,6 +52,7 @@ class LiveVideoEngagementRepository {
       throw const FormatException('Invalid like count');
     }
     likeCounts[id] = count as int?;
+    LikeCounts.shared.confirm(id, count);
   }
 
   /// Owner decision SIM-02: the link is an app link (`/open/videos/<id>`)

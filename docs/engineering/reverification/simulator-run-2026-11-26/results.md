@@ -107,6 +107,8 @@ Counted by table row: **33 PASS, 0 FAIL, 4 BLOCKED, 10 NOT RUN** (a NOT RUN row 
 
 No crash, freeze or unhandled error screen occurred, and no service log contained a traceback.
 
+**Follow-up (26 November):** SIM-02 was decided and implemented in #257. The others were fixed in one app PR, with regression tests in `apps/mobile/test/simulator_defects_test.dart` and beside the affected screens. That PR covers SIM-01, SIM-03 and SIM-04 to SIM-10. SIM-03 changes the copy only. None of these fixes has been re-run on the simulator or a device yet.
+
 ## What this run cannot show
 
 - Real playback, upload transfer, FFmpeg processing, review and poster generation need R2 and the media worker.

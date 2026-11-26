@@ -420,7 +420,7 @@ void main() {
     testWidgets('morning, afternoon and evening for a signed-in account',
         (tester) async {
       for (final entry in {
-        9: 'Good morning, Mark ☀️',
+        9: 'Good morning, Mark',
         14: 'Good afternoon, Mark',
         20: 'Good evening, Mark'
       }.entries) {
@@ -435,7 +435,12 @@ void main() {
                 openCategory: (_) {},
                 clock: () => DateTime(2026, 11, 19, entry.key))));
         await settleAsync(tester);
-        expect(find.text(entry.value), findsOneWidget);
+        expect(find.textContaining(entry.value, findRichText: true),
+            findsOneWidget);
+        // SIM-01: the morning sun is an icon, never an emoji glyph.
+        expect(find.byIcon(Icons.wb_sunny_rounded),
+            entry.key == 9 ? findsOneWidget : findsNothing);
+        expect(find.textContaining('☀', findRichText: true), findsNothing);
       }
     });
   });

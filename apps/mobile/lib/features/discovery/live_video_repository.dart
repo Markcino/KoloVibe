@@ -1,5 +1,6 @@
 import '../../core/network/api_client.dart';
 import '../account/live_account_repository.dart';
+import '../engagement/like_counts.dart';
 import '../engagement/live_video_engagement_repository.dart';
 
 const videoCategories = {
@@ -133,6 +134,7 @@ class LiveVideoRepository {
         next != null && (next is! String || !isApiId(next) || next == cursor)) {
       throw const FormatException('Invalid following cursor');
     }
+    LikeCounts.shared.supersede(items.map((video) => video.id));
     return LiveVideoPage(items, next as String?);
   }
 
@@ -200,6 +202,7 @@ class LiveVideoRepository {
                 next == cursor)) {
       throw const FormatException('Invalid video page');
     }
+    LikeCounts.shared.supersede(videos.map((video) => video.id));
     return LiveVideoPage(videos, next as String?);
   }
 
@@ -218,6 +221,7 @@ class LiveVideoRepository {
     final response = await api.request('/videos/$id');
     final video = LiveVideo.fromJson(response);
     if (video.id != id) throw const FormatException('Mismatched video');
+    LikeCounts.shared.supersede([id]);
     return video;
   }
 }
@@ -234,7 +238,8 @@ String? formatDuration(int? milliseconds) {
 String? formatPlays(int? count) {
   if (count == null || count <= 0) return null;
   String scaled(double value, String unit) {
-    final rounded = (value * 10).floor() / 10; // truncate: never claim more than was counted
+    final rounded = (value * 10).floor() /
+        10; // truncate: never claim more than was counted
     final text = rounded == rounded.roundToDouble()
         ? rounded.toStringAsFixed(0)
         : rounded.toStringAsFixed(1);

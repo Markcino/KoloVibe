@@ -82,7 +82,7 @@ String appealStatusText(String status) => switch (status) {
         headline: 'Your creator account is active.',
         body: 'No restriction is recorded on your creator account.',
         publishing: standing.publishingAllowed
-            ? 'Publishing is available.'
+            ? 'You can publish your originals.'
             : 'Publishing is unavailable right now. Check that your email is verified.'
       );
     default:

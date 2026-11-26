@@ -79,7 +79,10 @@ class _AccountSessionsScreenState extends State<AccountSessionsScreen> {
                 return const Center(child: Text('No active sessions.'));
               }
               final locale = MaterialLocalizations.of(context);
+              // SIM-07: the screen gutter; the themed tile adds its own 4.
               return ListView(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 children: [
                   for (final session in sessions)
                     ListTile(

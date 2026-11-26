@@ -2,7 +2,7 @@
 
 **Read this file first when resuming.** Then check the repository state (`git log origin/main`, open PRs) before continuing. This tracker covers the owner's mandate "Complete application reverification, development completion, testing and final acceptance", in its 25 November 2026 form. The mandate was re-issued that day; this file continues the existing work and does not restart it.
 
-Updated: 26 November 2026, `main` at `b907486`. A first simulator test of the app ran that day against a local stack ([results](simulator-run-2026-11-26/results.md)). **Production is NO-GO.** Nothing in this file is deployed to staging unless a row says so.
+Updated: 26 November 2026, `main` at `b1ac5bd`. A first simulator test of the app ran that day against a local stack ([results](simulator-run-2026-11-26/results.md)). The mandate was re-issued again that day as "Continue verified end-to-end development, final design and acceptance"; this file continues under it. **Production is NO-GO.** Nothing in this file is deployed to staging unless a row says so.
 
 ## Where the other records live
 
@@ -61,6 +61,8 @@ The phase statuses are NOT STARTED, IN PROGRESS, COMPLETED, FAILED and BLOCKED.
 | A Re-review of published-video edits | RV2-01 | #246 backend, #247 app, #248 dashboard | IMPLEMENTED BUT UNVERIFIED | Staging; device UAT |
 | F Creator warnings, restrictions, suspensions and appeals | D-8 (administrator only, the proposed answer) | #250 backend, #251 console, #252 app | IMPLEMENTED BUT UNVERIFIED | Staging; device UAT; visual approval of the app section. The no-measure Account status screen was seen working on the simulator on 26 November; applying a measure was not tried |
 | E Copyright: verified rights holders and reviewer copyright signals | D11-008 | #254 backend and reviewer signals, #255 console page | IMPLEMENTED BUT UNVERIFIED | Staging; the copyright contact is still a placeholder; not exercised on the simulator |
+| SIM-02 Sharing as app links only, store fallback, in-app error | Owner decision SIM-02 | #257 | IMPLEMENTED BUT UNVERIFIED | Native app-link association and device activation; staging |
+| Simulator defects SIM-01, SIM-03 to SIM-10 | Simulator run, 26 November | This PR | IMPLEMENTED BUT UNVERIFIED | A repeat simulator or device run. SIM-03 changes copy only: trending stays empty until real engagement exists |
 
 Local test evidence for package A, recorded on 25 November:
 - Content 166 passed, Moderation 78, Gateway 233, Audit 52, console 184 and scripts 475.
@@ -81,7 +83,8 @@ What package F deliberately leaves out:
 ## Remaining work, in order
 
 1. ~~E Copyright workflow~~ merged in #254 and #255 (see above).
-2. **Fix the simulator-run defects SIM-01 and SIM-04 to SIM-10** (all Low). SIM-02 (sharing needs a public web origin, which the directive excludes) needs an owner decision first. See the [simulator results](simulator-run-2026-11-26/results.md#defects-found).
+2. ~~Simulator-run defects~~: SIM-02 merged in #257; SIM-01 and SIM-03 to SIM-10 fixed in the app PR listed above.
+2a. **Static policies and account-deletion request page** (owner ruling, 26 November; see below). Then point the app's policy, guidelines and help links at it.
 3. **C Privacy processing and retention** (ADR-020). Retention periods are proposed only. Deletion must handle `LegalAcceptance` (`on_delete=PROTECT`).
 4. **D Backups and observability**, repository side (ADR-016 in part, ADR-017).
 5. **RV2-03 Dead letters.** The proposed values (retry ceiling 10, kept 14 days, administrator-only replay) are flagged as proposed.
@@ -94,7 +97,17 @@ What package F deliberately leaves out:
 - RV2-04: media retention values.
 - Legal review of the draft texts.
 - Staging access and approval for any AWS, secret, database or RabbitMQ change.
-- SIM-02: where a shared video link should lead, given there is no public website (or whether sharing stays off).
+
+## Owner rulings on 26 November 2026
+
+- **SIM-02 sharing:** app deep links only, falling back to the store, with an in-app error otherwise. Implemented in #257.
+- **Public web exception:** the owner chose a *static policies page plus an account-deletion request page*, and nothing else public. This narrows the 25 November "policies page only" exception. It is not a product website: there is no feed, playback, profile, registration or shop.
+- **Why the deletion page is needed** (checked on the official pages, 26 November):
+  - Google Play requires an in-app deletion path and a web resource outside the app where users can request account and data deletion. That resource is declared in the Data safety form.
+  - Apple 5.1.1(v) requires deletion to start inside the app. 5.1.1(i) requires a privacy policy link in the app and in App Store Connect.
+- **Distribution blocker:** until the page exists and its texts pass legal review, Android store distribution is blocked.
+
+The remaining public-web dependency in the app is `PublicLinks` (`KOLOVIBE_PUBLIC_WEB_ORIGIN`, unset by default) in [`system_ui.dart`](../../../apps/mobile/lib/features/system/system_ui.dart). It must point only at that static page.
 
 ## Simulator application test (26 November 2026)
 
@@ -104,4 +117,4 @@ What it shows: the account lifecycle, discovery, likes, follows, reports, creato
 
 ## Next executable task
 
-Fix the Low simulator defects (SIM-01, SIM-04 to SIM-10) in one small app PR from `main`, then continue with decision C (privacy processing, ADR-020). Ask the owner about SIM-02.
+Build the static policies and account-deletion request page (item 2a), then continue with decision C (privacy processing, ADR-020).

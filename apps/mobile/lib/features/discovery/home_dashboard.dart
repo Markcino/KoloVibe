@@ -7,6 +7,7 @@ import '../../shared/widgets/kolo_media.dart';
 import '../account/live_account_repository.dart';
 import '../creators/live_creator_repository.dart';
 import '../shell/main_shell.dart';
+import '../engagement/like_counts.dart';
 import 'live_video_repository.dart';
 
 typedef HomeNavigate = void Function(int screen, [String? id]);
@@ -84,12 +85,18 @@ class _HomeDashboardState extends State<HomeDashboard> {
   void initState() {
     super.initState();
     signedOut = widget.account == null;
+    LikeCounts.shared.addListener(_likesChanged);
     load();
+  }
+
+  void _likesChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
     generation++;
+    LikeCounts.shared.removeListener(_likesChanged);
     super.dispose();
   }
 
@@ -303,7 +310,10 @@ class _HomeDashboardState extends State<HomeDashboard> {
   String _meta(LiveVideo video, {bool likes = false}) => [
         _creatorName(video.creatorId),
         if (video.category != null) categoryLabel(video.category!),
-        if (likes && video.likeCount != null) _likes(video.likeCount!),
+        if (likes)
+          if (LikeCounts.shared.current(video.id, video.likeCount)
+              case final count?)
+            _likes(count),
       ].where((part) => part.isNotEmpty).join(' · ');
 
   @override
@@ -359,7 +369,22 @@ class _HomeDashboardState extends State<HomeDashboard> {
                       else
                         Semantics(
                           header: true,
-                          child: Text(morning ? '$greeting ☀️' : greeting,
+                          // SIM-01: an emoji renders as missing glyphs on
+                          // some devices, so the sun is the icon the design
+                          // export uses (see design_view.dart).
+                          child: Text.rich(
+                              TextSpan(text: greeting, children: [
+                                if (morning) ...[
+                                  const TextSpan(text: ' '),
+                                  const WidgetSpan(
+                                      alignment: PlaceholderAlignment.middle,
+                                      child: ExcludeSemantics(
+                                          child: Icon(Icons.wb_sunny_rounded,
+                                              color: Color(0xffffba24),
+                                              size: 25))),
+                                ],
+                              ]),
+                              semanticsLabel: greeting,
                               style: KoloVibeText.heading(25, height: 1.15)),
                         ),
                       const SizedBox(height: 10),
@@ -450,7 +475,8 @@ class _HomeDashboardState extends State<HomeDashboard> {
     if (trending.isEmpty) {
       return const KoloInlineState(
           title: 'No trending originals yet',
-          message: 'Published originals will appear here.',
+          message:
+              'Originals trend here once people watch and like them. Explore has everything published.',
           icon: Icons.local_fire_department_outlined);
     }
     final video = trending.first;
@@ -505,7 +531,8 @@ class _HomeDashboardState extends State<HomeDashboard> {
       return const [
         KoloInlineState(
             title: 'No creators to show yet',
-            message: 'Creators with published originals will appear here.',
+            message:
+                'Creators appear here once their originals start trending.',
             icon: Icons.people_outline)
       ];
     }

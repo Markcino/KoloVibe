@@ -12,6 +12,7 @@ import '../../core/theme/kolovibe_theme.dart';
 import '../../shared/widgets/kolo_components.dart';
 import '../../shared/widgets/kolo_media.dart';
 import '../shell/main_shell.dart';
+import '../engagement/like_counts.dart';
 import 'live_video_repository.dart';
 import 'search_history.dart';
 
@@ -25,8 +26,9 @@ String videoMeta(LiveVideo video) => [
       if (formatDuration(video.durationMs) != null)
         formatDuration(video.durationMs)!,
       if (formatPlays(video.playCount) != null) formatPlays(video.playCount)!,
-      if (video.likeCount != null)
-        '${video.likeCount} ${video.likeCount == 1 ? 'like' : 'likes'}',
+      if (LikeCounts.shared.current(video.id, video.likeCount)
+          case final likes?)
+        '$likes ${likes == 1 ? 'like' : 'likes'}',
     ].join(' · ');
 
 Widget videoTile(BuildContext context, LiveVideo video) => Padding(
@@ -91,6 +93,8 @@ class _DiscoveryCatalogState extends State<DiscoveryCatalogScreen> {
     category = widget.initialCategory;
     search.text = query ?? '';
     searched = query != null;
+    // SIM-04: a like confirmed on another route updates the counts shown here.
+    LikeCounts.shared.addListener(_likesChanged);
     if (widget.screen == 21) _loadRecent();
     if (!{17, 21, 23}.contains(widget.screen)) load(reset: true);
     if (widget.screen == 27 &&
@@ -152,7 +156,8 @@ class _DiscoveryCatalogState extends State<DiscoveryCatalogScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(children: [
-              const Expanded(child: KoloSectionHeading(title: 'Recent searches')),
+              const Expanded(
+                  child: KoloSectionHeading(title: 'Recent searches')),
               TextButton(
                   onPressed: _clearRecent,
                   style: TextButton.styleFrom(
@@ -186,7 +191,8 @@ class _DiscoveryCatalogState extends State<DiscoveryCatalogScreen> {
               ]),
             Padding(
                 padding: const EdgeInsets.only(top: 4, bottom: 16),
-                child: Text('Saved on this phone for 14 days. Not sent to KoloVibe.',
+                child: Text(
+                    'Saved on this phone for 14 days. Not sent to KoloVibe.',
                     style: KoloVibeText.body(12, color: KoloVibeColors.muted))),
           ]);
 
@@ -214,9 +220,14 @@ class _DiscoveryCatalogState extends State<DiscoveryCatalogScreen> {
     }
   }
 
+  void _likesChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
     generation++;
+    LikeCounts.shared.removeListener(_likesChanged);
     searchFocus.dispose();
     search.clear();
     search.dispose();
@@ -563,6 +574,25 @@ class _DiscoveryCatalogState extends State<DiscoveryCatalogScreen> {
             ..._categoryChips(),
             ..._exploreSections(),
           ],
+          // SIM-05: a category carried over from Explore stays visible on the
+          // results, and can be removed without opening the filter sheet.
+          if (widget.screen == 22 && category != null) ...[
+            Align(
+                alignment: Alignment.centerLeft,
+                child: InputChip(
+                    key: const ValueKey('active-category'),
+                    label: Text('Category: ${categoryLabel(category!)}'),
+                    labelStyle: KoloVibeText.body(12,
+                        weight: FontWeight.w600, color: KoloVibeColors.navy),
+                    deleteButtonTooltipMessage: 'Remove category filter',
+                    onDeleted: busy
+                        ? null
+                        : () {
+                            setState(() => category = null);
+                            load(reset: true);
+                          })),
+            const SizedBox(height: 8),
+          ],
           if (widget.screen == 22 &&
               (items.isNotEmpty || creatorItems.isNotEmpty)) ...[
             _chipRow([
@@ -650,6 +680,9 @@ class _DiscoveryCatalogState extends State<DiscoveryCatalogScreen> {
             searched
                 ? SystemEmpty(
                     query: query ?? '',
+                    category: widget.screen == 22 && category != null
+                        ? categoryLabel(category!)
+                        : null,
                     onEdit: () => searchFocus.requestFocus())
                 : KoloInlineState(
                     title: 'Nothing here yet',
