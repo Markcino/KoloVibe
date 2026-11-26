@@ -42,8 +42,9 @@ class PolicySiteTests(unittest.TestCase):
         parser.feed(self.pages[name])
         return parser
 
-    def test_exactly_the_index_terms_and_privacy_pages_and_one_stylesheet(self):
-        self.assertEqual(set(self.pages), {"index.html", "terms/index.html", "privacy/index.html"})
+    def test_exactly_the_index_terms_privacy_and_deletion_pages_and_one_stylesheet(self):
+        self.assertEqual(set(self.pages),
+                         {"index.html", "terms/index.html", "privacy/index.html", "delete-account/index.html"})
         self.assertEqual({p.name for p in self.out.iterdir() if p.is_file()}, {"index.html", "policies.css"})
 
     def test_nothing_active_and_nothing_external(self):
@@ -71,6 +72,22 @@ class PolicySiteTests(unittest.TestCase):
                     if words:
                         self.assertIn(words, " ".join(text.split()), f"missing from the page: {words[:60]}")
                 self.assertNotIn("<p>#", page)
+
+    def test_the_deletion_page_names_the_app_and_both_ways_to_ask(self):
+        # Owner ruling, 26 November: Google Play needs a deletion request resource outside the app that names it.
+        text = " ".join(" ".join(self.parse("delete-account/index.html").text).split())
+        self.assertIn("Delete your KoloVibe account", text)
+        self.assertIn("Draft pending legal review.", text)
+        self.assertIn("Go to Settings, then Delete account.", text)
+        self.assertIn("Without the app", text)
+        self.assertNotIn("form", self.parse("delete-account/index.html").tags)
+        for line in site.DELETION.read_text().splitlines():
+            words = re.sub(r"^#+ |^- |\*\*", "", line).strip()
+            if words:
+                self.assertIn(words, text)
+        for name in self.pages:
+            with self.subTest(name):
+                self.assertIn("delete-account/", self.pages[name], "every page links the deletion page")
 
     def test_markup_in_a_text_is_escaped(self):
         rendered = site.render_markdown("# <b>x</b>\n\nA & **<script>alert(1)</script>**\n- <img src=x>")

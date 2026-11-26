@@ -477,7 +477,7 @@ void main() {
     await tap(tester, 'Open device settings');
     expect(device.settingsCalls, 1);
   });
-  testWidgets('configured support link delegates HTTPS to DeviceBridge',
+  testWidgets('help offers no web page even when an origin is configured',
       (tester) async {
     final device = TestDevice();
     await tester.pumpWidget(app(LiveInformationScreen(
@@ -487,8 +487,23 @@ void main() {
         device: device,
         links: PublicLinks('https://web.example.test'))));
     await settle(tester);
-    await tap(tester, 'View available support options');
-    expect(device.urls.single.toString(), 'https://web.example.test/help');
+    expect(find.text('View available support options'), findsNothing);
+    expect(device.urls, isEmpty);
+  });
+  testWidgets('the policies screen links the static privacy page',
+      (tester) async {
+    final device = TestDevice();
+    await tester.pumpWidget(app(LiveInformationScreen(
+        screen: 88,
+        catalog: catalog,
+        account: AccountFixture().account,
+        device: device,
+        links: PublicLinks('https://web.example.test'))));
+    await settle(tester);
+    await tester.ensureVisible(find.text('Read current Privacy Policy'));
+    await tester.pumpAndSettle();
+    await tap(tester, 'Read current Privacy Policy');
+    expect(device.urls.single.toString(), 'https://web.example.test/privacy');
   });
   for (final status in [400, 401, 403, 409, 429, 503, 0]) {
     testWidgets(
