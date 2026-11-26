@@ -35,3 +35,6 @@ Runner/GeneratedPluginRegistrant.*
 
 # Local Universal Links host override (owner decision SIM-02).
 Flutter/AppLinks.xcconfig
+
+# Local signing override, e.g. a free Personal Team without Associated Domains.
+Flutter/LocalSigning.xcconfig

@@ -3,3 +3,8 @@
 // Override it in the untracked AppLinks.xcconfig; the default is a reserved name that never verifies.
 KOLOVIBE_APP_LINK_HOST = app-links.invalid
 #include? "AppLinks.xcconfig"
+// Entitlements file. Defaults to the full set (with Associated Domains). A free Apple
+// "Personal Team" cannot sign Associated Domains, so override it in the untracked
+// LocalSigning.xcconfig: KOLOVIBE_ENTITLEMENTS = Runner/Runner.personal.entitlements
+KOLOVIBE_ENTITLEMENTS = Runner/Runner.entitlements
+#include? "LocalSigning.xcconfig"
