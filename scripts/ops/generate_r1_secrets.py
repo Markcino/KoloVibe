@@ -37,14 +37,21 @@ BROKER_PERMISSIONS = {
     "points": (r"^kolovibe\.points$",) * 3,
 }
 # Decision C (account erasure) staging delta, PROPOSED and not applied: nothing here generates a secret or changes a
-# staging grant. Identity would own its confirmation queue and only WRITE erasure requests to Engagement's exchange;
-# Engagement would also WRITE confirmations to Identity's exchange. scripts/verify_event_pipeline_broker.py proves
-# these grants on a disposable broker. Applying them to staging needs the owner's approved broker plan.
-PROPOSED_BROKER_ACCOUNTS = {"identity": "kolovibe_identity"}
+# staging grant. Identity would own its confirmation queue and only WRITE erasure requests to the participating
+# services' exchanges; each participating service would also WRITE confirmations to Identity's exchange. Creators and
+# Moderation get their first broker accounts for this. scripts/verify_erasure_pipeline_broker.py proves these grants
+# on a disposable broker. Applying them to staging needs the owner's approved broker plan.
+PROPOSED_BROKER_ACCOUNTS = {"identity": "kolovibe_identity", "creators": "kolovibe_creators",
+                            "moderation": "kolovibe_moderation"}
 PROPOSED_BROKER_PERMISSIONS = {
-    "identity": (r"^kolovibe\.identity$", r"^(kolovibe\.identity|kolovibe\.engagement)$", r"^kolovibe\.identity$"),
+    "identity": (r"^kolovibe\.identity$",
+                 r"^(kolovibe\.identity|kolovibe\.engagement|kolovibe\.creators|kolovibe\.moderation)$",
+                 r"^kolovibe\.identity$"),
     "engagement": (r"^kolovibe\.engagement$", r"^(kolovibe\.engagement|kolovibe\.points|kolovibe\.identity)$",
                    r"^kolovibe\.engagement$"),
+    "creators": (r"^kolovibe\.creators$", r"^(kolovibe\.creators|kolovibe\.identity)$", r"^kolovibe\.creators$"),
+    "moderation": (r"^kolovibe\.moderation$", r"^(kolovibe\.moderation|kolovibe\.identity)$",
+                   r"^kolovibe\.moderation$"),
 }
 RECEIVERS = ("identity", "content", "creators", "engagement", "points", "moderation")
 ALL_CAPS = frozenset(policy.CAPABILITIES) - {"audit_read"}

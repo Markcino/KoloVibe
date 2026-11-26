@@ -1,6 +1,6 @@
-"""Child-process steps for scripts/verify_erasure_pipeline_broker.py (Decision C slice 2a).
+"""Child-process steps for scripts/verify_erasure_pipeline_broker.py (Decision C slices 2a and 2b).
 
-Usage: python scripts/erasure_pipeline_steps.py <identity|engagement> <step> '<json arguments>'
+Usage: python scripts/erasure_pipeline_steps.py <identity|engagement|creators|moderation> <step> '<json arguments>'
 Each step runs one service's real code against its own disposable PostgreSQL schema and prints one JSON line.
 """
 import json
@@ -52,8 +52,9 @@ def identity_dispatch_real(arguments):
 def identity_state(arguments):
     from service.models import ErasureJob, PrivacyRequest, SecurityEvent
 
-    job = ErasureJob.objects.get(request_id=arguments["request_id"])
-    return {"confirmed": job.confirmed_at is not None, "counts": job.counts, "retained": job.retained,
+    jobs = ErasureJob.objects.filter(request_id=arguments["request_id"])
+    return {"jobs": {job.service: {"confirmed": job.confirmed_at is not None, "counts": job.counts,
+                                   "retained": job.retained} for job in jobs},
             "status": PrivacyRequest.objects.get(pk=arguments["request_id"]).status,
             "audit": SecurityEvent.objects.filter(kind="account.privacy_erasure_confirmed").count()}
 
@@ -109,6 +110,89 @@ def engagement_worker(arguments):
     from staging_runtime import roles
 
     roles.run_celery("service.celery_app:app", "kolovibe.engagement")
+    return {}
+
+
+def _pending_confirmations():
+    from django.db import connection
+
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT count(*) FROM event_outbox WHERE event_type = 'privacy.erasure_confirmed' "
+                       "AND published_at IS NULL")
+        return cursor.fetchone()[0]
+
+
+def creators_seed(arguments):
+    from django.utils import timezone
+    from service.models import CreatorApplication, CreatorProfile, OnboardingEvent
+
+    for account in (arguments["account_id"], arguments["other_id"]):
+        profile = CreatorProfile.objects.create(user_id=account, handle=f"c{uuid.uuid4().hex[:12]}",
+                                                display_name="Creator", bio="Bio", status="active",
+                                                reviewed_at=timezone.now())
+        CreatorApplication.objects.create(account_id=account, invited_by=uuid.uuid4(), profile=profile,
+                                          status="approved", attestation_version="v1")
+        OnboardingEvent.objects.create(account_id=account, actor_id=uuid.uuid4(), action="approved")
+    return {}
+
+
+def creators_dispatch_real(arguments):
+    from service import events
+    from service.celery_app import app
+
+    return _dispatch(events.dispatch_one, app)
+
+
+def creators_state(arguments):
+    from service.models import CreatorApplication, CreatorProfile, OnboardingEvent
+
+    def counts(account):
+        return {"profiles": CreatorProfile.objects.filter(user_id=account).count(),
+                "applications": CreatorApplication.objects.filter(account_id=account).count(),
+                "onboarding_events": OnboardingEvent.objects.filter(account_id=account).count()}
+
+    return {"person": counts(arguments["account_id"]), "other": counts(arguments["other_id"]),
+            "confirmations_pending": _pending_confirmations()}
+
+
+def creators_worker(arguments):
+    from staging_runtime import roles
+
+    roles.run_celery("service.celery_app:app", "kolovibe.creators")
+    return {}
+
+
+def moderation_seed(arguments):
+    from service.models import Report
+
+    for account in (arguments["account_id"], arguments["other_id"]):
+        Report.objects.create(id=uuid.uuid4(), video_id=uuid.uuid4(), reporter_id=account, reason="harm",
+                              details="Free text the reporter wrote")
+    return {}
+
+
+def moderation_dispatch_real(arguments):
+    from service import events
+    from service.celery_app import app
+
+    return _dispatch(events.dispatch_one, app)
+
+
+def moderation_state(arguments):
+    from service.models import Report
+
+    def counts(account):
+        return {"reports": Report.objects.filter(reporter_id=account).count()}
+
+    return {"person": counts(arguments["account_id"]), "other": counts(arguments["other_id"]),
+            "details_left": Report.objects.exclude(details="").count(),
+            "confirmations_pending": _pending_confirmations()}
+
+
+def moderation_worker(arguments):
+    from staging_runtime import roles
+
+    roles.run_celery("service.celery_app:app", "kolovibe.moderation")
     return {}
 
 
