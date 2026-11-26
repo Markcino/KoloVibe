@@ -23,6 +23,9 @@ UNDECLARED = {
     "/health/live": "liveness probe; declared in DOC-205 without the API prefix",
     "/internal/probe": "private liveness probe; the signed-peer middleware rejects public callers (403)",
     "/videos": "legacy unprefixed alias of GET /api/v1/videos; kept for compatibility (staging PUBLIC allowlist)",
+    "/.well-known/apple-app-site-association": "iOS Universal Links file at a fixed OS-defined path (SIM-02)",
+    "/.well-known/assetlinks.json": "Android App Links file at a fixed OS-defined path (SIM-02)",
+    "/open/videos/{id}": "share-link target the OS opens in the app; without the app it only redirects to a store (SIM-02)",
 }
 # Contract paths the gateway does not serve.
 NOT_GATEWAY = {"/health/ready", "/health/live"}

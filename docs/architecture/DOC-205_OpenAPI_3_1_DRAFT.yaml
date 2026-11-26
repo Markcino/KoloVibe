@@ -3216,9 +3216,13 @@ paths:
       - viewer
       - creator
       description: Requires a currently published public non-deleted video from Content. Request body and query parameters
-        are not accepted. The gateway records at most one share per account/video/UTC day and returns KOLOVIBE_PUBLIC_WEB_ORIGIN
-        + /videos/<id>. The configured origin must be an HTTPS origin without credentials, path, query or fragment,
-        and is validated at settings load. An unconfigured origin returns 503 share_unavailable and records no share.
+        are not accepted. The gateway records at most one share per account/video/UTC day and returns an app link,
+        KOLOVIBE_APP_LINK_ORIGIN + /open/videos/<id> (owner decision SIM-02, no public website). The origin must be an
+        HTTPS origin without credentials, path, query or fragment, and is validated at settings load with the iOS app
+        ID and Android package and signing fingerprints. The same origin serves /.well-known/apple-app-site-association
+        and /.well-known/assetlinks.json claiming only /open/videos/*, and GET /open/videos/<id> only redirects a phone
+        browser without the app to its store; it does not look the video up. Without an origin and at least one app
+        association, the request returns 503 share_unavailable and records no share.
         A share is an intent, not evidence of delivery to another service; it emits no points or qualification event.
       parameters:
       - name: video_id
@@ -10150,7 +10154,7 @@ components:
           type: string
           format: uri
           pattern: ^https://
-          description: Canonical configured public web origin plus /videos/<video_id>.
+          description: App link, the configured KOLOVIBE_APP_LINK_ORIGIN plus /open/videos/<video_id>.
     ShareUnavailable:
       type: object
       additionalProperties: false

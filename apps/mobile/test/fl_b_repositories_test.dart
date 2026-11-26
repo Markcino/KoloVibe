@@ -220,10 +220,14 @@ void main() {
         isFalse);
   });
   for (final raw in [
-    'http://unsafe.test/videos/$videoId',
-    'https://user@web.test/videos/$videoId',
-    'https://web.test/videos/$receiptId',
-    'https://web.test/videos/$videoId?secret=value'
+    'http://unsafe.test/open/videos/$videoId',
+    'https://user@web.test/open/videos/$videoId',
+    'https://web.test/open/videos/$receiptId',
+    'https://web.test/open/videos/$videoId?secret=value',
+    'https://web.test/open/videos/$videoId#fragment',
+    // The retired website path is no longer accepted (owner decision SIM-02).
+    'https://web.test/videos/$videoId',
+    'kolovibe://open/videos/$videoId',
   ]) {
     test('unsafe/mismatched share URL rejected $raw', () async {
       final fixture = AccountFixture(

@@ -26,11 +26,15 @@ class LocalEnvironmentTests(unittest.TestCase):
             self.assertEqual(env.get("KOLOVIBE_AUDIT_URL"), "https://audit.test" if service == "gateway" else None)
             self.assertFalse("KOLOVIBE_CALLER_KEYS_FILE" in env)
 
-    def test_public_web_origin_is_scoped_to_gateway(self):
+    def test_app_link_configuration_is_scoped_to_gateway(self):
         values = {f"KOLOVIBE_{name.upper()}_DJANGO_SECRET_KEY": secrets.token_urlsafe(48) for name in ("gateway", "identity")}
-        values["KOLOVIBE_PUBLIC_WEB_ORIGIN"] = "https://app.example.test"
-        self.assertEqual(environment_for("gateway", values)["KOLOVIBE_PUBLIC_WEB_ORIGIN"], "https://app.example.test")
-        self.assertNotIn("KOLOVIBE_PUBLIC_WEB_ORIGIN", environment_for("identity", values))
+        values["KOLOVIBE_APP_LINK_ORIGIN"] = "https://links.example.test"
+        values["KOLOVIBE_APP_LINK_IOS_APP_ID"] = "ABCDE12345.com.kolovibe.kolovibe"
+        gateway = environment_for("gateway", values)
+        self.assertEqual(gateway["KOLOVIBE_APP_LINK_ORIGIN"], "https://links.example.test")
+        self.assertEqual(gateway["KOLOVIBE_APP_LINK_IOS_APP_ID"], "ABCDE12345.com.kolovibe.kolovibe")
+        self.assertNotIn("KOLOVIBE_APP_LINK_ORIGIN", environment_for("identity", values))
+        self.assertNotIn("KOLOVIBE_PUBLIC_WEB_ORIGIN", gateway)
     def test_app_compatibility_configuration_is_forwarded_only_to_gateway(self):
         values = {f"KOLOVIBE_{service.upper()}_DJANGO_SECRET_KEY": secrets.token_urlsafe(48)
                   for service in ("gateway", "identity")}

@@ -158,7 +158,8 @@ void main() {
       expect(find.textContaining('Ama'), findsNothing);
     });
   }
-  testWidgets('M-027 Popular asks the service for this creator\'s popular order',
+  testWidgets(
+      'M-027 Popular asks the service for this creator\'s popular order',
       (tester) async {
     final calls = <Map<String, String?>>[];
     final fixture = CatalogFixture((q) async {
@@ -363,7 +364,7 @@ void main() {
         handler: (request) async => request.url.path.endsWith('/shares')
             ? jsonResponse({
                 'video_id': videoId,
-                'share_url': 'https://web.example.test/videos/$videoId'
+                'share_url': 'https://links.example.test/open/videos/$videoId'
               })
             : jsonResponse(
                 {'video_id': videoId, 'liked': false, 'like_count': 12}));
@@ -379,7 +380,7 @@ void main() {
     expect(find.text('Share original stories'), findsOneWidget);
     expect(device.shared, isEmpty);
     await tap(tester, 'Share link using a device app');
-    expect(device.shared, ['https://web.example.test/videos/$videoId']);
+    expect(device.shared, ['https://links.example.test/open/videos/$videoId']);
     expect(device.urls, isEmpty);
     await tap(tester, 'Share');
     await tap(tester, 'Copy public link');
@@ -481,10 +482,20 @@ void main() {
           expect(find.text('Like'), findsOneWidget);
           expect(find.text('12 likes'), findsOneWidget);
         } else {
-          expect(
-              find.text(
-                  'Sharing is unavailable right now. No share link was opened.'),
-              findsOneWidget);
+          // SIM-02: the failure is shown in the app, inline and as a snack bar.
+          final message = switch (status) {
+            403 ||
+            404 =>
+              'This video can’t be shared. It may be private or no longer available.',
+            429 => 'Too many share attempts. Wait a moment and try again.',
+            503 =>
+              'Sharing isn’t available right now. No link was created. Try again later.',
+            _ =>
+              'We couldn’t create a share link. Check your connection and try again.',
+          };
+          expect(find.text(message), findsNWidgets(2));
+          expect(find.byType(SnackBar), findsOneWidget);
+          expect(find.text('Share failed'), findsOneWidget);
         }
         expect(device.shared, isEmpty);
       });

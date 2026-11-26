@@ -65,8 +65,10 @@ def environment_for(service: str, values: dict[str, str]) -> dict[str, str]:
     # Each receiver is given only the gateway key that is meant for it (local development only).
     gateway_key = values.get(f"KOLOVIBE_GATEWAY_OUTBOUND_KEY_{service.upper()}") or legacy_gateway_key
     if service == "gateway":
-        if "KOLOVIBE_PUBLIC_WEB_ORIGIN" in values:
-            env["KOLOVIBE_PUBLIC_WEB_ORIGIN"] = values["KOLOVIBE_PUBLIC_WEB_ORIGIN"]
+        for name in ("KOLOVIBE_APP_LINK_ORIGIN", "KOLOVIBE_APP_LINK_IOS_APP_ID",
+                     "KOLOVIBE_APP_LINK_ANDROID_PACKAGE", "KOLOVIBE_APP_LINK_ANDROID_SHA256"):
+            if name in values:
+                env[name] = values[name]
         for platform in ("IOS", "ANDROID"):
             for field in ("MIN_VERSION", "LATEST_VERSION", "STORE_URL"):
                 name = f"KOLOVIBE_APP_{field}_{platform}"

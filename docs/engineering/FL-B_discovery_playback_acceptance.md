@@ -39,6 +39,7 @@ No backend, native platform, dependency, startup, home/explore recipe-wrapper, o
 - The CURRENT gateway requires authentication for GET `/videos/{id}/playback`. Public metadata remains browseable while signed out; the server's 401 prompts sign-in for playback. Anonymous streaming would require a backend contract change, not a client bypass.
 - Only the visible vertical page plays. Controller/session lifecycle is reset on retry, disposed when swiping away, and paused on app background or navigation through creator/report actions. Initialization has a 15-second timeout. Buffering uses actual player state and a five-second threshold; there is no alternate rendition or quality-control API, and none is claimed.
 - POST shares returns exactly `{video_id,share_url}`; URL must be HTTPS without credentials/query/fragment and have path `/videos/<id>`. Native sharing receives only that URL. Configuring KOLOVIBE_PUBLIC_WEB_ORIGIN and native share availability remain deployment/device responsibilities. A failed share does not claim success.
+  - *Superseded 26 November 2026 by owner decision SIM-02:* share links are app links, `KOLOVIBE_APP_LINK_ORIGIN` + `/open/videos/<id>`, and the Gateway no longer reads `KOLOVIBE_PUBLIC_WEB_ORIGIN`. See the [R1 tracker](R1_Application_Tracker.md).
 - The M-098 component from FL-A is reused for empty search results. Existing unavailable-dependency recipe captures remain unchanged. No invented plays, follower counts, creator biographies or sample video rows are used by these live views.
 
 ## Validation

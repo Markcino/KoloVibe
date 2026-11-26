@@ -60,9 +60,10 @@ KOLOVIBE_SERVICE_NAME = "gateway"
 KOLOVIBE_TRUSTED_CLIENT_IP_HEADER = os.environ.get("KOLOVIBE_TRUSTED_CLIENT_IP_HEADER", "")
 if KOLOVIBE_TRUSTED_CLIENT_IP_HEADER and not re.fullmatch(r"[A-Za-z][A-Za-z0-9-]{1,63}", KOLOVIBE_TRUSTED_CLIENT_IP_HEADER):
     raise RuntimeError("Invalid trusted client address header name")
-from .shares import validate_public_origin
+from .app_links import load_configuration as load_app_links
 
-KOLOVIBE_PUBLIC_WEB_ORIGIN = validate_public_origin(os.environ.get("KOLOVIBE_PUBLIC_WEB_ORIGIN"))
+# Owner decision SIM-02: share links open the app (iOS Universal Links, Android App Links); no public website.
+APP_LINKS = load_app_links()
 from .compatibility import validate_configuration
 
 APP_COMPATIBILITY = {

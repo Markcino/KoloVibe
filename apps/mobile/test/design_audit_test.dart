@@ -510,7 +510,7 @@ void main() {
         if (request.url.path.endsWith('/shares')) {
           return jsonResponse({
             'video_id': firstId,
-            'share_url': 'https://web.example.test/videos/$firstId'
+            'share_url': 'https://links.example.test/open/videos/$firstId'
           });
         }
         if (request.url.path.endsWith('/watch-sessions')) {

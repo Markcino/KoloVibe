@@ -32,3 +32,6 @@ Runner/GeneratedPluginRegistrant.*
 !default.mode2v3
 !default.pbxuser
 !default.perspectivev3
+
+# Local Universal Links host override (owner decision SIM-02).
+Flutter/AppLinks.xcconfig

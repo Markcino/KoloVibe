@@ -33,6 +33,7 @@ The 7d/28d analytics windows are UTC calendar dates including today; trending is
 - Watch threshold/pacing/revision/expiry/self-view policy and the existing two-field `dec003.qualified_view` points payload are unchanged. Neither likes, follows nor shares emit qualification/points. No endpoint accepts client qualification, points, watch timestamps or duration/creator overrides.
 - New share day is computed from server time converted to UTC; database uniqueness enforces account/video/day idempotency.
 - KOLOVIBE_PUBLIC_WEB_ORIGIN is optional and validated during gateway settings load: HTTPS origin only, no credentials, non-root path, query, fragment, whitespace/backslash or malformed port. The local launcher forwards it only to gateway.
+  - *Superseded 26 November 2026 by owner decision SIM-02:* share links are app links, `KOLOVIBE_APP_LINK_ORIGIN` + `/open/videos/<id>`, and the Gateway no longer reads `KOLOVIBE_PUBLIC_WEB_ORIGIN`. See the [R1 tracker](R1_Application_Tracker.md).
 
 Primary Engagement files: models.py, migration 0005, discovery.py, shares.py, analytics.py, likes.py, follows.py, watch.py, urls.py and tests. Primary Gateway files: engagement_client.py, shares.py, analytics.py, likes.py, follows.py, settings.py, routes/engagement.py and tests. DOC-205 updates Like, FollowState, Share/ShareUnavailable, analytics schemas and affected paths/implementation annotations.
 

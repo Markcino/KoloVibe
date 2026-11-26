@@ -28,6 +28,15 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // Owner decision SIM-02: shared video links (https://<host>/open/videos/<id>) open this app.
+        // <host> is the Gateway's KOLOVIBE_APP_LINK_ORIGIN host, passed as -Pkolovibe.appLinkHost=<host>.
+        // The default is a reserved name that never verifies, so no real domain is claimed by accident.
+        val appLinkHost = (project.findProperty("kolovibe.appLinkHost") as String?) ?: "app-links.invalid"
+        if (!Regex("^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$")
+                .matches(appLinkHost)) {
+            throw GradleException("Invalid kolovibe.appLinkHost")
+        }
+        manifestPlaceholders["appLinkHost"] = appLinkHost
     }
 
     buildTypes {
