@@ -191,7 +191,7 @@ class ProposedErasureGrantTests(unittest.TestCase):
                          "the applied Content grant is unchanged until the broker plan is approved")
         self.assertEqual(gen.PROPOSED_BROKER_PERMISSIONS["content"][1],
                          r"^(kolovibe\.content\.media|kolovibe\.identity)$")
-        for service in ("creators", "moderation"):
+        for service in ("creators", "moderation", "business"):
             self.assertIn(f"kolovibe\\.{service}", write, "Identity may send erasure requests there")
             own = rf"^kolovibe\.{service}$"
             self.assertEqual(gen.PROPOSED_BROKER_PERMISSIONS[service],

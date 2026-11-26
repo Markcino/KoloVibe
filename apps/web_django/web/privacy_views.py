@@ -3,7 +3,7 @@
 Identity decides who may act (administrator, MFA within five minutes for a change) and applies each step. This page
 validates every answer, never echoes Identity's error text, and carries a signed, session-bound intent per change.
 Approving a deletion deactivates the account, revokes its sessions and starts erasure in each participating service
-(Decision C slices 2a to 2c: Engagement, Creators, Moderation and Content). The page never offers "completed" and says so.
+(Decision C slices 2a to 2d: every participating service). The page never offers "completed" and says so.
 """
 
 from datetime import datetime
@@ -162,7 +162,7 @@ def privacy_requests(request):
             "review": "Review opened.", "decline": "Request declined. The account is unchanged.",
             "approve-deletion": ("Deletion approved. The account is deactivated and every session is signed out. "
                                  "Each service erases its own data and confirms; only Engagement, Creators, "
-                                 "Moderation and Content take part so far, so the request stays pending.")}[operation]
+                                 "Moderation, Content and Business take part so far, so the request stays pending.")}[operation]
         return redirect(reverse("privacy-requests"))
     return _list(request, error=_refusal(code, result), status=code if code in (400, 403, 404, 409) else 503)
 

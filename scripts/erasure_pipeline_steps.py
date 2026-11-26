@@ -1,6 +1,6 @@
-"""Child-process steps for scripts/verify_erasure_pipeline_broker.py (Decision C slices 2a to 2c).
+"""Child-process steps for scripts/verify_erasure_pipeline_broker.py (Decision C slices 2a to 2d).
 
-Usage: python scripts/erasure_pipeline_steps.py <identity|engagement|creators|moderation|content> <step> '<json arguments>'
+Usage: python scripts/erasure_pipeline_steps.py <identity|engagement|creators|moderation|content|business> <step> '<json arguments>'
 Each step runs one service's real code against its own disposable PostgreSQL schema and prints one JSON line.
 """
 import json
@@ -251,6 +251,44 @@ def content_worker(arguments):
 
     media_storage.delete_object = delete_object
     roles.run_celery("service.media_tasks:app", "kolovibe.content.media")
+    return {}
+
+
+def business_seed(arguments):
+    from service.models import Business, BusinessMembership, RegistrationGrant
+
+    for account in (arguments["account_id"], arguments["other_id"]):
+        business = Business.objects.create(display_name="Shop", legal_name="Shop Ltd", created_by_account_id=account)
+        BusinessMembership.objects.create(business=business, account_id=uuid.uuid4(), role="owner",
+                                          granted_by_account_id=account)
+        BusinessMembership.objects.create(business=business, account_id=account, role="staff",
+                                          granted_by_account_id=account)
+        RegistrationGrant.objects.create(account_id=account, granted_by_account_id=uuid.uuid4())
+    return {}
+
+
+def business_dispatch_real(arguments):
+    from service import events
+    from service.celery_app import app
+
+    return _dispatch(events.dispatch_one, app)
+
+
+def business_state(arguments):
+    from service.models import BusinessMembership, RegistrationGrant
+
+    def counts(account):
+        return {"active_staff": BusinessMembership.objects.filter(account_id=account, status="active").count(),
+                "grants": RegistrationGrant.objects.filter(account_id=account).count()}
+
+    return {"person": counts(arguments["account_id"]), "other": counts(arguments["other_id"]),
+            "confirmations_pending": _pending_confirmations()}
+
+
+def business_worker(arguments):
+    from staging_runtime import roles
+
+    roles.run_celery("service.celery_app:app", "kolovibe.business")
     return {}
 
 

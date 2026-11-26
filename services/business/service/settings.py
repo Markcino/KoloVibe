@@ -13,6 +13,8 @@ else:
 if not SECRET_KEY or len(SECRET_KEY) < 32:
     raise RuntimeError("A unique DJANGO_SECRET_KEY of at least 32 characters is required")
 DEBUG = os.environ.get("DJANGO_DEBUG", "0") == "1"
+# Decision C erasure worker (service/celery_app.py): local only until a staging and broker plan is approved.
+ERASURE_BROKER_URL = os.environ.get("KOLOVIBE_RABBITMQ_URL", "") if ENVIRONMENT == "local" else ""
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "testserver"]
 ROOT_URLCONF = "service.urls"
 INSTALLED_APPS = ["service"]

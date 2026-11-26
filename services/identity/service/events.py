@@ -17,8 +17,8 @@ SERVICE = "identity"
 QUEUE = "kolovibe.identity"
 ERASURE_REQUESTED = "privacy.erasure_requested"
 ERASURE_CONFIRMED = "privacy.erasure_confirmed"
-# Decision C: the services that erase their own data, in the order they were added (2a, 2b, then 2c).
-ERASURE_SERVICES = ("engagement", "creators", "moderation", "content")
+# Decision C: the services that erase their own data, in the order they were added (2a, 2b, 2c, then 2d).
+ERASURE_SERVICES = ("engagement", "creators", "moderation", "content", "business")
 # Moderation and Content key a creator's records by the creator profile id, which only Creators knows.
 # Identity asks them only after Creators has confirmed, passing on the profile id Creators reported.
 AFTER_CREATORS = ("moderation", "content")
