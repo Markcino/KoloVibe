@@ -324,6 +324,10 @@ AWS_STAGING = Profile(
         # main publication run 45021877435, source 92497e77d59a735c17720e0ef517a2d4f0804a66.
         # Its manually recorded pin marker does not match this tool's proof; retain exact adoption.
         REPOSITORY + '@sha256:42ac22a9dd94649e190db48aa16068bc39af20468fac0222a6daf5dd82c91c6a',
+        # v0.531.1: live on all eight AWS APIs and six jobs since 26 November 2026, rolled out outside this tool
+        # (the services kept the v0.341.1 pin labels, so the pin proof no longer matches). Verified against
+        # main publication run 45824612464, source 677eec3a7491b29597f8493dc62fa4cdaa8d1dbc.
+        REPOSITORY + '@sha256:fa00b7f475cff2247237d885859e815b159b2eae7427be8b8034a22d0bb7ffac',
     ),
     opa_waiver=OPA_WAIVER, r1_flags=r1_flag_table(), r1_rollout=r1_rollout_table(),
     # Read-only service inspection of 14 November 2026: every AWS service mounts the database CA from the
