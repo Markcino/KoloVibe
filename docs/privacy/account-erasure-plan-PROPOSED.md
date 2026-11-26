@@ -20,7 +20,8 @@ When a deletion is approved, every service removes or de-identifies the personal
 
 ## Mechanism
 
-1. **Jobs.** Approval creates one erasure job per participating service, in the same Identity transaction that deactivates the account. It also records one outbox event per job, `privacy.erasure_requested`, carrying `{request_id, account_id}` and nothing else.
+1. **Jobs.** Approval creates one erasure job per participating service, in the same Identity transaction that deactivates the account. It also records an outbox event, `privacy.erasure_requested`, carrying `{request_id, account_id}` and nothing else, for each job that can start at once.
+   - Moderation (and, in 2c, Content) key a creator's records by the creator profile id, which only Creators knows, and Creators deletes the profile while it erases. Their requests are therefore recorded only when Creators confirms, and carry the profile id Creators reported, or null for someone who was never a creator.
 2. **Dispatch.** An Identity dispatcher (`dispatch_identity_events`) publishes each event to that service's existing queue, for example `kolovibe.engagement`. It uses the existing outbox pattern: publish, then mark sent; at-least-once delivery.
    - Identity gets a broker account that may *write* only to those exchanges, and *read* only `kolovibe.identity`.
    - The grants are in `generate_r1_secrets.PROPOSED_BROKER_PERMISSIONS`. They are proposed and not applied to staging.

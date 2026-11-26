@@ -40,6 +40,7 @@ class CreatorsErasureTests(TestCase):
         return json.loads(rows[0][1])
 
     def test_without_measures_the_profile_and_application_are_deleted(self):
+        profile_id = str(self.profiles[self.person].id)
         self.assertTrue(privacy.erase(str(uuid.uuid4()), self.payload()))
         self.assertFalse(CreatorProfile.objects.filter(user_id=self.person).exists())
         self.assertFalse(CreatorApplication.objects.filter(account_id=self.person).exists())
@@ -49,7 +50,7 @@ class CreatorsErasureTests(TestCase):
         self.assertTrue(CreatorProfile.objects.filter(user_id=self.other, display_name="Ada Example").exists())
         self.assertEqual(self.confirmation(), {
             "request_id": self.request_id, "account_id": self.person, "service": "creators",
-            "counts": {"application": 1, "profile": 1, "profile_deidentified": 0, "copyright_review_grant": 1,
+            "creator_id": profile_id, "counts": {"application": 1, "profile": 1, "profile_deidentified": 0, "copyright_review_grant": 1,
                        "onboarding_events_deidentified": 1},
             "retained": []})
 
@@ -81,6 +82,7 @@ class CreatorsErasureTests(TestCase):
     def test_an_account_with_no_creator_data_still_confirms(self):
         privacy.erase(str(uuid.uuid4()), self.payload(account_id=str(uuid.uuid4())))
         self.assertEqual(set(self.confirmation()["counts"].values()), {0})
+        self.assertIsNone(self.confirmation()["creator_id"])
 
     def test_malformed_requests_are_refused_before_any_change(self):
         for bad in (self.payload(service="engagement"), self.payload(account_id="nope"), self.payload(extra=1),

@@ -39,9 +39,26 @@ class ErasureTests(TestCase):
         self.assertEqual(sorted(self.outbox(), key=lambda row: row[1]["service"]),
                          [("privacy.erasure_requested", {"request_id": target, "account_id": str(self.person.id),
                                                          "service": service})
-                          for service in ("creators", "engagement", "moderation")])
+                          for service in ("creators", "engagement")], "Moderation waits for Creators")
         self.call("approve-deletion", id=target)
-        self.assertEqual(len(self.outbox()), 3, "repeating the approval opens nothing more")
+        self.assertEqual(len(self.outbox()), 2, "repeating the approval opens nothing more")
+
+    def test_creators_confirmation_sends_moderation_its_request_with_the_profile_id(self):
+        target = self.approve()
+        profile = str(uuid.uuid4())
+        creators = self.confirmation(service="creators", creator_id=profile, counts={"profile": 1}, retained=[])
+        event = str(uuid.uuid4())
+        self.assertTrue(erasure.confirm(event, creators))
+        self.assertEqual(self.outbox()[-1], ("privacy.erasure_requested", {
+            "request_id": target, "account_id": str(self.person.id), "service": "moderation", "creator_id": profile}))
+        self.assertFalse(erasure.confirm(event, creators))
+        self.assertEqual(len(self.outbox()), 3, "a repeated confirmation sends nothing more")
+        self.assertIsNone(ErasureJob.objects.get(service="moderation").confirmed_at)
+
+    def test_a_person_who_was_never_a_creator_still_reaches_moderation(self):
+        self.approve()
+        erasure.confirm(str(uuid.uuid4()), self.confirmation(service="creators", creator_id=None, retained=[]))
+        self.assertIsNone(self.outbox()[-1][1]["creator_id"])
 
     def test_a_refused_approval_opens_nothing(self):
         self.call("start-review", id=str(self.deletion.id))
@@ -72,7 +89,9 @@ class ErasureTests(TestCase):
         for bad in (self.confirmation(service="points"), self.confirmation(counts={"Likes": 1}),
                     self.confirmation(counts={"likes": -1}), self.confirmation(counts={"likes": True}),
                     self.confirmation(retained=["a", "a"]), self.confirmation(extra=1),
-                    self.confirmation(counts={"email": "person@example.test"})):
+                    self.confirmation(counts={"email": "person@example.test"}),
+                    self.confirmation(creator_id=str(uuid.uuid4())), self.confirmation(service="creators"),
+                    self.confirmation(service="creators", creator_id="nope")):
             with self.subTest(bad=bad):
                 self.assertFalse(erasure.valid_confirmation(bad))
 

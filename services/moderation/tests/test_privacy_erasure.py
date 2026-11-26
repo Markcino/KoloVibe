@@ -21,6 +21,7 @@ def report(reporter, details="It is harmful", **fields):
 class ModerationErasureTests(TestCase):
     def setUp(self):
         self.person, self.other, self.admin, self.reviewer = (str(uuid.uuid4()) for _ in range(4))
+        self.profile = str(uuid.uuid4())  # the person's creator profile id, which Identity passes on from Creators
         self.request_id = str(uuid.uuid4())
         self.plain = report(self.person)
         self.cited = report(self.person, details="Evidence cited by a decision")
@@ -29,7 +30,8 @@ class ModerationErasureTests(TestCase):
         self.theirs = report(self.other)
 
     def payload(self, **changes):
-        return {"request_id": self.request_id, "account_id": self.person, "service": "moderation"} | changes
+        return {"request_id": self.request_id, "account_id": self.person, "service": "moderation",
+                "creator_id": self.profile} | changes
 
     def confirmation(self):
         with connection.cursor() as cur:
@@ -59,7 +61,7 @@ class ModerationErasureTests(TestCase):
             id=uuid.uuid4(), video_id=uuid.uuid4(), reporter_id=self.person, reason="copyright", details="My work")
         CopyrightNotice.objects.create(report=claim, work_reference="https://example.test/work")
         removal = ModerationAction.objects.create(id=uuid.uuid4(), video_id=uuid.uuid4(), reviewer_id=self.reviewer,
-                                                  creator_id=self.person, action="remove", reason="Copyright",
+                                                  creator_id=self.profile, action="remove", reason="Copyright",
                                                   status="applied", copyright=True)
         appeal = Appeal.objects.create(removal=removal, appellant_id=self.person, reason="It is mine")
         CounterNotice.objects.create(appeal=appeal, request_id=uuid.uuid4(), account_id=self.person)
@@ -89,6 +91,16 @@ class ModerationErasureTests(TestCase):
                           confirmation["counts"]["assignments_deactivated"]), (1, 1, 1))
         self.assertIn("staff_decisions", confirmation["retained"])
 
+    def test_decisions_are_found_by_the_creator_profile_not_the_account(self):
+        ModerationAction.objects.create(id=uuid.uuid4(), video_id=uuid.uuid4(), reviewer_id=self.reviewer,
+                                        creator_id=self.profile, action="remove", reason="Safety", status="applied")
+        privacy.erase(str(uuid.uuid4()), self.payload(creator_id=None))
+        self.assertNotIn("decisions", self.confirmation()["retained"], "someone never a creator has no decisions")
+        with connection.cursor() as cur:
+            cur.execute("DELETE FROM event_outbox")
+        privacy.erase(str(uuid.uuid4()), self.payload())
+        self.assertIn("decisions", self.confirmation()["retained"])
+
     def test_a_repeat_delivery_changes_nothing(self):
         event = str(uuid.uuid4())
         privacy.erase(event, self.payload())
@@ -99,7 +111,8 @@ class ModerationErasureTests(TestCase):
 
     def test_malformed_requests_are_refused_before_any_change(self):
         for bad in (self.payload(service="creators"), self.payload(request_id="nope"), self.payload(extra=1),
-                    {"account_id": self.person}):
+                    self.payload(creator_id="nope"), {"account_id": self.person},
+                    {"request_id": self.request_id, "account_id": self.person, "service": "moderation"}):
             with self.subTest(bad=bad), self.assertRaises(ValueError):
                 privacy.erase(str(uuid.uuid4()), bad)
         self.assertEqual(Report.objects.filter(reporter_id=self.person).count(), 2)

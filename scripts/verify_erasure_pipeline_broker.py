@@ -1,10 +1,11 @@
 """Decision C slices 2a and 2b on a REAL RabbitMQ over TLS: Identity -> Engagement, Creators and Moderation erasure ->
 confirmations -> Identity.
 
-Identity records one erasure request per participating service in its outbox; its own Celery app publishes them with
-the PROPOSED Identity broker account. The production Engagement, Creators and Moderation workers each erase that
-account's data in their own database and record a confirmation; each dispatcher publishes it with that service's
-proposed account; the production Identity worker marks each job confirmed. The
+Identity records erasure requests for Engagement and Creators in its outbox; its own Celery app publishes them with the
+PROPOSED Identity broker account. The production workers erase that account's data in their own databases and record
+confirmations, which each dispatcher publishes with that service's proposed account. The production Identity worker
+marks each job confirmed; the Creators confirmation also releases Moderation's request, carrying the creator profile
+id, which Identity then publishes and Moderation answers the same way. The
 proposed grants (generate_r1_secrets.PROPOSED_BROKER_PERMISSIONS) are proven least-privilege on the same broker.
 
 It runs on disposable infrastructure only and changes nothing on staging. Needs PostgreSQL and RabbitMQ binaries, an
@@ -119,11 +120,15 @@ class ErasurePipelineTests(unittest.TestCase):
         person, other = approved["account_id"], str(uuid.uuid4())
         for service in PARTICIPANTS:
             self.step(service, "seed", account_id=person, other_id=other)
-        self.assertEqual(self.step("identity", "dispatch_real"), {"sent": 3, "errors": []})
+        self.assertEqual(self.step("identity", "dispatch_real"), {"sent": 2, "errors": []},
+                         "Engagement and Creators first; Moderation waits for the creator profile id")
 
         def erased(service, done):
             state = self.step(service, "state", account_id=person, other_id=other)
             return state if done(state) else None
+
+        def jobs():
+            return self.step("identity", "state", request_id=approved["request_id"])["jobs"]
 
         engagement = eventually(lambda: erased("engagement", lambda s: s["person"]["VideoLike"] == 0), 60,
                                 "Engagement never erased the account")
@@ -135,11 +140,15 @@ class ErasurePipelineTests(unittest.TestCase):
                               "Creators never erased the account")
         self.assertEqual(creators["person"], {"profiles": 0, "applications": 0, "onboarding_events": 0})
         self.assertEqual(creators["other"], {"profiles": 1, "applications": 1, "onboarding_events": 1})
+        self.assertEqual(self.step("creators", "dispatch_real"), {"sent": 1, "errors": []})
+        eventually(lambda: jobs()["creators"]["confirmed"] or None, 60, "Identity never confirmed Creators")
+        self.assertEqual(self.step("identity", "dispatch_real"), {"sent": 1, "errors": []},
+                         "the Creators confirmation released Moderation's request")
         moderation = eventually(lambda: erased("moderation", lambda s: s["confirmations_pending"] == 1), 60,
                                 "Moderation never erased the account")
         self.assertEqual((moderation["person"], moderation["other"], moderation["details_left"]),
                          ({"reports": 0}, {"reports": 1}, 1), "only the other account's report keeps its text")
-        for service in PARTICIPANTS:
+        for service in ("engagement", "moderation"):
             self.assertEqual(self.step(service, "dispatch_real"), {"sent": 1, "errors": []}, service)
 
         def confirmed():

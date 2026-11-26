@@ -19,6 +19,9 @@ ERASURE_REQUESTED = "privacy.erasure_requested"
 ERASURE_CONFIRMED = "privacy.erasure_confirmed"
 # Decision C: the services that erase their own data, in the order they were added (2a, then 2b).
 ERASURE_SERVICES = ("engagement", "creators", "moderation")
+# Moderation (and later Content) key a creator's records by the creator profile id, which only Creators knows.
+# Identity asks them only after Creators has confirmed, passing on the profile id Creators reported.
+AFTER_CREATORS = ("moderation",)
 INSERT_POSTGRES = "INSERT INTO event_outbox (id,event_type,payload) VALUES (%s,%s,%s::jsonb)"
 INSERT_SQLITE = "INSERT INTO event_outbox (id,event_type,payload) VALUES (%s,%s,%s)"  # the test fixture has no jsonb
 

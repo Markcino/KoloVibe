@@ -9,7 +9,7 @@ Run once per erasure request, through the idempotent inbox, in one transaction w
 - retained, decision pending: measures, appeals and the append-only audit trail. Their retention is a policy
   decision (ADR-020), so they are reported as retained and the request stays open in Identity.
 No constraint or append-only trigger is disabled. Nothing here reads another service's database; the confirmation
-carries category names and counts only.
+carries category names, counts and the creator profile id (an opaque identifier Moderation needs), nothing else.
 """
 import uuid
 
@@ -68,6 +68,8 @@ def erase(event_id, payload):
         subjects = [account_id] + ([profile_id] if profile_id else [])
         if AuditEvent.objects.filter(Q(actor_id=account_id) | Q(subject_id__in=subjects)).exists():
             retained.append("audit_events")
+        # The profile id lets Identity ask Moderation for the decisions and strikes keyed by it.
         record_event(ERASURE_CONFIRMED, {"request_id": request_id, "account_id": account_id, "service": SERVICE,
+                                         "creator_id": str(profile_id) if profile_id else None,
                                          "counts": counts, "retained": retained})
         return True
