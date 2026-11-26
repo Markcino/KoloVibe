@@ -1,6 +1,6 @@
 # Go-live readiness by stage
 
-**Updated 23 November 2026 using GitHub publication and owner-supplied AWS terminal/UAT evidence. Production is NO-GO.** This page indexes the open work that must close before a controlled pilot go-live. It links to source documents rather than restating them. Release 1 scope is unchanged (DEC-001); deferred: live streaming, business discovery, ticketing and cash payouts.
+**Updated 26 November 2026** ([staging verification](../operations/R1_AWS_Staging_Verification_2026-11-26.md)); earlier rows from 23 November GitHub publication and owner-supplied AWS evidence. Production is NO-GO.** This page indexes the open work that must close before a controlled pilot go-live. It links to source documents rather than restating them. Release 1 scope is unchanged (DEC-001); deferred: live streaming, business discovery, ticketing and cash payouts.
 
 The [seven-stage plan](liberian_platform_seven_stage_development_plan.md) is the reference. Go-live depends on Stages 1–6; Stage 7 (operations and improvement) starts after the go/no-go. Dates in that plan are targets, not commitments.
 
@@ -11,8 +11,8 @@ The [seven-stage plan](liberian_platform_seven_stage_development_plan.md) is the
 | 1 Requirements | Approved PRD, SRS, MVP scope | Scope approved (DEC-001); #133 methods owner-approved; PRD/SRS detail acceptance, research, traceability and sign-off remain pending | #133–#137 |
 | 2 Architecture | Reviewed SAD, ERD, API, threat model | Design baselines approved; critical decisions, security risk review and sign-off open (G-03, G-04, G-05, G-07, G-10) | #138–#141 |
 | 3 Foundation | Secure identity and CI/CD | Owner-declared complete; main protection, scanner exceptions, restore drill, monitoring and deployed credentials still open | #142–#147 |
-| 4 Development | Feature-complete pilot candidate | In progress; **v0.357.1** has eight APIs, six jobs, media worker and web deployed on AWS (16/16). Admin/moderator positive UAT passed; real R2/FFmpeg/RabbitMQ, points and 108-screen mobile parity/feature journeys remain unaccepted | #100, #148–#154 |
-| 5 Verification | ASVS/MASVS evidence, release readiness | In parallel: v0.357.1 passed 6/6 public smoke probes and owner-reported 6/6 privileged dashboard UAT. **26/0/19** is a historical v0.187.2-only matrix. Negative authorization, device/security/recovery tests and the **26 runtime-owned tables/8 sequences** privilege finding remain open | #155–#162 |
+| 4 Development | Feature-complete pilot candidate | In progress; live AWS staging is **v0.531.1** (26 Nov) with the v0.542.1 schema; v0.542.1 rollout pending. Business, erasure workers, Content/Creators audit delivery and maintenance jobs are not deployable on staging (#272, #273, #274); Finance, Events and Advertising not implemented. Earlier: v0.357.1 (16/16). Admin/moderator positive UAT passed; real R2/FFmpeg/RabbitMQ, points and 108-screen mobile parity/feature journeys remain unaccepted | #100, #148–#154 |
+| 5 Verification | ASVS/MASVS evidence, release readiness | 26 Nov: 63/63 credential-free edge probes pass; D11-002 privilege separation **verified on staging** (the 26 runtime-owned tables finding is resolved); Points audit delivery broken (#271); D12-001 undeployed; authenticated journeys not run; `main` cannot publish (#275). Earlier: v0.357.1 passed 6/6 public smoke probes and owner-reported 6/6 privileged dashboard UAT. **26/0/19** is a historical v0.187.2-only matrix. Negative authorization, device/security/recovery tests and the **26 runtime-owned tables/8 sequences** privilege finding remain open | #155–#162 |
 | 6 Pilot | Limited release and go/no-go report | Not started; DOC-018 pilot plan not written | #163–#168 |
 
 ## Alignment notes
