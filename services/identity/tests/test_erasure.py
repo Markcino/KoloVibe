@@ -1,0 +1,109 @@
+"""Decision C slice 2a: erasure jobs open with an approval, and confirmations apply once."""
+import json
+import uuid
+from unittest.mock import patch
+
+from django.db import connection
+from django.test import SimpleTestCase, TestCase, override_settings
+
+from service import erasure, events
+from service.models import ErasureJob, PrivacyRequest, SecurityEvent
+from .test_privacy_review import PrivacyReviewTests
+
+
+@override_settings(STAGING_PRIVILEGED=True, PASSWORD_HASHERS=["django.contrib.auth.hashers.MD5PasswordHasher"])
+class ErasureTests(TestCase):
+    """Reuses the review fixture: an administrator with MFA, a person, and their requests."""
+    setUp, token, call = PrivacyReviewTests.setUp, PrivacyReviewTests.token, PrivacyReviewTests.call
+
+    def approve(self):
+        target = str(self.deletion.id)
+        self.call("start-review", id=target)
+        status, row = self.call("approve-deletion", id=target)
+        self.assertEqual(status, 200)
+        return target
+
+    def outbox(self):
+        with connection.cursor() as cur:
+            cur.execute("SELECT event_type, payload FROM event_outbox ORDER BY created_at")
+            return [(kind, json.loads(payload)) for kind, payload in cur.fetchall()]
+
+    def confirmation(self, **changes):
+        return {"request_id": str(self.deletion.id), "account_id": str(self.person.id), "service": "engagement",
+                "counts": {"likes": 3, "follows": 1}, "retained": ["qualified_watches"]} | changes
+
+    def test_approval_opens_one_job_and_one_event_per_service(self):
+        target = self.approve()
+        self.assertEqual(list(ErasureJob.objects.values_list("service", flat=True)), list(events.ERASURE_SERVICES))
+        self.assertEqual(self.outbox(), [("privacy.erasure_requested",
+                                          {"request_id": target, "account_id": str(self.person.id),
+                                           "service": "engagement"})])
+        self.call("approve-deletion", id=target)
+        self.assertEqual(len(self.outbox()), 1, "repeating the approval opens nothing more")
+
+    def test_a_refused_approval_opens_nothing(self):
+        self.call("start-review", id=str(self.deletion.id))
+        self.call("hold-place", account_id=str(self.person.id), reason_code="LEGAL_CLAIM", note="Open dispute")
+        self.assertEqual(self.call("approve-deletion", id=str(self.deletion.id))[0], 409)
+        self.assertEqual((ErasureJob.objects.count(), self.outbox()), (0, []))
+
+    def test_a_confirmation_applies_once_and_never_completes_the_request(self):
+        self.approve()
+        event = str(uuid.uuid4())
+        self.assertTrue(erasure.confirm(event, self.confirmation()))
+        job = ErasureJob.objects.get()
+        self.assertIsNotNone(job.confirmed_at)
+        self.assertEqual((job.counts, job.retained), ({"likes": 3, "follows": 1}, ["qualified_watches"]))
+        self.assertFalse(erasure.confirm(event, self.confirmation()), "the same event is applied once")
+        self.assertEqual(SecurityEvent.objects.filter(kind="account.privacy_erasure_confirmed").count(), 1)
+        self.deletion.refresh_from_db()
+        self.assertEqual(self.deletion.status, "processing")
+
+    def test_confirmations_that_match_no_open_job_are_refused(self):
+        self.approve()
+        for bad in (self.confirmation(account_id=str(uuid.uuid4())), self.confirmation(request_id=str(uuid.uuid4()))):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                erasure.confirm(str(uuid.uuid4()), bad)
+        self.assertIsNone(ErasureJob.objects.get().confirmed_at)
+
+    def test_malformed_confirmations_are_refused(self):
+        for bad in (self.confirmation(service="points"), self.confirmation(counts={"Likes": 1}),
+                    self.confirmation(counts={"likes": -1}), self.confirmation(counts={"likes": True}),
+                    self.confirmation(retained=["a", "a"]), self.confirmation(extra=1),
+                    self.confirmation(counts={"email": "person@example.test"})):
+            with self.subTest(bad=bad):
+                self.assertFalse(erasure.valid_confirmation(bad))
+
+    def test_only_erasure_requests_may_enter_the_outbox(self):
+        from django.db import transaction
+        with transaction.atomic():
+            with self.assertRaises(ValueError):
+                events.record_event("privacy.erasure_requested", {"service": "points"})
+            with self.assertRaises(ValueError):
+                events.record_event("account.registered", {"service": "engagement"})
+
+
+class OutsideTransactionTests(SimpleTestCase):
+    def test_an_event_needs_the_business_transaction(self):
+        with self.assertRaises(RuntimeError):
+            events.record_event("privacy.erasure_requested", {"service": "engagement"})
+
+
+class DispatchRoutingTests(TestCase):
+    def test_requests_go_to_the_service_queue_through_its_named_exchange(self):
+        task_name, queue, options = events._destination({"service": "engagement"})
+        self.assertEqual(task_name, "kolovibe.engagement.event")
+        self.assertEqual(options, {"exchange": "kolovibe.engagement", "routing_key": "kolovibe.engagement"})
+        self.assertTrue(queue.no_declare)
+        with self.assertRaises(ValueError):
+            events._destination({"service": "identity"})
+
+    def test_worker_rejects_anything_but_a_confirmation(self):
+        with patch.dict("os.environ", {"KOLOVIBE_ENV": "local",
+                                       "KOLOVIBE_RABBITMQ_URL": "amqps://u:p@localhost:5671/kv"}):
+            from service import celery_app
+        with self.assertRaises(ValueError):
+            celery_app.receive_event.run(str(uuid.uuid4()), "privacy.erasure_requested", {})
+        with patch("service.erasure.confirm", return_value=True) as confirm:
+            self.assertTrue(celery_app.receive_event.run("e", "privacy.erasure_confirmed", {"a": 1}))
+        confirm.assert_called_once_with("e", {"a": 1})

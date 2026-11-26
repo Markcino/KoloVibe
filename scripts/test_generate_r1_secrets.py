@@ -172,6 +172,22 @@ class GeneratorTests(unittest.TestCase):
         self.assertNotIn("points", "".join(gen.BROKER_PERMISSIONS["content"]))
 
 
+class ProposedErasureGrantTests(unittest.TestCase):
+    """Decision C: the proposed Identity broker grants are anchored, least-privilege and NOT yet generated."""
+
+    def test_proposed_grants_are_not_applied_and_stay_narrow(self):
+        self.assertFalse(set(gen.PROPOSED_BROKER_ACCOUNTS) & set(gen.BROKER_ACCOUNTS))
+        self.assertEqual(gen.BROKER_PERMISSIONS["engagement"][1], r"^(kolovibe\.engagement|kolovibe\.points)$",
+                         "the applied Engagement grant is unchanged until the broker plan is approved")
+        for service, grants in gen.PROPOSED_BROKER_PERMISSIONS.items():
+            for pattern in grants:
+                self.assertTrue(pattern.startswith("^") and pattern.endswith("$") and ".*" not in pattern, pattern)
+        configure, write, read = gen.PROPOSED_BROKER_PERMISSIONS["identity"]
+        self.assertEqual((configure, read), (r"^kolovibe\.identity$",) * 2)
+        self.assertIn("kolovibe\\.engagement", write)
+        self.assertNotIn("points", write)
+
+
 class ValidatorRejectionTests(unittest.TestCase):
     def mutate(self, name, change):
         directory, _, _ = generated()

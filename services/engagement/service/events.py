@@ -10,6 +10,11 @@ from django.db import connection, transaction
 SERVICE = "engagement"
 TASK_NAME = f"kolovibe.{SERVICE}.event"
 QUALIFIED_VIEW = "dec003.qualified_view"
+ERASURE_CONFIRMED = "privacy.erasure_confirmed"
+NEXT_EVENT = ("SELECT id,event_type,payload FROM event_outbox WHERE published_at IS NULL "
+              "ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1")
+NEXT_PRIVACY_EVENT = ("SELECT id,event_type,payload FROM event_outbox WHERE published_at IS NULL AND event_type = %s "
+                      "ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1")
 
 def record_event(event_type, payload):
     if not connection.in_atomic_block:
@@ -39,6 +44,8 @@ def _destination(event_type):
 
     if event_type == QUALIFIED_VIEW:
         task_name, name = "kolovibe.points.event", "kolovibe.points"
+    elif event_type == ERASURE_CONFIRMED:  # Decision C: confirmations go back to Identity's own queue
+        task_name, name = "kolovibe.identity.event", "kolovibe.identity"
     else:
         task_name, name = TASK_NAME, f"kolovibe.{SERVICE}"
     queue = Queue(
@@ -50,15 +57,17 @@ def _destination(event_type):
     )
     return task_name, queue, {"exchange": name, "routing_key": name}
 
-def dispatch_one(celery_app):
-    """At-least-once dispatch: publishing may succeed before DB acknowledgment."""
+def dispatch_one(celery_app, privacy_only=False):
+    """At-least-once dispatch: publishing may succeed before DB acknowledgment.
+
+    privacy_only limits the batch to erasure confirmations, which must flow even where local points are disabled.
+    """
     with transaction.atomic():
         with connection.cursor() as cur:
-            cur.execute(
-                "SELECT id,event_type,payload FROM event_outbox "
-                "WHERE published_at IS NULL ORDER BY created_at "
-                "FOR UPDATE SKIP LOCKED LIMIT 1"
-            )
+            if privacy_only:
+                cur.execute(NEXT_PRIVACY_EVENT, [ERASURE_CONFIRMED])
+            else:
+                cur.execute(NEXT_EVENT)
             row = cur.fetchone()
             if row is None:
                 return False

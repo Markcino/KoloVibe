@@ -146,3 +146,23 @@ class OutboxPublishPermissionTests(SimpleTestCase):
             with self.assertRaises(RuntimeError):
                 events.dispatch_one(app)
         self.assertEqual(cursor.execute.call_count, 1)
+
+
+class ErasureConfirmationRoutingTests(SimpleTestCase):
+    def test_confirmations_go_to_identity_through_its_named_exchange(self):
+        task_name, queue, options = events._destination(events.ERASURE_CONFIRMED)
+        self.assertEqual(task_name, "kolovibe.identity.event")
+        self.assertEqual((queue.name, options), ("kolovibe.identity",
+                                                 {"exchange": "kolovibe.identity", "routing_key": "kolovibe.identity"}))
+        self.assertTrue(queue.no_declare)
+
+    def test_privacy_only_dispatch_selects_confirmations(self):
+        app, db = MagicMock(), MagicMock()
+        cursor = db.cursor.return_value.__enter__.return_value
+        cursor.fetchone.return_value = None
+        with patch.object(events, "connection", db), patch.object(events.transaction, "atomic",
+                                                                    return_value=nullcontext()):
+            self.assertFalse(events.dispatch_one(app, privacy_only=True))
+        sql, parameters = cursor.execute.call_args.args
+        self.assertIn("AND event_type = %s", sql)
+        self.assertEqual(parameters, [events.ERASURE_CONFIRMED])
