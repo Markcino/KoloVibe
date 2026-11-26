@@ -207,7 +207,7 @@ class R2MediaTests(TestCase):
         with TemporaryDirectory() as directory:
             environment = self._credentials(directory)
             with patch.dict("os.environ", environment):
-                for bad in (("PUT", "originals/../x.mp4", 60), ("POST", key, 60), ("PUT", key, 0),
+                for bad in (("PUT", "originals/../x.mp4", 60), ("DELETE", key, 60), ("PUT", key, 0),
                             ("PUT", key, 604801), ("PUT", f"other/{uuid4()}.mp4", 60),
                             ("PUT", f"posters/{uuid4()}/{uuid4()}.mp4", 60), ("GET", f"posters/{uuid4()}.jpg", 60)):
                     with self.subTest(bad), self.assertRaises(media_storage.StorageUnavailable):
