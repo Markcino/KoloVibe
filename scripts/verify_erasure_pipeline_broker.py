@@ -6,7 +6,8 @@ PROPOSED Identity broker account. The production workers erase that account's da
 confirmations, which each dispatcher publishes with that service's proposed account. The production Identity worker
 marks each job confirmed; the Creators confirmation also releases the Moderation and Content requests, carrying the
 creator profile id, which Identity then publishes and those services answer the same way. Content runs on its real
-media worker; only its R2 bucket is a file-backed stand-in that records each removed key. The proposed grants (generate_r1_secrets.PROPOSED_BROKER_PERMISSIONS) are proven least-privilege on the same broker.
+media worker; only its R2 bucket is a file-backed stand-in that records each removed key. The proposed grants
+(generate_r1_secrets.PROPOSED_BROKER_PERMISSIONS) are proven least-privilege on the same broker.
 
 It runs on disposable infrastructure only and changes nothing on staging. Needs PostgreSQL and RabbitMQ binaries, an
 unprivileged user and a free loopback port 5671. Run from the repository root:
