@@ -40,16 +40,27 @@ Every result below comes from commands run in this session against AWS staging (
 | Migration plans | One-shot jobs cloned from the v0.531.1 migration jobs (same migration logins, secrets, networks and placement, new image): Identity plans only `0016_erasure_creator_id` (add nullable `creator_id`); Content plans only `0013_message_ledgers` (a SQLite-only `RunPython`; on PostgreSQL the tables already exist from `schema_isolation.sql`, verified) |
 | Scheduling | The jobs could not start: VM2 CPU reservations are **2000m of 2000m** (D13-004). The one-shot jobs were given a zero CPU *reservation* (their 1-CPU limit kept); no running service was changed |
 | Migrations applied | **Identity `0016` OK (17:06 UTC), Content `0013` OK (17:07 UTC)**, both by the service-owned `_migrate` logins. Additive only; the running v0.531.1 code is unaffected |
-| API rollout (tool `update`) | **PENDING.** The tool requires a GHCR `read:packages` token typed at a hidden prompt (`--registry-user`), which only the operator may enter. The ready-to-run command re-creates fresh worker evidence first (the tool rechecks the five-minute window after the prompt). Nothing was changed by the attempt; the services are still on v0.531.1 |
-| Jobs, media worker, web | **PENDING**, after the APIs (they share the release; the tool moves only the services image) |
+| API rollout (tool `update`) | **DONE, 17:30–17:37 UTC.** The owner typed the GHCR token at the tool's hidden prompt (the session may not); fresh worker evidence was created immediately before. The tool updated audit, identity, creators, content, engagement, points, moderation, then gateway, each stop-first with a 30 s monitor; no pause or rollback. Rollback record written first on VM1 |
+| Tool `verify-worker` (all eight) | 113 PASS, 8 FAIL. All 8 are Gateway "gate" checks that still expect the 1 November baseline with accounts **off** (403); with accounts on since 10 November the correct anonymous answers are 400/401. Verifier expectation drift, not a service fault (D13-008) |
+| Jobs, media worker, web | **DONE, 17:38–17:55 UTC**, one at a time with `docker service update --image <digest> --no-resolve-image` (as in earlier waves; the tool moves only the APIs), stop-first, 120 s monitor, roll back on failure. Each service now carries `kolovibe.source-revision=38d0380…` and a matching pin-proof label, so the tool can verify it next time |
 
-**Current deployed state:** v0.531.1 images with the v0.542.1 database schema. This combination is safe (additive changes) but v0.542.1 is **not deployed**.
+**Current deployed state (17:55 UTC): v0.542.1 on all 16 application services**, schema at Identity `0016` and Content `0013`.
+
+| Post-deployment check | Result |
+| --- | --- |
+| Digests | 8 APIs and 6 jobs `services@sha256:ab9c0e0d…`; media worker `media-worker@sha256:247b7dfb…`; web `web@sha256:d94fd230…`; all 1/1 |
+| Restarts | No failed or rejected task since the rollout |
+| Logs (30 min, 16 services) | No error, exception or traceback lines |
+| RabbitMQ | 3 queues, each 1 consumer, 0 messages |
+| Edge | Credential-free probes 63/63 PASS; smoke: API `/health/live`, feed (3 items, `items`/`next_cursor`), terms, privacy; console `/health/live`, `/login/`, moderator invitation: all 200 |
+| Audit backlog | Unchanged by the rollout: Points 11 pending (D13-001), Content 6 (D13-002); Identity and Moderation 0 |
+| Left in place | The completed one-shot jobs `kolovibe-v05421-migrate-identity` and `-content` (record of the migration, like the v0.531.1 ones); `kolovibe-r1-jobs_media-worker` stays 0/0 on its old digest, as before (superseded by `kolovibe-media-worker`) |
 
 ## 4. Tests executed
 
-### 4.1 Staging, credential-free black-box (v0.531.1)
+### 4.1 Staging, credential-free black-box
 
-Script kept with the session evidence; it sends no credentials. **63 run, 63 PASS, 0 FAIL.**
+Script kept with the session evidence; it sends no credentials. **63 run, 63 PASS, 0 FAIL** on v0.531.1 before the rollout and again on v0.542.1 after it.
 
 | Group | Checks | Result |
 | --- | --- | --- |
@@ -107,6 +118,7 @@ Script kept with the session evidence; it sends no credentials. **63 run, 63 PAS
 | D13-004 | P2 | VM2 has no CPU reservation headroom | **Confirmed:** reservations total 2000m of 2000m (memory 2.3 of 3.8 GiB). No extra task (migration job, Business, erasure or maintenance workers) can be scheduled without stopping a service; the v0.531.1 rollout scaled the stack to zero | OPEN, capacity decision | [#274](https://github.com/Markcino/KoloVibe/issues/274) |
 | D13-005 | P2 | Release rolled out outside the reviewed tool with stale labels | **Confirmed:** v0.531.1 services keep v0.341.1 labels; the jobs stack label still names v0.205.1 | Tool unblocked by #269/#270; process OPEN | #269 |
 | D13-006 | P1 | `main` cannot publish a release: Flutter CI fails | **Confirmed:** `d9993ea` regenerated `apps/mobile/pubspec.lock` with Flutter 3.50.1; CI pins 3.47.8, whose SDK pins `test_api` 0.7.12, so `pub get --enforce-lockfile` fails. The publish job needs the Flutter job | OPEN | [#275](https://github.com/Markcino/KoloVibe/issues/275) |
+| D13-008 | P3 | Cluster tool `verify-worker` gate checks assume accounts are off | **Confirmed:** `public_tests` expects 403 on `/api/v1/auth/*`, `/api/v1/me` and `POST /api/v1/videos`; live staging has accounts on, so 400/401 are correct. Make the expectations follow the profile's flag table | OPEN | this record |
 | D13-007 | P2 | Video stuck in `processing` since 21 November | **Under investigation:** source uploaded, no lease, no requeue job running (`content-requeue` is off pending O-12). Next step: read the media worker's history for that job id and run the documented requeue command once | OPEN | [#149](https://github.com/Markcino/KoloVibe/issues/149) |
 | D12-001 | P2 | Per-client limits inert | Repository fix not deployed on staging (section 4.2) | OPEN on staging | [#151](https://github.com/Markcino/KoloVibe/issues/151) |
 | D11-002 | — | Runtime logins could disable append-only guards | Verified fixed on staging (section 4.2) | **Verified on staging** | [#146](https://github.com/Markcino/KoloVibe/issues/146) |
@@ -125,7 +137,7 @@ Script kept with the session evidence; it sends no credentials. **63 run, 63 PAS
 | Area | Verdict | Basis |
 | --- | --- | --- |
 | Infrastructure readiness | **FAIL** | Healthy and private, but no CPU headroom (D13-004), no backup/restore drill, no alerting |
-| Deployment readiness | **BLOCKED** | Images verified and migrations applied; service rollout waits for the operator's registry token |
+| Deployment readiness | **PASS** | v0.542.1 verified, migrated and deployed on all 16 services through the reviewed tool and the established worker procedure; post-deployment checks clean. Caveats D13-004 (no headroom) and D13-008 (verifier drift) |
 | Backend readiness | **FAIL** | D13-001, D13-002, D13-003 |
 | Flutter readiness | **NOT TESTED** on staging; local run blocked by disk; CI broken (D13-006) |
 | Administration dashboard readiness | **NOT TESTED** beyond anonymous redirect, CSRF and header checks |

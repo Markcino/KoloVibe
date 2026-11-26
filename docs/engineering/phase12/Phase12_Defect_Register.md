@@ -19,7 +19,7 @@
 
 ### Staging verification, 26 November 2026
 
-Findings and status changes from the [26 November AWS staging verification](../../operations/R1_AWS_Staging_Verification_2026-11-26.md) (live v0.531.1 with the v0.542.1 schema). New defects take the D13 prefix; root causes and acceptance criteria are in each issue.
+Findings and status changes from the [26 November AWS staging verification](../../operations/R1_AWS_Staging_Verification_2026-11-26.md) (v0.542.1 deployed on all 16 services that evening). New defects take the D13 prefix; root causes and acceptance criteria are in each issue.
 
 | ID | Sev. | Class | Status | Issue |
 | --- | --- | --- | --- | --- |
@@ -33,6 +33,7 @@ Findings and status changes from the [26 November AWS staging verification](../.
 | D13-004 | P2 | Infrastructure capacity | OPEN: VM2 CPU reservations 2000m of 2000m | #274 |
 | D13-005 | P2 | Release process | Tool unblocked by #269 and #270; process OPEN (roll out only through the reviewed tool, which stamps labels) | #269 |
 | D13-006 | P1 | CI / release | OPEN: `pubspec.lock` from `d9993ea` fails pinned Flutter 3.47.8; publish blocked | #275 |
+| D13-008 | P3 | Tooling | OPEN: `verify-worker` gate checks expect accounts off; 8 false failures on the Gateway | record |
 | D13-007 | P2 | Reliability | UNDER INVESTIGATION: one video in `processing` since 21 Nov | #149 |
 
 ## 2. Triage and root cause

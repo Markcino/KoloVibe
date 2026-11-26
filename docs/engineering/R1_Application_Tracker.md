@@ -4,7 +4,7 @@
 
 ## Staging checkpoint — 26 November 2026
 
-Live AWS staging runs **v0.531.1** (source `677eec3a`, rolled out that day outside the cluster tool) with the **v0.542.1** schema migrations (Identity 0016, Content 0013) applied. The v0.542.1 images (`38d0380`) are verified and pulled on VM2; their service rollout waits for the operator's registry token. Evidence, test results (63/63 edge probes; local journeys 11/11, event pipeline 8/8) and new defects D13-001 to D13-007 (#271 to #275, #149): [AWS staging verification](../operations/R1_AWS_Staging_Verification_2026-11-26.md). The v0.357.1 section below is historical.
+Live AWS staging runs **v0.542.1** (source `38d0380`, CI run 542) on all 16 application services, deployed 26 November through the reviewed cluster tool (APIs) and the established worker procedure (jobs, media worker, web), after migrations Identity 0016 and Content 0013. It replaced v0.531.1, which had been rolled out earlier that day outside the tool. Evidence, test results (63/63 edge probes; local journeys 11/11, event pipeline 8/8) and new defects D13-001 to D13-007 (#271 to #275, #149): [AWS staging verification](../operations/R1_AWS_Staging_Verification_2026-11-26.md). The v0.357.1 section below is historical.
 
 ## Release checkpoint — v0.357.1 (23 November, historical)
 

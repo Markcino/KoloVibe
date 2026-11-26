@@ -2,7 +2,7 @@
 
 **Read this file first when resuming.** Then check the repository state (`git log origin/main`, open PRs) before continuing. This tracker covers the owner's mandate "Complete application reverification, development completion, testing and final acceptance", in its 25 November 2026 form. The mandate was re-issued that day; this file continues the existing work and does not restart it.
 
-Updated: 26 November 2026, `main` at `68d8df6`. A staging deployment and verification ran that evening ([record](../../operations/R1_AWS_Staging_Verification_2026-11-26.md)): live staging is **v0.531.1** with the v0.542.1 schema migrations applied; the v0.542.1 service rollout waits for the operator's registry token. Earlier that day a first simulator test of the app ran that day against a local stack ([results](simulator-run-2026-11-26/results.md)). The mandate was re-issued again that day as "Continue verified end-to-end development, final design and acceptance"; this file continues under it. **Production is NO-GO.** Nothing in this file is deployed to staging unless a row says so.
+Updated: 26 November 2026, `main` at `68d8df6`. A staging deployment and verification ran that evening ([record](../../operations/R1_AWS_Staging_Verification_2026-11-26.md)): **v0.542.1 is deployed on all 16 staging services** (migrations Identity 0016 and Content 0013 applied). Earlier that day a first simulator test of the app ran that day against a local stack ([results](simulator-run-2026-11-26/results.md)). The mandate was re-issued again that day as "Continue verified end-to-end development, final design and acceptance"; this file continues under it. **Production is NO-GO.** Nothing in this file is deployed to staging unless a row says so.
 
 ## Where the other records live
 
@@ -47,7 +47,7 @@ The phase statuses are NOT STARTED, IN PROGRESS, COMPLETED, FAILED and BLOCKED.
 | 05 Flutter | IN PROGRESS | Done alongside each work package |
 | 06 Web and administration | IN PROGRESS | Done alongside each work package |
 | 07 Security hardening | NOT STARTED | Run as a dedicated pass |
-| 08 Infrastructure and DevSecOps | IN PROGRESS | 26 November: staging access used; v0.542.1 images verified and its two migrations applied; service rollout pending the registry token. Open: #271 to #275, D12-001 undeployed |
+| 08 Infrastructure and DevSecOps | IN PROGRESS | 26 November: staging access used; v0.542.1 verified, migrated and deployed on all 16 services. Open: #271 to #275, D12-001 undeployed |
 | 09 Completeness gate | NOT STARTED | Starts only when 03 to 06 are complete |
 | 10 to 14 Testing, defects, regression, staging, acceptance | NOT STARTED | Starts only after the gate passes |
 
@@ -118,7 +118,7 @@ What it shows: the account lifecycle, discovery, likes, follows, reports, creato
 
 ## Next executable task
 
-**Staging first (26 November):** the operator runs the prepared v0.542.1 rollout (registry token at the tool's prompt), then the jobs, media worker and web; then fix #275 so `main` can publish again, and decide #271 (Points key) and #274 (capacity) before #272 and #273.
+**Staging first (26 November):** v0.542.1 is deployed; fix #275 so `main` can publish again, and decide #271 (Points key) and #274 (capacity) before #272 and #273.
 
 
 Build the static policies and account-deletion request page (item 2a), then continue with decision C (privacy processing, ADR-020).
