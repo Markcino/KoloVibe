@@ -1,4 +1,4 @@
-"""Decision C slice 2a: erasure jobs open with an approval, and confirmations apply once."""
+"""Decision C slices 2a and 2b: erasure jobs open with an approval, and confirmations apply once."""
 import json
 import uuid
 from unittest.mock import patch
@@ -34,12 +34,14 @@ class ErasureTests(TestCase):
 
     def test_approval_opens_one_job_and_one_event_per_service(self):
         target = self.approve()
-        self.assertEqual(list(ErasureJob.objects.values_list("service", flat=True)), list(events.ERASURE_SERVICES))
-        self.assertEqual(self.outbox(), [("privacy.erasure_requested",
-                                          {"request_id": target, "account_id": str(self.person.id),
-                                           "service": "engagement"})])
+        self.assertEqual(set(ErasureJob.objects.values_list("service", flat=True)),
+                         {"engagement", "creators", "moderation"})
+        self.assertEqual(sorted(self.outbox(), key=lambda row: row[1]["service"]),
+                         [("privacy.erasure_requested", {"request_id": target, "account_id": str(self.person.id),
+                                                         "service": service})
+                          for service in ("creators", "engagement", "moderation")])
         self.call("approve-deletion", id=target)
-        self.assertEqual(len(self.outbox()), 1, "repeating the approval opens nothing more")
+        self.assertEqual(len(self.outbox()), 3, "repeating the approval opens nothing more")
 
     def test_a_refused_approval_opens_nothing(self):
         self.call("start-review", id=str(self.deletion.id))
@@ -51,7 +53,7 @@ class ErasureTests(TestCase):
         self.approve()
         event = str(uuid.uuid4())
         self.assertTrue(erasure.confirm(event, self.confirmation()))
-        job = ErasureJob.objects.get()
+        job = ErasureJob.objects.get(service="engagement")
         self.assertIsNotNone(job.confirmed_at)
         self.assertEqual((job.counts, job.retained), ({"likes": 3, "follows": 1}, ["qualified_watches"]))
         self.assertFalse(erasure.confirm(event, self.confirmation()), "the same event is applied once")
@@ -64,7 +66,7 @@ class ErasureTests(TestCase):
         for bad in (self.confirmation(account_id=str(uuid.uuid4())), self.confirmation(request_id=str(uuid.uuid4()))):
             with self.subTest(bad=bad), self.assertRaises(ValueError):
                 erasure.confirm(str(uuid.uuid4()), bad)
-        self.assertIsNone(ErasureJob.objects.get().confirmed_at)
+        self.assertFalse(ErasureJob.objects.filter(confirmed_at__isnull=False).exists())
 
     def test_malformed_confirmations_are_refused(self):
         for bad in (self.confirmation(service="points"), self.confirmation(counts={"Likes": 1}),

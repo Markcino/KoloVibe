@@ -186,6 +186,11 @@ class ProposedErasureGrantTests(unittest.TestCase):
         self.assertEqual((configure, read), (r"^kolovibe\.identity$",) * 2)
         self.assertIn("kolovibe\\.engagement", write)
         self.assertNotIn("points", write)
+        for service in ("creators", "moderation"):
+            self.assertIn(f"kolovibe\\.{service}", write, "Identity may send erasure requests there")
+            own = rf"^kolovibe\.{service}$"
+            self.assertEqual(gen.PROPOSED_BROKER_PERMISSIONS[service],
+                             (own, rf"^(kolovibe\.{service}|kolovibe\.identity)$", own))
 
 
 class ValidatorRejectionTests(unittest.TestCase):
