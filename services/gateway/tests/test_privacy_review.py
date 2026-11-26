@@ -18,7 +18,7 @@ class PrivacyReviewGatewayTests(SimpleTestCase):
         self.target, self.account = str(uuid4()), str(uuid4())
         self.row = {"id": self.target, "account_id": self.account, "kind": "deletion", "status": "in_review",
                     "created_at": "2026-11-26T10:00:00+00:00", "review_started_at": "2026-11-26T11:00:00+00:00",
-                    "decided_at": None, "decline_code": None, "held": False}
+                    "decided_at": None, "decline_code": None, "held": False, "erasure": []}
         self.hold = {"id": str(uuid4()), "account_id": self.account, "reason_code": "LEGAL_CLAIM",
                      "note": "Open dispute", "placed_by": str(uuid4()), "placed_at": "2026-11-26T11:00:00Z",
                      "released_at": None}
@@ -70,7 +70,12 @@ class PrivacyReviewGatewayTests(SimpleTestCase):
 
     def test_answers_are_checked(self):
         for wrong in ({"status": "erased"}, {"decline_code": "WITHDRAWN"}, {"held": "no"},
-                      {"created_at": "2026-11-26T10:00:00"}, {"extra": 1}):
+                      {"created_at": "2026-11-26T10:00:00"}, {"extra": 1}, {"erasure": None},
+                      {"erasure": [{"service": "finance", "confirmed": True, "retained": []}]},
+                      {"erasure": [{"service": "content", "confirmed": "yes", "retained": []}]},
+                      {"erasure": [{"service": "content", "confirmed": True, "retained": ["Person Name"]}]},
+                      {"erasure": [{"service": "content", "confirmed": True, "retained": [], "counts": {}}]},
+                      {"erasure": [{"service": "content", "confirmed": False, "retained": []}] * 2}):
             request = self.factory.generic("POST", "/x")
             response, _ = self.send(review.step, request, Response(200, json.dumps(self.row | wrong).encode()),
                                     operation="review", target_id=self.target)
@@ -79,6 +84,14 @@ class PrivacyReviewGatewayTests(SimpleTestCase):
                                 Response(200, json.dumps({"items": [self.hold | {"reason_code": "X"}]}).encode()),
                                 target_id=self.account)
         self.assertEqual(response.status_code, 503)
+
+    def test_erasure_progress_passes_through(self):
+        row = self.row | {"status": "processing", "erasure": [
+            {"service": "creators", "confirmed": True, "retained": ["measures"]},
+            {"service": "content", "confirmed": False, "retained": []}]}
+        response, _ = self.send(review.step, self.factory.generic("POST", "/x"), Response(200, json.dumps(row).encode()),
+                                operation="review", target_id=self.target)
+        self.assertEqual((response.status_code, json.loads(response.content)), (200, row))
 
     def test_a_conflict_code_from_identity_reaches_the_console(self):
         error = HTTPError("http://identity", 409, "Conflict", {}, io.BytesIO(json.dumps(
