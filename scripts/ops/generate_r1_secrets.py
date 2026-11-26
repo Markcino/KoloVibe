@@ -36,6 +36,16 @@ BROKER_PERMISSIONS = {
     "engagement": (r"^kolovibe\.engagement$", r"^(kolovibe\.engagement|kolovibe\.points)$", r"^kolovibe\.engagement$"),
     "points": (r"^kolovibe\.points$",) * 3,
 }
+# Decision C (account erasure) staging delta, PROPOSED and not applied: nothing here generates a secret or changes a
+# staging grant. Identity would own its confirmation queue and only WRITE erasure requests to Engagement's exchange;
+# Engagement would also WRITE confirmations to Identity's exchange. scripts/verify_event_pipeline_broker.py proves
+# these grants on a disposable broker. Applying them to staging needs the owner's approved broker plan.
+PROPOSED_BROKER_ACCOUNTS = {"identity": "kolovibe_identity"}
+PROPOSED_BROKER_PERMISSIONS = {
+    "identity": (r"^kolovibe\.identity$", r"^(kolovibe\.identity|kolovibe\.engagement)$", r"^kolovibe\.identity$"),
+    "engagement": (r"^kolovibe\.engagement$", r"^(kolovibe\.engagement|kolovibe\.points|kolovibe\.identity)$",
+                   r"^kolovibe\.engagement$"),
+}
 RECEIVERS = ("identity", "content", "creators", "engagement", "points", "moderation")
 ALL_CAPS = frozenset(policy.CAPABILITIES) - {"audit_read"}
 APPROVAL_REFERENCES = ("identity", "smtp", "credentials", "transport", "mfa", "audit")

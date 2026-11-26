@@ -12,11 +12,13 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         limit = options["limit"]
-        if not settings.LOCAL_POINTS_ENABLED or not 1 <= limit <= 1000:
-            raise CommandError("Enable local points and use a batch limit from 1 to 1000")
+        if not 1 <= limit <= 1000:
+            raise CommandError("Use a batch limit from 1 to 1000")
         from ...celery_app import app
 
+        # Without local points only erasure confirmations (Decision C) are sent; points events stay in the outbox.
+        privacy_only = not settings.LOCAL_POINTS_ENABLED
         sent = 0
-        while sent < limit and dispatch_one(app):
+        while sent < limit and dispatch_one(app, privacy_only=privacy_only):
             sent += 1
         self.stdout.write(f"Dispatched {sent} engagement events")

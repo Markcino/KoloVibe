@@ -21,12 +21,13 @@ When a deletion is approved, every service removes or de-identifies the personal
 ## Mechanism
 
 1. **Jobs.** Approval creates one erasure job per participating service, in the same Identity transaction that deactivates the account. It also records one outbox event per job, `privacy.erasure_requested`, carrying `{request_id, account_id}` and nothing else.
-2. **Dispatch.** An Identity dispatcher publishes each event to that service's own privacy queue, `kolovibe.<service>.privacy`. It uses the existing outbox pattern: publish, then mark sent; at-least-once delivery.
-   - Identity gets a broker account that may *write* only to those exchanges, and *read* only `kolovibe.identity.privacy`.
+2. **Dispatch.** An Identity dispatcher (`dispatch_identity_events`) publishes each event to that service's existing queue, for example `kolovibe.engagement`. It uses the existing outbox pattern: publish, then mark sent; at-least-once delivery.
+   - Identity gets a broker account that may *write* only to those exchanges, and *read* only `kolovibe.identity`.
+   - The grants are in `generate_r1_secrets.PROPOSED_BROKER_PERMISSIONS`. They are proposed and not applied to staging.
 3. **Erasure in each service.** A consumer takes the message once, through its idempotent inbox.
    - It applies its own policy table (below) in one transaction.
    - In the same transaction it records `privacy.erasure_confirmed`: `{request_id, service, counts per category, retained categories}`.
-   - It publishes that confirmation to `kolovibe.identity.privacy`.
+   - It publishes that confirmation to `kolovibe.identity`.
    - Running it twice changes nothing and confirms again.
 4. **Completion.** An Identity consumer marks each job confirmed.
    - When all jobs are confirmed and none retained a pending category, Identity erases its own records (next section) and sets the request to `completed`.
@@ -73,10 +74,10 @@ What remains is an opaque UUID. It is still needed to prove which terms version 
 
 ## Delivery in slices
 
-- **2a:** the Identity outbox, jobs, dispatcher and confirmation consumer, plus one participating service, Engagement (likes, follows, shares and watch sessions). Proven against a real local RabbitMQ over TLS, like `scripts/verify_event_pipeline_broker.py`.
+- **2a (built):** the Identity outbox, jobs, dispatcher and confirmation worker, plus one participating service, Engagement (likes, follows, shares and watch sessions). Proven end to end on a real local RabbitMQ over TLS by `scripts/verify_erasure_pipeline_broker.py`.
 - **2b:** Creators and Moderation.
 - **2c:** Content, including R2 object removal through the media worker, with the fake object store locally.
 - **2d:** Business, limited to categories that need no pending decision.
 - **2e:** Identity's own de-identification, completion, the restore re-apply command, and the console's "waiting on" view.
 
-Staging needs new broker accounts and queues for Identity, Creators, Moderation and Business. That is a broker change, so it needs an approved staging plan before it is applied. The repository side (the secrets generator, the permissions table and the verification script) changes with each slice.
+Staging needs new broker accounts and queues for Identity, Creators, Moderation and Business, worker and dispatch roles in `staging_runtime/roles.py`, and the secrets and stack entries for them. That is a broker change, so it needs an approved staging plan before it is applied. The repository side (the secrets generator, the permissions table and the verification script) changes with each slice.

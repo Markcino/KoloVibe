@@ -208,6 +208,25 @@ class PrivacyRequest(models.Model):
         ]
 
 
+class ErasureJob(models.Model):
+    """One service's part of an approved deletion (Decision C slice 2a).
+
+    `counts` is what the service removed per category; `retained` names categories it kept because their handling
+    still waits on a retention decision. Both are category names and numbers only, never personal data.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    request = models.ForeignKey(PrivacyRequest, on_delete=models.PROTECT, related_name="erasure_jobs")
+    service = models.CharField(max_length=16)
+    created_at = models.DateTimeField(auto_now_add=True)
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+    counts = models.JSONField(default=dict)
+    retained = models.JSONField(default=list)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["request", "service"], name="one_erasure_job_per_service")]
+
+
 class AccountHold(models.Model):
     """A legal or investigative hold that stops an account's deletion from being approved (Decision C).
 

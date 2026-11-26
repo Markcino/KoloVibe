@@ -26,7 +26,7 @@ KINDS = {
     "account.legal_accepted", "account.marketing_consent_changed",
     "account.privacy_requests_listed", "account.privacy_review_started", "account.privacy_request_declined",
     "account.privacy_deletion_approved", "account.privacy_hold_placed", "account.privacy_hold_released",
-    "account.privacy_review_denied", "account.deactivated",
+    "account.privacy_review_denied", "account.deactivated", "account.privacy_erasure_confirmed",
     "login.failed", "login.throttled",
     "login.succeeded", "mfa.challenge", "mfa.failed", "mfa.enrolled",
     "mfa.succeeded", "mfa.recovery_used", "session.rotated", "session.replay",

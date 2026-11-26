@@ -20,6 +20,7 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 
+from . import erasure
 from .accounts import _body, _error, _locked_account, _session_for_access
 from .mfa import privileged_enabled
 from .models import Account, AccountHold, LoginSession, PrivacyRequest
@@ -169,6 +170,7 @@ def _approve_deletion(administrator, data, now):
     account.is_active = False
     account.save(update_fields=["is_active"])
     LoginSession.objects.filter(account=account, revoked_at__isnull=True).update(revoked_at=now)
+    erasure.open_jobs(item)
     record("account.privacy_deletion_approved", administrator.id)
     record("account.deactivated", account.id)
     item.refresh_from_db()
