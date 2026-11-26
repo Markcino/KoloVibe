@@ -21,7 +21,7 @@ When a deletion is approved, every service removes or de-identifies the personal
 ## Mechanism
 
 1. **Jobs.** Approval creates one erasure job per participating service, in the same Identity transaction that deactivates the account. It also records an outbox event, `privacy.erasure_requested`, carrying `{request_id, account_id}` and nothing else, for each job that can start at once.
-   - Moderation (and, in 2c, Content) key a creator's records by the creator profile id, which only Creators knows, and Creators deletes the profile while it erases. Their requests are therefore recorded only when Creators confirms, and carry the profile id Creators reported, or null for someone who was never a creator.
+   - Moderation and Content key a creator's records by the creator profile id, which only Creators knows, and Creators deletes the profile while it erases. Their requests are therefore recorded only when Creators confirms, and carry the profile id Creators reported, or null for someone who was never a creator.
 2. **Dispatch.** An Identity dispatcher (`dispatch_identity_events`) publishes each event to that service's existing queue, for example `kolovibe.engagement`. It uses the existing outbox pattern: publish, then mark sent; at-least-once delivery.
    - Identity gets a broker account that may *write* only to those exchanges, and *read* only `kolovibe.identity`.
    - The grants are in `generate_r1_secrets.PROPOSED_BROKER_PERMISSIONS`. They are proposed and not applied to staging.
@@ -59,8 +59,9 @@ What remains is an opaque UUID. It is still needed to prove which terms version 
 | Identity | Legal acceptances, marketing consent history, privacy requests, holds | Retain as evidence | Retention period (ADR-020) |
 | Creators | Creator profile (handle, name, location, bio), application, copyright review grant, onboarding events | Delete the application and the grant. Delete the profile, or, when measures point at it (`PROTECT`), keep the row de-identified: a meaningless handle, no name, location or bio, status `suspended`. De-identify onboarding events. Creators stores no photo | None |
 | Creators | Measures, appeals, and the append-only audit trail | Retain as enforcement evidence | Retention period |
-| Content | Videos, media objects in R2, metadata revisions, upload records | Delete, including the R2 objects through the media worker | None |
-| Content | Originality attestations, fingerprints, rights events | Retain as copyright evidence | Retention period, copyright counsel |
+| Content | Videos, media objects in R2, metadata revisions, upload records | Remove the R2 objects (original, rendition, poster) through the media worker first; then delete metadata revisions and upload records. Each video row is kept but emptied (no title, description, tags, category, cover or storage keys; `removed`, private, deleted), because attestations, prescreening and claim states point at it with `PROTECT` | None |
+| Content | Older renditions and posters no row points at | Removed by the media lifecycle rule; reported as retained until it exists | **RV2-04** (lifecycle rule) |
+| Content | Originality attestations, prescreen results, copyright claim states, fingerprints, rights events, screening records, source digests, moderation receipts, the append-only audit trail | Retain as copyright and safety evidence | Retention period, copyright counsel |
 | Engagement | Likes, follows, shares, watch sessions | Delete (counts drop accordingly) | None |
 | Engagement | Qualified watches, fraud holds | De-identify (Points evidence and abuse records) | Retention period |
 | Points | Ledger entries, receipts, daily counts | Retain (append-only ledger; non-cash) | Retention period; whether a closed account's ledger is pseudonymized |
@@ -78,7 +79,7 @@ What remains is an opaque UUID. It is still needed to prove which terms version 
 
 - **2a (built):** the Identity outbox, jobs, dispatcher and confirmation worker, plus one participating service, Engagement (likes, follows, shares and watch sessions). Proven end to end on a real local RabbitMQ over TLS by `scripts/verify_erasure_pipeline_broker.py`.
 - **2b (built):** Creators and Moderation, each with its own outbox, inbox, worker and dispatcher (`dispatch_creators_events`, `dispatch_moderation_events`). The same real-broker script proves all three services end to end and the proposed grants least-privilege.
-- **2c:** Content, including R2 object removal through the media worker, with the fake object store locally.
+- **2c (built):** Content on its media worker, which alone holds the R2 credentials, removing objects before any database change. The real-broker script runs the real media worker with a file-backed stand-in for the bucket. Real R2 deletion also needs the staging R2 token to allow `DELETE`, which is not yet verified.
 - **2d:** Business, limited to categories that need no pending decision.
 - **2e:** Identity's own de-identification, completion, the restore re-apply command, and the console's "waiting on" view.
 

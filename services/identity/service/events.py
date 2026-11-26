@@ -17,11 +17,13 @@ SERVICE = "identity"
 QUEUE = "kolovibe.identity"
 ERASURE_REQUESTED = "privacy.erasure_requested"
 ERASURE_CONFIRMED = "privacy.erasure_confirmed"
-# Decision C: the services that erase their own data, in the order they were added (2a, then 2b).
-ERASURE_SERVICES = ("engagement", "creators", "moderation")
-# Moderation (and later Content) key a creator's records by the creator profile id, which only Creators knows.
+# Decision C: the services that erase their own data, in the order they were added (2a, 2b, then 2c).
+ERASURE_SERVICES = ("engagement", "creators", "moderation", "content")
+# Moderation and Content key a creator's records by the creator profile id, which only Creators knows.
 # Identity asks them only after Creators has confirmed, passing on the profile id Creators reported.
-AFTER_CREATORS = ("moderation",)
+AFTER_CREATORS = ("moderation", "content")
+# Content erases on its media worker, the only Content process with R2 access, so its requests use that queue.
+QUEUES = {"content": "kolovibe.content.media"}
 INSERT_POSTGRES = "INSERT INTO event_outbox (id,event_type,payload) VALUES (%s,%s,%s::jsonb)"
 INSERT_SQLITE = "INSERT INTO event_outbox (id,event_type,payload) VALUES (%s,%s,%s)"  # the test fixture has no jsonb
 
@@ -44,7 +46,7 @@ def _destination(payload):
     service = payload.get("service") if isinstance(payload, dict) else None
     if service not in ERASURE_SERVICES:
         raise ValueError("Unknown erasure destination")
-    name = f"kolovibe.{service}"
+    name = QUEUES.get(service, f"kolovibe.{service}")
     queue = Queue(name, exchange=Exchange(name, type="direct", durable=True, no_declare=True), routing_key=name,
                   durable=True, no_declare=True)
     return f"kolovibe.{service}.event", queue, {"exchange": name, "routing_key": name}

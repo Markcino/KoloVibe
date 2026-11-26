@@ -215,6 +215,15 @@ def put_poster(key, path):
         pass
 
 
+def delete_object(key):
+    """Remove one private object (Decision C erasure). An object that is already gone counts as removed."""
+    try:
+        with _request("DELETE", key):
+            pass
+    except ObjectMissing:
+        pass
+
+
 def read_preview(key):
     """Bounded private MP4 proxy; storage destinations never reach the browser."""
     with _request("GET", key) as response:

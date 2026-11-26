@@ -1,6 +1,6 @@
-"""Child-process steps for scripts/verify_erasure_pipeline_broker.py (Decision C slices 2a and 2b).
+"""Child-process steps for scripts/verify_erasure_pipeline_broker.py (Decision C slices 2a to 2c).
 
-Usage: python scripts/erasure_pipeline_steps.py <identity|engagement|creators|moderation> <step> '<json arguments>'
+Usage: python scripts/erasure_pipeline_steps.py <identity|engagement|creators|moderation|content> <step> '<json arguments>'
 Each step runs one service's real code against its own disposable PostgreSQL schema and prints one JSON line.
 """
 import json
@@ -136,6 +136,12 @@ def creators_seed(arguments):
     return {}
 
 
+def creators_profile(arguments):
+    from service.models import CreatorProfile
+
+    return {"creator_id": str(CreatorProfile.objects.get(user_id=arguments["account_id"]).id)}
+
+
 def creators_dispatch_real(arguments):
     from service import events
     from service.celery_app import app
@@ -193,6 +199,58 @@ def moderation_worker(arguments):
     from staging_runtime import roles
 
     roles.run_celery("service.celery_app:app", "kolovibe.moderation")
+    return {}
+
+
+def _bucket(arguments):
+    """A file-backed stand-in for the private R2 bucket: the worker records each removed key where steps can read it."""
+    from pathlib import Path
+
+    return Path(arguments["bucket"])
+
+
+def content_seed(arguments):
+    from django.utils import timezone
+    from service.models import MediaUpload, OriginalityAttestation, Video
+
+    for creator, account in ((arguments["creator_id"], arguments["account_id"]), (str(uuid.uuid4()), arguments["other_id"])):
+        upload = uuid.uuid4()
+        video = Video.objects.create(creator_id=creator, title="A song", state="published", visibility="public",
+                                     provider_asset_id=f"playback/{upload}/{uuid.uuid4()}.mp4",
+                                     moderation_approved_at=timezone.now(), rights_status="attested")
+        MediaUpload.objects.create(id=upload, video=video, expected_bytes=10, expires_at=timezone.now())
+        OriginalityAttestation.objects.create(upload_id=upload, video=video, account_id=account, version="v1")
+    return {}
+
+
+def content_dispatch_real(arguments):
+    from service import events
+    from service.media_tasks import app
+
+    return _dispatch(events.dispatch_one, app)
+
+
+def content_state(arguments):
+    from service.models import Video
+
+    path = _bucket(arguments)
+    return {"titled": Video.objects.exclude(title="").count(), "removed": Video.objects.filter(state="removed").count(),
+            "deleted_keys": path.read_text().split() if path.exists() else [],
+            "confirmations_pending": _pending_confirmations()}
+
+
+def content_worker(arguments):
+    from service import media_storage
+    from staging_runtime import roles
+
+    path = _bucket(arguments)
+
+    def delete_object(key):
+        with path.open("a") as log:
+            log.write(key + "\n")
+
+    media_storage.delete_object = delete_object
+    roles.run_celery("service.media_tasks:app", "kolovibe.content.media")
     return {}
 
 

@@ -1,7 +1,7 @@
 {% extends 'base_admin.html' %}{% load admin_display %}
 {% block title %}{{ title }} · KoloVibe{% endblock %}
 {% block content %}
-<div class="page-heading"><div><p class="eyebrow">Privacy</p><h1>{{ title }}</h1><p class="supporting-text">Access and deletion requests from the app. Approving a deletion deactivates the account and signs out every session at once. Each service then erases its own data and confirms. Engagement, Creators and Moderation take part so far, so an approved deletion stays "Approved, erasure pending" and is never marked completed by hand. Access exports are not built yet either. Retention periods are not decided here.</p></div></div>
+<div class="page-heading"><div><p class="eyebrow">Privacy</p><h1>{{ title }}</h1><p class="supporting-text">Access and deletion requests from the app. Approving a deletion deactivates the account and signs out every session at once. Each service then erases its own data and confirms. Engagement, Creators, Moderation and Content take part so far, so an approved deletion stays "Approved, erasure pending" and is never marked completed by hand. Access exports are not built yet either. Retention periods are not decided here.</p></div></div>
 {% if notice %}<p class="notice" role="status">{{ notice }}</p>{% endif %}
 {% if error %}<p class="notice error" role="alert">{{ error }}</p>{% endif %}
 <nav class="filter-row" aria-label="Filter by status"><a href="{% url 'privacy-requests' %}"{% if not selected %} aria-current="page"{% endif %}>All</a>{% for value, label in statuses %}<a href="?status={{ value }}"{% if selected == value %} aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}</nav>
