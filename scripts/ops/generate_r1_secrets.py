@@ -38,15 +38,19 @@ BROKER_PERMISSIONS = {
 }
 # Decision C (account erasure) staging delta, PROPOSED and not applied: nothing here generates a secret or changes a
 # staging grant. Identity would own its confirmation queue and only WRITE erasure requests to the participating
-# services' exchanges; each participating service would also WRITE confirmations to Identity's exchange. Creators and
-# Moderation get their first broker accounts for this. scripts/verify_erasure_pipeline_broker.py proves these grants
+# services' exchanges (Content's media exchange, since its media worker erases); each participating service would
+# also WRITE confirmations to Identity's exchange. Creators and Moderation get their first broker accounts for this. scripts/verify_erasure_pipeline_broker.py proves these grants
 # on a disposable broker. Applying them to staging needs the owner's approved broker plan.
 PROPOSED_BROKER_ACCOUNTS = {"identity": "kolovibe_identity", "creators": "kolovibe_creators",
                             "moderation": "kolovibe_moderation"}
 PROPOSED_BROKER_PERMISSIONS = {
     "identity": (r"^kolovibe\.identity$",
-                 r"^(kolovibe\.identity|kolovibe\.engagement|kolovibe\.creators|kolovibe\.moderation)$",
+                 r"^(kolovibe\.identity|kolovibe\.engagement|kolovibe\.creators|kolovibe\.moderation"
+                 r"|kolovibe\.content\.media)$",
                  r"^kolovibe\.identity$"),
+    # Content's existing account, widened only to WRITE confirmations to Identity's exchange.
+    "content": (r"^kolovibe\.content\.media$", r"^(kolovibe\.content\.media|kolovibe\.identity)$",
+                r"^kolovibe\.content\.media$"),
     "engagement": (r"^kolovibe\.engagement$", r"^(kolovibe\.engagement|kolovibe\.points|kolovibe\.identity)$",
                    r"^kolovibe\.engagement$"),
     "creators": (r"^kolovibe\.creators$", r"^(kolovibe\.creators|kolovibe\.identity)$", r"^kolovibe\.creators$"),

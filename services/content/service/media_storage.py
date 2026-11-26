@@ -60,7 +60,7 @@ def _signed_url(method, key, seconds, headers, now=None):
             or not re.fullmatch(r"[a-z0-9][a-z0-9-]{1,61}[a-z0-9]", bucket)
             or not re.fullmatch(r"(?:originals/[0-9a-f-]{36}\.mp4|playback/[0-9a-f-]{36}/[0-9a-f-]{36}\.(?:mp4|jpg)"
                                 r"|posters/[0-9a-f-]{36}/[0-9a-f-]{36}\.jpg)", key)
-            or method not in ("GET", "PUT", "HEAD") or not 1 <= seconds <= 604800):
+            or method not in ("GET", "PUT", "HEAD", "DELETE") or not 1 <= seconds <= 604800):
         raise StorageUnavailable
     access, secret = _secret("KOLOVIBE_R2_ACCESS_KEY_FILE"), _secret("KOLOVIBE_R2_SECRET_KEY_FILE")
     host = f"{account}.r2.cloudflarestorage.com"
@@ -212,6 +212,15 @@ def put_poster(key, path):
     headers = {"Content-Type": "image/jpeg", "Content-Length": str(path.stat().st_size),
                "Cache-Control": "private, no-store", "If-None-Match": "*"}
     with path.open("rb") as body, _request("PUT", key, headers, body):
+        pass
+
+
+def delete_object(key):
+    """Remove one private object (Decision C erasure). An object that is already gone counts as removed."""
+    try:
+        with _request("DELETE", key):
+            pass
+    except ObjectMissing:
         pass
 
 

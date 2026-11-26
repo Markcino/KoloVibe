@@ -1,12 +1,12 @@
-"""Decision C slices 2a and 2b on a REAL RabbitMQ over TLS: Identity -> Engagement, Creators and Moderation erasure ->
-confirmations -> Identity.
+"""Decision C slices 2a to 2c on a REAL RabbitMQ over TLS: Identity -> Engagement, Creators, Moderation and Content
+erasure -> confirmations -> Identity.
 
 Identity records erasure requests for Engagement and Creators in its outbox; its own Celery app publishes them with the
 PROPOSED Identity broker account. The production workers erase that account's data in their own databases and record
 confirmations, which each dispatcher publishes with that service's proposed account. The production Identity worker
-marks each job confirmed; the Creators confirmation also releases Moderation's request, carrying the creator profile
-id, which Identity then publishes and Moderation answers the same way. The
-proposed grants (generate_r1_secrets.PROPOSED_BROKER_PERMISSIONS) are proven least-privilege on the same broker.
+marks each job confirmed; the Creators confirmation also releases the Moderation and Content requests, carrying the
+creator profile id, which Identity then publishes and those services answer the same way. Content runs on its real
+media worker; only its R2 bucket is a file-backed stand-in that records each removed key. The proposed grants (generate_r1_secrets.PROPOSED_BROKER_PERMISSIONS) are proven least-privilege on the same broker.
 
 It runs on disposable infrastructure only and changes nothing on staging. Needs PostgreSQL and RabbitMQ binaries, an
 unprivileged user and a free loopback port 5671. Run from the repository root:
@@ -30,8 +30,8 @@ from verify_event_pipeline_broker import Broker, VHOST, eventually  # noqa: E402
 
 STEPS = HERE / "erasure_pipeline_steps.py"
 IDENTITY, ENGAGEMENT, POINTS = "kolovibe.identity", "kolovibe.engagement", "kolovibe.points"
-CREATORS, MODERATION = "kolovibe.creators", "kolovibe.moderation"
-PARTICIPANTS = {"engagement": ENGAGEMENT, "creators": CREATORS, "moderation": MODERATION}
+CREATORS, MODERATION, CONTENT = "kolovibe.creators", "kolovibe.moderation", "kolovibe.content.media"
+PARTICIPANTS = {"engagement": ENGAGEMENT, "creators": CREATORS, "moderation": MODERATION, "content": CONTENT}
 ACCOUNTS = {**gen.BROKER_ACCOUNTS, **gen.PROPOSED_BROKER_ACCOUNTS}
 PERMISSIONS = {**gen.BROKER_PERMISSIONS, **gen.PROPOSED_BROKER_PERMISSIONS}
 
@@ -77,9 +77,12 @@ class ErasurePipelineTests(unittest.TestCase):
             cls.env = {service: dict(cls.environments[service], KOLOVIBE_ENV="local", SSL_CERT_FILE=str(cls.broker.ca),
                                      KOLOVIBE_RABBITMQ_URL=cls.broker.url(service))
                        for service in ("identity", *PARTICIPANTS)}
+            cls.bucket = str(Path(cls.directory) / "deleted-objects.txt")  # Content's stand-in for private R2
+            cls.env["content"]["KOLOVIBE_LOCAL_MEDIA_ENABLED"] = "1"
             for service, queue in (*PARTICIPANTS.items(), ("identity", IDENTITY)):
                 log = open(Path(cls.directory) / f"{service}-worker.log", "wb")
-                worker = subprocess.Popen([sys.executable, str(STEPS), service, "worker", "{}"], env=cls.env[service],
+                worker = subprocess.Popen([sys.executable, str(STEPS), service, "worker",
+                                           json.dumps({"bucket": cls.bucket})], env=cls.env[service],
                                           stdout=log, stderr=subprocess.STDOUT)
                 cls.workers[service] = (worker, log)
                 cls.stack.append(lambda w=worker, f=log: (w.terminate(), w.wait(timeout=30), f.close()))
@@ -118,13 +121,15 @@ class ErasurePipelineTests(unittest.TestCase):
     def test_1_an_approved_deletion_is_erased_and_confirmed_across_the_real_broker(self):
         approved = self.step("identity", "approve")
         person, other = approved["account_id"], str(uuid.uuid4())
-        for service in PARTICIPANTS:
+        for service in ("engagement", "creators", "moderation"):
             self.step(service, "seed", account_id=person, other_id=other)
+        profile = self.step("creators", "profile", account_id=person)["creator_id"]
+        self.step("content", "seed", account_id=person, other_id=other, creator_id=profile)
         self.assertEqual(self.step("identity", "dispatch_real"), {"sent": 2, "errors": []},
-                         "Engagement and Creators first; Moderation waits for the creator profile id")
+                         "Engagement and Creators first; Moderation and Content wait for the creator profile id")
 
         def erased(service, done):
-            state = self.step(service, "state", account_id=person, other_id=other)
+            state = self.step(service, "state", account_id=person, other_id=other, bucket=self.bucket)
             return state if done(state) else None
 
         def jobs():
@@ -142,13 +147,17 @@ class ErasurePipelineTests(unittest.TestCase):
         self.assertEqual(creators["other"], {"profiles": 1, "applications": 1, "onboarding_events": 1})
         self.assertEqual(self.step("creators", "dispatch_real"), {"sent": 1, "errors": []})
         eventually(lambda: jobs()["creators"]["confirmed"] or None, 60, "Identity never confirmed Creators")
-        self.assertEqual(self.step("identity", "dispatch_real"), {"sent": 1, "errors": []},
-                         "the Creators confirmation released Moderation's request")
+        self.assertEqual(self.step("identity", "dispatch_real"), {"sent": 2, "errors": []},
+                         "the Creators confirmation released the Moderation and Content requests")
         moderation = eventually(lambda: erased("moderation", lambda s: s["confirmations_pending"] == 1), 60,
                                 "Moderation never erased the account")
         self.assertEqual((moderation["person"], moderation["other"], moderation["details_left"]),
                          ({"reports": 0}, {"reports": 1}, 1), "only the other account's report keeps its text")
-        for service in ("engagement", "moderation"):
+        content = eventually(lambda: erased("content", lambda s: s["confirmations_pending"] == 1), 60,
+                             "Content never erased the creator's videos")
+        self.assertEqual((content["titled"], content["removed"]), (1, 1), "only the creator's own video is emptied")
+        self.assertEqual(len(content["deleted_keys"]), 2, "its rendition and its original were removed from storage")
+        for service in ("engagement", "moderation", "content"):
             self.assertEqual(self.step(service, "dispatch_real"), {"sent": 1, "errors": []}, service)
 
         def confirmed():
@@ -166,7 +175,10 @@ class ErasurePipelineTests(unittest.TestCase):
         self.assertEqual((jobs["creators"]["retained"], jobs["moderation"]["retained"]), ([], []))
         self.assertEqual(jobs["moderation"]["counts"]["reports_deidentified"], 1)
         self.assertEqual(result["status"], "processing", "a retained category keeps the request open")
-        self.assertEqual(result["audit"], 3)
+        self.assertEqual(jobs["content"]["counts"], {"media_objects": 2, "metadata_revisions": 0, "upload_records": 1,
+                                                     "videos_emptied": 1})
+        self.assertEqual(jobs["content"]["retained"], ["attestations", "untracked_media"])
+        self.assertEqual(result["audit"], 4)
         for queue in (*PARTICIPANTS.values(), IDENTITY):
             eventually(lambda q=queue: self.broker.queue_state(q) == (0, 0), 30, f"{queue} did not drain")
 
@@ -191,6 +203,8 @@ class ErasurePipelineTests(unittest.TestCase):
             "creators consumes the identity queue": self.attempt("creators", lambda c: c.default_channel.basic_get(IDENTITY)),
             "moderation publishes to engagement": self.attempt("moderation", publish(ENGAGEMENT)),
             "moderation declares a queue": self.attempt("moderation", lambda c: c.default_channel.queue_declare("rogue.q")),
+            "content publishes to creators": self.attempt("content", publish(CREATORS)),
+            "content consumes the identity queue": self.attempt("content", lambda c: c.default_channel.basic_get(IDENTITY)),
             "identity consumes the creators queue": self.attempt("identity", lambda c: c.default_channel.basic_get(CREATORS)),
         }
         self.assertEqual(set(refused.values()), {"AccessRefused"}, refused)

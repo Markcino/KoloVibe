@@ -35,11 +35,11 @@ class ErasureTests(TestCase):
     def test_approval_opens_one_job_and_one_event_per_service(self):
         target = self.approve()
         self.assertEqual(set(ErasureJob.objects.values_list("service", flat=True)),
-                         {"engagement", "creators", "moderation"})
+                         {"engagement", "creators", "moderation", "content"})
         self.assertEqual(sorted(self.outbox(), key=lambda row: row[1]["service"]),
                          [("privacy.erasure_requested", {"request_id": target, "account_id": str(self.person.id),
                                                          "service": service})
-                          for service in ("creators", "engagement")], "Moderation waits for Creators")
+                          for service in ("creators", "engagement")], "Moderation and Content wait for Creators")
         self.call("approve-deletion", id=target)
         self.assertEqual(len(self.outbox()), 2, "repeating the approval opens nothing more")
 
@@ -49,10 +49,12 @@ class ErasureTests(TestCase):
         creators = self.confirmation(service="creators", creator_id=profile, counts={"profile": 1}, retained=[])
         event = str(uuid.uuid4())
         self.assertTrue(erasure.confirm(event, creators))
-        self.assertEqual(self.outbox()[-1], ("privacy.erasure_requested", {
-            "request_id": target, "account_id": str(self.person.id), "service": "moderation", "creator_id": profile}))
+        self.assertEqual(sorted(self.outbox()[2:], key=lambda row: row[1]["service"]), [
+            ("privacy.erasure_requested", {"request_id": target, "account_id": str(self.person.id),
+                                           "service": service, "creator_id": profile})
+            for service in ("content", "moderation")])
         self.assertFalse(erasure.confirm(event, creators))
-        self.assertEqual(len(self.outbox()), 3, "a repeated confirmation sends nothing more")
+        self.assertEqual(len(self.outbox()), 4, "a repeated confirmation sends nothing more")
         self.assertIsNone(ErasureJob.objects.get(service="moderation").confirmed_at)
 
     def test_a_person_who_was_never_a_creator_still_reaches_moderation(self):
@@ -112,6 +114,9 @@ class OutsideTransactionTests(SimpleTestCase):
 
 class DispatchRoutingTests(TestCase):
     def test_requests_go_to_the_service_queue_through_its_named_exchange(self):
+        task_name, queue, options = events._destination({"service": "content"})
+        self.assertEqual((task_name, queue.name), ("kolovibe.content.event", "kolovibe.content.media"),
+                         "Content erases on its media worker")
         task_name, queue, options = events._destination({"service": "engagement"})
         self.assertEqual(task_name, "kolovibe.engagement.event")
         self.assertEqual(options, {"exchange": "kolovibe.engagement", "routing_key": "kolovibe.engagement"})
