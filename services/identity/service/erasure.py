@@ -11,7 +11,8 @@ keeps that id on the Creators job so `reapply` can send the same requests again.
 
 Completion (slice 2e): once every job has confirmed and none retained a category, Identity de-identifies the account
 row in the same transaction and the request becomes `completed`. A category reported as retained keeps the request
-`processing`, which is the honest state while a retention decision is open. A later confirmation of the same job
+`processing`, which is the honest state while a retention decision is open, unless the owner-approved retention policy
+(`retention_policy`) names it as evidence compatible with completion; the request then records that policy's id. A later confirmation of the same job
 (from `reapply`, after a restore or once a decision lets a service erase more) replaces the earlier counts.
 """
 import re
@@ -20,7 +21,7 @@ import uuid
 from django.db import transaction
 from django.utils import timezone
 
-from . import events
+from . import events, retention_policy
 from .models import (Account, EmailVerification, ErasureJob, LoginSession, MfaChallenge, NotificationPreferences,
                      PasswordReset, PrivacyRequest, RecoveryCode, TotpFactor)
 from .security_audit import record
@@ -86,11 +87,15 @@ def deidentify(account):
 
 def _complete_if_ready(item):
     jobs = list(ErasureJob.objects.filter(request=item))
-    if ({job.service for job in jobs} != set(events.ERASURE_SERVICES)
-            or any(job.confirmed_at is None or job.retained for job in jobs)):
+    if {job.service for job in jobs} != set(events.ERASURE_SERVICES) or any(job.confirmed_at is None for job in jobs):
+        return False
+    policy = retention_policy.current() if any(job.retained for job in jobs) else retention_policy.EMPTY
+    if any(retention_policy.blocking(job.service, job.retained, policy) for job in jobs):
         return False
     deidentify(Account.objects.select_for_update().get(pk=item.account_id))
-    PrivacyRequest.objects.filter(pk=item.pk).update(status=PrivacyRequest.Status.COMPLETED)
+    PrivacyRequest.objects.filter(pk=item.pk).update(
+        status=PrivacyRequest.Status.COMPLETED,
+        completed_under_policy=policy["policy_id"] if any(job.retained for job in jobs) else "")
     record("account.privacy_erasure_completed", item.account_id)
     return True
 

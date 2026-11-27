@@ -196,6 +196,9 @@ class PrivacyRequest(models.Model):
     review_started_at = models.DateTimeField(null=True, blank=True)
     decided_at = models.DateTimeField(null=True, blank=True)
     decline_code = models.CharField(max_length=32, choices=Decline.choices, blank=True, db_default="")
+    # The retention policy whose approved evidence categories stayed when this request completed; empty when nothing
+    # was retained (service/retention_policy.py).
+    completed_under_policy = models.CharField(max_length=64, blank=True, db_default="", editable=False)
 
     class Meta:
         constraints = [
