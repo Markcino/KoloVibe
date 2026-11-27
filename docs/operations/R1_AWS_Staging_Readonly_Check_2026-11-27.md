@@ -74,7 +74,7 @@ The reviewed `release-readback` mode ([#287](https://github.com/Markcino/KoloVib
 | Anonymous probes, `mobile-api` host | `/api/v1/creators/me` and `/creators/me/points` 401; forged `alg: none` token 401; `/internal/` and `/ops/verify` 403; console-only route `/api/v1/admin/moderation/assignments` 404 |
 | `api` host | 401 at root (Cloudflare Access) |
 | Console host | `/` and `/admin/` 302 to login, `/login/` 200; CSP `default-src 'none'`, `X-Frame-Options: DENY`, HSTS 30 days, `nosniff` |
-| Security headers on `mobile-api` | 200 and 404 responses carry HSTS (`max-age=3600`) and `nosniff`. **The 401 from `/api/v1/creators/me` carries neither** (new finding D14-001 below; low severity, since the edge is HTTPS-only through Cloudflare) |
+| Security headers on `mobile-api` | 200, 401 and 404 responses all carry HSTS (`max-age=3600`), `nosniff`, `X-Frame-Options: DENY` and `Cache-Control: no-store`. (The `api` host's 401 is the Cloudflare Access page, which sets its own headers.) |
 
 ## 7. Findings
 
@@ -88,7 +88,7 @@ The reviewed `release-readback` mode ([#287](https://github.com/Markcino/KoloVib
 | D13-007 | P2 | Video stuck in processing | No longer stuck (soft-deleted); reconciliation still missing (#149) |
 | D12-001 | P2 | Edge rate limits and client address absent on live Nginx | OPEN (#325, #151) |
 | G-04 | — | No dead-letter policy | OPEN (#311) |
-| D14-001 | P3 | Some Gateway 401 responses on `mobile-api` lack HSTS and `nosniff` | NEW, not root-caused. Next step: find which view or upstream returns that 401 and why it skips `SecurityMiddleware`'s headers |
+| ~~D14-001~~ | — | Withdrawn on recheck at 12:00 UTC: the first reading attributed the `api` host's header-less Cloudflare Access reply to `mobile-api`. Gateway 401s carry the headers | Not a defect |
 | D14-002 | P3 | Identity migrations 0017 and 0018 are on `main` but not on staging | Expected (nothing after v0.542.1 is deployed); must be in the next release plan |
 
 ## 8. What this did not cover
