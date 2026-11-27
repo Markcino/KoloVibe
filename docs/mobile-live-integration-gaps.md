@@ -1,5 +1,7 @@
 # Mobile live integration gaps
 
+> **Archived in place (27 November 2026).** Some rows are stale. Current status per feature is in the [traceability matrix](governance/phase1/PHASE-01_Feature_Traceability_Matrix.csv). See the [archive register](archive/ARCHIVE_REGISTER.md).
+
 The Flutter app uses `lib/main.dart` only. Its default composition reports unavailable operations unless `KOLOVIBE_API_URL` is set to an approved HTTPS gateway URL ending in `/api/v1` (or debug loopback). The opt-in composition wires account operations and public video and reviewed-creator metadata; it does not bundle accounts, content records, points balances, or simulated service results.
 
 ## Current deployment versus mobile acceptance — 23 November 2026

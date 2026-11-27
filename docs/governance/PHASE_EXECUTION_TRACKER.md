@@ -1,84 +1,101 @@
 # KoloVibe phase execution tracker
 
-**Read this file first when resuming work.** It tracks execution under the [full application mandate of 27 November 2026](Full_Application_Mandate_2026-11-27.md) (referred to below as "the mandate"). Then check the repository state (`git log origin/main`, open pull requests and issues) before acting. GitHub Issues stay the authoritative work and defect tracker (mandate section 7). This file points to them and does not copy them.
+**Read this file first when resuming work.** It tracks execution under the [full application mandate of 27 November 2026](Full_Application_Mandate_2026-11-27.md) ("the mandate"). Then check the repository state (`git log origin/main`, open pull requests and issues) before acting. GitHub Issues are the authoritative work and defect tracker (mandate section 7); each phase has a milestone, and [#301](https://github.com/Markcino/KoloVibe/issues/301) tracks the phases. This file points to them and does not copy them.
 
-Established: 27 November 2026, at `main` `37c5a44` (after #299).
+Established 27 November 2026 at `37c5a44` (after #299). Updated 27 November 2026 in Phase 1, from `1c706ce` (after #303). This file merges the two trackers that #302 and #303 created (they differed only in letter case); the removed copy is in Git history at `79d69eb`.
 
 ## 1. Current gate
 
 | Item | State |
 | --- | --- |
-| Current phase | **None. Phase 1 is NOT STARTED.** The mandate says "Do not begin Phase 1 until instructed", and no instruction has been given |
-| Phase list and exit criteria | **NOT DEFINED.** The mandate requires phase gates (section 10) but does not name the phases or their exit criteria. They will be proposed at Phase 1's Plan step for the owner to approve. They are not invented here |
-| Production | NO-GO. Nothing in this file authorizes deployment, live payments, live advertising, destructive data changes or production publication (mandate section 8) |
-| Infrastructure access from Claude's cloud sessions | **NOT AVAILABLE.** The SSH aliases `swarm-manager` and `swarm-worker` (mandate section 4) are set up on the owner's own computer. The cloud environment Claude works in has no SSH configuration or keys for them. Runtime verification there needs the owner to run the commands, or a Remote Control session on the owner's computer that the owner approves. It is never assumed |
+| Current phase | **Phase 1, full-product reconciliation: report delivered, verdict BLOCKED** (see [report](phases/PHASE-01_Full_Product_Reconciliation_Report.md)). Authorized by the owner on 27 November 2026, 11:12 UTC |
+| Next phase | Phase 2 is **not authorized**. The owner said: "Do not begin Phase 2 until I authorize it." |
+| Production | NO-GO. Nothing here authorizes deployment, live payments, live advertising, destructive data changes or production publication (mandate section 8) |
+| Infrastructure access from Claude's cloud sessions | **NOT AVAILABLE.** `ssh swarm-manager` and `ssh swarm-worker` are configured on the owner's computer only. Runtime checks need the owner to run them or to approve a Remote Control session on that computer, which must be online. On 27 November it was offline |
 
-## 2. Phase register
+## 2. Status vocabulary
 
-Each phase follows the eleven gate steps in mandate section 10. Its completion report has the fields in section 11 and is linked here. Only PASS opens the next phase, and only after the owner authorizes it. BLOCKED, FAIL, NOT RUN, SKIPPED and PARTIAL are never PASS.
+**Phase status:** NOT STARTED, IN PROGRESS, then one verdict: PASS, FAIL or BLOCKED. **Test and evidence results:** PASS, FAIL, BLOCKED, NOT RUN, SKIPPED, PARTIAL, NOT IMPLEMENTED. Results from different builds are never added together. BLOCKED, NOT RUN, SKIPPED and PARTIAL never count as PASS.
 
-| Phase | Name | Status | Started at (commit) | Ended at (commit) | Verdict | Completion report | Next phase authorized |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | To be proposed at Phase 1's Plan step | NOT STARTED | — | — | — | — | — |
+**Requirement classification** (the standing directive's terms; earlier terms in brackets):
 
-The phase statuses are NOT STARTED, IN PROGRESS, PASS, FAIL and BLOCKED. Test and evidence results are PASS, FAIL, BLOCKED, NOT RUN, SKIPPED, PARTIAL and NOT IMPLEMENTED. They are never added together across different builds. Requirement classifications keep the vocabulary in [EXECUTION_PROGRESS.md](../engineering/reverification/EXECUTION_PROGRESS.md#status-vocabulary).
-
-### Phase completion report template (mandate section 11)
-
-Phase name and number · starting commit · final commit · requirements completed · files changed · GitHub issues created, updated and closed · pull requests and CI results · database migrations · infrastructure changes · tests executed · PASS, FAIL, BLOCKED and NOT RUN counts · evidence locations · security findings · remaining defects · decisions required · rollback instructions · final gate verdict · whether the next phase is authorized to begin.
-
-### Missing-decision template (mandate section 8)
-
-Decision ID · exact blocking requirement · why the decision is necessary · available options · recommended option · security, financial and operational implications · consequences of delay · exact approval wording.
-
-## 3. How the mandate fits with earlier work
-
-This work continues from the existing records and does not restart them. Earlier mandates used their own phase numbers: "Phases 00 to 14" from 25 November, and the "Remediation and Completion" items 2.1 to 4.6 from 27 November. To keep them distinct from the new phases, their items are cited with a prefix (for example "remediation 3.4"). Their detailed record stays in [EXECUTION_PROGRESS.md](../engineering/reverification/EXECUTION_PROGRESS.md).
-
-### 3.1 Decisions that stay in force (not asked again)
-
-| Decision | Record |
+| Classification | Meaning |
 | --- | --- |
-| A to J (edits re-review, legal acceptance, privacy retention and deletion, backup and alerting, copyright, creator restrictions, Identity step-up, Events, Advertising, Finance with one ledger) | [Owner decisions A to J](../planning/Owner_Decisions_A-J_2026-11-25.md) |
-| Public web surface: static policy pages and the account-deletion request page only | Same record, rulings of 25 and 26 November |
-| SIM-02 sharing as app links only, with a store fallback | [EXECUTION_PROGRESS.md](../engineering/reverification/EXECUTION_PROGRESS.md), completed packages |
-| Business R2 design (PR #218) | [Business owner approval record](../architecture/business/BIZ-Owner_Approval_Record_2026-11-24.md) |
-| ADR-013 v1.0 client authentication and session security | [ADR-013](../architecture/ADR-013_Client_Authentication_and_Session_Security_v1.0_APPROVED.md) |
+| Accepted with evidence | Acceptance criteria passed in the target environment, with linked evidence [VERIFIED COMPLETE] |
+| Ready for comprehensive testing | Whole chain built with development tests; waits for staging or device acceptance [IMPLEMENTED BUT UNVERIFIED] |
+| Development complete | Code, contracts and development tests done; integration or deployment not yet proven [IMPLEMENTED BUT UNVERIFIED] |
+| Partial | Some links of the chain are missing [PARTIALLY IMPLEMENTED] |
+| Missing | Not built [NOT IMPLEMENTED] |
+| Blocked by approval | Waits on a named owner decision |
+| Defective | Built, but fails its criteria [DEFECTIVE, SECURITY BLOCKER] |
+| Explicitly excluded | Out of scope by owner decision [NOT APPLICABLE] |
 
-### 3.2 Where the mandate changes earlier instructions
+A feature takes the classification of its weakest link: Requirement → Architecture → Database → Backend → API → Gateway → Authorization → Flutter/Web → Integration → Tests → Deployment → Acceptance evidence.
 
-| Earlier instruction | Mandate | Reconciliation |
+## 3. Phase plan
+
+The owner's Phase 1 instruction refers to Phases 2 to 11, so the plan has eleven phases. The sixteen phases proposed in #302 are folded into these eleven (the right-hand column) rather than kept as a second list. The plan is decision GD-08, **approved** by the owner on 27 November at 11:31 UTC with GD-01 to GD-07 ([gate register](phase1/PHASE-01_Governance_Gate_Register.md)).
+
+| # | Phase | Milestone | Main exit criteria | Earlier proposal folded in | Status |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Full-product reconciliation | — (#301) | Owner's nine Phase 1 exit criteria | 0 governance, 1 reverification | Report delivered; **BLOCKED** |
+| 2 | Architecture, contracts and decisions | [Phase 2](https://github.com/Markcino/KoloVibe/milestone/7) | Approved ADRs for Finance, Events, Advertising and Notifications; one canonical API and event contract; requirement sets FP-NT, FP-PAY, FP-GA, FP-DST approved; Figma frames for new areas; Stage 1 and 2 sign-offs (#133, #134, #140, #141) | 2 decisions, 3 architecture | NOT STARTED |
+| 3 | Core platform completion | [Phase 3](https://github.com/Markcino/KoloVibe/milestone/8) | Identity, Creators, Content, Engagement, Points, Moderation, Audit, Privacy and Notifications reach Ready for comprehensive testing; D13-001 to D13-003 resolved | 4 core | NOT STARTED |
+| 4 | Business completion | [Phase 4](https://github.com/Markcino/KoloVibe/milestone/9) | Business sensitive actions per decisions; staging plan | 5 Business | NOT STARTED |
+| 5 | Finance, payments and payouts (sandbox) | [Phase 5](https://github.com/Markcino/KoloVibe/milestone/10) | Finance service and ledger; revenue records; creator pool; provider in sandbox; payouts; Finance console | 6 Finance | NOT STARTED |
+| 6 | Events and ticketing | [Phase 6](https://github.com/Markcino/KoloVibe/milestone/11) | Events service; sandbox ticketing posting to Finance; QR check-in; console | 7 Events | NOT STARTED |
+| 7 | Advertising, sponsorship and Google mobile ads | [Phase 7](https://github.com/Markcino/KoloVibe/milestone/12) | Advertising service; direct campaigns; billing facts to Finance; Google Mobile Ads in test mode | 8 Advertising | NOT STARTED |
+| 8 | Flutter, console and distribution readiness | [Phase 8](https://github.com/Markcino/KoloVibe/milestone/13) | Screens for every role and area; Figma parity (#100); console acceptance (#153); Android and iOS release builds and store packages (#166) | 9 Flutter, 10 console | NOT STARTED |
+| 9 | Security, privacy and infrastructure hardening | [Phase 9](https://github.com/Markcino/KoloVibe/milestone/14) | ASVS and MASVS evidence (#159); least privilege (#146); provenance (#147); observability (#145); backups (#144); branch protection (#142); scan exceptions (#143); capacity (#274) | 11 security, 12 infrastructure | NOT STARTED |
+| 10 | Completeness gate and comprehensive testing | [Phase 10](https://github.com/Markcino/KoloVibe/milestone/15) | Every in-scope row Ready for comprehensive testing; staging acceptance (#155 to #157); devices (#158); load (#160); penetration test (#161); rollback drill (#162) | 13 gate, 14 testing | NOT STARTED |
+| 11 | Defect closure, release readiness and store submission | [Phase 11](https://github.com/Markcino/KoloVibe/milestone/16) | Defects fixed with failing-first tests and full regression; legal sign-off (#165); readiness review (#164); rollout plan (#163, #167); go/no-go (#168) | 15 defects, 16 release | NOT STARTED |
+
+Phases 3 to 8 may run tasks in parallel once their Phase 2 dependencies are approved, but each phase closes only through its own gate and the owner's authorization.
+
+### Phase register
+
+| Phase | Started at | Ended at | Verdict | Completion report | Next phase authorized |
+| --- | --- | --- | --- | --- | --- |
+| 1 | `1c706ce` | this PR's merge commit | **BLOCKED** | [PHASE-01 report](phases/PHASE-01_Full_Product_Reconciliation_Report.md) | No |
+
+### Templates
+
+**Phase completion report (mandate section 11):** phase name and number · starting commit · final commit · requirements completed · files changed · GitHub issues created, updated and closed · pull requests and CI results · database migrations · infrastructure changes · tests executed · PASS, FAIL, BLOCKED and NOT RUN counts · evidence locations · security findings · remaining defects · decisions required · rollback instructions · final gate verdict · whether the next phase is authorized. Reports live in [`phases/`](phases/).
+
+**Missing decision (mandate section 8):** decision ID · exact blocking requirement · why it is necessary · options · recommended option · security, financial and operational implications · consequences of delay · exact approval wording.
+
+## 4. How the mandate fits with earlier work
+
+Earlier mandates used their own numbering ("Phases 00 to 14" of 25 November; "Remediation" items 1.1 to 4.6 of 27 November). They are cited with a prefix, for example "remediation 3.4". Their detail stays in [EXECUTION_PROGRESS.md](../engineering/reverification/EXECUTION_PROGRESS.md), now archived in place.
+
+### 4.1 Decisions that stay in force
+
+See the [gate register, section 1](phase1/PHASE-01_Governance_Gate_Register.md#1-already-approved-for-development-not-asked-again). They are not asked again.
+
+### 4.2 Where the mandate changes earlier instructions
+
+See the [scope baseline, section 2](phase1/PHASE-01_Full_Product_Scope_Baseline.md#2-mvp-only-restrictions-removed-from-active-planning).
+
+### 4.3 Carried-over work and where it now sits
+
+| Earlier item | State at `1c706ce` | Phase and issue |
 | --- | --- | --- |
-| R1 "MVP" scope ([DEC-001](../requirements/platform_documentation_register_and_DEC001.md)). Instruction files said "Do not implement deferred features" and listed business discovery, ticketing and cash payouts as deferred | The full application, including Business discovery, Events and ticketing, Advertising, Google mobile ads, Finance, payments and payouts (section 2) | The deferral no longer justifies leaving approved functionality incomplete. DEC-001 is kept as history. The instruction files now point here, and their old wording is kept as dated history |
-| Events (H), Advertising (I) and Finance (J) are sandbox development only. No real payments, live payouts or live ads | Payment processing, reconciliation and payouts are in scope. Development approval does not authorize live payments or ad activation (section 8) | Unchanged in effect. Build to completion in sandbox. Live activation, provider credentials and money values each need their own owner approval |
-| Public web: static policies and the deletion page only | "Necessary approved legal, account-deletion and application-link resources may remain publicly accessible" (section 3) | Application-link association resources, which SIM-02 app links need, are now explicitly allowed. Nothing else becomes public |
-| Live streaming is excluded | Not approved just because this is no longer an MVP (section 2) | Still excluded. A scope recommendation is due in Phase 1 |
-| Eleven or twelve services named in older documents | Twelve expected services (section 3) | To be checked against the as-built architecture in Phase 1. No new service is added without justification |
+| Packages A, B, E, F, G, SIM fixes, static policies page (#234 to #259) | Merged; mostly in v0.542.1; not accepted | Matrix rows; acceptance in Phase 10 (#155) |
+| Remediation 1.1 OpenSSL scan exception | Renewed to **5 December**; not renewed silently | Phase 9, #143 |
+| Remediation 1.2 CPU budget (#283) | Package ready; measurement NOT RUN | Phase 9, #274 |
+| Remediation 1.3 / 2.1 Points to Audit key (#281) | Plan ready; NOT APPLIED | Phase 3, #271 |
+| Remediation 1.4 ruleset (#279) | Plan ready; NOT APPLIED | Phase 9, #142 |
+| Remediation 1.5 release read-back (#287, #288) | NOT RUN on VM1 | Phase 1 item BLOCKED; owner action |
+| Remediation 2.2 Content and Creators audit delivery (#292) | NOT DEPLOYED | Phase 3, #272 |
+| Remediation 2.3 audit alerting (#293) | Signals built; channel NOT IMPLEMENTED | Phase 9, #145 |
+| Remediation 3.1 erasure wiring (#294) | NOT DEPLOYED | Phase 3, #273 |
+| Remediation 3.2 untracked media and retention policy (#295, #296) | Merged; values open | Phase 3, #136 |
+| Remediation 3.3 access export (#297 to #299) | Merged; window and withheld categories open | Phase 3, #152 |
+| Remediation 3.4 restore-safe recovery (#300) | **Merged** at 11:04 UTC; recovery contract PROPOSED; staging restore NOT RUN | Phase 3, #152; Phase 9, #144 |
+| Remediation 3.5 lifecycle and completion notice | NOT STARTED | Phase 3, #310 |
+| Remediation 4.1 stalled video, 4.2 end-to-end staging proof, 4.3 client address and rate limits, 4.4 legacy broker account, 4.5 dead letters, 4.6 acceptance items | NOT STARTED | #149; #156; #325; #146; #311; #155 |
+| Events (H), Advertising (I), Finance (J) | Design packages PROPOSED; no code | Phases 5 to 7, #313 to #323 |
 
-### 3.3 Continuation work carried over (state at 27 November, before Phase 1)
+## 5. Governance files
 
-| Item | State |
-| --- | --- |
-| Remediation 2.1 Points→Audit (#271), 2.2 Content and Creators audit delivery (#272), 2.3 audit alerting (#145) | Waiting on owner decisions: the #281 rotation, the #279 ruleset, the #283 measurement, and alert thresholds and channel |
-| Remediation 3.1 erasure runtime wiring | In the repository, NOT DEPLOYED. Waiting on approval of the broker plan (#294) |
-| Remediation 3.2 untracked media (#295) and retention policy (#296) | Merged. Retention values are an owner decision |
-| Remediation 3.3 access export, a to c (#297, #298, #299) | Merged. The retrieval window and the withheld categories are owner decisions. Device UAT NOT RUN |
-| Remediation 3.4 restore-safe erasure recovery | **PR #300 open.** A PostgreSQL restore drill passed locally on 27 November. The recovery contract is PROPOSED and needs owner approval. A staging restore is NOT RUN |
-| Remediation 3.5 lifecycle execution and the completion notice | NOT STARTED. The completion notice is an owner decision |
-| Remediation 4.1 to 4.6 (stalled video, end-to-end staging proof, client IP and rate limits, legacy broker account, DLQs, acceptance items) | NOT STARTED |
-| Time-bound: the OpenSSL scan exception expires on 5 December (#284) | It will not be renewed silently. It needs an owner decision before then |
-
-Whether these items continue in parallel or are folded into Phase 1 is for the owner to say when Phase 1 is authorized.
-
-## 4. Governance files located
-
-| Subject | Canonical file today |
-| --- | --- |
-| Agent instructions | [`AGENTS.md`](../../AGENTS.md). [`CLAUDE.md`](../../CLAUDE.md) and [`.github/CLAUDE.md`](../../.github/CLAUDE.md) point to it. [`.github/copilot-instructions.md`](../../.github/copilot-instructions.md) has the same rules for Copilot |
-| Mandate and phase rules | [Full application mandate](Full_Application_Mandate_2026-11-27.md) and this tracker |
-| Documentation index | [`docs/README.md`](../README.md). A full canonical-source index per subject (mandate section 9) is Phase 1 work |
-| Scope decision and document register | [DEC-001 register](../requirements/platform_documentation_register_and_DEC001.md), [`document_register.csv`](../requirements/document_register.csv), [change control (proposed)](../requirements/DOC-023_Change_Control_Proposed.md) |
-| Owner decisions | [Owner decisions A to J](../planning/Owner_Decisions_A-J_2026-11-25.md), [consolidated open decisions](../architecture/DOC-209_Consolidated_Open_Decisions.csv), [ADR register](../architecture/DOC-207_ADR_Register.csv), [`docs/adr/`](../adr/) |
-| Engineering standards and repository governance | [Engineering standards](../engineering-standards.md), [FND-01](../engineering/FND-01_repository_governance.md), [`CODEOWNERS`](../../.github/CODEOWNERS), [PR template](../../.github/PULL_REQUEST_TEMPLATE.md), [`branch-protection/`](../../.github/branch-protection/) |
-| Continuation progress (earlier mandates) | [EXECUTION_PROGRESS.md](../engineering/reverification/EXECUTION_PROGRESS.md) |
-| Release readiness | [Go-live readiness](../planning/go_live_readiness.md) |
+The [documentation index](../README.md) names the canonical source for every subject. The governance files are [`AGENTS.md`](../../AGENTS.md) (with [`CLAUDE.md`](../../CLAUDE.md) and [`.github/CLAUDE.md`](../../.github/CLAUDE.md) pointing to it), the [mandate](Full_Application_Mandate_2026-11-27.md), this tracker, the [Phase 1 records](phase1/) and the [phase reports](phases/).

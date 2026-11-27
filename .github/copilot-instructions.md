@@ -4,7 +4,7 @@
 The [full application mandate of 27 November 2026](../docs/governance/Full_Application_Mandate_2026-11-27.md) governs scope, and the [phase execution tracker](../docs/governance/PHASE_EXECUTION_TRACKER.md) records where execution stands. Follow [AGENTS.md](../AGENTS.md).
 
 ## Approved scope
-The full application in mandate section 2, built on Django/DRF services, Flutter, PostgreSQL, RabbitMQ, Cloudflare R2 and FFmpeg. Points stay non-cash, and Finance is the only monetary ledger. Live streaming is not approved. Live payments, payouts and advertising need their own owner approval.
+The full application in mandate section 2, built on Django services (no DRF), Flutter, PostgreSQL, RabbitMQ, Cloudflare R2 and FFmpeg. Points stay non-cash, and Finance is the only monetary ledger. Live streaming is not approved. Live payments, payouts and advertising need their own owner approval.
 
 *History (superseded 27 November 2026):* "Eight Django/DRF services, 108 Flutter screen IDs, Cloudflare R2, FFmpeg, RabbitMQ, PostgreSQL, and non-cash points. Deferred: live streaming, business discovery, ticketing, and cash payouts."
 
