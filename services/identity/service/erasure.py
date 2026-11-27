@@ -155,3 +155,41 @@ def reapply(item):
         _request(item, service, **extra)
         sent += 1
     return sent
+
+
+def _deidentified(account):
+    return account.email == f"erased-{account.id.hex}@invalid" and not account.has_usable_password()
+
+
+def recover(account_id, kind):
+    """Mandate 3.4: re-apply one fact Audit holds after an Identity restore, within the caller's transaction.
+
+    `account.deactivated` means an approved deletion deactivated the account; `account.privacy_erasure_completed`
+    means its erasure completed. A restored account in an earlier state is deactivated, its sessions revoked and, for
+    a completed erasure, de-identified again. A restored deletion request still waiting for review goes back to
+    `processing` with its jobs reopened, so every service is asked again; nothing is marked completed here. Returns
+    "restored", "unchanged" or "missing" (no such account in the restored database).
+    """
+    account = Account.objects.select_for_update().filter(pk=account_id).first()
+    if account is None:
+        return "missing"
+    changed = False
+    if account.is_active or LoginSession.objects.filter(account=account, revoked_at__isnull=True).exists():
+        account.is_active = False
+        account.save(update_fields=["is_active"])
+        LoginSession.objects.filter(account=account, revoked_at__isnull=True).update(revoked_at=timezone.now())
+        changed = True
+    pending = PrivacyRequest.objects.select_for_update().filter(
+        account=account, kind=PrivacyRequest.Kind.DELETION,
+        status__in=(PrivacyRequest.Status.RECEIVED, PrivacyRequest.Status.IN_REVIEW)).first()
+    if pending is not None:
+        PrivacyRequest.objects.filter(pk=pending.pk).update(status=PrivacyRequest.Status.PROCESSING,
+                                                            decided_at=timezone.now())
+        open_jobs(pending)
+        changed = True
+    if kind == "account.privacy_erasure_completed" and not _deidentified(account):
+        deidentify(account)
+        changed = True
+    if changed:
+        record("account.privacy_erasure_recovered", account.id)
+    return "restored" if changed else "unchanged"

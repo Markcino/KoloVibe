@@ -17,7 +17,7 @@ from django.http import JsonResponse
 # caller -> exact paths ("/x") or path prefixes ("/x/") that caller may reach on this service.
 CALLER_PATHS = {
     "gateway": ('/internal/probe', '/internal/audit/read'),
-    "identity": ('/internal/security-events',),
+    "identity": ('/internal/security-events', '/internal/audit/erasure-recovery'),
     "moderation": ('/internal/security-events',),
     "creators": ('/internal/security-events',),
     "content": ('/internal/security-events',),

@@ -20,6 +20,7 @@ KINDS = {
     "account.privacy_erasure_completed", "account.privacy_erasure_reapplied",
     "account.privacy_access_approved", "account.privacy_export_part_received", "account.privacy_export_ready",
     "account.privacy_export_retrieved", "account.privacy_export_denied", "account.privacy_export_purged",
+    "account.privacy_erasure_recovered",
     "login.failed", "login.throttled",
     "login.succeeded", "mfa.challenge", "mfa.failed", "mfa.enrolled",
     "mfa.succeeded", "mfa.recovery_used", "session.rotated", "session.replay",
