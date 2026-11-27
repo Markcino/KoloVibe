@@ -133,6 +133,15 @@ AWS_ROLES = {
     "points-audit": ("points", "deliver-audit"), "moderation-audit": ("moderation", "deliver-audit"),
     "identity-audit": ("identity", "deliver-security-audit"), "identity-purge": ("identity", "purge-security-rows"),
     "content-requeue": ("content", "requeue-media"),
+    "content-audit": ("content", "deliver-audit"), "creators-audit": ("creators", "deliver-audit"),
+}
+# Mounts only an audit-delivery job carries, beyond its API service's secrets (D13-002). The API services and the
+# media worker never receive them: each job signs to Audit with its own key, distinct from every other caller's.
+AUDIT_JOB_MOUNTS = {
+    "content-audit": {"outbound_key": "kolovibe_content_audit_outbound_20261127_v1",
+                      "trusted_peers": "kolovibe_content_audit_peers_20261127_v1"},
+    "creators-audit": {"outbound_key": "kolovibe_creators_audit_outbound_20261127_v1",
+                       "trusted_peers": "kolovibe_creators_audit_peers_20261127_v1"},
 }
 AWS_NETWORKS = {"private": "kolovibe_services", "data_private": "kolovibe_data", "broker_private": "kolovibe_messaging",
                 "r2_proxy_clients": "kolovibe_r2_proxy_clients"}
@@ -175,7 +184,7 @@ def validate_aws(stack):
     cluster, roles = _aws_references()
     profile = cluster.AWS_STAGING
     if set(stack["services"]) != set(AWS_ROLES):
-        raise ValueError("The AWS stack must define exactly the nine R1 worker and job services")
+        raise ValueError("The AWS stack must define exactly the reviewed R1 worker and job services")
     for name, expected in AWS_NETWORKS.items():
         if stack["networks"].get(name) != {"external": True, "name": expected}:
             raise ValueError("AWS networks must be the existing approved external overlays")
@@ -257,6 +266,10 @@ def validate_aws(stack):
                             smtp_password="kolovibe_identity_smtp_password_20261110_v1",  # pragma: allowlist secret
                             account_approvals="kolovibe_account_approval" + cluster.R1_SECRET_SUFFIX)
         expected.update(profile.r1_rollout[service]["mounts"])
+        expected.update(AUDIT_JOB_MOUNTS.get(name, {}))
+        if name in AUDIT_JOB_MOUNTS and (environment.get("KOLOVIBE_OUTBOUND_KEY_FILE") != "/run/secrets/outbound_key"
+                                         or environment.get("KOLOVIBE_TRUSTED_PEERS_FILE") != "/run/secrets/trusted_peers"):
+            raise ValueError("An audit-delivery job reads its own outbound key and its Audit peer file")
         if mounted != expected:
             raise ValueError("A worker mounts exactly the secrets of its API service plus the reviewed R1 mounts")
         for secret in definition["secrets"]:

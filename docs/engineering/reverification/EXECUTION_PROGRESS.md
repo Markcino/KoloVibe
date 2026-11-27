@@ -133,7 +133,15 @@ What it shows: the account lifecycle, discovery, likes, follows, reports, creato
 | 1.5 D13-005 release reconciliation | Tool and record merged; read-back NOT RUN on VM1 | #287 and #288 |
 | 1.6 records | Largely done | #285, #289, #290; issues #136, #152 and #153 updated; DOC-207 ADR-016, ADR-017 and ADR-020 status aligned with Decisions C and D, and #133, #134, #138, #141 and #169 updated, in this change |
 
-Next: the owner-gated steps above, then the mandate's later phases.
+**Phase 2 (Audit delivery and alerting), 27 November:**
+
+| Item | State | Evidence |
+| --- | --- | --- |
+| 2.1 #271 Points to Audit | Waits on the owner's approval of #281 | The plan above |
+| 2.2 #272 Content and Creators audit delivery | Roles, zero-replica jobs and distinct key names in the repository; NOT DEPLOYED | `docs/operations/R1_Content_Creators_Audit_Delivery_Plan_2026-11-27.md`. Needs the CPU budget (#274) first, then the owner's approval. Recommends one Audit map roll together with #271 |
+| 2.3 #145 Audit alerting | NOT IMPLEMENTED | Next |
+
+Next: 2.3, then the owner-gated steps above.
 
 *History (superseded, 27 November before #284):* "1.1 #143: merge #284 …; 1.2 #274: the read-only measurement, then the budget; 1.3 #271: the key correction, once approved; 1.4 #142: apply the ruleset, once approved; 1.5 D13-005: reconcile the release; 1.6: the remaining record corrections."
 

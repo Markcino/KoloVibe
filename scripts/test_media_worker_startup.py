@@ -279,7 +279,7 @@ class DeploymentConstraintTests(unittest.TestCase):
                   "R2_ACCOUNT_ID": "1" * 32, "R2_MEDIA_BUCKET": "kolovibe-media", "SMTP_HOST": "smtp.example.test",
                   "SMTP_PORT": "587", "FROM_EMAIL": "noreply@example.test",
                   **{s.upper() + "_DB_USER": "runtime_" + s
-                     for s in ("content", "engagement", "points", "moderation", "identity")}}
+                     for s in ("content", "creators", "engagement", "points", "moderation", "identity")}}
         cls.service = load_stack(AWS_STACK, inputs)["services"]["media-worker"]
 
     def test_the_service_is_non_root_read_only_unpublished_and_single_replica_capable(self):

@@ -20,6 +20,9 @@ ROLES = {
     ("engagement", "dispatch-events"): ("points", "job", "dispatch_engagement_events", None),
     ("points", "deliver-audit"): ("points", "job", "deliver_audit_events", None),
     ("moderation", "deliver-audit"): ("moderation", "job", "deliver_audit_events", None),
+    # Video and creator lifecycle evidence (D11-007, D13-002). Both services hold it under their media capability.
+    ("content", "deliver-audit"): ("media", "job", "deliver_audit_events", None),
+    ("creators", "deliver-audit"): ("media", "job", "deliver_audit_events", None),
     ("identity", "deliver-security-audit"): ("privileged", "job", "deliver_security_audit", None),
     # Maintenance (Phase 3 A5): retention of expired throttle/code/session rows and re-publication of stalled
     # media jobs. Both are bounded, idempotent and print counts only.

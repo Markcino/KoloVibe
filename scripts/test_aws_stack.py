@@ -19,7 +19,7 @@ INPUTS = {
     "R2_ACCOUNT_ID": "1" * 32, "R2_MEDIA_BUCKET": "kolovibe-media", "SMTP_HOST": "smtp.example.test",
     "SMTP_PORT": "587", "FROM_EMAIL": "noreply@example.test",
     **{service.upper() + "_DB_USER": "runtime_" + service
-       for service in ("content", "engagement", "points", "moderation", "identity")},
+       for service in ("content", "creators", "engagement", "points", "moderation", "identity")},
 }
 
 
@@ -31,7 +31,7 @@ class AwsStackTests(unittest.TestCase):
     def test_the_committed_stack_passes_and_reports_its_memory_budget(self):
         budget = validate_aws(stack())
         self.assertEqual(set(budget), set(AWS_ROLES))
-        self.assertEqual(sum(budget.values()), memory_bytes("1856M"))
+        self.assertEqual(sum(budget.values()), memory_bytes("2176M"))
 
     def test_the_oracle_stack_validator_still_refuses_aws(self):
         with self.assertRaisesRegex(ValueError, "oracle-staging candidate"):
@@ -175,6 +175,37 @@ class AwsStackRejectionTests(unittest.TestCase):
         self.rejected("root-owned", lambda d: s(d)["secrets"][0].update(uid="0"))
         self.rejected("secret defined in the stack", lambda d: d["secrets"].update(content_django={"file": "./x"}))
         self.rejected("unused secret declared", lambda d: d["secrets"].update(orphan={"external": True}))
+
+    def test_audit_jobs_sign_with_their_own_key_and_nothing_else_gets_it(self):
+        s = lambda d, n: d["services"][n]  # noqa: E731
+
+        def swap(definition, process, target, source):
+            for secret in definition["services"][process]["secrets"]:
+                if secret["target"] == target:
+                    secret["source"] = source
+            definition["secrets"].setdefault(source, {"external": True})
+
+        def give(definition, process, target, source):
+            s(definition, process)["secrets"].append(
+                {"source": source, "target": target, "uid": "10001", "gid": "10001", "mode": 0o400})
+
+        self.rejected("content job signs with the creators key", lambda d: swap(
+            d, "content-audit", "outbound_key", "kolovibe_creators_audit_outbound_20261127_v1"))
+        self.rejected("creators job signs with the points key", lambda d: swap(
+            d, "creators-audit", "outbound_key", "kolovibe_points_outbound_key_r1_v1"))
+        self.rejected("content job without its key", lambda d: s(d, "content-audit").update(
+            secrets=[x for x in s(d, "content-audit")["secrets"] if x["target"] != "outbound_key"]))
+        self.rejected("media worker receives the audit key", lambda d: give(
+            d, "media-worker", "outbound_key", "kolovibe_content_audit_outbound_20261127_v1"))
+        self.rejected("requeue job receives the audit peers", lambda d: give(
+            d, "content-requeue", "trusted_peers", "kolovibe_content_audit_peers_20261127_v1"))
+        self.rejected("job reads another key path", lambda d: s(d, "creators-audit")["environment"].update(
+            KOLOVIBE_OUTBOUND_KEY_FILE="/run/secrets/caller_keys"))
+        self.rejected("job without the peer file", lambda d: s(d, "content-audit")["environment"].pop(
+            "KOLOVIBE_TRUSTED_PEERS_FILE"))
+        self.rejected("creators job without onboarding flag row", lambda d: s(d, "creators-audit")["environment"].pop(
+            "KOLOVIBE_STAGING_CREATOR_ONBOARDING"))
+        self.rejected("creators job on the broker", lambda d: s(d, "creators-audit")["networks"].append("broker_private"))
 
     def test_release_evidence_must_carry_exactly_the_stacks_two_digests(self):
         import tempfile

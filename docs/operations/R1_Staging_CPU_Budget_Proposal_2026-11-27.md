@@ -30,8 +30,9 @@ Reservations are only scheduling budgets. Each service keeps its own CPU **limit
 | RabbitMQ | 250m | 250m | unchanged |
 | **Total running today** | **2000m** | **1150m** | |
 | Approved, not yet deployed: Business API, plus 4 erasure workers (Creators, Moderation, Business, Identity confirmations) | (cannot schedule) | 50m + 4 × 25m = 150m | 1.0 / 0.5 CPU |
-| **Total with planned additions** | | **1300m** | |
-| **Free** | **0m** | **700m (35%)** | |
+| Proposed 27 Nov (D13-002, #272): Content and Creators audit delivery jobs | (cannot schedule) | 2 × 25m = 50m | 0.5 CPU |
+| **Total with planned additions** | | **1350m** | |
+| **Free** | **0m** | **650m (32%)** | |
 
 **Margin:** at least 500m stays free after the planned additions. That leaves room for:
 
