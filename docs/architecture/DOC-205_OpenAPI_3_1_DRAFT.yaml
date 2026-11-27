@@ -432,6 +432,53 @@ paths:
         '429': {$ref: '#/components/responses/RateLimited'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '503': {$ref: '#/components/responses/LocalUnavailable'}
+  /me/privacy-requests/{request_id}/export:
+    post:
+      tags: [Identity]
+      operationId: retrieveMyAccessExport
+      x-implementation: local
+      x-capability: account_management
+      summary: Retrieve the account's own completed access export (mandate 3.3)
+      description: >-
+        Only the account that made the access request can retrieve it, with a fresh
+        reauth_token or current_password, and only from when every participating
+        service delivered its part until it expires. The retrieval window is
+        configuration (KOLOVIBE_EXPORT_RETRIEVAL_SECONDS), an owner decision with no
+        default. Every retrieval and denial is audited. Expired data is removed on
+        first access after expiry and by purge_expired_exports. Each service part
+        names categories withheld pending a decision and categories cut at the row
+        limit. Never cached.
+      security: [{bearerAuth: []}]
+      parameters:
+      - name: request_id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              anyOf:
+              - required: [reauth_token]
+              - required: [current_password]
+              properties:
+                reauth_token: {type: string, minLength: 32, maxLength: 128}
+                current_password: {type: string, minLength: 1, maxLength: 128}
+      responses:
+        '200':
+          description: The assembled export
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AccessExport'}
+        '400': {description: Invalid request or generic reauthentication failure}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {description: No access export of this account with this id}
+        '409': {description: 'Not ready yet: code export_not_ready'}
+        '410': {description: 'Expired and removed: code export_expired'}
+        '503': {$ref: '#/components/responses/LocalUnavailable'}
   /me/reauthenticate:
     post:
       tags: [Identity]
@@ -4975,7 +5022,7 @@ paths:
       x-required-roles:
       - administrator
       x-mfa-required: true
-      description: Under Decision C. in_review to processing. In the same transaction the account is deactivated and every session revoked. Refused while the account has an open hold, and for the administrator's own account. Erasure in every service is a later slice; nothing marks the request completed by hand.
+      description: Under Decision C. in_review to processing. In the same transaction the account is deactivated and every session revoked. Refused while the account has an open hold, and for the administrator's own account. Each service then erases its own data and confirms; nothing marks the request completed by hand.
       parameters:
       - name: request_id
         in: path
@@ -4999,6 +5046,45 @@ paths:
         '409':
           description: The request is not in the state this step needs, or the account is on hold. code is one of request_not_received, request_not_in_review, request_not_deletion,
             own_account or account_on_hold
+        '503':
+          description: Identity temporarily unavailable
+  /admin/privacy-requests/{request_id}/approve-access:
+    post:
+      tags:
+      - Administration
+      summary: Approve an access request and start its export
+      operationId: post_admin_privacy_request_approve_access
+      x-implementation: local
+      x-capability: account_management
+      x-required-roles:
+      - administrator
+      x-mfa-required: true
+      description: Under Decision C, mandate 3.3. in_review to processing. Identity assembles its own part at once and
+        asks each participating service for its part; the request becomes completed when every part has arrived. Refused
+        with export_window_not_configured while the retrieval window (an owner decision) is not configured. The console
+        sees the export's state, never its data.
+      parameters:
+      - name: request_id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: The request after this step
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrivacyRequestReview'
+        '400':
+          description: Invalid privacy review request
+        '401':
+          description: Missing or invalid session
+        '403':
+          description: Administrator role and an MFA-verified session within five minutes required
+        '404':
+          description: Request not found
+        '409':
+          description: code is one of request_not_in_review, request_not_access or export_window_not_configured
         '503':
           description: Identity temporarily unavailable
   /admin/accounts/{account_id}/holds:
@@ -10072,7 +10158,8 @@ components:
         account has an open hold. erasure lists each participating service's part of an approved deletion, empty
         before approval, with whether it confirmed and the categories it kept pending a retention decision, by name only.
       additionalProperties: false
-      required: [id, account_id, kind, status, created_at, review_started_at, decided_at, decline_code, held, erasure]
+      required: [id, account_id, kind, status, created_at, review_started_at, decided_at, decline_code, held, erasure,
+                 export]
       properties:
         id: {type: string, format: uuid}
         account_id: {type: string, format: uuid}
@@ -10098,6 +10185,57 @@ components:
               retained:
                 type: array
                 maxItems: 20
+                uniqueItems: true
+                items: {type: string, pattern: '^[a-z][a-z0-9_]{0,39}$'}
+        export:
+          description: An approved access request's export state, never its data; null otherwise.
+          oneOf:
+          - type: 'null'
+          - type: object
+            additionalProperties: false
+            required: [waiting_on, ready_at, expires_at, purged, retrievals]
+            properties:
+              waiting_on:
+                type: array
+                uniqueItems: true
+                items: {type: string, enum: [engagement, creators, moderation, content, business]}
+              ready_at: {type: [string, 'null'], format: date-time}
+              expires_at: {type: [string, 'null'], format: date-time}
+              purged: {type: boolean}
+              retrievals: {type: integer, minimum: 0}
+    AccessExport:
+      type: object
+      description: Mandate 3.3. An account's own records, assembled by each service that holds them. Each service part
+        lists named categories of flat rows, the categories withheld pending a decision, and those cut at the row limit.
+      additionalProperties: false
+      required: [request_id, generated_at, expires_at, services]
+      properties:
+        request_id: {type: string, format: uuid}
+        generated_at: {type: string, format: date-time}
+        expires_at: {type: string, format: date-time}
+        services:
+          type: object
+          required: [identity]
+          propertyNames: {enum: [identity, engagement, creators, moderation, content, business]}
+          additionalProperties:
+            type: object
+            additionalProperties: false
+            required: [data, withheld, truncated]
+            properties:
+              data:
+                type: object
+                propertyNames: {pattern: '^[a-z][a-z0-9_]{0,39}$'}
+                additionalProperties:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: {type: [string, number, integer, boolean, 'null']}
+              withheld:
+                type: array
+                uniqueItems: true
+                items: {type: string, pattern: '^[a-z][a-z0-9_]{0,39}$'}
+              truncated:
+                type: array
                 uniqueItems: true
                 items: {type: string, pattern: '^[a-z][a-z0-9_]{0,39}$'}
     AccountHold:

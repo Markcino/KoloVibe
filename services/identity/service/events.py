@@ -17,6 +17,8 @@ SERVICE = "identity"
 QUEUE = "kolovibe.identity"
 ERASURE_REQUESTED = "privacy.erasure_requested"
 ERASURE_CONFIRMED = "privacy.erasure_confirmed"
+EXPORT_REQUESTED = "privacy.export_requested"
+EXPORT_DELIVERED = "privacy.export_delivered"
 # Decision C: the services that erase their own data, in the order they were added (2a, 2b, 2c, then 2d).
 ERASURE_SERVICES = ("engagement", "creators", "moderation", "content", "business")
 # Moderation and Content key a creator's records by the creator profile id, which only Creators knows.
@@ -31,7 +33,8 @@ INSERT_SQLITE = "INSERT INTO event_outbox (id,event_type,payload) VALUES (%s,%s,
 def record_event(event_type, payload):
     if not connection.in_atomic_block:
         raise RuntimeError("Record the event in the same transaction as the business change")
-    if event_type != ERASURE_REQUESTED or not isinstance(payload, dict) or payload.get("service") not in ERASURE_SERVICES:
+    if (event_type not in (ERASURE_REQUESTED, EXPORT_REQUESTED) or not isinstance(payload, dict)
+            or payload.get("service") not in ERASURE_SERVICES):
         raise ValueError("Invalid event")
     ident = uuid.uuid4()
     with connection.cursor() as cur:

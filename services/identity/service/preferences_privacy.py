@@ -1,12 +1,16 @@
 """Identity-owned preferences and privacy request receipts.
 
-No notification delivery or personal-data deletion is performed here; review is in privacy_review.py.
+No notification delivery or personal-data deletion is performed here; review is in privacy_review.py. The account
+retrieves its own completed access export here (`export`), re-authenticated, until it expires (access_export.py).
 """
+import uuid
 
 from django.db import transaction
 from django.http import JsonResponse
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from . import access_export
 from .accounts import (_body, _consume_reauthentication, _error, _locked_account,
                        _reauthenticate_password, _session_for_access)
 from .models import NotificationPreferences, PrivacyRequest
@@ -60,16 +64,21 @@ def preferences(request):
 @require_POST
 def privacy_requests(request):
     try:
-        data = _body(request, {"access_token", "operation", "kind", "current_password", "reauth_token"})
-        if data.get("operation") not in {"list", "create"}:
+        data = _body(request, {"access_token", "operation", "kind", "id", "current_password", "reauth_token"})
+        if data.get("operation") not in {"list", "create", "export"}:
             raise ValueError
         if data["operation"] == "list":
             if set(data) != {"access_token", "operation"}:
                 raise ValueError
         else:
-            if data["kind"] not in PrivacyRequest.Kind.values or not (
-                {"current_password", "reauth_token"} & set(data)
-            ):
+            if data["operation"] == "create" and ("id" in data or data["kind"] not in PrivacyRequest.Kind.values):
+                raise ValueError
+            if data["operation"] == "export":
+                # Retrieval of the account's own access export: the request id plus a fresh proof, like creation.
+                if "kind" in data or not isinstance(data["id"], str):
+                    raise ValueError
+                data["id"] = str(uuid.UUID(data["id"]))
+            if not {"current_password", "reauth_token"} & set(data):
                 raise ValueError
             for field, minimum in (("current_password", 1), ("reauth_token", 32)):
                 if field in data and (not isinstance(data[field], str)
@@ -97,6 +106,11 @@ def privacy_requests(request):
             if error is not None:
                 return error
             record("account.reauthenticated", account.id)
+        if data["operation"] == "export":
+            status, body = access_export.retrieve(account, data["id"], timezone.now())
+            if status != 200:
+                record("account.privacy_export_denied", account.id)
+            return JsonResponse(body, status=status)
         if PrivacyRequest.objects.filter(
             account=account, kind=data["kind"],
             status__in=PrivacyRequest.OPEN,

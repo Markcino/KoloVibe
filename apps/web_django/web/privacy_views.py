@@ -5,7 +5,9 @@ validates every answer, never echoes Identity's error text, and carries a signed
 Approving a deletion deactivates the account, revokes its sessions and starts erasure in each participating service
 (Decision C slices 2a to 2d: every participating service). Identity marks the request completed once every service
 confirmed and none kept a category; until then the page names the services it waits on and the categories kept
-pending a retention decision (names only, never the person's data).
+pending a retention decision (names only, never the person's data). Approving an access request starts its export
+(mandate 3.3): each service assembles its own part, and only the person retrieves it, in the app, until it expires.
+This page shows the export's state (which services it waits on, when it is ready, when it expires), never its data.
 """
 import re
 from datetime import datetime
@@ -24,12 +26,13 @@ NOTICE = "privacy_review_notice"
 STATUSES = ("received", "in_review", "processing", "completed", "declined")
 STATUS_LABELS = {"received": "Received", "in_review": "In review", "processing": "Approved, erasure pending",
                  "completed": "Completed", "declined": "Declined"}
+ACCESS_STATUS_LABELS = STATUS_LABELS | {"processing": "Approved, export pending", "completed": "Export ready"}
 DECLINE = {"IDENTITY_NOT_CONFIRMED": "Identity could not be confirmed", "DUPLICATE_REQUEST": "Duplicate request",
            "WITHDRAWN": "Withdrawn by the person"}
 HOLD_REASONS = {"LEGAL_CLAIM": "Legal claim or dispute", "AUTHORITY_REQUEST": "Request from a competent authority",
                 "FRAUD_INVESTIGATION": "Fraud or security investigation"}
 ROW = {"id", "account_id", "kind", "status", "created_at", "review_started_at", "decided_at", "decline_code", "held",
-       "erasure"}
+       "erasure", "export"}
 SERVICE_LABELS = {"engagement": "Engagement", "creators": "Creators", "moderation": "Moderation",
                   "content": "Content", "business": "Business"}
 CATEGORY = re.compile(r"[a-z][a-z0-9_]{0,39}")
@@ -37,7 +40,10 @@ HOLD = {"id", "account_id", "reason_code", "note", "placed_by", "placed_at", "re
 UNAVAILABLE = "Privacy requests are unavailable right now. They may not be enabled in this environment."
 CONFLICT = {"request_not_received": "This request is no longer waiting for review.",
             "request_not_in_review": "Open the review before deciding.",
-            "request_not_deletion": "Only a deletion request can be approved here. Access exports come later.",
+            "request_not_deletion": "Only a deletion request can be approved as a deletion.",
+            "request_not_access": "Only an access request can be approved as an export.",
+            "export_window_not_configured": ("Access exports can't be approved yet: the retrieval window is an owner "
+                                             "decision and isn't configured in this environment."),
             "own_account": "You can't approve the deletion of your own account.",
             "account_on_hold": "This account is on hold. Release the hold before approving the deletion."}
 REFUSED = {400: "Check the form and try again.", 403: "Sign in again with your authenticator to make this change.",
@@ -71,13 +77,32 @@ def _erasure_summary(jobs):
                          for job in jobs if job["confirmed"] and job["retained"]]}
 
 
+def _valid_export(item):
+    export = item["export"]
+    if export is None:
+        return True
+    return (item["kind"] == "access" and isinstance(export, dict)
+            and set(export) == {"waiting_on", "ready_at", "expires_at", "purged", "retrievals"}
+            and isinstance(export["waiting_on"], list) and len(set(export["waiting_on"])) == len(export["waiting_on"])
+            and all(service in SERVICE_LABELS for service in export["waiting_on"])
+            and _stamp(export["ready_at"], True) and _stamp(export["expires_at"], True)
+            and type(export["purged"]) is bool and type(export["retrievals"]) is int and export["retrievals"] >= 0)
+
+
+def _export_summary(export):
+    if export is None:
+        return None
+    return {"waiting": [SERVICE_LABELS[service] for service in export["waiting_on"]],
+            "expires_at": export["expires_at"], "purged": export["purged"], "retrievals": export["retrievals"]}
+
+
 def valid_row(item):
     try:
         return (isinstance(item, dict) and set(item) == ROW and valid_id(item["id"]) and valid_id(item["account_id"])
                 and item["kind"] in ("access", "deletion") and item["status"] in STATUSES
                 and _stamp(item["created_at"]) and _stamp(item["review_started_at"], True)
                 and _stamp(item["decided_at"], True) and type(item["held"]) is bool
-                and _valid_erasure(item["erasure"])
+                and _valid_erasure(item["erasure"]) and _valid_export(item)
                 and (item["decline_code"] in DECLINE) == (item["status"] == "declined")
                 and (item["decline_code"] is None or item["decline_code"] in DECLINE))
     except (TypeError, KeyError):
@@ -129,7 +154,11 @@ def _rows_with_actions(request, items):
             actions["decline"] = _intent(request, "decline", item["id"])
             if item["kind"] == "deletion" and not item["held"]:
                 actions["approve"] = _intent(request, "approve-deletion", item["id"])
-        rows.append({**item, "actions": actions, "status_label": STATUS_LABELS[item["status"]],
+            if item["kind"] == "access":
+                actions["approve_access"] = _intent(request, "approve-access", item["id"])
+        labels = ACCESS_STATUS_LABELS if item["kind"] == "access" else STATUS_LABELS
+        rows.append({**item, "actions": actions, "status_label": labels[item["status"]],
+                     "export_summary": _export_summary(item["export"]),
                      "decline_label": DECLINE.get(item["decline_code"]),
                      "erasure_summary": _erasure_summary(item["erasure"])})
     return rows
@@ -168,7 +197,7 @@ def privacy_requests(request):
     if request.method == "GET":
         return _list(request)
     operation, target = request.POST.get("operation"), request.POST.get("request_id", "")
-    if (operation not in ("review", "decline", "approve-deletion") or not valid_id(target)
+    if (operation not in ("review", "decline", "approve-deletion", "approve-access") or not valid_id(target)
             or not _valid_intent(request, operation, target)):
         return views.error_page(request, status=400)
     data = None
@@ -178,17 +207,22 @@ def privacy_requests(request):
         data = {"decline_code": request.POST["decline_code"]}
     if operation == "approve-deletion" and request.POST.get("confirm") != "yes":
         return _list(request, error="Tick the confirmation to approve the deletion.", status=400)
+    if operation == "approve-access" and request.POST.get("confirm") != "yes":
+        return _list(request, error="Tick the confirmation to approve the export.", status=400)
     code, result = views._api(f"/admin/privacy-requests/{target}/{operation}", method="POST",
                               token=request.gateway_token, **({"data": data} if data else {}))
     if code == 401:
         return views._expired(request)
-    expected = {"review": "in_review", "decline": "declined", "approve-deletion": "processing"}[operation]
+    expected = {"review": "in_review", "decline": "declined", "approve-deletion": "processing",
+                "approve-access": "processing"}[operation]
     if code == 200 and valid_row(result) and result["id"] == target and result["status"] == expected:
         request.session[NOTICE] = {
             "review": "Review opened.", "decline": "Request declined. The account is unchanged.",
             "approve-deletion": ("Deletion approved. The account is deactivated and every session is signed out. "
                                  "Each service erases its own data and confirms; only Engagement, Creators, "
-                                 "Moderation, Content and Business take part so far, so the request stays pending.")}[operation]
+                                 "Moderation, Content and Business take part so far, so the request stays pending."),
+            "approve-access": ("Export approved. Each service assembles its own part; the person can download it in "
+                               "the app once every part has arrived, until it expires.")}[operation]
         return redirect(reverse("privacy-requests"))
     return _list(request, error=_refusal(code, result), status=code if code in (400, 403, 404, 409) else 503)
 

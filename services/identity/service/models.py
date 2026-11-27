@@ -365,3 +365,36 @@ class MarketingConsentEvent(models.Model):
 
     class Meta:
         indexes = [models.Index(fields=["account", "recorded_at"], name="marketing_consent_lookup")]
+
+
+class AccessExport(models.Model):
+    """The assembled copy of a person's data for an approved access request (Decision C, mandate 3.3).
+
+    Each participating service delivers its own part (`AccessExportPart`); Identity assembles its own when the request
+    is approved. The export becomes ready when every part has arrived, and can be retrieved only by the account itself,
+    after re-authentication, until `expires_at`. The retrieval window is configuration
+    (`KOLOVIBE_EXPORT_RETRIEVAL_SECONDS`), an owner decision with no default. Expired data is purged.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    request = models.OneToOneField(PrivacyRequest, on_delete=models.PROTECT, related_name="access_export")
+    created_at = models.DateTimeField(auto_now_add=True)
+    ready_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    purged_at = models.DateTimeField(null=True, blank=True)
+    retrievals = models.PositiveIntegerField(default=0)
+
+
+class AccessExportPart(models.Model):
+    """One service's part of an access export: its own records of the person, or the names of withheld categories."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    export = models.ForeignKey(AccessExport, on_delete=models.CASCADE, related_name="parts")
+    service = models.CharField(max_length=16)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+    data = models.JSONField(default=dict)
+    withheld = models.JSONField(default=list)
+    truncated = models.JSONField(default=list)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["export", "service"], name="unique_export_part_service")]

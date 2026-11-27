@@ -26,6 +26,7 @@ DELEGATED = {
     "/api/v1/admin/privacy-requests/{id}/review",
     "/api/v1/admin/privacy-requests/{id}/decline",
     "/api/v1/admin/privacy-requests/{id}/approve-deletion",
+    "/api/v1/admin/privacy-requests/{id}/approve-access",
     "/api/v1/admin/accounts/{id}/holds",
     "/api/v1/admin/account-holds/{id}/release",
     "/api/v1/creator-invitations",

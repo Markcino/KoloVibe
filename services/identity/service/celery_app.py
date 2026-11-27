@@ -59,12 +59,17 @@ app = build_app()
 @app.task(name="kolovibe.identity.event", ignore_result=True, autoretry_for=(DatabaseError,), retry_backoff=True,
           max_retries=10)
 def receive_event(event_id, event_type, payload):
-    """Apply an erasure confirmation once. Anything else is rejected, never acknowledged as handled."""
+    """Apply an erasure confirmation or an export part once. Anything else is rejected, never acknowledged as handled."""
     import django
     django.setup()
+    from .access_export import deliver
     from .erasure import confirm
-    from .events import ERASURE_CONFIRMED
+    from .events import ERASURE_CONFIRMED, EXPORT_DELIVERED
 
-    if event_type != ERASURE_CONFIRMED or not isinstance(payload, dict):
+    if not isinstance(payload, dict):
         raise ValueError("Unexpected Identity event")
-    return confirm(event_id, payload)
+    if event_type == ERASURE_CONFIRMED:
+        return confirm(event_id, payload)
+    if event_type == EXPORT_DELIVERED:
+        return deliver(event_id, payload)
+    raise ValueError("Unexpected Identity event")

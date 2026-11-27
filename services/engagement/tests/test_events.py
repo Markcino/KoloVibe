@@ -156,7 +156,10 @@ class ErasureConfirmationRoutingTests(SimpleTestCase):
                                                  {"exchange": "kolovibe.identity", "routing_key": "kolovibe.identity"}))
         self.assertTrue(queue.no_declare)
 
-    def test_privacy_only_dispatch_selects_confirmations(self):
+    def test_export_parts_go_to_identity_too(self):
+        self.assertEqual(events._destination(events.EXPORT_DELIVERED)[0], "kolovibe.identity.event")
+
+    def test_privacy_only_dispatch_selects_confirmations_and_export_parts(self):
         app, db = MagicMock(), MagicMock()
         cursor = db.cursor.return_value.__enter__.return_value
         cursor.fetchone.return_value = None
@@ -164,5 +167,5 @@ class ErasureConfirmationRoutingTests(SimpleTestCase):
                                                                     return_value=nullcontext()):
             self.assertFalse(events.dispatch_one(app, privacy_only=True))
         sql, parameters = cursor.execute.call_args.args
-        self.assertIn("AND event_type = %s", sql)
-        self.assertEqual(parameters, [events.ERASURE_CONFIRMED])
+        self.assertIn("AND event_type IN (%s, %s)", sql)
+        self.assertEqual(parameters, [events.ERASURE_CONFIRMED, events.EXPORT_DELIVERED])

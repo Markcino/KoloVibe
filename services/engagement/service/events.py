@@ -11,9 +11,12 @@ SERVICE = "engagement"
 TASK_NAME = f"kolovibe.{SERVICE}.event"
 QUALIFIED_VIEW = "dec003.qualified_view"
 ERASURE_CONFIRMED = "privacy.erasure_confirmed"
+EXPORT_DELIVERED = "privacy.export_delivered"
+PRIVACY_REPLIES = (ERASURE_CONFIRMED, EXPORT_DELIVERED)
 NEXT_EVENT = ("SELECT id,event_type,payload FROM event_outbox WHERE published_at IS NULL "
               "ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1")
-NEXT_PRIVACY_EVENT = ("SELECT id,event_type,payload FROM event_outbox WHERE published_at IS NULL AND event_type = %s "
+NEXT_PRIVACY_EVENT = ("SELECT id,event_type,payload FROM event_outbox WHERE published_at IS NULL "
+                      "AND event_type IN (%s, %s) "
                       "ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1")
 
 def record_event(event_type, payload):
@@ -44,7 +47,7 @@ def _destination(event_type):
 
     if event_type == QUALIFIED_VIEW:
         task_name, name = "kolovibe.points.event", "kolovibe.points"
-    elif event_type == ERASURE_CONFIRMED:  # Decision C: confirmations go back to Identity's own queue
+    elif event_type in PRIVACY_REPLIES:  # Decision C: confirmations and export parts go back to Identity's own queue
         task_name, name = "kolovibe.identity.event", "kolovibe.identity"
     else:
         task_name, name = TASK_NAME, f"kolovibe.{SERVICE}"
@@ -65,7 +68,7 @@ def dispatch_one(celery_app, privacy_only=False):
     with transaction.atomic():
         with connection.cursor() as cur:
             if privacy_only:
-                cur.execute(NEXT_PRIVACY_EVENT, [ERASURE_CONFIRMED])
+                cur.execute(NEXT_PRIVACY_EVENT, list(PRIVACY_REPLIES))
             else:
                 cur.execute(NEXT_EVENT)
             row = cur.fetchone()

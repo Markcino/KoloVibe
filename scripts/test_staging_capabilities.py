@@ -104,7 +104,7 @@ class PolicyDefinitionTests(unittest.TestCase):
                           r"/api/v1/admin/moderator-invitations",
                           r"/api/v1/admin/accounts/lookup", r"/internal/auth/account-lookup",
                           r"/api/v1/admin/privacy-requests",
-                          rf"/api/v1/admin/privacy-requests/{policy.UUID}/(?:review|decline|approve-deletion)",
+                          rf"/api/v1/admin/privacy-requests/{policy.UUID}/(?:review|decline|approve-deletion|approve-access)",
                           rf"/api/v1/admin/account-holds/{policy.UUID}/release",
                           rf"/api/v1/admin/accounts/{policy.UUID}/holds", r"/internal/auth/privacy-review",
                           rf"/api/v1/admin/moderator-invitations/{policy.UUID}/revoke",
