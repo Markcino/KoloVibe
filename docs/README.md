@@ -2,6 +2,13 @@
 
 Use the controlled source documents below. Link to them instead of copying requirements, decisions or delivery status into new summaries.
 
+## Governance (read first)
+
+- [Full application mandate · 27 November](governance/Full_Application_Mandate_2026-11-27.md) — **active.** KoloVibe is no longer an MVP; the mandate, its reconciliation with earlier rules and the binding phase execution rules.
+- [Phase execution tracker](governance/Phase_Execution_Tracker.md) — current phase status, carry-over from earlier work and open owner decisions. It continues the [earlier execution progress tracker](engineering/reverification/EXECUTION_PROGRESS.md), now historical.
+
+The links below remain the controlled sources for their subjects. Where they describe the Release 1 boundary as the limit of development scope, the mandate's reconciliation table applies. Phase 1 replaces this page with a full canonical-source index.
+
 ## Product and architecture
 
 - [DEC-001 and document register](requirements/platform_documentation_register_and_DEC001.md) — canonical Release 1 scope decision.

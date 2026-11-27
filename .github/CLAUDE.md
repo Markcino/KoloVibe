@@ -1,22 +1,3 @@
-# KoloVibe R1 — Claude Code Instructions
+# KoloVibe — Claude Code Instructions
 
-Follow the approved R1 contracts and architecture.
-
-## Development rules
-- Work on one independently testable task.
-- Inspect only relevant source files.
-- Reuse existing implementations.
-- Avoid repeated full-repository audits.
-- Prefer focused tests.
-- Do not implement deferred features.
-- Preserve security and authorization checks.
-- Stop after repeated unsuccessful fixes and report the blocker.
-- Do not merge or deploy without approval.
-
-## Project stack
-Django/DRF, Flutter, PostgreSQL, RabbitMQ, Cloudflare R2, FFmpeg and AWS staging.
-
-## Reporting
-Summarize actual changes, tests, failures, PR link and unresolved work.
-
-Never invent token usage or claim that prompt instructions enforce a spending limit.
+The canonical agent instructions are in [`AGENTS.md`](../AGENTS.md). The binding [full application mandate](../docs/governance/Full_Application_Mandate_2026-11-27.md) and [phase execution tracker](../docs/governance/Phase_Execution_Tracker.md) are in `docs/governance/`. Read all three before working.

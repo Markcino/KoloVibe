@@ -1,5 +1,7 @@
 # KoloVibe execution progress
 
+> **Historical as of 27 November 2026 (after #299).** The owner's [full application mandate](../../governance/Full_Application_Mandate_2026-11-27.md) replaces the mandates this file tracked. Current status lives in the [phase execution tracker](../../governance/Phase_Execution_Tracker.md), whose section 4 carries every unfinished item below into a new phase. This file is kept unchanged below as evidence.
+
 **Read this file first when resuming.** Then check the repository state (`git log origin/main`, open PRs) before continuing. This tracker covers the owner's mandate "Complete application reverification, development completion, testing and final acceptance", in its 25 November 2026 form. The mandate was re-issued that day; this file continues the existing work and does not restart it.
 
 Updated: 27 November 2026, `main` after #290. The owner re-issued the mandate on 27 November as "Remediation and Completion" (baseline `e82f43e`, after #277). This file continues under it. Staging runs **v0.542.1** on all 16 application services (owner update on #169, 26 November 17:55 UTC; [record](../../operations/R1_AWS_Staging_Verification_2026-11-26.md), with its 27 November update). **Production is NO-GO.** Nothing in this file is deployed to staging unless a row says so.
