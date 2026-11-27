@@ -8,7 +8,7 @@ Established 27 November 2026 at `37c5a44` (after #299). Updated 27 November 2026
 
 | Item | State |
 | --- | --- |
-| Current phase | **Phase 1 PASS** (27 November 2026, 12:39 UTC; [report](phases/PHASE-01_Full_Product_Reconciliation_Report.md)). Requirement sets approved by the owner at 12:26 UTC; merged in #328 and #329; CI on `main` at `e4f4593` (after #328 and #329): 16 checks success, 4 manual-only jobs skipped by design, 0 failed. **Phase 2 entry started**: read-only and repository-side only |
+| Current phase | **Phase 1 PASS** (27 November 2026, 12:39 UTC; [report](phases/PHASE-01_Full_Product_Reconciliation_Report.md)). Requirement sets approved by the owner at 12:26 UTC; merged in #328 and #329; CI on `main` at `e4f4593` (after #328 and #329): 16 checks success, 4 manual-only jobs skipped by design, 0 failed. **Phase 2 entry started**: read-only and repository-side only ([entry report](phases/PHASE-02_Entry_Report.md)) |
 | Phase 2 | **IN PROGRESS (entry).** Formal Phase 2 is architecture, contracts and decisions (section 2, milestone 7), read-only and repository-side. Staging remediation runs separately under the owner's conditional approval of 12:38 UTC (plans A, B, C, E, G conditional; D not approved; F only after its deployment is authorized), from the staging infrastructure session, recorded in the [staging inspection](phases/PHASE-02-ENTRY_Staging_Infrastructure_Inspection_2026-11-27.md) follow-ups and on GitHub |
 | Next phase | Phase 3 is not authorized |
 | Production | NO-GO. Nothing here authorizes deployment, live payments, live advertising, destructive data changes or production publication (mandate section 8) |
