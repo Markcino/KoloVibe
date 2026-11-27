@@ -11,6 +11,8 @@ digest one at a time (dry-run unless confirmed), and `rollback` restores the pre
 No image is ever defaulted. PostgreSQL, firewall, DNS and Nginx are never modified, and the
 Gateway changes only when it is explicitly named. A reviewed `--secret-override
 <service>:<mount target>=<secret name>` moves one named service's secret in the same guarded step.
+`capacity` (read-only, on the manager) reports the worker's reserved versus allocatable CPU and memory per
+service, and fails when a 100m one-shot job could not be scheduled (D13-004).
 """
 import argparse
 import base64
@@ -1768,6 +1770,51 @@ def worker_preflight():
             'available_memory_bytes': int(memory['MemAvailable'].split()[0])*1024}
 
 
+PROBE_JOB_NANOCPUS = 100_000_000  # the 100m one-shot job D13-004 (#274) must be able to schedule beside the stack
+
+
+def capacity_summary(node, tasks, service_names):
+    """Reserved versus allocatable CPU and memory on one node, from running tasks only. Names and numbers only."""
+    resources = node['Description']['Resources']
+    rows = {}
+    for task in tasks:
+        if (task.get('NodeID') != node['ID'] or (task.get('DesiredState') != 'running')
+                or (task.get('Status') or {}).get('State') not in ('running', 'starting', 'pending', 'assigned')):
+            continue
+        reserved = ((task.get('Spec') or {}).get('Resources') or {}).get('Reservations') or {}
+        name = service_names.get(task.get('ServiceID'), 'unknown')
+        row = rows.setdefault(name, {'tasks': 0, 'cpu_millis': 0, 'memory_mib': 0})
+        row['tasks'] += 1
+        row['cpu_millis'] += int(reserved.get('NanoCPUs', 0)) // 1_000_000
+        row['memory_mib'] += int(reserved.get('MemoryBytes', 0)) // MIB
+    cpu_total = int(resources['NanoCPUs']) // 1_000_000
+    memory_total = int(resources['MemoryBytes']) // MIB
+    cpu_reserved = sum(row['cpu_millis'] for row in rows.values())
+    memory_reserved = sum(row['memory_mib'] for row in rows.values())
+    return {'kind': 'KVB-CLUSTER-CAPACITY-V1', 'node': node['Description']['Hostname'],
+            'cpu_millis': {'allocatable': cpu_total, 'reserved': cpu_reserved, 'free': cpu_total - cpu_reserved},
+            'memory_mib': {'allocatable': memory_total, 'reserved': memory_reserved,
+                           'free': memory_total - memory_reserved},
+            'services': dict(sorted(rows.items())),
+            'checks': [{'test': 'a 100m one-shot job can be scheduled',
+                        'status': 'PASS' if (cpu_total - cpu_reserved) * 1_000_000 >= PROBE_JOB_NANOCPUS else 'FAIL'}],
+            'not_tested': ['actual CPU and memory use (reservations are scheduling budgets, not measurements)']}
+
+
+def capacity():
+    """Read-only: what the worker node has reserved, per service, and whether a 100m job still fits (#274)."""
+    version = manager_checks()
+    workers = [n for n in docker('GET', '/v' + version + '/nodes') if n['Description']['Hostname'] == PROFILE.worker_host]
+    if len(workers) != 1:
+        fail('Exactly one worker node ' + PROFILE.worker_host + ' is required')
+    query = urlencode({'filters': json.dumps({'node': [workers[0]['ID']], 'desired-state': ['running']})})
+    tasks = docker('GET', '/v' + version + '/tasks?' + query)
+    names = {s['ID']: s['Spec']['Name'] for s in docker('GET', '/v' + version + '/services')}
+    report = capacity_summary(workers[0], tasks, names)
+    report['time'] = datetime.now(timezone.utc).isoformat()
+    return report
+
+
 def verify_worker(image, services=SERVICES):
     """Verify `services` (all by default) are running exactly `image`; a staged rollout
     verifies each service as it moves, so the rest are not claimed."""
@@ -1882,7 +1929,7 @@ def main():
     os.umask(0o077)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('mode', choices=('cloud-run', 'worker-preflight', 'plan', 'deploy', 'update-plan', 'update',
-                                         'rollback', 'verify-worker', 'verify-edge'))
+                                         'rollback', 'verify-worker', 'verify-edge', 'capacity'))
     parser.add_argument('--profile', choices=sorted(PROFILES),
                         help='staging environment; required, never inferred from the hostname (not used by verify-edge)')
     parser.add_argument('--worker-evidence')
@@ -1934,7 +1981,9 @@ def main():
     if args.mode == 'rollback':
         rollback(csv(args.services), args.confirm_rollback)
         return
-    if args.mode == 'verify-worker':
+    if args.mode == 'capacity':
+        report = capacity()
+    elif args.mode == 'verify-worker':
         if not args.image or not IMAGE_RE.fullmatch(args.image):
             parser.error('--image must be the expected immutable digest')
         selected = csv(args.services) or list(SERVICES)
