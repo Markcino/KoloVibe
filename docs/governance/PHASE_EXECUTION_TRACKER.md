@@ -9,7 +9,8 @@ Established 27 November 2026 at `37c5a44` (after #299). Updated 27 November 2026
 | Item | State |
 | --- | --- |
 | Current phase | **Phase 1, full-product reconciliation: report delivered, verdict BLOCKED** (see [report](phases/PHASE-01_Full_Product_Reconciliation_Report.md)). Authorized by the owner on 27 November 2026, 11:12 UTC |
-| Next phase | Phase 2 is **not authorized**. The owner said: "Do not begin Phase 2 until I authorize it." |
+| Phase 2 | Instructed by the owner on 27 November 2026, 11:40 UTC. **Report delivered, verdict BLOCKED** ([report](phases/PHASE-02_Infrastructure_Report.md)): read-only inspection and measurement only; every staging change waits on the owner's yes (plans A to G). The owner is asked whether Phase 2 changes may proceed while Phase 1 is BLOCKED on #307 |
+| Next phase | Phase 3 is **not authorized** and does not start until Phase 2 passes (owner, 27 November 11:40 UTC). Earlier: "Do not begin Phase 2 until I authorize it" (superseded by the Phase 2 instruction) |
 | Production | NO-GO. Nothing here authorizes deployment, live payments, live advertising, destructive data changes or production publication (mandate section 8) |
 | Infrastructure access | Claude's **cloud** sessions have no SSH to staging. Sessions on the owner's Mac (Remote Control) can reach `ssh swarm-manager` and `ssh swarm-worker`; the read-only check ran that way on 27 November 11:42–11:55 UTC ([read-only check](../operations/R1_AWS_Staging_Readonly_Check_2026-11-27.md)). Any staging write still needs a concrete plan and the owner's explicit yes |
 
