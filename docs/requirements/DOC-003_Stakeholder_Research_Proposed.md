@@ -43,3 +43,7 @@ Completion requires actual role coverage, dated sanitized findings, limitations,
 - Decision reference and actual decision date:
 
 Do not infer a waiver from schedule pressure, a merged draft, or CI success.
+
+## Full-application protocol addendum (Phase 2, 27 November 2026)
+
+The mandate supersedes the earlier R1-only exclusions above. In addition to the four original roles, cover Business customer/owner/staff (verification and contact privacy), organizer/check-in staff/attendee (inventory expiry, refund and revoked QR), advertiser (review, consent, unavailable mobile funding), Finance maker/approver/releaser/payee (SoD and non-cash points), notification recipient (denied permission and confidential lock-screen content). Use sandbox/synthetic data only. Record actual participants' role coverage and limitations privately; publish sanitized outcomes and linked issues only. **No sessions have been conducted by this Phase 2 repository task. No research waiver or result is implied.** The owner-approved lean method stays in force; appoint participants and accept findings on #133.

@@ -1,0 +1,73 @@
+{
+  "page_id": "70:2",
+  "frame_count": 160,
+  "descendants": 2721,
+  "node_types": {
+    "COMPONENT": 1,
+    "TEXT": 1912,
+    "FRAME": 178,
+    "INSTANCE": 630
+  },
+  "unexpected_fonts": [],
+  "root_child_overflow": [],
+  "notification_text": [
+    {
+      "id": "71:2088",
+      "characters": "9:41"
+    },
+    {
+      "id": "71:2089",
+      "characters": "KoloVibe"
+    },
+    {
+      "id": "71:2090",
+      "characters": "Notifications inbox"
+    },
+    {
+      "id": "71:2091",
+      "characters": "Your account updates, in one place."
+    },
+    {
+      "id": "I71:2092;71:10",
+      "characters": "Video update"
+    },
+    {
+      "id": "I71:2092;71:11",
+      "characters": "Open your video to see its latest status."
+    },
+    {
+      "id": "I71:2095;71:10",
+      "characters": "Account update"
+    },
+    {
+      "id": "I71:2095;71:11",
+      "characters": "A new account update is ready to view."
+    },
+    {
+      "id": "I71:2098;71:10",
+      "characters": "Your unread items"
+    },
+    {
+      "id": "I71:2098;71:11",
+      "characters": "Mark items as read, or open one for details."
+    },
+    {
+      "id": "I71:2101;8:79919",
+      "characters": "Mark all as read"
+    },
+    {
+      "id": "71:2103",
+      "characters": "Home     Explore     Create     Videos     Profile"
+    }
+  ],
+  "image_nodes": [],
+  "status": "DRAFT WIREFRAMES; detailed all-state design and owner review pending",
+  "file_key": "ANaV0jnwjZ0LEcByTc98HP",
+  "session_id": "58b0c557-77d3-43c4-9f50-29c72b078ad1",
+  "verification_date": "2026-11-27",
+  "visual_inspection": [
+    "71:2087",
+    "72:1134"
+  ],
+  "limits": "Representative screenshots only; bounds cover direct children, not nested layouts, all states, 375x667, large text or accessibility. No owner approval recorded."
+}

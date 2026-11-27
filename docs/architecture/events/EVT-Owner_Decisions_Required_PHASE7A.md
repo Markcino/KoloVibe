@@ -1,5 +1,20 @@
 # Events and ticketing (Phase 7) — exact owner decisions required
 
+## Current reconciliation — 27 November 2026
+
+This table records existing approvals, not new owner choices. [Phase 1 gate register](../../governance/phase1/PHASE-01_Governance_Gate_Register.md) and [Decisions A to J](../../planning/Owner_Decisions_A-J_2026-11-25.md) remain the approval evidence; current ADR headers and DOC-205 govern over conflicting proposals below.
+
+| Decision | Current ruling | Remaining gate |
+| --- | --- | --- |
+| DR-EV-01/02 | H/GD-02 approve separate Events development context | Detailed review/merge; no deployment implied |
+| DR-EV-03 | Superseded by J/GD-01/FP-PAY: Finance owns ledger AND providers; Events keeps operational inventory/order/ticket state | Contract and accounting review |
+| DR-EV-04/05 | GD-04 membership authority and G centralized step-up approved | Exact sensitive-action authorization and runtime review |
+| DR-EV-17 | GD-05 selects one Content-owned image pipeline | Hardened pipeline implementation and limits are not built/approved by this record |
+| DR-EV-18 | GD-03 + approved FP-NT select Identity Notifications | Provider credentials/delivery and state-complete screens remain open |
+| DR-EV-06/07 and policy/provider values | Migration/runtime isolation required; capacity handled by separate staging session | Do not infer runtime success, resize approval or legal/financial values |
+
+## Historical proposal and still-open policy rows
+
 **Status: request for owner decisions, 25 November 2026. Every item below is OPEN. Nothing here is approved.** Accountable owner: Mark Allen Gbalazeh (@Markcino). Record each answer with the same template the Business register uses ([decision record template](../business/BIZ-Owner_Decision_Register_PROPOSED.md#decision-record-template-use-when-the-owner-decides)): revision, option, evidence link, date.
 
 **Read this first.**

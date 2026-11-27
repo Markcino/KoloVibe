@@ -18,7 +18,11 @@ SCRIPT = ROOT / "infra" / "postgres" / "r01_ownership_remediation.sql"
 def run_script(base, environment, service, login):
     psql = shutil.which("psql")
     env = {"PATH": os.environ.get("PATH", ""), "PGPASSWORD": (base / "admin-password").read_text(), "PGSSLMODE": "verify-full",
-           "PGSSLROOTCERT": environment["KOLOVIBE_DB_SSLROOTCERT"], "PGHOST": "127.0.0.1", "PGPORT": environment["KOLOVIBE_DB_PORT"],
+           # libpq 14's IP-name verification differs from newer libpq used by
+           # psycopg. Verify the fixture's DNS SAN and pin the loopback address;
+           # keep verify-full and the private fixture CA on every invocation.
+           "PGSSLROOTCERT": environment["KOLOVIBE_DB_SSLROOTCERT"], "PGHOST": "localhost", "PGHOSTADDR": "127.0.0.1",
+           "PGPORT": environment["KOLOVIBE_DB_PORT"],
            "PGUSER": "kolovibe_ci_admin", "PGDATABASE": "kolovibe_ci"}
     return subprocess.run([psql, "-X", "-v", "ON_ERROR_STOP=1", "-v", "service=" + service, "-v", "runtime_login=" + login,
                            "-f", str(SCRIPT)], env=env, capture_output=True, text=True, timeout=120)

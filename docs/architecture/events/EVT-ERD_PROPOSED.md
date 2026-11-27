@@ -1,5 +1,7 @@
 # Events service database ERD (proposed)
 
+> Phase 2: current ownership and approved decision precedence are in [the ownership review](../PHASE-02_Data_Ownership_Review.md). Finance alone owns monetary ledger/provider adapters; Decision J uses Points snapshots as relative allocation weights, never redemption. Conflicting historical text below is superseded. Detailed accounting/policy review remains pending.
+
 **Status: PROPOSED — illustrative design, not DDL. No migration is created or implied by Phase 7A.** 25 November 2026. Conventions follow [DOC-204](../DOC-204_ERD.mmd) and the [Business ERD](../business/BIZ-ERD_PROPOSED.md): UUID primary keys, cross-service references are plain UUID columns with **no foreign keys**, the service owns its schema (`events`). Money is `bigint` minor units with a three-letter currency code; times are UTC.
 
 ## 1. Diagram

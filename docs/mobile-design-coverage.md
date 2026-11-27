@@ -560,3 +560,9 @@ Full inventory, operation list, test evidence and acceptance recipes: [Phase 6D 
 | Visual conformity to an approved design | **None exists; not claimed** |
 | Layout at 390×844 and 375×667, text 1× and 2× | Automated audit passes for all 36 (`business_layout_audit_test`) |
 | Physical iPhone, VoiceOver | **Not done** (Phase 11) |
+
+## Phase 2 design review extension (27 November 2026)
+
+The statement above that Business has no Figma frame is historical as of 24 November. The canonical [Phase 2 frame register](design/PHASE-02_Figma_Frame_Register.csv) now records 145 mobile, 12 console and 3 architecture frames actually created and read back in [Figma page 70:2](https://www.figma.com/design/ANaV0jnwjZ0LEcByTc98HP/KoloVibe?node-id=70-2). They are **draft wireframes**, not approved designs or implemented screen parity. The original 108-frame catalogue and its audit remain intact. Reserved unused ids are not claimed as designed. Business M-109..144 is covered by draft frames; Events M-145..176, Advertising M-220..243 and Finance M-300..317 are proposed route allocations, not approved app route changes. FP-CM M-400..408, FP-NT M-420..425, FP-PAY M-440..453 and FP-GA M-460..465 follow the approved requirements; M-449 is explicitly unavailable under PAY-D2.
+
+[Read-back evidence](evidence/phase2-2026-11-27/figma-readback.json) reports native editable nodes, source fonts and direct-child bounds. Representative compositions were visually checked. This does not prove every screen/state, small-device layout, large text, accessibility, interactions or owner approval. Remaining design work: resource-specific forms/controls for all domains, all reachable loading/empty/error/denied/conflict/expired states, actual UMP/provider-sheet integration boundaries, six-tab Business navigation parity, responsive console workflows, and dated owner visual approval on #306. No design completion is claimed.

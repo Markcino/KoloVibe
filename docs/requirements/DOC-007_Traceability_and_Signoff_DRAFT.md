@@ -111,3 +111,7 @@ DOC-007 Traceability              Pending                            —
 Stage 1 formal closure            Pending                            —
 
 Document-control correction (#133): the original export row said “DEC-002 PRD and SRS v0.2 / Approved by user / Previously confirmed.” That historical assertion is retained here, but it is not usable detail-approval evidence. The authoritative register leaves DEC-002 open for product name/legal entity and limits DEC-001 to scope. FR/NFR verification states and formal Stage 1 sign-off remain unchanged for #134.
+
+## Phase 2 review addendum (27 November 2026)
+
+The feature traceability authority is the [full-product matrix](../governance/phase1/PHASE-01_Feature_Traceability_Matrix.csv), now including exact detailed IDs for every actual row in the five approved sets. The tables above remain historical Stage 1 evidence; “Pending” is not silently changed to acceptance. FR-021..030 and NFR-015 are covered by the full matrix's console/account rows and SRS verification requirements, with staged/device/security acceptance still open. [The review packet](../governance/phases/PHASE-02_Review_and_Decision_Packet.md) records the exact research, section decisions and signatures needed. No Stage 1 signature or research waiver was supplied in this task. Scope approval, automated checks and a merged PR do not close #134.

@@ -1,5 +1,7 @@
 # Finance — accounting design (proposed)
 
+> Phase 2: current ownership and approved decision precedence are in [the ownership review](../PHASE-02_Data_Ownership_Review.md). Finance alone owns monetary ledger/provider adapters; Decision J uses Points snapshots as relative allocation weights, never redemption. Conflicting historical text below is superseded. Detailed accounting/policy review remains pending.
+
 **Status: PROPOSED — not approved, and not accounting advice.** 25 November 2026. This is the F1 design. **It must be reviewed and signed by a qualified independent accountant (DR-FIN-04) before implementation.** The charts, templates and rules below are *structure*. **No financial value is stated or implied** (no rate, share, reserve, threshold, period length, fee or tax); every value is an unset policy parameter that an approved policy version must supply.
 
 ## 1. Principles

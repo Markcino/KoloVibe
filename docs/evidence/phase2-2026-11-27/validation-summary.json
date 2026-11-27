@@ -1,0 +1,71 @@
+{
+  "baseline": "41d662c6bd5d6592c56027f9dc51e2aaecf5a54c",
+  "date": "2026-11-27",
+  "checks": [
+    {
+      "command": "python -m unittest discover -s scripts -p 'test_*.py'",
+      "run": 521,
+      "passed": 518,
+      "failed": 0,
+      "skipped": 3,
+      "seconds": 176.897,
+      "result": "PASS with 3 SKIPPED, not 521 PASS"
+    },
+    {
+      "command": "python -m unittest scripts.test_full_application_contracts scripts.test_gateway_route_contract scripts.test_business_contract_reconciliation scripts.test_contract_copies_in_sync scripts.test_ci_cd scripts.test_adr013_decision_docs",
+      "run": 56,
+      "passed": 56,
+      "failed": 0,
+      "seconds": 85.196,
+      "result": "PASS"
+    },
+    {
+      "command": "python -m unittest scripts.test_r01_remediation",
+      "run": 1,
+      "passed": 1,
+      "failed": 0,
+      "result": "PASS after verify-full DNS SAN/hostaddr fixture correction"
+    },
+    {
+      "command": "python scripts/check_mobile_design.py",
+      "original_screens": 108,
+      "assets": 149,
+      "phase2_draft_frames": 160,
+      "result": "PASS; not live design acceptance"
+    },
+    {
+      "command": "python scripts/check_structure.py",
+      "built_services": 9,
+      "result": "PASS"
+    },
+    {
+      "command": "changed Markdown relative links and CSV widths",
+      "links_checked": 209,
+      "broken": 0,
+      "result": "PASS"
+    }
+  ],
+  "historical_failures": [
+    {
+      "command": "initial new-contract suite",
+      "result": "FAIL; planned lifecycle and owner-tag drift fixed; subsequent focused suite PASS"
+    },
+    {
+      "command": "initial full script suite",
+      "run": 520,
+      "failures": 1,
+      "skipped": 3,
+      "reason": "local psql 14 verify-full IP certificate-name mismatch",
+      "retest": "1 PASS; subsequent full suite 521 run / 0 failed / 3 skipped"
+    }
+  ],
+  "not_run": [
+    "actual human role research",
+    "signed Stage 1/2 and independent accounting review",
+    "new domain runtime/real broker/provider tests",
+    "all-state/device design acceptance",
+    "staging writes/deployment",
+    "Phase 3"
+  ],
+  "ci": "Pending PR publication; results must be tied to exact SHA"
+}

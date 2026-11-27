@@ -4,24 +4,24 @@ index,Source,ID,Decision,Status,Owner_or_requirement,Due_gate
 2,DOC-207,ADR-013,Client authentication and sessions,Design approved — implementation and verification open,Platform/Security,Before production acceptance
 3,DOC-207,ADR-014,Nginx-to-Swarm private transport,Open — decision required,Platform/Security,Before Stage 2 final sign-off
 4,DOC-207,ADR-015,Swarm control-plane sizing and availability,Open — decision required,SRE/Platform,Before Stage 2 final sign-off
-5,DOC-207,ADR-016,PostgreSQL hosting and DR targets,Open — decision required,SRE/Platform,Before Stage 2 final sign-off
-6,DOC-207,ADR-017,Observability and audit pipeline,Proposed — needs approval,SRE/Platform,Before implementation of affected component
+5,DOC-207,ADR-016,PostgreSQL hosting and DR targets,"Mechanism approved — Decision D; hosting, RTO/RPO and retention open #144",SRE/Platform,Before Stage 2 final sign-off
+6,DOC-207,ADR-017,Observability and audit pipeline,Mechanism approved — Decision D; platform/channel/thresholds open #145,SRE/Platform,Before implementation of affected component
 7,DOC-207,ADR-018,"Secrets, images and CI/CD controls",Proposed — needs approval,Platform/Security,Before implementation of affected component
 8,DOC-207,ADR-019,Qualified view and points parameters,Partially approved — DEC-003 restricted-pilot parameters approved 10 Nov 2026; general-release parameters open,Product/Security,Before Stage 2 final sign-off
-9,DOC-207,ADR-020,Privacy retention and data residency,Open — legal/product decision required,Product/Security,Before Stage 2 final sign-off
+9,DOC-207,ADR-020,Privacy retention and data residency,Mechanism approved — Decision C; periods/residency/legal approval open #136,Product/Security,Before Stage 2 final sign-off
 10,DOC-207,ADR-021,Nginx high availability and TLS ownership,Open — decision required,SRE/Platform,Before Stage 2 final sign-off
-11,DOC-207,ADR-022,API versioning and event contracts,Proposed — needs approval,SRE/Platform,Before implementation of affected component
+11,DOC-207,ADR-022,API versioning and event contracts,Canonical DOC-205 and event catalogue proposed in Phase 2; approval pending #305/#141,SRE/Platform,Before implementation of affected component
 12,DOC-208,INF-01,Pilot versus HA target and budget,OPEN,Yes,Before related deployment
-13,DOC-208,INF-02,Hosting provider and region,OPEN,Yes,Before related deployment
+13,DOC-208,INF-02,Hosting provider and region,AWS staging observed; production region/residency remains undecided,Owner/SRE #139/#136,Before related deployment
 14,DOC-208,INF-03,Nginx origin protection and private upstream,OPEN,Yes,Before related deployment
 15,DOC-208,INF-04,Manager and worker count,OPEN,Yes,Before related deployment
 16,DOC-208,INF-05,PostgreSQL topology and RPO RTO,OPEN,Yes,Before related deployment
-17,DOC-208,INF-06,Redis hosting,OPEN,Yes,Before related deployment
+17,DOC-208,INF-06,RabbitMQ hosting (historical Redis item superseded),"Mechanism approved — RabbitMQ, mandate section 3; runtime isolation/DLQ evidence open",Platform/SRE #146/#311,Before related deployment
 18,DOC-208,INF-07,Workload identity and mTLS,OPEN,Yes,Before related deployment
 19,DOC-208,INF-08,DNS ownership,OPEN,Yes,Before related deployment
 20,DOC-208,INF-09,Observability stack,OPEN,Yes,Before related deployment
 21,DOC-208,INF-10,Backup retention,OPEN,Yes,Before related deployment
-22,DOC-208,INF-11,Video provider and egress,OPEN,Yes,Before related deployment
+22,DOC-208,INF-11,Video provider and egress,R2 + FFmpeg approved — OD-07; egress/cost and operational acceptance open,Content/SRE #149,Before related deployment
 23,DOC-208,INF-12,CI/CD registry and deploy credentials,OPEN,Yes,Before related deployment
 24,DOC-208,INF-13,Capacity and SLO,OPEN,Yes,Before related deployment
 25,DOC-208,INF-14,Nginx high availability,OPEN,Yes,Before related deployment

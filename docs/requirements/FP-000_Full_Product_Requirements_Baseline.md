@@ -51,3 +51,9 @@ None of these sets chooses a provider, fee, currency, threshold, credential, acc
 ## 4. What this replaces
 
 DEC-001 (Release 1 scope) and the R1-only statements in the PRD and SRS v0.2 remain the historical record of the Release 1 boundary. Where they say Business, ticketing, advertising or payouts are deferred or out of scope, this baseline and the mandate apply instead. See the [archive register](../archive/ARCHIVE_REGISTER.md).
+
+## Phase 2 requirement verification (27 November 2026)
+
+Re-read all five approved sets and recorded their **actual table ids** in the canonical matrix: NT 16, PAY 20, GA 18, DST 28 and CM 20 (102 total). DST numbering spans 001..036 but 022..029 are unused; “001 to 036” is an id range, not 36 authored requirements. No missing ids or approvals were invented. Core PRD/SRS details and EVT/AD/FIN proposed details remain separate pending approvals; the five-set approval does not sign every historical section.
+
+Official Play target API, page-size and account-testing guidance, Apple review/SDK rules, Firebase push setup and Google UMP setup were rechecked during Phase 2. The [formal Phase 2 report](../governance/phases/PHASE-02_Completion_Report.md) records the verification and remaining evidence. This approves no legal conclusion, store submission, provider credentials or policy value. Apple manifest guidance was also read through its official Markdown rendering; assembled app/SDK manifest validation remains a release-build acceptance test, not a completed result.

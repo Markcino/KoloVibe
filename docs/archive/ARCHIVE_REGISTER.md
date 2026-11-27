@@ -20,3 +20,7 @@
 | [`docs/history/`](../history/) | Stage 2 change records | ADR register |
 | [Web console Codex prompt](../engineering/R1_Web_Admin_Console_Codex_Prompt.md) | Historical prompt | Mandate and agent instructions |
 | `docs/governance/Phase_Execution_Tracker.md` (#302) | Removed in Phase 1; available in Git history at `79d69eb`. Its content was merged into `PHASE_EXECUTION_TRACKER.md` | Phase execution tracker |
+
+## Phase 2 contract consolidation (27 November 2026)
+
+`packages/contracts/openapi/health.yaml` is retired; its history remains at `41d662c`. DOC-205 includes health operations and is the sole canonical OpenAPI. The Events, Advertising and Finance API Markdown proposals remain in place as historical rationale with canonical pointers. Current ADR reconciliation headers supersede conflicting historical ledger, provider and Points-basis text. No historical approval/signature is deleted.

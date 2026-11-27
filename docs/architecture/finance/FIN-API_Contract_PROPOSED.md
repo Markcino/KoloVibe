@@ -1,5 +1,7 @@
 # Finance API and event contracts (proposed)
 
+> Phase 2 reconciliation, 27 November 2026: this is historical proposal detail. [DOC-205](../DOC-205_OpenAPI_3_1_DRAFT.yaml) is the sole API authority and [the event catalogue](../../../packages/contracts/events/catalogue.yaml) the sole messaging authority. Current ADR-FIN-001 governs ownership. Grouped paths, ledger/provider ownership and `ads` naming below are superseded where they conflict; they are not a second contract. Contract approval remains pending #305/#141.
+
 **Status: PROPOSED — not approved; not yet in DOC-205.** 25 November 2026. On approval these become OpenAPI 3.1 in `packages/contracts/openapi` plus versioned JSON schemas for business events, with the same contract-reconciliation test as Business. Paths under `/api/v1`. The client never sends a payee id, amount basis, policy value, role or state.
 
 ## Conventions

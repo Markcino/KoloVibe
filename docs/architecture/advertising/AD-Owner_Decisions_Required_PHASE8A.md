@@ -1,5 +1,21 @@
 # Advertising and sponsorship (Phase 8) — exact owner decisions required
 
+## Current reconciliation — 27 November 2026
+
+This table records existing approvals, not new owner choices. [Phase 1 gate register](../../governance/phase1/PHASE-01_Governance_Gate_Register.md) and [Decisions A to J](../../planning/Owner_Decisions_A-J_2026-11-25.md) remain the approval evidence; current ADR headers and DOC-205 govern over conflicting proposals below.
+
+| Decision | Current ruling | Remaining gate |
+| --- | --- | --- |
+| DR-AD-01/02 | I/GD-02 approve separate **advertising** service (not `ads`), one of twelve target services | Detail review/merge; no deployment |
+| DR-AD-03 | J/GD-01/FP-PAY: Finance owns all monetary journals/providers; Advertising keeps billable/invoice facts only | Finance interface/reconciliation review |
+| DR-AD-04/05 | GD-04 approves membership structure; G centralized step-up | Exact grants, sensitive-action review and runtime prerequisites |
+| DR-AD-06/07 | GD-05 Content image pipeline; GD-06 Identity purpose-based consent | Pipeline/consent delivery not implemented by Phase 2 |
+| DR-AD-36 and Google choices | FP-GA approved: UMP, organization account, no minors/unknown-age ads, banner/native feed, test units only | Actual account access, SDK/runtime/disclosures and live activation remain separate |
+| PAY-D2 cross-cutting purchase channel | Outside-mobile purchase approved; no public advertiser portal or in-app steering authorized | Compatible sales channel and written store confirmation remain blocked |
+| Other policy/provider/retention values | Original recommendations remain proposals | No implicit blanket approval |
+
+## Historical proposal and still-open policy rows
+
 > **Update, 27 November 2026 (records correction):** the "not approved" statements below are superseded for **development scope**. Owner Decisions H (Events), I (Advertising) and J (Finance) of 25 November 2026 ([record](../../planning/Owner_Decisions_A-J_2026-11-25.md)) approve these scopes for **sandbox development only**. Real payments, live payouts, live ads and production activation stay **not authorized**. Decision J and X-01 supersede any Events- or Advertising-owned monetary ledger: **Finance owns the one ledger**, and Points stays non-cash. Every policy value (rates, shares, thresholds, periods, windows, currencies) stays an unset owner decision. The original text is kept below as history.
 
 **Status: request for owner decisions, 25 November 2026. Every item is OPEN. Nothing here is approved.** Accountable owner: Mark Allen Gbalazeh (@Markcino). Record each answer with the Business template ([decision record template](../business/BIZ-Owner_Decision_Register_PROPOSED.md#decision-record-template-use-when-the-owner-decides)).
