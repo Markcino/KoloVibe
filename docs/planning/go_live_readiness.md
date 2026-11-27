@@ -1,5 +1,7 @@
 # Go-live readiness by stage
 
+> **Archived in place (27 November 2026).** KoloVibe is no longer an MVP or pilot project. Current status is in the [phase execution tracker](../governance/PHASE_EXECUTION_TRACKER.md) and the Phase 2 to 11 milestones. See the [archive register](../archive/ARCHIVE_REGISTER.md). This page is kept as history.
+
 **Updated 26 November 2026** ([staging verification](../operations/R1_AWS_Staging_Verification_2026-11-26.md)); earlier rows from 23 November GitHub publication and owner-supplied AWS evidence. Production is NO-GO.** This page indexes the open work that must close before a controlled pilot go-live. It links to source documents rather than restating them. Release 1 scope is unchanged (DEC-001); deferred: live streaming, business discovery, ticketing and cash payouts.
 
 The [seven-stage plan](liberian_platform_seven_stage_development_plan.md) is the reference. Go-live depends on Stages 1–6; Stage 7 (operations and improvement) starts after the go/no-go. Dates in that plan are targets, not commitments.

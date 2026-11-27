@@ -1,6 +1,6 @@
 # KoloVibe execution progress
 
-> **Historical as of 27 November 2026 (after #299).** The owner's [full application mandate](../../governance/Full_Application_Mandate_2026-11-27.md) replaces the mandates this file tracked. Current status lives in the [phase execution tracker](../../governance/Phase_Execution_Tracker.md), whose section 4 carries every unfinished item below into a new phase. This file is kept unchanged below as evidence.
+> **Historical as of 27 November 2026 (after #299).** The owner's [full application mandate](../../governance/Full_Application_Mandate_2026-11-27.md) replaces the mandates this file tracked. Current status lives in the [phase execution tracker](../../governance/PHASE_EXECUTION_TRACKER.md), whose section 4.3 carries every unfinished item below into a new phase. This file is kept unchanged below as evidence.
 
 **Read this file first when resuming.** Then check the repository state (`git log origin/main`, open PRs) before continuing. This tracker covers the owner's mandate "Complete application reverification, development completion, testing and final acceptance", in its 25 November 2026 form. The mandate was re-issued that day; this file continues the existing work and does not restart it.
 

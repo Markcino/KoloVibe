@@ -32,7 +32,7 @@ Findings and status changes from the [26 November AWS staging verification](../.
 | D13-003 | P1 | Missing deployment | OPEN: erasure dispatchers, consumers and queues absent on staging; needs the broker plan approval | #273 |
 | D13-004 | P2 | Infrastructure capacity | OPEN: VM2 CPU reservations 2000m of 2000m | #274 |
 | D13-005 | P2 | Release process | Tool unblocked by #269 and #270; process OPEN (roll out only through the reviewed tool, which stamps labels) | #269 |
-| D13-006 | P1 | CI / release | OPEN: `pubspec.lock` from `d9993ea` fails pinned Flutter 3.47.8; publish blocked | #275 |
+| D13-006 | P1 | CI / release | CLOSED 27 Nov by #277 (issue #275 closed); historical: `pubspec.lock` from `d9993ea` failed pinned Flutter 3.47.8 | #275 |
 | D13-007 | P2 | Reliability | UNDER INVESTIGATION: one video in `processing` since 21 Nov | #149 |
 
 ## 2. Triage and root cause
