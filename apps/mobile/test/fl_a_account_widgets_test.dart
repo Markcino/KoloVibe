@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -420,6 +422,98 @@ void main() {
       expect(find.text('Status: in review'), findsOneWidget);
       expect(find.text('Request ID: $receiptId'), findsOneWidget);
     }
+  });
+  testWidgets(
+      'a completed access request shows the export after a fresh identity check',
+      (tester) async {
+    var exportCalls = 0;
+    Map<String, dynamic>? sent;
+    final fixture = AccountFixture(handler: (request) async {
+      if (request.url.path.endsWith('/reauthenticate')) {
+        return jsonResponse(proofData);
+      }
+      if (request.url.path.endsWith('/$receiptId/export')) {
+        exportCalls++;
+        sent = jsonDecode(request.body) as Map<String, dynamic>;
+        if (exportCalls == 2) {
+          return jsonResponse(
+              {'detail': 'The export has expired', 'code': 'export_expired'},
+              410);
+        }
+        return jsonResponse({
+          'request_id': receiptId,
+          'generated_at': '2026-11-27T10:00:00+00:00',
+          'expires_at': '2026-11-28T10:00:00+00:00',
+          'services': {
+            'identity': {
+              'data': {
+                'account': [
+                  {'email': 'mark@example.test', 'display_name': 'Mark'}
+                ]
+              },
+              'withheld': <String>[],
+              'truncated': <String>[],
+            },
+            'content': {
+              'data': {
+                'videos': [
+                  {
+                    'title': 'My song',
+                    'tags': ['lagos', 'hipco']
+                  }
+                ]
+              },
+              'withheld': ['media_files'],
+              'truncated': <String>[],
+            },
+          },
+        });
+      }
+      return jsonResponse({
+        'items': [privacyData('access', 'completed')]
+      });
+    });
+    await tester.pumpWidget(app(LiveSettingsScreen(
+        route: const ScreenRoute(94),
+        catalog: catalog,
+        repository: LiveSettingsRepository(fixture.account),
+        account: fixture.account)));
+    await settle(tester);
+    expect(find.text('Status: completed'), findsOneWidget);
+    await tap(tester, 'View my data');
+    await fill(tester, 16);
+    await tap(tester, 'Verify identity');
+    expect(exportCalls, 1);
+    expect(sent!.keys, ['reauth_token'],
+        reason: 'only the fresh proof is sent');
+    expect(find.byKey(const ValueKey('access-export')), findsOneWidget);
+    await tester.tap(find.text('Videos'));
+    await settle(tester);
+    expect(find.text('Title: My song'), findsOneWidget);
+    expect(find.text('Tags: lagos, hipco'), findsOneWidget);
+    expect(find.textContaining('Media files'), findsOneWidget);
+    await tester.pageBack();
+    await settle(tester);
+    await tap(tester, 'View my data');
+    await fill(tester, 16);
+    await tap(tester, 'Verify identity');
+    expect(exportCalls, 2);
+    expect(find.byKey(const ValueKey('access-export')), findsNothing);
+    expect(find.textContaining('This export has expired'), findsOneWidget);
+  });
+  testWidgets('a request that is not completed offers no export',
+      (tester) async {
+    final fixture = AccountFixture(
+        handler: (_) async => jsonResponse({
+              'items': [privacyData('access', 'processing')]
+            }));
+    await tester.pumpWidget(app(LiveSettingsScreen(
+        route: const ScreenRoute(94),
+        catalog: catalog,
+        repository: LiveSettingsRepository(fixture.account),
+        account: fixture.account)));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('view-export')), findsNothing);
   });
   testWidgets(
       'inline deletion wrong password is generic and controller is cleared',

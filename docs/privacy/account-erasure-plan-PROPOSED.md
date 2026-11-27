@@ -103,6 +103,11 @@ What remains is an opaque UUID. It is still needed to prove which terms version 
   - Withheld by name, pending an owner decision on what a person may see: Creators' copyright review grant; staff decisions, reviewer previews and assignments, and a rights-holder verification's evidence note; the media files themselves, and the copyright and safety evidence (prescreening, fingerprints, screening, rights events, claim states); business verification cases and decisions, profile revisions, staff invitations (codes are never exported), reviewer grants and inquiry blocks; every service's audit trail.
   - Business is not deployed on staging, so an export there waits on it, as erasure does.
   - Proven by each service's suite, and over a real local RabbitMQ by test 3 of `scripts/verify_erasure_pipeline_broker.py`: all six parts arrive, the export completes, the account retrieves it, and another account gets 404. No broker grant changes.
+- **Access export, 3.3c (built, 27 November 2026):** the app shows a completed export.
+  - Privacy settings has a "Your account data request" row. On a completed access request, "View my data" asks the person to confirm their identity, fetches the export with a single-use re-authentication token, and shows it by service and category, including what was withheld and what was cut.
+  - The export is held in memory only and is gone when the person leaves the view; nothing is written to the device. "Copy all as text" puts it on the clipboard only when the person asks, with a note that other apps can read the clipboard.
+  - An expired export shows "expired and removed" and invites a new request; an unready one says it is still being prepared.
+  - Saving the export as a file (a native share or save sheet) is not built; it needs native code and a device check.
 - **Still to build:**
   - Reading confirmations back from Audit after a restore of Identity itself. That needs an Audit read contract, which does not exist yet.
   - The completion notice email, which is still undecided (step 4).

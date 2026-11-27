@@ -72,7 +72,8 @@ class ApiClient {
       String? accessToken,
       String? idempotencyKey,
       String? stepUpToken,
-      Map<String, String>? query}) async {
+      Map<String, String>? query,
+      int maxBytes = 65536}) async {
     if (!path.startsWith('/') || path.contains('..') || path.contains('?')) {
       throw ArgumentError('Invalid API path');
     }
@@ -104,14 +105,15 @@ class ApiClient {
     try {
       final streamed =
           await _client.send(request).timeout(const Duration(seconds: 8));
-      if (streamed.contentLength != null && streamed.contentLength! > 65536) {
+      if (streamed.contentLength != null &&
+          streamed.contentLength! > maxBytes) {
         throw const ApiFailure(503, 'The service response was too large.');
       }
       final bytes = <int>[];
       await for (final chunk
           in streamed.stream.timeout(const Duration(seconds: 8))) {
         bytes.addAll(chunk);
-        if (bytes.length > 65536) {
+        if (bytes.length > maxBytes) {
           throw const ApiFailure(503, 'The service response was too large.');
         }
       }

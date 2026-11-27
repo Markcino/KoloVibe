@@ -228,6 +228,7 @@ class LiveAccountRepository implements AccountRepository {
     Map<String, Object?>? body,
     String? idempotencyKey,
     String? stepUpToken,
+    int maxBytes = 65536,
   }) async {
     const expired = ApiFailure(401, 'Sign in again to manage sessions.');
     try {
@@ -242,6 +243,7 @@ class LiveAccountRepository implements AccountRepository {
           body: body,
           idempotencyKey: idempotencyKey,
           stepUpToken: stepUpToken,
+          maxBytes: maxBytes,
         );
       } on ApiFailure catch (error) {
         if (error.status != 401 || restored) rethrow;
@@ -254,6 +256,7 @@ class LiveAccountRepository implements AccountRepository {
           body: body,
           idempotencyKey: idempotencyKey,
           stepUpToken: stepUpToken,
+          maxBytes: maxBytes,
         );
       }
     } on ApiFailure catch (error) {
@@ -287,6 +290,7 @@ class LiveAccountRepository implements AccountRepository {
     Map<String, Object?>? body,
     String? idempotencyKey,
     String? stepUpToken,
+    int maxBytes = 65536,
   }) =>
       _serialized(
         () => _sessionRequest(
@@ -296,6 +300,7 @@ class LiveAccountRepository implements AccountRepository {
           body: body,
           idempotencyKey: idempotencyKey,
           stepUpToken: stepUpToken,
+          maxBytes: maxBytes,
         ),
       );
 
