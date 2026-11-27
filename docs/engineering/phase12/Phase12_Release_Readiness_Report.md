@@ -1,5 +1,7 @@
 # Phase 12 — defect remediation, regression testing and release readiness
 
+> **Update, 27 November 2026 (records correction):** the core of gate **B1** (D11-002 on the real database) is met: privilege separation was **verified on staging** by read-back on 26 November (`docs/operations/R1_AWS_Staging_Verification_2026-11-26.md` §4.2 and §6: runtime logins only in `_rt`, all objects owned by NOLOGIN roles, no TRIGGER, TRUNCATE or CREATE). The record does not show `T10_03` and `T10_04` repeated on staging, which this gate also names, so they are NOT RUN there. The broker issues and the Points to Audit key (#271) stay open. The rest of this report is a dated 25 November snapshot and is kept as history.
+
 **Date:** 25 November 2026. **Source:** branch `claude/blissful-albattani-81b81r` on top of Phase 11 source `384f4b5` (the commits listed in section 13). **Scope:** fix the Phase 11 defects, prove the fixes, rerun the applicable Phase 11 suite on the fixed build, and state whether the application can be released. **No deployment, no AWS or staging action, no production access, no real money moved.** A separate owner approval is required for any release deployment, and none is requested here.
 
 ## 0. Conclusion
