@@ -23,7 +23,7 @@
 Django/DRF, Flutter, PostgreSQL, RabbitMQ (not Redis), Cloudflare R2, FFmpeg, Docker Swarm with host Nginx and Cloudflare ingress, and AWS staging.
 
 ## Reporting
-Summarize actual changes, tests, failures, PR link and unresolved work.
+Summarize actual changes, tests, failures, PR link and unresolved work. At a phase boundary, produce the phase completion report the mandate defines.
 
 Never invent token usage or claim that prompt instructions enforce a spending limit.
 

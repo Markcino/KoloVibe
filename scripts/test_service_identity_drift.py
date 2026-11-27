@@ -45,7 +45,9 @@ class ServiceIdentityDriftTests(unittest.TestCase):
         self.assertEqual(policies["business"], {"gateway": ("/internal/probe", "/internal/business/")})
         self.assertEqual(set(policies["audit"]), PRODUCERS | {"gateway"})
         self.assertEqual(policies["audit"]["gateway"], ("/internal/probe", "/internal/audit/read"))
-        for producer in PRODUCERS:
+        # Mandate 3.4: Identity alone may also read the erasure recovery source after a restore.
+        self.assertEqual(policies["audit"]["identity"], ("/internal/security-events", "/internal/audit/erasure-recovery"))
+        for producer in PRODUCERS - {"identity"}:
             self.assertEqual(policies["audit"][producer], ("/internal/security-events",))
 
     def test_no_service_names_itself_as_a_caller(self):

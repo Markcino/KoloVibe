@@ -141,6 +141,8 @@ def _rules():
 
     add("gateway", "audit_read", "GET", r"/api/v1/admin/audit", privileged=True)
     add("audit", "audit_read", "POST", r"/internal/audit/read")
+    # Mandate 3.4 (proposed contract): Identity's erasure recovery source after a restore; Audit lets only Identity in.
+    add("audit", "audit_read", "POST", r"/internal/audit/erasure-recovery")
 
     # ---- Identity (internal) ----------------------------------------------------------------------
     add("identity", "account_management", "POST", r"/internal/auth/account-lookup", privileged=True)

@@ -108,8 +108,12 @@ What remains is an opaque UUID. It is still needed to prove which terms version 
   - The export is held in memory only and is gone when the person leaves the view; nothing is written to the device. "Copy all as text" puts it on the clipboard only when the person asks, with a note that other apps can read the clipboard.
   - An expired export shows "expired and removed" and invites a new request; an unready one says it is still being prepared.
   - Saving the export as a file (a native share or save sheet) is not built; it needs native code and a device check.
+- **Restore-safe recovery, 3.4 (built, 27 November 2026; the contract is PROPOSED):**
+  - Audit already holds, in its own append-only store, every `account.deactivated` (recorded only when a deletion is approved) and `account.privacy_erasure_completed` fact, with the account as the actor.
+  - Audit's new `/internal/audit/erasure-recovery` answers those two kinds only, from producer Identity only, as account ids, kinds and times, oldest first in pages of 500. Only the Identity caller may read it; every read is recorded (`audit.erasure_recovery_read`). It is behind the existing `audit_read` capability.
+  - Identity's `recover_erasures_from_audit` re-applies them after a restore: it deactivates and signs out the account, de-identifies it again if its erasure completed, and returns a restored request still waiting for review to `processing` with its jobs reopened. It never marks a request completed. It is idempotent, has `--dry-run`, and prints counts only. The restore procedure is in the deployment and rollback runbook.
+  - Owner decision: approve this contract (Identity reading account ids of erased accounts from Audit) before it is used.
 - **Still to build:**
-  - Reading confirmations back from Audit after a restore of Identity itself. That needs an Audit read contract, which does not exist yet.
   - The completion notice email, which is still undecided (step 4).
 
 *Update, 27 November 2026:* the roles, the zero-replica stack processes and the erasure-only capability row are now in the repository, and the staging steps are in `docs/operations/R1_Erasure_Runtime_Plan_2026-11-27.md` (not applied). Business is not on staging, so requests there will wait on it.

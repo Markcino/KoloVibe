@@ -48,7 +48,7 @@ def read_events(request):
             query = query.filter(producer__in=grants.values("producer"))
         for field in ("producer", "kind"):
             if data.get(field):
-                known = set(PRODUCER_KINDS) | {"audit"} if field == "producer" else set().union(*PRODUCER_KINDS.values()) | {"audit.read", "audit.read_denied"}
+                known = set(PRODUCER_KINDS) | {"audit"} if field == "producer" else set().union(*PRODUCER_KINDS.values()) | {"audit.read", "audit.read_denied", "audit.erasure_recovery_read"}
                 if not isinstance(data[field], str) or data[field] not in known:
                     raise ValueError
                 query = query.filter(**{field: data[field]})

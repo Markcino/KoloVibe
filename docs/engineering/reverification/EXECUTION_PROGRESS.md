@@ -1,8 +1,8 @@
 # KoloVibe execution progress
 
-**Since 27 November 2026, the [phase execution tracker](../../governance/PHASE_EXECUTION_TRACKER.md) under the [full application mandate](../../governance/Full_Application_Mandate_2026-11-27.md) is read first.** This file stays the detailed record of the earlier mandates' work, which continues from here and is cited there with a prefix (for example "remediation 3.4").
+> **Historical as of 27 November 2026 (after #299).** The owner's [full application mandate](../../governance/Full_Application_Mandate_2026-11-27.md) replaces the mandates this file tracked. Current status lives in the [phase execution tracker](../../governance/Phase_Execution_Tracker.md), whose section 4 carries every unfinished item below into a new phase. This file is kept unchanged below as evidence.
 
-*History (superseded 27 November 2026):* "**Read this file first when resuming.**" Then check the repository state (`git log origin/main`, open PRs) before continuing. This tracker covers the owner's mandate "Complete application reverification, development completion, testing and final acceptance", in its 25 November 2026 form. The mandate was re-issued that day; this file continues the existing work and does not restart it.
+**Read this file first when resuming.** Then check the repository state (`git log origin/main`, open PRs) before continuing. This tracker covers the owner's mandate "Complete application reverification, development completion, testing and final acceptance", in its 25 November 2026 form. The mandate was re-issued that day; this file continues the existing work and does not restart it.
 
 Updated: 27 November 2026, `main` after #290. The owner re-issued the mandate on 27 November as "Remediation and Completion" (baseline `e82f43e`, after #277). This file continues under it. Staging runs **v0.542.1** on all 16 application services (owner update on #169, 26 November 17:55 UTC; [record](../../operations/R1_AWS_Staging_Verification_2026-11-26.md), with its 27 November update). **Production is NO-GO.** Nothing in this file is deployed to staging unless a row says so.
 
@@ -156,7 +156,11 @@ What it shows: the account lifecycle, discovery, likes, follows, reports, creato
 
 | 3.3c App export view | "View my data" on a completed access request: fresh identity check, in-memory view by service and category, explicit copy only; expired and unready answers explained. PR open | Flutter 1,888 tests passed and `flutter analyze` clean, 27 November, at the PR head. Device UAT NOT RUN. Saving as a file is NOT IMPLEMENTED |
 
-Next: 3.4 restore-safe recovery and 3.5, then the owner-gated steps above.
+| 3.4 Restore-safe recovery | Audit answers Identity alone (signed, least-privilege path) with the two facts it holds: which accounts an approved deletion deactivated and which an erasure completed for. `recover_erasures_from_audit` re-applies them after a restore: signs the account out, deactivates it, de-identifies a completed erasure again, and puts a restored waiting deletion request back in `processing` with every service asked again; it never marks a request completed and prints counts only. `--dry-run`. Runbook "Restoring Identity's own database" added. PR open | Identity 240, Audit 55, Gateway 273 and scripts 506 passed; restore drill `scripts/test_erasure_restore_drill.py` passed on disposable TLS PostgreSQL, 27 November: pg_dump of the identity schema, real approval and completion, Audit ingest, pg_restore (the erased person came back), recovery (erased again), second run unchanged. The Identity to Audit HTTP hop is replaced by files in the drill (labelled). The recovery contract is PROPOSED and needs owner approval before first use. Staging restore NOT RUN |
+
+Next: 3.5 (lifecycle execution, configurable; the completion notice is an owner decision), then the owner-gated steps above.
+
+*History (superseded, 27 November before 3.4):* "Next: 3.4 restore-safe recovery and 3.5, then the owner-gated steps above."
 
 *History (superseded, 27 November before 3.3c):* "Next: 3.3c, then 3.4 restore-safe recovery and 3.5, then the owner-gated steps above."
 
