@@ -6,8 +6,8 @@
 | Authorized | Owner instruction, 27 November 2026, 11:12 UTC |
 | Starting commit | `1c706ce` (`main` after #303) |
 | Final commit | The merge commit of the Phase 1 pull request (branch `claude/project-thread-tgd2jb`) |
-| Final gate verdict | **BLOCKED** (re-evaluated 27 November after the owner's 12:13 UTC closure instruction, section 12): the five missing requirement sets are now **written** (FP-NT, FP-PAY, FP-GA, FP-DST, FP-CM) but are PROPOSED; the exit criterion needs them **owner-approved**. Every other criterion has evidence. The runtime staging check ran read-only on 27 November at 11:42–11:55 UTC ([read-only check](../../operations/R1_AWS_Staging_Readonly_Check_2026-11-27.md)) |
-| Next phase authorized | Conditionally: the owner's 12:13 UTC message authorizes read-only and repository-side Phase 2 entry work **once Phase 1 is PASS**. It is not PASS, so Phase 2 has not started |
+| Final gate verdict | **PASS on merge of PR #328 with green CI.** All nine exit criteria have evidence. The five requirement sets (FP-NT, FP-PAY, FP-GA, FP-DST, FP-CM) were written after the owner's 12:13 UTC instruction and **approved at 12:26 UTC with every recommended option** (section 12). The runtime staging check ran read-only on 27 November at 11:42–11:55 UTC ([read-only check](../../operations/R1_AWS_Staging_Readonly_Check_2026-11-27.md)) |
+| Next phase authorized | Phase 2 entry, read-only and repository-side only, authorized by the owner at 12:13 UTC and starting after this pull request merges. Staging writes each need separate approval |
 
 ## 1. Requirements completed
 
@@ -55,7 +55,7 @@ None. Staging and production were not touched.
 | Owner's exit criterion | Result | Evidence or blocker |
 | --- | --- | --- |
 | The full-product scope is authoritative | PASS (on merge) | FP-000, scope baseline |
-| Every feature has a traceable requirement | **BLOCKED** (owner approval pending) | Every feature traces to a requirement ID. The five missing sets were written on 27 November ([FP-NT](../../requirements/FP-NT_Notifications_Requirements_PROPOSED.md), [FP-PAY](../../requirements/FP-PAY_Payments_and_Payouts_Requirements_PROPOSED.md), [FP-GA](../../requirements/FP-GA_Google_Mobile_Ads_Requirements_PROPOSED.md), [FP-DST](../../requirements/FP-DST_Store_Distribution_Requirements_PROPOSED.md), [FP-CM](../../requirements/FP-CM_Comments_Requirements_PROPOSED.md)) and are PROPOSED; the owner instruction requires the applicable requirements to have owner approval (#307) |
+| Every feature has a traceable requirement | PASS (owner approval 12:26 UTC) | Every feature traces to a requirement ID. The five missing sets were written on 27 November ([FP-NT](../../requirements/FP-NT_Notifications_Requirements_PROPOSED.md), [FP-PAY](../../requirements/FP-PAY_Payments_and_Payouts_Requirements_PROPOSED.md), [FP-GA](../../requirements/FP-GA_Google_Mobile_Ads_Requirements_PROPOSED.md), [FP-DST](../../requirements/FP-DST_Store_Distribution_Requirements_PROPOSED.md), [FP-CM](../../requirements/FP-CM_Comments_Requirements_PROPOSED.md)) and the owner approved them with every recommended option on 27 November at 12:26 UTC (gate register section 8; #307) |
 | All service boundaries are reconciled | PASS (on merge) | Nine built services reconciled; Finance, Events and Advertising as separate services and Notifications inside Identity approved (GD-01 to GD-03, 27 November 11:31 UTC) |
 | Obsolete MVP restrictions no longer govern active development | PASS (on merge) | Scope baseline section 2 |
 | Documentation conflicts are resolved | PASS (on merge) | Audit section 7 |
@@ -87,7 +87,8 @@ Revert the Phase 1 pull request; it changes documentation only. The milestones a
 1. ~~Approve GD-01 to GD-08~~ done, 11:31 UTC.
 2. ~~Run the read-only release read-back on VM1~~ done read-only, 11:42–11:55 UTC (PR #327).
 3. ~~Authorize Phase 2~~ given at 12:13 UTC, conditional on Phase 1 PASS.
-4. **Approve the five requirement sets** FP-NT, FP-PAY, FP-GA, FP-DST and FP-CM, with the open choices in gate register section 8. This is the only remaining Phase 1 blocker.
+4. ~~Approve the five requirement sets~~ approved as recommended, 12:26 UTC.
+5. **Merge this pull request** once CI is green. Phase 1 closes as PASS on that merge.
 
 ## 12. Closure attempt, 27 November 2026 (owner instruction 12:13 UTC)
 
@@ -102,3 +103,5 @@ Revert the Phase 1 pull request; it changes documentation only. The milestones a
 - Apple's third-party SDK list read did not include Google Mobile Ads; that is not an exemption (FP-GA section 4).
 
 **Exit criteria re-evaluated.** 8 PASS, 1 BLOCKED (owner approval of the five sets), 0 FAIL. Validation for this update is recorded on its pull request. **Verdict: BLOCKED.** Phase 2 entry work has not started, and no staging, Swarm, RabbitMQ, Nginx, database or VM change was made.
+
+**Owner approval, 12:26 UTC.** The owner approved all five sets with the recommended options. Re-evaluated exit criteria: 9 of 9 have evidence. The documentation-validation criterion rests on local checks (section 12) and CI on this pull request. **Verdict: PASS on merge of this pull request with green CI.** Until that merge, `main` does not carry the approved sets. Phase 2 entry work (read-only and repository-side only) starts after the merge.

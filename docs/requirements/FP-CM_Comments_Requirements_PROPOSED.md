@@ -1,6 +1,6 @@
 # FP-CM Comments — requirements (PRD and SRS content)
 
-**Status: PROPOSED for owner approval.** Written in Phase 1 (27 November 2026) to implement the owner's approval of **GD-07 option (a)**, "comments with moderation and creator controls" (27 November, 11:31 UTC). Indexed in [FP-000](FP-000_Full_Product_Requirements_Baseline.md). Values marked **[OWNER VALUE]** are configuration with no default; the feature refuses to enable until they are set.
+**Status: APPROVED by the owner on 27 November 2026 at 12:26 UTC ("Approve all as recommended"), with the recommended option for every open choice. The file name keeps its original `_PROPOSED` suffix so links stay stable.** Approval covers development scope only. It does not approve a provider, an account, a value marked `[OWNER VALUE]`, live payments, live ads or store submission. Written in Phase 1 (27 November 2026) to implement the owner's approval of **GD-07 option (a)**, "comments with moderation and creator controls" (27 November, 11:31 UTC). Indexed in [FP-000](FP-000_Full_Product_Requirements_Baseline.md). Values marked **[OWNER VALUE]** are configuration with no default; the feature refuses to enable until they are set.
 
 ## 1. Scope
 

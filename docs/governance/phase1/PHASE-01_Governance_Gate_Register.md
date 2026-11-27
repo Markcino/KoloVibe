@@ -98,7 +98,7 @@ Payment provider (GD-20; DR-EV-22, DR-FIN-30); payout provider (DR-FIN-31); Goog
 
 ## 8. Requirement-set approval (#307, added 27 November 2026 after the 12:13 UTC instruction)
 
-Phase 1 passes when the owner approves these five sets. Approval of a set approves its requirements for development and its recommended options for the choices below. It does not approve a provider, an account, a value marked `[OWNER VALUE]`, live payments, live ads or store submission.
+**APPROVED by the owner on 27 November 2026 at 12:26 UTC: "Approve all as recommended".** Every choice below takes its recommended (bold) option. Do not ask for these again. Approval of a set approves its requirements for development and its recommended options for the choices below. It does not approve a provider, an account, a value marked `[OWNER VALUE]`, live payments, live ads or store submission.
 
 | Set | Open choices (recommendation in **bold**) |
 | --- | --- |
