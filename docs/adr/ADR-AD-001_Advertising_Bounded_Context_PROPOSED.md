@@ -1,5 +1,7 @@
 # ADR-AD-001 — Advertising bounded context, measurement trust model and billing boundary
 
+> **Update, 27 November 2026 (records correction):** the "not approved" statements below are superseded for **development scope**. Owner Decisions H (Events), I (Advertising) and J (Finance) of 25 November 2026 ([record](../planning/Owner_Decisions_A-J_2026-11-25.md)) approve these scopes for **sandbox development only**. Real payments, live payouts, live ads and production activation stay **not authorized**. Decision J and X-01 supersede any Events- or Advertising-owned monetary ledger: **Finance owns the one ledger**, and Points stays non-cash. Every policy value (rates, shares, thresholds, periods, windows, currencies) stays an unset owner decision. The original text is kept below as history.
+
 **Status: PROPOSED — needs owner approval. Not an approved ADR.** Phase 8A, 25 November 2026. The identifier is provisional; the DOC-207 register is not altered.
 
 **Decision-maker.** Mark Allen Gbalazeh (@Markcino). **Related.** ADR-001, ADR-009 (non-cash points; ads never earn points), ADR-010 (financial separation), ADR-013, [ADR-BIZ-001](ADR-BIZ-001_Business_Bounded_Context_PROPOSED.md), [ADR-EVT-001](ADR-EVT-001_Events_and_Ticketing_Bounded_Context_PROPOSED.md) (also unapproved), ADR-020, DEC-001, PRD-F11, FR-016, FR-020, BR-001, TM-030, TM-031, [owner decisions](../architecture/advertising/AD-Owner_Decisions_Required_PHASE8A.md), [policies](../architecture/advertising/AD-Policies_PROPOSED.md).

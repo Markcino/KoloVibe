@@ -1,5 +1,7 @@
 # Advertising and sponsorship (Phase 8) — exact owner decisions required
 
+> **Update, 27 November 2026 (records correction):** the "not approved" statements below are superseded for **development scope**. Owner Decisions H (Events), I (Advertising) and J (Finance) of 25 November 2026 ([record](../../planning/Owner_Decisions_A-J_2026-11-25.md)) approve these scopes for **sandbox development only**. Real payments, live payouts, live ads and production activation stay **not authorized**. Decision J and X-01 supersede any Events- or Advertising-owned monetary ledger: **Finance owns the one ledger**, and Points stays non-cash. Every policy value (rates, shares, thresholds, periods, windows, currencies) stays an unset owner decision. The original text is kept below as history.
+
 **Status: request for owner decisions, 25 November 2026. Every item is OPEN. Nothing here is approved.** Accountable owner: Mark Allen Gbalazeh (@Markcino). Record each answer with the Business template ([decision record template](../business/BIZ-Owner_Decision_Register_PROPOSED.md#decision-record-template-use-when-the-owner-decides)).
 
 **Read this first.**

@@ -1,5 +1,7 @@
 # Revenue accounting, sharing and sandbox payouts (R4) — Phase 9A design package
 
+> **Update, 27 November 2026 (records correction):** the "not approved" statements below are superseded for **development scope**. Owner Decisions H (Events), I (Advertising) and J (Finance) of 25 November 2026 ([record](../../planning/Owner_Decisions_A-J_2026-11-25.md)) approve these scopes for **sandbox development only**. Real payments, live payouts, live ads and production activation stay **not authorized**. Decision J and X-01 supersede any Events- or Advertising-owned monetary ledger: **Finance owns the one ledger**, and Points stays non-cash. Every policy value (rates, shares, thresholds, periods, windows, currencies) stays an unset owner decision. The original text is kept below as history.
+
 **Status: PROPOSED — not approved.** 25 November 2026. F1 requires the accounting design to be approved before implementation; this package is that design. **Documents only: no code, migration, flag, AWS or staging change; no provider contacted; no real money.** Revenue sharing and payouts are R4 and still deferred in the approved records (PRD-F14, DOC-022, DEC-001); [DR-FIN-01](FIN-Owner_Decisions_Required_PHASE9A.md) asks the owner to reconcile that. Production NO-GO. **No financial value is proposed anywhere**: every rate, share, reserve, threshold, period and window is an unset policy parameter that the engine refuses to calculate without.
 
 ## Deliverables
