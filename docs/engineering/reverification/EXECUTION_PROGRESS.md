@@ -2,7 +2,9 @@
 
 **Read this file first when resuming.** Then check the repository state (`git log origin/main`, open PRs) before continuing. This tracker covers the owner's mandate "Complete application reverification, development completion, testing and final acceptance", in its 25 November 2026 form. The mandate was re-issued that day; this file continues the existing work and does not restart it.
 
-Updated: 26 November 2026, `main` at `68d8df6`. A staging deployment and verification ran that evening ([record](../../operations/R1_AWS_Staging_Verification_2026-11-26.md)): live staging is **v0.531.1** with the v0.542.1 schema migrations applied; the v0.542.1 service rollout waits for the operator's registry token. Earlier that day a first simulator test of the app ran that day against a local stack ([results](simulator-run-2026-11-26/results.md)). The mandate was re-issued again that day as "Continue verified end-to-end development, final design and acceptance"; this file continues under it. **Production is NO-GO.** Nothing in this file is deployed to staging unless a row says so.
+Updated: 27 November 2026, `main` after #283. The owner re-issued the mandate on 27 November as "Remediation and Completion" (baseline `e82f43e`, after #277). This file continues under it. Staging runs **v0.542.1** on all 16 application services (owner update on #169, 26 November 17:55 UTC; [record](../../operations/R1_AWS_Staging_Verification_2026-11-26.md), with its 27 November update). **Production is NO-GO.** Nothing in this file is deployed to staging unless a row says so.
+
+*History (superseded):* on 26 November, `main` was at `68d8df6`. The live staging was v0.531.1 with the v0.542.1 schema, the rollout was waiting for the registry token, and a first simulator test ran against a local stack ([results](simulator-run-2026-11-26/results.md)).
 
 ## Where the other records live
 
@@ -47,7 +49,7 @@ The phase statuses are NOT STARTED, IN PROGRESS, COMPLETED, FAILED and BLOCKED.
 | 05 Flutter | IN PROGRESS | Done alongside each work package |
 | 06 Web and administration | IN PROGRESS | Done alongside each work package |
 | 07 Security hardening | NOT STARTED | Run as a dedicated pass |
-| 08 Infrastructure and DevSecOps | IN PROGRESS | 26 November: staging access used; v0.542.1 images verified and its two migrations applied; service rollout pending the registry token. Open: #271 to #275, D12-001 undeployed |
+| 08 Infrastructure and DevSecOps | IN PROGRESS | v0.542.1 deployed on 26 November (#169). #275 closed by #277. Open: #271 (plan ready, #281), #272, #273, #274 (capacity report and budget proposal, #283), D13-005, #142 (ruleset plan, #279), #143 (OpenSSL exception renewed to 5 Dec, #282/#284), D12-001 undeployed |
 | 09 Completeness gate | NOT STARTED | Starts only when 03 to 06 are complete |
 | 10 to 14 Testing, defects, regression, staging, acceptance | NOT STARTED | Starts only after the gate passes |
 
@@ -63,7 +65,9 @@ The phase statuses are NOT STARTED, IN PROGRESS, COMPLETED, FAILED and BLOCKED.
 | F Creator warnings, restrictions, suspensions and appeals | D-8 (administrator only, the proposed answer) | #250 backend, #251 console, #252 app | IMPLEMENTED BUT UNVERIFIED | Staging; device UAT; visual approval of the app section. The no-measure Account status screen was seen working on the simulator on 26 November; applying a measure was not tried |
 | E Copyright: verified rights holders and reviewer copyright signals | D11-008 | #254 backend and reviewer signals, #255 console page | IMPLEMENTED BUT UNVERIFIED | Staging; the copyright contact is still a placeholder; not exercised on the simulator |
 | SIM-02 Sharing as app links only, store fallback, in-app error | Owner decision SIM-02 | #257 | IMPLEMENTED BUT UNVERIFIED | Native app-link association and device activation; staging |
-| Simulator defects SIM-01, SIM-03 to SIM-10 | Simulator run, 26 November | This PR | IMPLEMENTED BUT UNVERIFIED | A repeat simulator or device run. SIM-03 changes copy only: trending stays empty until real engagement exists |
+| Simulator defects SIM-01, SIM-03 to SIM-10 | Simulator run, 26 November | #258 | IMPLEMENTED BUT UNVERIFIED | A repeat simulator or device run (retest required; the original findings are historical). SIM-03 changes copy only: trending stays empty until real engagement exists |
+| Static policies and account-deletion request page | Owner ruling, 26 November | #259 | IMPLEMENTED BUT UNVERIFIED | Hosting, and legal review of the texts |
+| C Privacy: administrator review, holds, deactivation and erasure across all five services, completion and re-apply, console "waiting on" view | Decision C, ADR-020 | #260 to #268 (#262 merged into #263; #264 signs re-rendered posters) | IMPLEMENTED BUT UNVERIFIED | Staging needs the broker accounts, queues and `account_management` capability (approved plan). Not built: the access export (B3), Audit read-back after an Identity restore, and the completion notice. Retention periods (ADR-020), RV2-04, DR-BZ-08 and DR-BZ-25 keep categories retained, so requests stay `processing` |
 
 Local test evidence for package A, recorded on 25 November:
 - Content 166 passed, Moderation 78, Gateway 233, Audit 52, console 184 and scripts 475.
@@ -85,8 +89,8 @@ What package F deliberately leaves out:
 
 1. ~~E Copyright workflow~~ merged in #254 and #255 (see above).
 2. ~~Simulator-run defects~~: SIM-02 merged in #257; SIM-01 and SIM-03 to SIM-10 fixed in the app PR listed above.
-2a. **Static policies and account-deletion request page** (owner ruling, 26 November; see below). Then point the app's policy, guidelines and help links at it.
-3. **C Privacy processing and retention** (ADR-020). Retention periods are proposed only. Deletion must handle `LegalAcceptance` (`on_delete=PROTECT`).
+2a. ~~Static policies and account-deletion request page~~ merged (see above). Pointing the app's links at the hosted page waits on hosting.
+3. **C Privacy:** review, holds and erasure merged in #260 to #268. Still open: the access export (B3), the Audit read-back after a restore, the completion notice, and the staging broker plan. Retention periods are proposed only (ADR-020).
 4. **D Backups and observability**, repository side (ADR-016 in part, ADR-017).
 5. **RV2-03 Dead letters.** The proposed values (retry ceiling 10, kept 14 days, administrator-only replay) are flagged as proposed.
 6. **J Finance ledger**, sandbox only, followed by **H Events** and **I Advertising**. Check current Google documentation before building advertising. No invented payout thresholds, shares, exchange rates or tax rules.
@@ -118,7 +122,12 @@ What it shows: the account lifecycle, discovery, likes, follows, reports, creato
 
 ## Next executable task
 
-**Staging first (26 November):** the operator runs the prepared v0.542.1 rollout (registry token at the tool's prompt), then the jobs, media worker and web; then fix #275 so `main` can publish again, and decide #271 (Points key) and #274 (capacity) before #272 and #273.
+**27 November (Remediation mandate, Phase 1):**
+- 1.1 #143: merge #284, which restores the renewed OpenSSL exception (expiry 5 Dec). Then prune the FFmpeg rules that no longer match 9.1.
+- 1.2 #274: the read-only measurement, then the budget.
+- 1.3 #271: the key correction, once approved.
+- 1.4 #142: apply the ruleset, once approved.
+- 1.5 D13-005: reconcile the release.
+- 1.6: the remaining record corrections.
 
-
-Build the static policies and account-deletion request page (item 2a), then continue with decision C (privacy processing, ADR-020).
+*History (superseded):* the 26 November instruction read: "the operator runs the prepared v0.542.1 rollout …, then fix #275 …; build the static policies and account-deletion request page (item 2a), then continue with decision C." The rollout, #275, the page (#259) and the privacy slices #260 to #268 are done.
