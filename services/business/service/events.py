@@ -1,9 +1,9 @@
 """PostgreSQL-backed outbox and idempotent inbox for Business (Decision C erasure).
 
 The same primitives as the other services; the tables come from infra/postgres/schema_isolation.sql. Business only
-sends one kind of event, `privacy.erasure_confirmed`, to Identity's named exchange with an explicit routing key, and
-never declares anything. Its broker account therefore needs write access to `kolovibe.identity` and its own queue
-only (generate_r1_secrets.PROPOSED_BROKER_PERMISSIONS).
+sends two kinds of event, `privacy.erasure_confirmed` and `privacy.export_delivered`, to Identity's named exchange
+with an explicit routing key, and never declares anything. Its broker account therefore needs write access to
+`kolovibe.identity` and its own queue only (generate_r1_secrets.PROPOSED_BROKER_PERMISSIONS).
 """
 import json
 import uuid
@@ -14,6 +14,9 @@ SERVICE = "business"
 QUEUE = "kolovibe.business"
 ERASURE_REQUESTED = "privacy.erasure_requested"
 ERASURE_CONFIRMED = "privacy.erasure_confirmed"
+EXPORT_REQUESTED = "privacy.export_requested"
+EXPORT_DELIVERED = "privacy.export_delivered"
+REPLIES = (ERASURE_CONFIRMED, EXPORT_DELIVERED)  # the only events sent, both to Identity
 INSERT_POSTGRES = "INSERT INTO event_outbox (id,event_type,payload) VALUES (%s,%s,%s::jsonb)"
 INSERT_SQLITE = "INSERT INTO event_outbox (id,event_type,payload) VALUES (%s,%s,%s)"  # the test fixture has no jsonb
 
@@ -21,7 +24,7 @@ INSERT_SQLITE = "INSERT INTO event_outbox (id,event_type,payload) VALUES (%s,%s,
 def record_event(event_type, payload):
     if not connection.in_atomic_block:
         raise RuntimeError("Record the event in the same transaction as the business change")
-    if event_type != ERASURE_CONFIRMED or not isinstance(payload, dict) or payload.get("service") != SERVICE:
+    if event_type not in REPLIES or not isinstance(payload, dict) or payload.get("service") != SERVICE:
         raise ValueError("Invalid event")
     ident = uuid.uuid4()
     with connection.cursor() as cur:
@@ -49,7 +52,7 @@ def dispatch_one(celery_app):
             if row is None:
                 return False
             ident, event_type, payload = row
-            if event_type != ERASURE_CONFIRMED:
+            if event_type not in REPLIES:
                 raise ValueError("Unexpected outbox event")
             if isinstance(payload, str):
                 payload = json.loads(payload)

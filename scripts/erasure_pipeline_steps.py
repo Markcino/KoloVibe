@@ -44,15 +44,13 @@ def identity_approve(arguments):
 
 
 def identity_approve_access(arguments):
-    """An approved access request as privacy_review applies it (mandate 3.3): Identity's part and one request."""
-    import os
+    """An approved access request as privacy_review applies it (mandate 3.3): Identity's part and the first requests."""
     import secrets
     from django.db import transaction
     from django.utils import timezone
     from service import access_export
     from service.models import Account, PrivacyRequest
 
-    os.environ["KOLOVIBE_EXPORT_RETRIEVAL_SECONDS"] = "3600"  # a test value; the real window is an owner decision
     with transaction.atomic():
         person = Account.objects.create_user(f"person-{uuid.uuid4().hex[:8]}@example.test", secrets.token_urlsafe(24),
                                              "Person")
@@ -79,7 +77,7 @@ def identity_export_state(arguments):
         other, _ = access_export.retrieve(Account.objects.exclude(pk=item.account_id).first(), str(item.id),
                                           timezone.now())
     return {"status": item.status, "parts": parts, "waiting_on": access_export.waiting_on(item),
-            "retrieval": [status, body.get("code")], "other_account": other}
+            "retrieval": [status, body.get("code") or sorted(body.get("services", {}))], "other_account": other}
 
 
 def identity_dispatch_real(arguments):
@@ -123,13 +121,17 @@ def engagement_seed(arguments):
     return {}
 
 
-def engagement_export_pending(arguments):
+def _export_pending(arguments):
     from django.db import connection
 
     with connection.cursor() as cursor:
         cursor.execute("SELECT count(*) FROM event_outbox WHERE event_type = 'privacy.export_delivered' "
                        "AND published_at IS NULL")
         return {"pending": cursor.fetchone()[0]}
+
+
+engagement_export_pending = creators_export_pending = moderation_export_pending = _export_pending
+content_export_pending = business_export_pending = _export_pending
 
 
 def engagement_dispatch_real(arguments):

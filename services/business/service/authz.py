@@ -52,6 +52,11 @@ def memberships_of(actor_id):
     return BusinessMembership.objects.select_related("business").filter(account_id=actor_id, status=ACTIVE)
 
 
+def membership_history_of(actor_id):
+    """Every membership of exactly this account, revoked ones included: its own history, for an access export."""
+    return BusinessMembership.objects.filter(account_id=actor_id)
+
+
 def members_of(business):
     return BusinessMembership.objects.filter(business=business, status=ACTIVE)
 

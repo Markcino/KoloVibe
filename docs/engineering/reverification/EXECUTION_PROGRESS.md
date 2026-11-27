@@ -150,7 +150,11 @@ What it shows: the account lifecycle, discovery, likes, follows, reports, creato
 | 3.2 Retention policy | Which retained evidence is compatible with a completed request is read from an owner-approved policy file; with none, every retained category keeps the request `processing`. `business_ownership` and `untracked_media` can never be waived. Merged (#296) | Identity suite. No category is approved: values are the ADR-020 / RV2-04 / #136 owner decision |
 | 3.3a Access export | Approve-access, Identity and Engagement assembly, retrieval by the account only (re-authenticated), expiry (410) and purge, console state, audit. PR open | Identity 233, Engagement 85, Gateway 272, Audit 52, Content 183, console 208 and scripts 506 passed; real-broker script 3 of 3 (export part over the broker), 27 November, at the PR head. The retrieval window is an owner decision with no default. Creators, Moderation, Content and Business parts are NOT IMPLEMENTED (3.3b), so real exports wait on them. The app download screen is NOT IMPLEMENTED (3.3c) |
 
-Next: 3.3b and 3.3c, then 3.4 restore-safe recovery and 3.5, then the owner-gated steps above.
+| 3.3b Export parts | Creators, Moderation, Content and Business assemble their parts; Moderation and Content are asked after Creators, with the profile id. Categories whose visibility is undecided are withheld by name. PR open, stacked on 3.3a | Identity 234, Engagement 85, Creators 119, Moderation 96, Content 186, Business 244, Gateway 273, Audit 52, console 208 and scripts 506 passed; real-broker script 3 of 3 (all six parts, completion and retrieval over the broker), 27 November, at the PR head. Business is not on staging, so exports there wait on it. The app download screen is NOT IMPLEMENTED (3.3c) |
+
+Next: 3.3c, then 3.4 restore-safe recovery and 3.5, then the owner-gated steps above.
+
+*History (superseded, 27 November before 3.3b):* "Next: 3.3b and 3.3c, then 3.4 restore-safe recovery and 3.5, then the owner-gated steps above."
 
 *History (superseded, 27 November before #295/#296):* "Next: 3.2 retained categories, then the owner-gated steps above."
 

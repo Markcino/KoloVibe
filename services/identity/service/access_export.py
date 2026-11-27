@@ -8,8 +8,11 @@ expired data is purged (`purge_expired_exports`).
 
 - The retrieval window is configuration (`KOLOVIBE_EXPORT_RETRIEVAL_SECONDS`), an owner decision with no default:
   without it an access request cannot be approved.
-- Services whose export is not built yet (`EXPORT_PENDING_SERVICES`) are not asked; their parts stay undelivered, so
-  the export never claims to be complete. They are shown as waiting, like an unconfirmed erasure.
+- Moderation and Content key a creator's records by the creator profile id, which only Creators knows. As with
+  erasure, they are asked only when Creators delivers its part, with the profile id it reported (null for someone
+  who was never a creator).
+- A service whose export is not built (`EXPORT_PENDING_SERVICES`, empty since slice 3.3b) would not be asked; its part
+  would stay undelivered, so the export never claims to be complete.
 """
 import os
 import re
@@ -25,7 +28,7 @@ from .models import (AccessExport, AccessExportPart, Account, LoginSession, Noti
 from .security_audit import record
 
 EXPORT_SERVICES = events.ERASURE_SERVICES
-EXPORT_PENDING_SERVICES = ("creators", "moderation", "content", "business")  # assembly not built yet (3.3b)
+EXPORT_PENDING_SERVICES = ()  # every participating service assembles its part (3.3b)
 CATEGORY = re.compile(r"[a-z][a-z0-9_]{0,39}")
 MAX_ROWS = 5000
 MAX_RETRIEVAL_SECONDS = 366 * 24 * 3600  # a sanity bound on configuration, not a policy value
@@ -61,7 +64,8 @@ def identity_part(account):
         "privacy_requests": [{"kind": row.kind, "status": row.status, "created_at": _iso(row.created_at)}
                              for row in PrivacyRequest.objects.filter(account=account).order_by("created_at")],
         "security_events": [{"kind": row.kind, "occurred_at": _iso(row.occurred_at)}
-                            for row in SecurityEvent.objects.filter(actor_id=account.id).order_by("occurred_at")[:MAX_ROWS]],
+                            for row in SecurityEvent.objects.filter(actor_id=account.id)
+                            .order_by("occurred_at")[:MAX_ROWS]],
     }
 
 
@@ -74,10 +78,14 @@ def open_export(item, now):
                                     data=identity_part(Account.objects.get(pk=item.account_id)))
     for service in EXPORT_SERVICES:
         AccessExportPart.objects.create(export=export, service=service)
-        if service not in EXPORT_PENDING_SERVICES:
-            events.record_event(events.EXPORT_REQUESTED, {"request_id": str(item.id),
-                                                         "account_id": str(item.account_id), "service": service})
+        if service not in EXPORT_PENDING_SERVICES and service not in events.AFTER_CREATORS:
+            _ask(item, service)
     return export
+
+
+def _ask(item, service, **extra):
+    events.record_event(events.EXPORT_REQUESTED, {"request_id": str(item.id), "account_id": str(item.account_id),
+                                                 "service": service, **extra})
 
 
 def _names(value):
@@ -88,8 +96,13 @@ def _names(value):
 def valid_delivery(payload):
     try:
         data = payload["data"]
-        return (isinstance(payload, dict)
-                and set(payload) == {"request_id", "account_id", "service", "data", "withheld", "truncated"}
+        keys = {"request_id", "account_id", "service", "data", "withheld", "truncated"}
+        if payload.get("service") == "creators":
+            keys.add("creator_id")
+            creator = payload["creator_id"]
+            if creator is not None and str(uuid.UUID(creator)) != creator:
+                return False
+        return (isinstance(payload, dict) and set(payload) == keys
                 and str(uuid.UUID(payload["request_id"])) == payload["request_id"]
                 and str(uuid.UUID(payload["account_id"])) == payload["account_id"]
                 and payload["service"] in EXPORT_SERVICES and payload["service"] not in EXPORT_PENDING_SERVICES
@@ -121,6 +134,10 @@ def deliver(event_id, payload):
         part.withheld, part.truncated = payload["withheld"], payload["truncated"]
         part.save(update_fields=["delivered_at", "data", "withheld", "truncated"])
         record("account.privacy_export_part_received", part.export.request.account_id)
+        if part.service == "creators":  # releases the parts keyed by the creator profile id
+            for service in events.AFTER_CREATORS:
+                if service not in EXPORT_PENDING_SERVICES:
+                    _ask(part.export.request, service, creator_id=payload["creator_id"])
         _ready_if_complete(part.export, now)
         return True
 

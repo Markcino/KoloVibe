@@ -91,6 +91,11 @@ EXPORT_CATEGORY = re.compile(r"[a-z][a-z0-9_]{0,39}")
 SCALARS = (str, int, float, bool, type(None))
 
 
+def _flat(value):
+    """A row value is a scalar, or a list of scalars (a video's tags)."""
+    return isinstance(value, SCALARS) or isinstance(value, list) and all(isinstance(item, SCALARS) for item in value)
+
+
 def _names(value):
     return (isinstance(value, list) and len(value) <= 40 and len(set(value)) == len(value)
             and all(isinstance(name, str) and EXPORT_CATEGORY.fullmatch(name) for name in value))
@@ -106,7 +111,7 @@ def _valid_export(data):
             and all(isinstance(part, dict) and set(part) == {"data", "withheld", "truncated"}
                     and isinstance(part["data"], dict) and _names(part["withheld"]) and _names(part["truncated"])
                     and all(EXPORT_CATEGORY.fullmatch(name) and isinstance(rows, list)
-                            and all(isinstance(row, dict) and all(isinstance(key, str) and isinstance(value, SCALARS)
+                            and all(isinstance(row, dict) and all(isinstance(key, str) and _flat(value)
                                                                   for key, value in row.items())
                                     for row in rows)
                             for name, rows in part["data"].items())

@@ -60,12 +60,12 @@ app = build_app()
 @app.task(name="kolovibe.creators.event", ignore_result=True, autoretry_for=(DatabaseError,), retry_backoff=True,
           max_retries=10)
 def receive_event(event_id, event_type, payload):
-    """Apply an erasure request once. Anything else is rejected, never acknowledged as handled."""
+    """Apply an erasure or export request once. Anything else is rejected, never acknowledged as handled."""
     import django
     django.setup()
-    from .events import ERASURE_REQUESTED
-    from .privacy import erase
+    from .events import ERASURE_REQUESTED, EXPORT_REQUESTED
+    from .privacy import erase, export
 
-    if event_type != ERASURE_REQUESTED or not isinstance(payload, dict):
+    if not isinstance(payload, dict) or event_type not in (ERASURE_REQUESTED, EXPORT_REQUESTED):
         raise ValueError("Unexpected Creators event")
-    return erase(event_id, payload)
+    return (erase if event_type == ERASURE_REQUESTED else export)(event_id, payload)

@@ -14,7 +14,8 @@ _spec.loader.exec_module(retention_policy)  # stdlib only; loaded by path so no 
 def reported(service):
     """Category names a service's privacy module can put in `retained`: keys of its checks/RETAINED tables and
     names it appends directly."""
-    text = (ROOT / "services" / service / "service/privacy.py").read_text()
+    # The access export's tables (after its marker) name exported and withheld categories, not retained ones.
+    text = (ROOT / "services" / service / "service/privacy.py").read_text().split("# ---- Access export", 1)[0]
     names = set(re.findall(r'retained\.append\("([a-z][a-z0-9_]*)"\)', text))
     names |= set(re.findall(r'^\s*"([a-z][a-z0-9_]*)":\s*(?:[A-Z]\w*\.objects|authz\.)', text, re.M))
     for table in re.findall(r'^RETAINED = \{([^}]*)\}', text, re.M):
