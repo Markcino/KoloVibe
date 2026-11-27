@@ -95,3 +95,15 @@ Payment provider (GD-20; DR-EV-22, DR-FIN-30); payout provider (DR-FIN-31); Goog
 
 - **Staging activation:** every change since v0.542.1 (64 commits), Business, the 18 zero-replica worker services and any new service each need an approved operations plan. Nothing in Phase 1 changes staging.
 - **Production activation:** NO-GO. Needs Phase 10 and 11 to pass, legal sign-off, provider approvals and an explicit owner go decision (#168). Live money, live ads and payouts each need their own separate approval (Decisions H, I, J).
+
+## 8. Requirement-set approval (#307, added 27 November 2026 after the 12:13 UTC instruction)
+
+Phase 1 passes when the owner approves these five sets. Approval of a set approves its requirements for development and its recommended options for the choices below. It does not approve a provider, an account, a value marked `[OWNER VALUE]`, live payments, live ads or store submission.
+
+| Set | Open choices (recommendation in **bold**) |
+| --- | --- |
+| [FP-NT](../../requirements/FP-NT_Notifications_Requirements_PROPOSED.md) | NT-D1 Firebase project: **organization-owned**; NT-D2 marketing notifications: **none in first release**; NT-D3 recommended development values |
+| [FP-PAY](../../requirements/FP-PAY_Payments_and_Payouts_Requirements_PROPOSED.md) | PAY-D1 provider: **sandbox adapter only until the owner names one** (GD-20); PAY-D2 business ad purchases: **outside the mobile apps only, confirm with both stores in writing** (Apple 3.1.3(g) names in-app boosts as IAP); PAY-D3 tickets: **provider payment sheet in the app, subject to written App Review confirmation**; PAY-D4 payouts: **written store confirmation before submission**; PAY-D5 values from the owner |
+| [FP-GA](../../requirements/FP-GA_Google_Mobile_Ads_Requirements_PROPOSED.md) | GA-D1 **Google UMP**; GA-D2 **organization-owned AdMob account**; GA-D3 **no ads to minors or unknown-age accounts**; GA-D4 **banner and native in feed only**; GA-D5 **test units until separately authorized** |
+| [FP-DST](../../requirements/FP-DST_Store_Distribution_Requirements_PROPOSED.md) | DST-D1 **organization developer accounts**; DST-D2 **host the existing static policy site on the KoloVibe domain** (operations approval); DST-D3 age rating from owner and legal review; DST-D4 **Crashlytics after disclosures**; DST-D5 **written store payment confirmations before Phase 10 submission** |
+| [FP-CM](../../requirements/FP-CM_Comments_Requirements_PROPOSED.md) | CM-D1 **recommended development values**; CM-D2 anonymous reads **off**; CM-D3 creator removal of comments on their own video **not appealable** (platform removals stay appealable) |

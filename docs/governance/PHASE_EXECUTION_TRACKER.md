@@ -8,9 +8,9 @@ Established 27 November 2026 at `37c5a44` (after #299). Updated 27 November 2026
 
 | Item | State |
 | --- | --- |
-| Current phase | **Phase 1, full-product reconciliation: report delivered, verdict BLOCKED** (see [report](phases/PHASE-01_Full_Product_Reconciliation_Report.md)). Authorized by the owner on 27 November 2026, 11:12 UTC |
-| Phase 2 | Instructed by the owner on 27 November 2026, 11:40 UTC. **Report delivered, verdict BLOCKED** ([report](phases/PHASE-02_Infrastructure_Report.md)): read-only inspection and measurement only; every staging change waits on the owner's yes (plans A to G). The owner is asked whether Phase 2 changes may proceed while Phase 1 is BLOCKED on #307 |
-| Next phase | Phase 3 is **not authorized** and does not start until Phase 2 passes (owner, 27 November 11:40 UTC). Earlier: "Do not begin Phase 2 until I authorize it" (superseded by the Phase 2 instruction) |
+| Current phase | **Phase 1, full-product reconciliation: verdict BLOCKED on owner approval of the five requirement sets** (see [report](phases/PHASE-01_Full_Product_Reconciliation_Report.md)). Authorized 27 November 2026, 11:12 UTC. Closure instruction 12:13 UTC: the sets FP-NT, FP-PAY, FP-GA, FP-DST and FP-CM are written (PROPOSED); Phase 1 passes when the owner approves them |
+| Phase 2 | **NOT STARTED.** Formal Phase 2 is architecture, contracts and decisions (section 2, milestone 7). It starts only after Phase 1 is PASS, and then only with read-only and repository-side work; every staging write needs its own approval (owner, 12:13 UTC). The owner's 11:40 UTC message produced a **read-only staging inspection** ([record](phases/PHASE-02-ENTRY_Staging_Infrastructure_Inspection_2026-11-27.md), PR #327), first titled a "Phase 2 report"; it was reclassified at 12:13 UTC as input to the Phase 2 entry staging sequence and to Phase 9. Its plans A to G stay unexecuted |
+| Next phase | Phase 2 entry is authorized by the owner's 12:13 UTC message **conditional on Phase 1 PASS**, read-only and repository-side only. Phase 3 is not authorized |
 | Production | NO-GO. Nothing here authorizes deployment, live payments, live advertising, destructive data changes or production publication (mandate section 8) |
 | Infrastructure access | Claude's **cloud** sessions have no SSH to staging. Sessions on the owner's Mac (Remote Control) can reach `ssh swarm-manager` and `ssh swarm-worker`; the read-only check ran that way on 27 November 11:42–11:55 UTC ([read-only check](../operations/R1_AWS_Staging_Readonly_Check_2026-11-27.md)). Any staging write still needs a concrete plan and the owner's explicit yes |
 
@@ -39,7 +39,7 @@ The owner's Phase 1 instruction refers to Phases 2 to 11, so the plan has eleven
 
 | # | Phase | Milestone | Main exit criteria | Earlier proposal folded in | Status |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Full-product reconciliation | — (#301) | Owner's nine Phase 1 exit criteria | 0 governance, 1 reverification | Report delivered; **BLOCKED** |
+| 1 | Full-product reconciliation | — (#301) | Owner's nine Phase 1 exit criteria | 0 governance, 1 reverification | **BLOCKED**: requirement sets written, owner approval pending (#307) |
 | 2 | Architecture, contracts and decisions | [Phase 2](https://github.com/Markcino/KoloVibe/milestone/7) | Approved ADRs for Finance, Events, Advertising and Notifications; one canonical API and event contract; requirement sets FP-NT, FP-PAY, FP-GA, FP-DST approved; Figma frames for new areas; Stage 1 and 2 sign-offs (#133, #134, #140, #141) | 2 decisions, 3 architecture | NOT STARTED |
 | 3 | Core platform completion | [Phase 3](https://github.com/Markcino/KoloVibe/milestone/8) | Identity, Creators, Content, Engagement, Points, Moderation, Audit, Privacy and Notifications reach Ready for comprehensive testing; D13-001 to D13-003 resolved | 4 core | NOT STARTED |
 | 4 | Business completion | [Phase 4](https://github.com/Markcino/KoloVibe/milestone/9) | Business sensitive actions per decisions; staging plan | 5 Business | NOT STARTED |
@@ -86,7 +86,7 @@ See the [scope baseline, section 2](phase1/PHASE-01_Full_Product_Scope_Baseline.
 | Remediation 1.2 CPU budget (#283) | Package ready; measurement NOT RUN | Phase 9, #274 |
 | Remediation 1.3 / 2.1 Points to Audit key (#281) | Plan ready; NOT APPLIED | Phase 3, #271 |
 | Remediation 1.4 ruleset (#279) | Plan ready; NOT APPLIED | Phase 9, #142 |
-| Remediation 1.5 release read-back (#287, #288) | NOT RUN on VM1 | Phase 1 item BLOCKED; owner action |
+| Remediation 1.5 release read-back (#287, #288) | NOT RUN on VM1 at `1c706ce`; **RUN read-only on 27 November 11:42–11:55 UTC**: every running service is v0.542.1 ([read-only check](../operations/R1_AWS_Staging_Readonly_Check_2026-11-27.md), PR #327) | Done for Phase 1; release of `main` is Phase 2 entry plan D, needs approval |
 | Remediation 2.2 Content and Creators audit delivery (#292) | NOT DEPLOYED | Phase 3, #272 |
 | Remediation 2.3 audit alerting (#293) | Signals built; channel NOT IMPLEMENTED | Phase 9, #145 |
 | Remediation 3.1 erasure wiring (#294) | NOT DEPLOYED | Phase 3, #273 |
@@ -95,6 +95,7 @@ See the [scope baseline, section 2](phase1/PHASE-01_Full_Product_Scope_Baseline.
 | Remediation 3.4 restore-safe recovery (#300) | **Merged** at 11:04 UTC; recovery contract PROPOSED; staging restore NOT RUN | Phase 3, #152; Phase 9, #144 |
 | Remediation 3.5 lifecycle and completion notice | NOT STARTED | Phase 3, #310 |
 | Remediation 4.1 stalled video, 4.2 end-to-end staging proof, 4.3 client address and rate limits, 4.4 legacy broker account, 4.5 dead letters, 4.6 acceptance items | NOT STARTED | #149; #156; #325; #146; #311; #155 |
+| Staging inspection plans A to G (capacity, stale jobs, broker account, release from `main`, VM1 ingress with rate limits, rollback drill, Points audit key) | Prepared, NOT APPLIED ([inspection](phases/PHASE-02-ENTRY_Staging_Infrastructure_Inspection_2026-11-27.md) section 8); 24-hour capacity measurement ends about 11:58 UTC on 28 November | Phase 2 entry sequence (each needs its own approval); Phase 9 |
 | Events (H), Advertising (I), Finance (J) | Design packages PROPOSED; no code | Phases 5 to 7, #313 to #323 |
 
 ## 5. Governance files

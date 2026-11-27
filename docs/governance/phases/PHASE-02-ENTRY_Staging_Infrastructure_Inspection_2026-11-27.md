@@ -1,4 +1,8 @@
-# Phase 2 report: infrastructure and deployment remediation
+# Staging infrastructure inspection, 27 November 2026 (input to Phase 2 entry and Phase 9)
+
+> **Reclassified on 27 November 2026 (Phase 1 reconciliation, owner instruction of 12:13 UTC).** This record was first titled "Phase 2 report: infrastructure and deployment remediation" because it answered the owner's 11:40 UTC message. The authoritative [phase plan](../PHASE_EXECUTION_TRACKER.md) (GD-08, approved 11:31 UTC) defines **formal Phase 2 as architecture, contracts and decisions** (milestone 7), and puts staging remediation in the Phase 2 entry sequence and in Phase 9 (deployment and operations). This file is therefore a **read-only staging inspection**, not the Phase 2 gate report, and its "Phase 2 verdict" below is the verdict of the inspection only. Its facts, measurements and plans A to G are kept unchanged as evidence from PR #327. No staging write has been made or authorized.
+
+*Original title:* Phase 2 report: infrastructure and deployment remediation
 
 | Item | Value |
 | --- | --- |
