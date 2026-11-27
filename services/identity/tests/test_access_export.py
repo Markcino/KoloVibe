@@ -53,9 +53,10 @@ class AccessExportTests(TestCase):
             return [(kind, json.loads(payload)) for kind, payload in cur.fetchall()]
 
     def part(self, service="engagement", **changes):
+        extra = {"creator_id": None} if service == "creators" else {}
         return {"request_id": str(self.access_request.id), "account_id": str(self.person.id), "service": service,
                 "data": {"likes": [{"video_id": str(uuid.uuid4()), "created_at": "2026-11-20T10:00:00+00:00"}]},
-                "withheld": ["fraud_holds"], "truncated": []} | changes
+                "withheld": ["fraud_holds"], "truncated": []} | extra | changes
 
     def deliver_all(self):
         with patch.dict(os.environ, WINDOW):
@@ -74,13 +75,15 @@ class AccessExportTests(TestCase):
         self.access_request.refresh_from_db()
         self.assertEqual((self.access_request.status, AccessExport.objects.count()), ("in_review", 0))
 
-    def test_approval_assembles_identity_and_asks_only_built_services(self):
+    def test_approval_assembles_identity_and_asks_the_services_that_need_no_creator_id(self):
         self.assertEqual(self.call("approve-access", id=str(self.access_request.id))[0], 409, "review first")
         row = self.approve()
         self.assertEqual(row["export"], {"waiting_on": sorted(access_export.EXPORT_SERVICES), "ready_at": None,
                                          "expires_at": None, "purged": False, "retrievals": 0})
-        self.assertEqual(self.outbox(), [("privacy.export_requested", {
-            "request_id": str(self.access_request.id), "account_id": str(self.person.id), "service": "engagement"})])
+        self.assertEqual(sorted(self.outbox(), key=lambda row: row[1]["service"]), [
+            ("privacy.export_requested", {"request_id": str(self.access_request.id),
+                                          "account_id": str(self.person.id), "service": service})
+            for service in ("business", "creators", "engagement")], "Moderation and Content wait for Creators")
         identity = AccessExportPart.objects.get(service="identity")
         self.assertEqual(identity.data["account"][0]["email"], "person@example.test")
         text = json.dumps(identity.data)
@@ -88,10 +91,10 @@ class AccessExportTests(TestCase):
             self.assertNotIn(secret, text)
         with patch.dict(os.environ, WINDOW):
             self.assertEqual(self.call("approve-access", id=str(self.access_request.id))[0], 200)
-        self.assertEqual((AccessExport.objects.count(), len(self.outbox())), (1, 1), "a repeat opens nothing more")
+        self.assertEqual((AccessExport.objects.count(), len(self.outbox())), (1, 3), "a repeat opens nothing more")
         self.assertEqual(SecurityEvent.objects.filter(kind="account.privacy_access_approved").count(), 1)
 
-    def test_a_part_is_stored_once_and_unbuilt_services_keep_the_export_pending(self):
+    def test_a_part_is_stored_once_and_the_export_waits_for_every_service(self):
         self.approve()
         event, first = str(uuid.uuid4()), self.part()
         self.assertTrue(access_export.deliver(event, first))
@@ -103,8 +106,26 @@ class AccessExportTests(TestCase):
                                                                          "moderation"])
         self.access_request.refresh_from_db()
         self.assertEqual(self.access_request.status, "processing", "never ready while a service has not answered")
-        with self.assertRaises(ValueError):
-            access_export.deliver(str(uuid.uuid4()), self.part(service="creators"))  # not built: refused
+
+    def test_the_creators_part_releases_moderation_and_content_with_the_profile_id(self):
+        self.approve()
+        profile = str(uuid.uuid4())
+        self.assertFalse(access_export.valid_delivery(self.part(service="creators") | {"creator_id": "nope"}))
+        creators = self.part(service="creators", creator_id=profile)
+        del creators["creator_id"]
+        self.assertFalse(access_export.valid_delivery(creators), "Creators must say which profile it holds")
+        self.assertFalse(access_export.valid_delivery(self.part(creator_id=profile)), "only Creators reports one")
+        event = str(uuid.uuid4())
+        self.assertTrue(access_export.deliver(event, self.part(service="creators", creator_id=profile)))
+        self.assertEqual(sorted(self.outbox()[3:], key=lambda row: row[1]["service"]), [
+            ("privacy.export_requested", {"request_id": str(self.access_request.id),
+                                          "account_id": str(self.person.id), "service": service,
+                                          "creator_id": profile})
+            for service in ("content", "moderation")])
+        self.assertFalse(access_export.deliver(event, self.part(service="creators", creator_id=profile)))
+        self.assertTrue(access_export.deliver(str(uuid.uuid4()), self.part(service="creators", creator_id=profile)))
+        self.assertEqual(len(self.outbox()), 5, "a repeated part asks nothing more")
+        self.assertNotIn("creator_id", AccessExportPart.objects.get(service="creators").data)
 
     def test_malformed_or_foreign_deliveries_are_refused(self):
         self.approve()
@@ -118,7 +139,6 @@ class AccessExportTests(TestCase):
                 access_export.deliver(str(uuid.uuid4()), bad)
         self.assertIsNone(AccessExportPart.objects.get(service="engagement").delivered_at)
 
-    @patch.object(access_export, "EXPORT_PENDING_SERVICES", ())
     def test_request_to_retrieval_then_expiry(self):
         password = self.password(self.person)
         self.approve()
@@ -149,14 +169,14 @@ class AccessExportTests(TestCase):
         self.assertEqual(self.retrieve(self.person, password)[0], 410)
         self.assertEqual(AccessExportPart.objects.count(), 6, "the dated record stays")
 
-    @patch.object(access_export, "EXPORT_PENDING_SERVICES", ())
     def test_only_the_account_itself_freshly_reauthenticated_retrieves(self):
         password = self.password(self.person)
         self.approve()
         self.deliver_all()
         other = Account.objects.create_user("other@example.test", secrets.token_urlsafe(32), "Other")
         self.assertEqual(self.retrieve(other, self.password(other))[0], 404, "another account cannot see it")
-        self.assertEqual(self.retrieve(self.admin, self.password(self.admin), role="administrator")[0], 404, "nor can an administrator")
+        self.assertEqual(self.retrieve(self.admin, self.password(self.admin), role="administrator")[0], 404,
+                         "nor can an administrator")
         self.assertEqual(self.retrieve(self.person, password + "!")[0], 400, "a wrong password is refused")
         self.assertEqual(self.retrieve(self.person, password, str(self.deletion.id))[0], 404, "a deletion has none")
         self.assertEqual(self.retrieve(self.person, password, str(uuid.uuid4()))[0], 404)
@@ -179,7 +199,6 @@ class AccessExportTests(TestCase):
         self.assertEqual(AccessExport.objects.get().retrievals, 0)
         self.assertTrue(SecurityEvent.objects.filter(kind="account.privacy_export_denied").exists())
 
-    @patch.object(access_export, "EXPORT_PENDING_SERVICES", ())
     def test_the_purge_command_removes_expired_exports_only(self):
         self.approve()
         self.deliver_all()
@@ -194,7 +213,6 @@ class AccessExportTests(TestCase):
         call_command("purge_expired_exports", stdout=out)
         self.assertEqual(SecurityEvent.objects.filter(kind="account.privacy_export_purged").count(), 1)
 
-    @patch.object(access_export, "EXPORT_PENDING_SERVICES", ())
     def test_a_completed_erasure_also_removes_an_earlier_export(self):
         self.approve()
         self.deliver_all()

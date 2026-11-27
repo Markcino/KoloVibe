@@ -135,6 +135,18 @@ class PrivacyExportGatewayTests(SimpleTestCase):
                 self.assertEqual(response.status_code, status)
                 self.assertEqual(response.json(), {"detail": "Refused"} | ({"code": code} if code else {}))
 
+    def test_a_list_of_plain_values_such_as_tags_passes(self):
+        export = json.loads(json.dumps(self.export))
+        export["services"]["content"] = {"data": {"videos": [{"title": "Song", "tags": ["lagos", "hipco"]}]},
+                                         "withheld": ["media_files"], "truncated": []}
+        with patch("service.accounts.signed_internal_request") as call:
+            call.return_value = Response(200, json.dumps(export).encode())
+            response = self.post({"current_password": "x"}, **self.auth)
+            self.assertEqual((response.status_code, response.json()), (200, export))
+            export["services"]["content"]["data"]["videos"][0]["tags"] = [{"a": 1}]
+            call.return_value = Response(200, json.dumps(export).encode())
+            self.assertEqual(self.post({"current_password": "x"}, **self.auth).status_code, 503)
+
     def test_a_malformed_export_is_not_passed_on(self):
         for wrong in ({"extra": 1}, {"request_id": "nope"},
                       {"services": {"engagement": self.export["services"]["engagement"]}},

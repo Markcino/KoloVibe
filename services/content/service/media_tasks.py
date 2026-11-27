@@ -74,13 +74,14 @@ def render_cover(self, video_id):
 
 @app.task(bind=True, name="kolovibe.content.event", max_retries=12)
 def receive_event(self, event_id, event_type, payload):
-    """Decision C: erase one creator's videos once. Anything else is rejected, never acknowledged as handled."""
-    from .events import ERASURE_REQUESTED
-    from .privacy import erase
+    """Decision C: erase one creator's videos, or assemble their export, once. Anything else is rejected, never
+    acknowledged as handled."""
+    from .events import ERASURE_REQUESTED, EXPORT_REQUESTED
+    from .privacy import erase, export
 
-    if event_type != ERASURE_REQUESTED or not isinstance(payload, dict):
+    if not isinstance(payload, dict) or event_type not in (ERASURE_REQUESTED, EXPORT_REQUESTED):
         raise ValueError("Unexpected Content event")
     try:
-        return erase(event_id, payload)
+        return (erase if event_type == ERASURE_REQUESTED else export)(event_id, payload)
     except (media_storage.StorageUnavailable, DatabaseError, OSError):
         raise self.retry(countdown=min(30 * (self.request.retries + 1), 180)) from None

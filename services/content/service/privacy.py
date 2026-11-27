@@ -19,6 +19,7 @@ Identity sends this request only after Creators confirmed, with the creator prof
      fingerprints, screening records, source digests, moderation receipts and the append-only audit trail.
 No constraint or append-only trigger is disabled. Nothing here reads another service's database.
 """
+import json
 import re
 import uuid
 
@@ -27,7 +28,8 @@ from django.db.models import Q
 from django.utils import timezone
 
 from . import media_storage
-from .events import ERASURE_CONFIRMED, ERASURE_REQUESTED, SERVICE, accept_once, already_accepted, record_event
+from .events import (ERASURE_CONFIRMED, ERASURE_REQUESTED, EXPORT_DELIVERED, EXPORT_REQUESTED, SERVICE, accept_once,
+                     already_accepted, record_event)
 from .models import (AuditEvent, CopyrightClaimState, Fingerprint, MediaUpload, MetadataRevision, ModerationReceipt,
                      OriginalityAttestation, PrescreenResult, RightsEvent, ScreeningRecord, SourceDigest, Video)
 
@@ -117,4 +119,67 @@ def erase(event_id, payload):
             retained.append("untracked_media")
         record_event(ERASURE_CONFIRMED, {"request_id": request_id, "account_id": account_id, "service": SERVICE,
                                          "counts": counts, "retained": retained})
+        return True
+
+
+# ---- Access export (mandate 3.3): the person's own records, assembled here and delivered to Identity once. ----
+EXPORT_ROW_LIMIT = 5000
+
+
+def _plain(value):
+    if isinstance(value, uuid.UUID):
+        return str(value)
+    if isinstance(value, (list, tuple)):
+        return [_plain(item) for item in value]
+    return value.isoformat() if hasattr(value, "isoformat") else value
+
+
+def _rows(queryset, fields):
+    """(rows, cut): flat rows of the named fields, oldest first, at most EXPORT_ROW_LIMIT."""
+    rows = list(queryset.order_by("pk").values_list(*fields)[:EXPORT_ROW_LIMIT + 1])
+    return ([{name.replace("__", "_"): _plain(value) for name, value in zip(fields, row)}
+             for row in rows[:EXPORT_ROW_LIMIT]], len(rows) > EXPORT_ROW_LIMIT)
+
+
+def _assemble(tables, withheld):
+    data, truncated = {}, []
+    for name, (queryset, fields) in tables.items():
+        data[name], cut = _rows(queryset, fields)
+        if cut:
+            truncated.append(name)
+    return data, truncated, [name for name, rows in withheld.items() if rows.exists()]
+
+
+def export(event_id, payload):
+    """The creator's own video records, proposed edits, uploads and originality attestations, once; no storage key or
+    provider id. The media files themselves are withheld by name (delivering them is a later decision), as are the
+    copyright and safety evidence and the audit trail (an owner and copyright-counsel decision)."""
+    request_id, account_id, creator_id = _request(payload)
+    videos = Video.objects.filter(creator_id=creator_id) if creator_id else Video.objects.none()
+    with transaction.atomic():
+        if not accept_once(event_id, EXPORT_REQUESTED):
+            return False
+        data, truncated, withheld = _assemble({
+            "videos": (videos, ("id", "title", "description", "category", "tags", "state", "visibility",
+                                "duration_ms", "created_at", "published_at", "deleted_at")),
+            "metadata_revisions": (MetadataRevision.objects.filter(video__in=videos),
+                                   ("video_id", "status", "created_at", "decided_at", "reason_code")),
+            "uploads": (MediaUpload.objects.filter(video__in=videos), ("video_id", "expected_bytes", "expires_at")),
+            "attestations": (OriginalityAttestation.objects.filter(account_id=account_id),
+                             ("video_id", "version", "accepted_at")),
+        }, {
+            "media_files": videos.exclude(provider_asset_id=""),
+            "prescreen_results": PrescreenResult.objects.filter(video__in=videos),
+            "fingerprints": Fingerprint.objects.filter(video__in=videos),
+            "screening_records": ScreeningRecord.objects.filter(video__in=videos),
+            "rights_events": RightsEvent.objects.filter(video_id__in=videos.values("id")),
+            "copyright_claim_states": CopyrightClaimState.objects.filter(video__in=videos),
+            "audit_events": AuditEvent.objects.filter(Q(actor_id=account_id) | Q(subject_id__in=videos.values("id"))),
+        })
+        # A proposed edit's own text is the creator's: give its fields as text, never the stored JSON as a whole.
+        for row, proposed in zip(data["metadata_revisions"], MetadataRevision.objects.filter(video__in=videos)
+                                 .order_by("pk").values_list("proposed", flat=True)):
+            row["proposed"] = json.dumps(proposed, sort_keys=True) if proposed else None
+        record_event(EXPORT_DELIVERED, {"request_id": request_id, "account_id": account_id, "service": SERVICE,
+                                        "data": data, "withheld": withheld, "truncated": truncated})
         return True

@@ -82,6 +82,7 @@ class ErasurePipelineTests(unittest.TestCase):
                        for service in ("identity", *PARTICIPANTS)}
             cls.bucket = str(Path(cls.directory) / "deleted-objects.txt")  # Content's stand-in for private R2
             cls.env["content"]["KOLOVIBE_LOCAL_MEDIA_ENABLED"] = "1"
+            cls.env["identity"]["KOLOVIBE_EXPORT_RETRIEVAL_SECONDS"] = "3600"  # a test value; the real one is the owner's
             for service, queue in (*PARTICIPANTS.items(), ("identity", IDENTITY)):
                 log = open(Path(cls.directory) / f"{service}-worker.log", "wb")
                 worker = subprocess.Popen([sys.executable, str(STEPS), service, "worker",
@@ -192,30 +193,42 @@ class ErasurePipelineTests(unittest.TestCase):
         for queue in (*PARTICIPANTS.values(), IDENTITY):
             eventually(lambda q=queue: self.broker.queue_state(q) == (0, 0), 30, f"{queue} did not drain")
 
-    def test_3_an_access_export_part_travels_the_real_broker_and_stays_unready(self):
+    def test_3_an_access_export_is_assembled_by_every_service_across_the_real_broker(self):
         approved = self.step("identity", "approve_access")
         person, other = approved["account_id"], str(uuid.uuid4())
-        self.step("engagement", "seed", account_id=person, other_id=other)
-        self.assertEqual(self.step("identity", "dispatch_real"), {"sent": 1, "errors": []},
-                         "only Engagement assembles a part so far")
-        eventually(lambda: self.step("engagement", "export_pending")["pending"] == 1 or None, 60,
-                   "Engagement never assembled its part")
-        self.assertEqual(self.step("engagement", "dispatch_real"), {"sent": 1, "errors": []})
+        for service in ("engagement", "creators"):
+            self.step(service, "seed", account_id=person, other_id=other)
 
-        def delivered():
-            state = self.step("identity", "export_state", request_id=approved["request_id"])
-            return state if state["parts"]["engagement"]["delivered"] else None
+        def assembled(service):
+            eventually(lambda: self.step(service, "export_pending")["pending"] == 1 or None, 60,
+                       f"{service} never assembled its part")
+            self.assertEqual(self.step(service, "dispatch_real"), {"sent": 1, "errors": []}, service)
 
-        state = eventually(delivered, 60, "Identity never stored the Engagement part")
-        self.assertEqual(state["parts"]["engagement"]["counts"], {"likes": 1, "follows": 1, "shares": 1,
-                                                                  "watch_sessions": 1, "qualified_watches": 1})
-        self.assertEqual(state["parts"]["engagement"]["withheld"], [])
-        self.assertTrue(state["parts"]["identity"]["delivered"])
-        self.assertEqual(state["waiting_on"], ["business", "content", "creators", "moderation"])
-        self.assertEqual((state["status"], state["retrieval"]), ("processing", [409, "export_not_ready"]),
+        def state():
+            return self.step("identity", "export_state", request_id=approved["request_id"])
+
+        self.assertEqual(self.step("identity", "dispatch_real"), {"sent": 3, "errors": []},
+                         "Engagement, Creators and Business first; Moderation and Content wait for the profile id")
+        for service in ("engagement", "creators", "business"):
+            assembled(service)
+        eventually(lambda: state()["parts"]["creators"]["delivered"] or None, 60, "Identity never stored Creators")
+        early = state()
+        self.assertEqual((early["status"], early["retrieval"]), ("processing", [409, "export_not_ready"]),
                          "never retrievable while a service has not delivered")
-        self.assertEqual(state["other_account"], 404)
-        for queue in (PARTICIPANTS["engagement"], IDENTITY):
+        self.assertEqual(self.step("identity", "dispatch_real"), {"sent": 2, "errors": []},
+                         "the Creators part released the Moderation and Content requests")
+        for service in ("moderation", "content"):
+            assembled(service)
+        result = eventually(lambda: (lambda s: s if s["status"] == "completed" else None)(state()), 60,
+                            "the export never became ready")
+        self.assertEqual(result["waiting_on"], [])
+        self.assertEqual(result["parts"]["engagement"]["counts"], {"likes": 1, "follows": 1, "shares": 1,
+                                                                   "watch_sessions": 1, "qualified_watches": 1})
+        self.assertEqual(result["parts"]["creators"]["counts"]["profile"], 1)
+        self.assertEqual(result["retrieval"], [200, ["business", "content", "creators", "engagement", "identity",
+                                                     "moderation"]])
+        self.assertEqual(result["other_account"], 404)
+        for queue in (*PARTICIPANTS.values(), IDENTITY):
             eventually(lambda q=queue: self.broker.queue_state(q) == (0, 0), 30, f"{queue} did not drain")
 
     def test_2_the_proposed_grants_are_least_privilege(self):

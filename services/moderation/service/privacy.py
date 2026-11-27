@@ -19,9 +19,10 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from .events import ERASURE_CONFIRMED, ERASURE_REQUESTED, SERVICE, accept_once, record_event
-from .models import (Appeal, AuditEvent, CopyrightStrike, CounterNotice, EditDecision, ModerationAction,
-                     ModeratorAssignment, Report, ReviewerPreview, RightsHolder)
+from .events import (ERASURE_CONFIRMED, ERASURE_REQUESTED, EXPORT_DELIVERED, EXPORT_REQUESTED, SERVICE, accept_once,
+                     record_event)
+from .models import (Appeal, AuditEvent, CopyrightNotice, CopyrightStrike, CounterNotice, EditDecision,
+                     ModerationAction, ModeratorAssignment, Report, ReviewerPreview, RightsHolder)
 
 ERASED_EVIDENCE = "Removed when the account was erased (Decision C)."
 
@@ -95,4 +96,71 @@ def erase(event_id, payload):
         retained += _retained(account_id, creator_id)
         record_event(ERASURE_CONFIRMED, {"request_id": request_id, "account_id": account_id, "service": SERVICE,
                                          "counts": counts, "retained": retained})
+        return True
+
+
+# ---- Access export (mandate 3.3): the person's own records, assembled here and delivered to Identity once. ----
+EXPORT_ROW_LIMIT = 5000
+
+
+def _plain(value):
+    if isinstance(value, uuid.UUID):
+        return str(value)
+    if isinstance(value, (list, tuple)):
+        return [_plain(item) for item in value]
+    return value.isoformat() if hasattr(value, "isoformat") else value
+
+
+def _rows(queryset, fields):
+    """(rows, cut): flat rows of the named fields, oldest first, at most EXPORT_ROW_LIMIT."""
+    rows = list(queryset.order_by("pk").values_list(*fields)[:EXPORT_ROW_LIMIT + 1])
+    return ([{name.replace("__", "_"): _plain(value) for name, value in zip(fields, row)}
+             for row in rows[:EXPORT_ROW_LIMIT]], len(rows) > EXPORT_ROW_LIMIT)
+
+
+def _assemble(tables, withheld):
+    data, truncated = {}, []
+    for name, (queryset, fields) in tables.items():
+        data[name], cut = _rows(queryset, fields)
+        if cut:
+            truncated.append(name)
+    return data, truncated, [name for name, rows in withheld.items() if rows.exists()]
+
+
+def export(event_id, payload):
+    """The person's reports, copyright claims, appeals and counter-notices, and the decisions and strikes on their
+    creator profile, once. Decisions they took as staff, reviewer previews and assignments, a rights-holder
+    verification's evidence note and the audit trail are withheld by name (an owner decision)."""
+    request_id, account_id, creator_id = _request(payload)
+    creator = [creator_id] if creator_id else []
+    with transaction.atomic():
+        if not accept_once(event_id, EXPORT_REQUESTED):
+            return False
+        data, truncated, withheld = _assemble({
+            "reports": (Report.objects.filter(reporter_id=account_id, copyrightnotice__isnull=True),
+                        ("video_id", "reason", "details", "status", "created_at")),
+            "copyright_claims": (CopyrightNotice.objects.filter(report__reporter_id=account_id),
+                                 ("report__video_id", "work_reference", "organisation", "version", "submitted_at",
+                                  "report__status")),
+            "appeals": (Appeal.objects.filter(appellant_id=account_id), ("removal__video_id", "reason", "status",
+                                                                         "created_at")),
+            "counter_notices": (CounterNotice.objects.filter(account_id=account_id), ("version", "submitted_at")),
+            "decisions": (ModerationAction.objects.filter(creator_id__in=creator),
+                          ("video_id", "action", "reason_code", "reason", "status", "created_at", "finished_at")),
+            "edit_decisions": (EditDecision.objects.filter(creator_id__in=creator),
+                               ("video_id", "action", "reason_code", "reason", "status", "created_at")),
+            "strikes": (CopyrightStrike.objects.filter(creator_id__in=creator),
+                        ("removal__video_id", "removal__created_at", "reversed_by__created_at")),
+            "rights_holder": (RightsHolder.objects.filter(account_id=account_id),
+                              ("organisation", "verified_at", "revoked_at")),
+        }, {
+            "staff_decisions": ModerationAction.objects.filter(reviewer_id=account_id),
+            "staff_edit_decisions": EditDecision.objects.filter(reviewer_id=account_id),
+            "staff_assignments": ModeratorAssignment.objects.filter(moderator_id=account_id),
+            "reviewer_previews": ReviewerPreview.objects.filter(actor_id=account_id),
+            "rights_holder_evidence": RightsHolder.objects.filter(account_id=account_id),
+            "audit_events": AuditEvent.objects.filter(Q(actor_id=account_id) | Q(subject_id=account_id)),
+        })
+        record_event(EXPORT_DELIVERED, {"request_id": request_id, "account_id": account_id, "service": SERVICE,
+                                        "data": data, "withheld": withheld, "truncated": truncated})
         return True
