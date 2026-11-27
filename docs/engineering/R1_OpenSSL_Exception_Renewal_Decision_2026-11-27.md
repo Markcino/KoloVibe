@@ -1,6 +1,6 @@
 # OpenSSL scan exception: renewal decision needed (#143), 27 November 2026
 
-**Status: DECIDED, 27 November 2026 06:04 UTC.** The owner chose option 1: renew the same 10 exact-package rules for seven days, to **2026-12-05 UTC**. The answer was recorded in the project thread. The previous exception ([R1_OpenSSL_Seven_Day_Scan_Exception_2026-11-21.md](R1_OpenSSL_Seven_Day_Scan_Exception_2026-11-21.md)) would have expired on 2026-11-28 UTC. This is a fresh risk acceptance, not a silent extension. Any further renewal needs another written owner decision.
+**Status: OWNER DECISION NEEDED.** The temporary exception ([R1_OpenSSL_Seven_Day_Scan_Exception_2026-11-21.md](R1_OpenSSL_Seven_Day_Scan_Exception_2026-11-21.md)) expires on **2026-11-28 UTC**. It has not been renewed, and it will not be renewed without a written owner decision.
 
 ## What was checked
 
@@ -40,17 +40,12 @@ None of these is shown to mitigate any individual CVE.
 
 **Recommendation: option 1**, with the fix checked daily and the rules removed the day a patched package appears. Draft PR #278 already holds that removal, ready to re-run.
 
-## Applying option 1
+## If option 1 is approved
 
-The renewal PR does all of the following:
+A PR does all of the following:
 
 - restores the 10 rules exactly as before;
 - changes only the expiry comment and the two test dates;
 - links the owner's written decision.
 
 Nothing else changes.
-
-## Follow-up
-
-- Check every day for a patched Alpine `libssl3` / `libcrypto3`. Draft PR #278 holds the removal; re-run its CI to check.
-- On or before 2026-12-05 UTC, either remove the rules (once a fix exists) or put a new decision to the owner. The tests fail closed on that date.
