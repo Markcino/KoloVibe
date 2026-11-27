@@ -8,9 +8,9 @@ Established 27 November 2026 at `37c5a44` (after #299). Updated 27 November 2026
 
 | Item | State |
 | --- | --- |
-| Current phase | **Phase 1, full-product reconciliation: five requirement sets approved by the owner at 12:26 UTC; verdict PASS on merge of PR #328 with green CI** (see [report](phases/PHASE-01_Full_Product_Reconciliation_Report.md)). Authorized 27 November 2026, 11:12 UTC. Closure instruction 12:13 UTC: the sets FP-NT, FP-PAY, FP-GA, FP-DST and FP-CM are written and approved |
-| Phase 2 | **NOT STARTED.** Formal Phase 2 is architecture, contracts and decisions (section 2, milestone 7). It starts only after Phase 1 is PASS, and then only with read-only and repository-side work; every staging write needs its own approval (owner, 12:13 UTC). The owner's 11:40 UTC message produced a **read-only staging inspection** ([record](phases/PHASE-02-ENTRY_Staging_Infrastructure_Inspection_2026-11-27.md), PR #327), first titled a "Phase 2 report"; it was reclassified at 12:13 UTC as input to the Phase 2 entry staging sequence and to Phase 9. Its plans A to G stay unexecuted |
-| Next phase | Phase 2 entry is authorized by the owner's 12:13 UTC message **conditional on Phase 1 PASS**, read-only and repository-side only. Phase 3 is not authorized |
+| Current phase | **Phase 1 PASS** (27 November 2026, 12:39 UTC; [report](phases/PHASE-01_Full_Product_Reconciliation_Report.md)). Requirement sets approved by the owner at 12:26 UTC; merged in #328 and #329; CI on `main` at `e4f4593` (after #328 and #329): 16 checks success, 4 manual-only jobs skipped by design, 0 failed. **Phase 2 entry started**: read-only and repository-side only |
+| Phase 2 | **IN PROGRESS (entry).** Formal Phase 2 is architecture, contracts and decisions (section 2, milestone 7), read-only and repository-side. Staging remediation runs separately under the owner's conditional approval of 12:38 UTC (plans A, B, C, E, G conditional; D not approved; F only after its deployment is authorized), from the staging infrastructure session, recorded in the [staging inspection](phases/PHASE-02-ENTRY_Staging_Infrastructure_Inspection_2026-11-27.md) follow-ups and on GitHub |
+| Next phase | Phase 3 is not authorized |
 | Production | NO-GO. Nothing here authorizes deployment, live payments, live advertising, destructive data changes or production publication (mandate section 8) |
 | Infrastructure access | Claude's **cloud** sessions have no SSH to staging. Sessions on the owner's Mac (Remote Control) can reach `ssh swarm-manager` and `ssh swarm-worker`; the read-only check ran that way on 27 November 11:42–11:55 UTC ([read-only check](../operations/R1_AWS_Staging_Readonly_Check_2026-11-27.md)). Any staging write still needs a concrete plan and the owner's explicit yes |
 
@@ -39,8 +39,8 @@ The owner's Phase 1 instruction refers to Phases 2 to 11, so the plan has eleven
 
 | # | Phase | Milestone | Main exit criteria | Earlier proposal folded in | Status |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Full-product reconciliation | — (#301) | Owner's nine Phase 1 exit criteria | 0 governance, 1 reverification | **PASS on merge of #328**: requirement sets approved 12:26 UTC (#307) |
-| 2 | Architecture, contracts and decisions | [Phase 2](https://github.com/Markcino/KoloVibe/milestone/7) | Approved ADRs for Finance, Events, Advertising and Notifications; one canonical API and event contract; requirement sets FP-NT, FP-PAY, FP-GA, FP-DST approved; Figma frames for new areas; Stage 1 and 2 sign-offs (#133, #134, #140, #141) | 2 decisions, 3 architecture | NOT STARTED |
+| 1 | Full-product reconciliation | — (#301) | Owner's nine Phase 1 exit criteria | 0 governance, 1 reverification | **PASS** (27 November; #326, #328, #329) |
+| 2 | Architecture, contracts and decisions | [Phase 2](https://github.com/Markcino/KoloVibe/milestone/7) | Approved ADRs for Finance, Events, Advertising and Notifications; one canonical API and event contract; requirement sets FP-NT, FP-PAY, FP-GA, FP-DST approved; Figma frames for new areas; Stage 1 and 2 sign-offs (#133, #134, #140, #141) | 2 decisions, 3 architecture | IN PROGRESS (entry) |
 | 3 | Core platform completion | [Phase 3](https://github.com/Markcino/KoloVibe/milestone/8) | Identity, Creators, Content, Engagement, Points, Moderation, Audit, Privacy and Notifications reach Ready for comprehensive testing; D13-001 to D13-003 resolved | 4 core | NOT STARTED |
 | 4 | Business completion | [Phase 4](https://github.com/Markcino/KoloVibe/milestone/9) | Business sensitive actions per decisions; staging plan | 5 Business | NOT STARTED |
 | 5 | Finance, payments and payouts (sandbox) | [Phase 5](https://github.com/Markcino/KoloVibe/milestone/10) | Finance service and ledger; revenue records; creator pool; provider in sandbox; payouts; Finance console | 6 Finance | NOT STARTED |
@@ -57,7 +57,7 @@ Phases 3 to 8 may run tasks in parallel once their Phase 2 dependencies are appr
 
 | Phase | Started at | Ended at | Verdict | Completion report | Next phase authorized |
 | --- | --- | --- | --- | --- | --- |
-| 1 | `1c706ce` | this PR's merge commit | **BLOCKED** | [PHASE-01 report](phases/PHASE-01_Full_Product_Reconciliation_Report.md) | No |
+| 1 | `1c706ce` | `e4f4593` | **PASS** | [PHASE-01 report](phases/PHASE-01_Full_Product_Reconciliation_Report.md) | Yes: Phase 2 entry (owner, 12:13 UTC) |
 
 ### Templates
 
