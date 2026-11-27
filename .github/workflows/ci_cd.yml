@@ -68,6 +68,7 @@ jobs:
           export PATH="$(pg_config --bindir):$PATH"
           python scripts/test_postgres_foundations.py
           python scripts/test_business_postgres.py
+          python scripts/test_erasure_restore_drill.py
           python -m unittest scripts.test_r01_remediation
       - name: Isolated gateway, mail and web contract journeys
         run: |

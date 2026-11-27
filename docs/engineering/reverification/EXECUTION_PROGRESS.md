@@ -154,7 +154,11 @@ What it shows: the account lifecycle, discovery, likes, follows, reports, creato
 
 | 3.3c App export view | "View my data" on a completed access request: fresh identity check, in-memory view by service and category, explicit copy only; expired and unready answers explained. PR open | Flutter 1,888 tests passed and `flutter analyze` clean, 27 November, at the PR head. Device UAT NOT RUN. Saving as a file is NOT IMPLEMENTED |
 
-Next: 3.4 restore-safe recovery and 3.5, then the owner-gated steps above.
+| 3.4 Restore-safe recovery | Audit answers Identity alone (signed, least-privilege path) with the two facts it holds: which accounts an approved deletion deactivated and which an erasure completed for. `recover_erasures_from_audit` re-applies them after a restore: signs the account out, deactivates it, de-identifies a completed erasure again, and puts a restored waiting deletion request back in `processing` with every service asked again; it never marks a request completed and prints counts only. `--dry-run`. Runbook "Restoring Identity's own database" added. PR open | Identity 240, Audit 55, Gateway 273 and scripts 506 passed; restore drill `scripts/test_erasure_restore_drill.py` passed on disposable TLS PostgreSQL, 27 November: pg_dump of the identity schema, real approval and completion, Audit ingest, pg_restore (the erased person came back), recovery (erased again), second run unchanged. The Identity to Audit HTTP hop is replaced by files in the drill (labelled). The recovery contract is PROPOSED and needs owner approval before first use. Staging restore NOT RUN |
+
+Next: 3.5 (lifecycle execution, configurable; the completion notice is an owner decision), then the owner-gated steps above.
+
+*History (superseded, 27 November before 3.4):* "Next: 3.4 restore-safe recovery and 3.5, then the owner-gated steps above."
 
 *History (superseded, 27 November before 3.3c):* "Next: 3.3c, then 3.4 restore-safe recovery and 3.5, then the owner-gated steps above."
 
