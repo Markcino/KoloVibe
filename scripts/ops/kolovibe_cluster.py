@@ -12,7 +12,9 @@ No image is ever defaulted. PostgreSQL, firewall, DNS and Nginx are never modifi
 Gateway changes only when it is explicitly named. A reviewed `--secret-override
 <service>:<mount target>=<secret name>` moves one named service's secret in the same guarded step.
 `capacity` (read-only, on the manager) reports the worker's reserved versus allocatable CPU and memory per
-service, and fails when a 100m one-shot job could not be scheduled (D13-004).
+service, and fails when a 100m one-shot job could not be scheduled (D13-004). `release-readback` (read-only, on the
+manager) checks that every service built from this project's images runs one CI publication's digests and carries its
+source-revision label (D13-005).
 """
 import argparse
 import base64
@@ -1770,6 +1772,47 @@ def worker_preflight():
             'available_memory_bytes': int(memory['MemAvailable'].split()[0])*1024}
 
 
+RELEASE_REPOSITORIES = {'services': REPOSITORY, 'media': 'ghcr.io/markcino/kolovibe/media-worker',
+                        'web': 'ghcr.io/markcino/kolovibe/web'}
+REVISION_LABEL = 'kolovibe.source-revision'
+
+
+def release_summary(services, expected, revision):
+    """Compare every live service built from this project's images with one CI publication (D13-005).
+
+    `expected` maps 'services', 'media' and 'web' to the published digests. A service on another project image digest,
+    or whose source-revision label names another commit, FAILs. Images that are not this project's (PostgreSQL,
+    RabbitMQ, the R2 proxy) are listed and skipped. Names, digests and labels only."""
+    rows, checks = [], []
+    for service in sorted(services, key=lambda item: item['Spec']['Name']):
+        name, image = service['Spec']['Name'], live_image(service['Spec'])
+        repository, _, digest = image.partition('@')
+        repository = repository.split(':', 1)[0]  # a `repo:tag@sha256:...` reference is judged by its digest
+        kind = next((k for k, r in RELEASE_REPOSITORIES.items() if r == repository), None)
+        label = (service['Spec'].get('Labels') or {}).get(REVISION_LABEL, '')
+        row = {'service': name, 'kind': kind or 'not-a-release-image', 'digest': digest or None,
+               'revision_label': label or None}
+        rows.append(row)
+        if kind is None:
+            continue
+        checks.append({'test': name + ' runs the published ' + kind + ' digest',
+                       'status': 'PASS' if repository + '@' + digest == expected[kind] else 'FAIL'})
+        checks.append({'test': name + ' is labelled with the release revision',
+                       'status': 'PASS' if label == revision else 'FAIL'})
+    if not checks:
+        checks.append({'test': 'at least one service runs a release image', 'status': 'FAIL'})
+    return {'kind': 'KVB-CLUSTER-RELEASE-V1', 'revision': revision, 'expected': expected, 'services': rows,
+            'checks': checks}
+
+
+def release_readback(expected, revision):
+    """Read-only, on the manager: does every project service run this publication, with a matching label?"""
+    version = manager_checks()
+    report = release_summary(docker('GET', '/v' + version + '/services'), expected, revision)
+    report['time'] = datetime.now(timezone.utc).isoformat()
+    return report
+
+
 PROBE_JOB_NANOCPUS = 100_000_000  # the 100m one-shot job D13-004 (#274) must be able to schedule beside the stack
 
 
@@ -1929,7 +1972,8 @@ def main():
     os.umask(0o077)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('mode', choices=('cloud-run', 'worker-preflight', 'plan', 'deploy', 'update-plan', 'update',
-                                         'rollback', 'verify-worker', 'verify-edge', 'capacity'))
+                                         'rollback', 'verify-worker', 'verify-edge', 'capacity',
+                                         'release-readback'))
     parser.add_argument('--profile', choices=sorted(PROFILES),
                         help='staging environment; required, never inferred from the hostname (not used by verify-edge)')
     parser.add_argument('--worker-evidence')
@@ -1937,6 +1981,8 @@ def main():
     parser.add_argument('--release-dir', help='downloaded published-image-<sha> CI artifact (preferred)')
     parser.add_argument('--image', help=REPOSITORY + '@sha256:<digest>; never defaulted')
     parser.add_argument('--revision', help='40-hex commit the image was built from')
+    parser.add_argument('--media-image', help='release-readback: the published media-worker digest of the same run')
+    parser.add_argument('--web-image', help='release-readback: the published web digest of the same run')
     parser.add_argument('--services', help='comma-separated, explicit; never defaulted')
     parser.add_argument('--restore-point-ref', help='identifier of the owner-approved restore point')
     parser.add_argument('--confirm-image', help='repeat the approved digest to apply an update')
@@ -1983,6 +2029,15 @@ def main():
         return
     if args.mode == 'capacity':
         report = capacity()
+    elif args.mode == 'release-readback':
+        expected = {'services': args.image, 'media': args.media_image, 'web': args.web_image}
+        for kind, value in expected.items():
+            pattern = re.escape(RELEASE_REPOSITORIES[kind]) + r'@sha256:[0-9a-f]{64}'
+            if not value or not re.fullmatch(pattern, value):
+                parser.error('release-readback needs --image, --media-image and --web-image as exact digests')
+        if not args.revision or not REVISION_RE.fullmatch(args.revision):
+            parser.error('release-readback needs --revision, the 40-hex commit of the publication')
+        report = release_readback(expected, args.revision)
     elif args.mode == 'verify-worker':
         if not args.image or not IMAGE_RE.fullmatch(args.image):
             parser.error('--image must be the expected immutable digest')

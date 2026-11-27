@@ -52,7 +52,7 @@ class CapacitySummaryTests(unittest.TestCase):
     def test_capacity_is_a_mode_and_is_read_only(self):
         source = MODULE.read_text()
         body = source[source.index('def capacity():'):source.index('def verify_worker(')]
-        self.assertIn("'capacity'))", source)
+        self.assertIn("'capacity',", source[source.index("parser.add_argument('mode'"):])
         self.assertNotIn("docker('POST'", body)
         self.assertNotIn("docker('DELETE'", body)
         self.assertIn('manager_checks()', body)
