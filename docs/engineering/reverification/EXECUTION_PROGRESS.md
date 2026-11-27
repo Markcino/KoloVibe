@@ -141,7 +141,13 @@ What it shows: the account lifecycle, discovery, likes, follows, reports, creato
 | 2.2 #272 Content and Creators audit delivery | Roles, zero-replica jobs and distinct key names in the repository; NOT DEPLOYED | `docs/operations/R1_Content_Creators_Audit_Delivery_Plan_2026-11-27.md`. Needs the CPU budget (#274) first, then the owner's approval. Recommends one Audit map roll together with #271 |
 | 2.3 #145 Audit alerting | Signals IMPLEMENTED BUT UNVERIFIED; notification NOT IMPLEMENTED (platform and channel are owner decisions, OD-08) | `docs/operations/R1_Audit_Alert_Signals_2026-11-27.md`. Thresholds have no defaults and are owner decisions |
 
-Next: the owner-gated steps above, then the mandate's later phases.
+**Phase 3 (Privacy), 27 November:**
+
+| Item | State | Evidence |
+| --- | --- | --- |
+| 3.1 #273 Erasure runtime wiring | Roles, zero-replica processes, erasure-only capability row and validator in the repository; NOT DEPLOYED. The real-broker pipeline script passed locally on disposable infrastructure | `docs/operations/R1_Erasure_Runtime_Plan_2026-11-27.md`. Needs the broker plan approved, the CPU budget and memory room. Business is not on staging, so requests there will wait on it |
+
+Next: 3.2 retained categories, then the owner-gated steps above.
 
 *History (superseded, 27 November before #284):* "1.1 #143: merge #284 …; 1.2 #274: the read-only measurement, then the budget; 1.3 #271: the key correction, once approved; 1.4 #142: apply the ruleset, once approved; 1.5 D13-005: reconcile the release; 1.6: the remaining record corrections."
 

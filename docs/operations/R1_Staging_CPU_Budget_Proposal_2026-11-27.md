@@ -31,8 +31,9 @@ Reservations are only scheduling budgets. Each service keeps its own CPU **limit
 | **Total running today** | **2000m** | **1150m** | |
 | Approved, not yet deployed: Business API, plus 4 erasure workers (Creators, Moderation, Business, Identity confirmations) | (cannot schedule) | 50m + 4 × 25m = 150m | 1.0 / 0.5 CPU |
 | Proposed 27 Nov (D13-002, #272): Content and Creators audit delivery jobs | (cannot schedule) | 2 × 25m = 50m | 0.5 CPU |
-| **Total with planned additions** | | **1350m** | |
-| **Free** | **0m** | **650m (32%)** | |
+| Proposed 27 Nov (D13-003, #273): erasure consumers and dispatchers for Identity, Creators and Moderation, plus Content's dispatcher (the earlier "4 erasure workers" row counted consumers only) | (cannot schedule) | 7 × 25m = 175m, of which 75m is already in the row above | 0.5 CPU |
+| **Total with planned additions** | | **1450m** (1475m once Business adds its dispatcher) | |
+| **Free** | **0m** | **550m (27%)**, just above the 500m margin | |
 
 **Margin:** at least 500m stays free after the planned additions. That leaves room for:
 
@@ -42,7 +43,7 @@ Reservations are only scheduling budgets. Each service keeps its own CPU **limit
 
 **Rule:** if any service's measured p95 is above its proposed reservation, its reservation becomes that p95, rounded up to 25m. If that leaves less than 500m free, the result is a capacity request (an instance size and its monthly cost) for the owner to approve with a spending ceiling. It is not applied before that approval.
 
-Memory is unchanged: 2.3 of 3.8 GiB is reserved, and the existing memory preflight already gates new services.
+Memory is unchanged: 2.3 of 3.8 GiB is reserved, and the existing memory preflight already gates new services. *Update, 27 November:* the 12 processes not yet running (audit jobs and erasure processes) reserve 80 MiB each, about 960 MiB in all, so memory, not CPU, is the likely limit. If the preflight fails, the result is a capacity request (see `R1_Erasure_Runtime_Plan_2026-11-27.md`).
 
 ## Step 3: apply (owner-approved only)
 
