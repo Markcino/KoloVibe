@@ -6,8 +6,8 @@
 | Authorized | Owner instruction, 27 November 2026, 11:12 UTC |
 | Starting commit | `1c706ce` (`main` after #303) |
 | Final commit | The merge commit of the Phase 1 pull request (branch `claude/project-thread-tgd2jb`) |
-| Final gate verdict | **BLOCKED**: one exit criterion remains (written and approved requirement sets for notifications, payments, Google mobile ads, distribution and comments, #307). The runtime staging check ran read-only on 27 November at 11:42–11:55 UTC ([read-only check](../../operations/R1_AWS_Staging_Readonly_Check_2026-11-27.md)) |
-| Next phase authorized | **No.** Phase 2 waits on the owner's authorization and on the decisions in section 9 |
+| Final gate verdict | **BLOCKED** (re-evaluated 27 November after the owner's 12:13 UTC closure instruction, section 12): the five missing requirement sets are now **written** (FP-NT, FP-PAY, FP-GA, FP-DST, FP-CM) but are PROPOSED; the exit criterion needs them **owner-approved**. Every other criterion has evidence. The runtime staging check ran read-only on 27 November at 11:42–11:55 UTC ([read-only check](../../operations/R1_AWS_Staging_Readonly_Check_2026-11-27.md)) |
+| Next phase authorized | Conditionally: the owner's 12:13 UTC message authorizes read-only and repository-side Phase 2 entry work **once Phase 1 is PASS**. It is not PASS, so Phase 2 has not started |
 
 ## 1. Requirements completed
 
@@ -55,7 +55,7 @@ None. Staging and production were not touched.
 | Owner's exit criterion | Result | Evidence or blocker |
 | --- | --- | --- |
 | The full-product scope is authoritative | PASS (on merge) | FP-000, scope baseline |
-| Every feature has a traceable requirement | **BLOCKED** | Every feature traces to a requirement ID, but notifications, payment processing, Google mobile ads, distribution and now comments (approved in GD-07) have no written and approved requirement set yet (#307) |
+| Every feature has a traceable requirement | **BLOCKED** (owner approval pending) | Every feature traces to a requirement ID. The five missing sets were written on 27 November ([FP-NT](../../requirements/FP-NT_Notifications_Requirements_PROPOSED.md), [FP-PAY](../../requirements/FP-PAY_Payments_and_Payouts_Requirements_PROPOSED.md), [FP-GA](../../requirements/FP-GA_Google_Mobile_Ads_Requirements_PROPOSED.md), [FP-DST](../../requirements/FP-DST_Store_Distribution_Requirements_PROPOSED.md), [FP-CM](../../requirements/FP-CM_Comments_Requirements_PROPOSED.md)) and are PROPOSED; the owner instruction requires the applicable requirements to have owner approval (#307) |
 | All service boundaries are reconciled | PASS (on merge) | Nine built services reconciled; Finance, Events and Advertising as separate services and Notifications inside Identity approved (GD-01 to GD-03, 27 November 11:31 UTC) |
 | Obsolete MVP restrictions no longer govern active development | PASS (on merge) | Scope baseline section 2 |
 | Documentation conflicts are resolved | PASS (on merge) | Audit section 7 |
@@ -85,5 +85,20 @@ Revert the Phase 1 pull request; it changes documentation only. The milestones a
 ## 11. Owner actions to unblock
 
 1. ~~Approve GD-01 to GD-08~~ done, 11:31 UTC.
-2. Run the read-only release read-back on VM1 (`docs/operations/R1_Release_Reconciliation_v0_542_1_2026-11-27.md`), or bring the computer online and approve a read-only Remote Control session.
-3. Authorize Phase 2.
+2. ~~Run the read-only release read-back on VM1~~ done read-only, 11:42–11:55 UTC (PR #327).
+3. ~~Authorize Phase 2~~ given at 12:13 UTC, conditional on Phase 1 PASS.
+4. **Approve the five requirement sets** FP-NT, FP-PAY, FP-GA, FP-DST and FP-CM, with the open choices in gate register section 8. This is the only remaining Phase 1 blocker.
+
+## 12. Closure attempt, 27 November 2026 (owner instruction 12:13 UTC)
+
+**Work done.** Wrote the five missing requirement sets as PRD and SRS content with user journeys, roles, security, privacy, APIs, event contracts, Flutter screen ids, console controls, failure scenarios and acceptance criteria: [FP-NT](../../requirements/FP-NT_Notifications_Requirements_PROPOSED.md) (M-420 to M-439), [FP-PAY](../../requirements/FP-PAY_Payments_and_Payouts_Requirements_PROPOSED.md) (M-440 to M-459), [FP-GA](../../requirements/FP-GA_Google_Mobile_Ads_Requirements_PROPOSED.md) (M-460 to M-469), [FP-DST](../../requirements/FP-DST_Store_Distribution_Requirements_PROPOSED.md) and [FP-CM](../../requirements/FP-CM_Comments_Requirements_PROPOSED.md) (M-400 to M-419, implementing GD-07). Google and Apple requirements were checked on 27 November against the official pages each set cites. No provider, fee, currency, threshold, credential, legal determination or provider eligibility was set; such values are marked `[OWNER VALUE]`. Updated FP-000, the traceability matrix, the documentation index, the gate register (section 8), the tracker and #307.
+
+**Phase 2 discrepancy resolved.** The separate report from the owner's 11:40 UTC message (PR #327, commit `484e241`) called itself the Phase 2 report. The approved plan (GD-08) defines Phase 2 as architecture, contracts and decisions. The report is kept unchanged as evidence, renamed to a [read-only staging inspection](PHASE-02-ENTRY_Staging_Infrastructure_Inspection_2026-11-27.md) with a reclassification banner, and its plans A to G become the Phase 2 entry staging sequence and Phase 9 work. Its Nginx candidate (`infra/nginx/vm1-kolovibe-staging.conf`) and test update are kept, not installed.
+
+**Findings that the owner must weigh (from official text, not legal conclusions).**
+- Apple Guideline 3.1.3(g) says buying advertisements to display in the same app, such as boosts, must use in-app purchase. Business ad purchases shown in KoloVibe are therefore constrained on iOS (choice PAY-D2).
+- Google Play exempts tickets for live events from Play Billing. Apple 3.1.3(e) is the closest fit for tickets but does not name them (PAY-D3).
+- Neither store's text read covers creator payouts (PAY-D4).
+- Apple's third-party SDK list read did not include Google Mobile Ads; that is not an exemption (FP-GA section 4).
+
+**Exit criteria re-evaluated.** 8 PASS, 1 BLOCKED (owner approval of the five sets), 0 FAIL. Validation for this update is recorded on its pull request. **Verdict: BLOCKED.** Phase 2 entry work has not started, and no staging, Swarm, RabbitMQ, Nginx, database or VM change was made.

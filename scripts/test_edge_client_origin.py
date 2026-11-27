@@ -29,13 +29,14 @@ import kolovibe_cluster as cluster  # noqa: E402
 HEADER = "CF-Connecting-IP"
 API_TEMPLATE = ROOT / "infra/nginx/staging.conf.template"
 WEB_VHOST = ROOT / "infra/nginx/kolovibe-web-staging.conf"
+VM1_VHOST = ROOT / "infra/nginx/vm1-kolovibe-staging.conf"  # the full live VM1 file plus D12-001 (candidate)
 NAMED_INPUTS = {"ORIGIN_CERT_FILE", "ORIGIN_KEY_FILE", "GATEWAY_PRIVATE_ENDPOINT", "GATEWAY_TLS_NAME",
                 "INTERNAL_CA_FILE", "TUNNEL_CONNECTOR_ADDRESS"}
 
 
 class StaticEdgeConfiguration(unittest.TestCase):
     def test_T10_81_every_repository_vhost_defines_request_and_connection_limits(self):
-        for path in (API_TEMPLATE, WEB_VHOST):
+        for path in (API_TEMPLATE, WEB_VHOST, VM1_VHOST):
             text = path.read_text()
             with self.subTest(path.name):
                 zones = re.findall(r"limit_req_zone \$binary_remote_addr zone=(\w+):", text)
@@ -64,6 +65,26 @@ class StaticEdgeConfiguration(unittest.TestCase):
                 self.assertIn(f"proxy_set_header {HEADER} $remote_addr;", text)
                 self.assertIn('proxy_set_header X-Forwarded-For "";', text)
         self.assertIn("listen 127.0.0.1:80;", WEB_VHOST.read_text())  # its only peer is the local connector
+
+    def test_vm1_candidate_protects_every_named_vhost(self):
+        text = VM1_VHOST.read_text()
+        servers = re.split(r"\nserver \{", text)[1:]
+        named = [block for block in servers if "server_name _;" not in block]
+        self.assertEqual(sorted(re.search(r"server_name (\S+);", b).group(1) for b in named),
+                         ["api.cabetechs.shop", "kolovibe.cabetechs.shop", "mobile-api.cabetechs.shop"])
+        for block in named:
+            name = re.search(r"server_name (\S+);", block).group(1)
+            with self.subTest(name):
+                self.assertEqual(re.findall(r"set_real_ip_from (\S+);", block), ["127.0.0.1"])
+                self.assertIn(f"real_ip_header {HEADER};", block)
+                self.assertIn("real_ip_recursive off;", block)
+                self.assertRegex(block, r"limit_req zone=kolovibe_edge_rate burst=\d+ nodelay;")
+                self.assertIn("limit_conn kolovibe_edge_conn 20;", block)
+                self.assertIn(f"proxy_set_header {HEADER} $remote_addr;", block)
+                self.assertIn('proxy_set_header X-Forwarded-For "";', block)
+                self.assertNotIn("X-Forwarded-For $remote_addr", block)
+                self.assertNotIn("listen 0.0.0.0", block)
+                self.assertRegex(block, r"listen 127\.0\.0\.1:80;")
 
     def test_api_template_uses_only_named_inputs(self):
         self.assertEqual(set(re.findall(r"\$\{([A-Z_]+)\}", API_TEMPLATE.read_text())), NAMED_INPUTS)

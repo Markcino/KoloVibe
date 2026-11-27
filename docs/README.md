@@ -22,6 +22,11 @@
 | Detailed requirements, Events | [EVT requirements](requirements/EVT-Requirements_PRD_SRS_PROPOSED.md) | Scope approved (H); detail PROPOSED | [Events package](architecture/events/README.md) |
 | Detailed requirements, Advertising | [AD requirements](requirements/AD-Requirements_PRD_SRS_PROPOSED.md) | Scope approved (I); detail PROPOSED | [Advertising package](architecture/advertising/README.md) |
 | Detailed requirements, Finance | [FIN requirements](requirements/FIN-Requirements_PRD_SRS_PROPOSED.md) | Scope approved (J, sandbox); detail PROPOSED | [Finance package](architecture/finance/README.md) |
+| Detailed requirements, notifications | [FP-NT](requirements/FP-NT_Notifications_Requirements_PROPOSED.md) | PROPOSED (27 Nov); placement approved (GD-03) | Identity notification module, #309 |
+| Detailed requirements, payments and payouts | [FP-PAY](requirements/FP-PAY_Payments_and_Payouts_Requirements_PROPOSED.md) | PROPOSED (27 Nov); sandbox only | FIN F5, EVT E5, AD A7 |
+| Detailed requirements, Google mobile ads | [FP-GA](requirements/FP-GA_Google_Mobile_Ads_Requirements_PROPOSED.md) | PROPOSED (27 Nov); test units only | AD requirements |
+| Detailed requirements, store distribution | [FP-DST](requirements/FP-DST_Store_Distribution_Requirements_PROPOSED.md) | PROPOSED (27 Nov) | [Policies page](../apps/policies/README.md) |
+| Detailed requirements, comments | [FP-CM](requirements/FP-CM_Comments_Requirements_PROPOSED.md) | PROPOSED (27 Nov); scope approved (GD-07) | Moderation reports |
 | Feature traceability | [Feature traceability matrix](governance/phase1/PHASE-01_Feature_Traceability_Matrix.csv) | Active | [DOC-007](requirements/DOC-007_Traceability_and_Signoff_DRAFT.md) (sign-off record, #134) |
 | Owner decisions | [Owner decisions A to J](planning/Owner_Decisions_A-J_2026-11-25.md) | Approved | [Gate register](governance/phase1/PHASE-01_Governance_Gate_Register.md) |
 | Open decisions | [DOC-209 consolidated open decisions](architecture/DOC-209_Consolidated_Open_Decisions.csv) plus the per-area decision documents | Active | Business, Events, Advertising and Finance decision documents in `architecture/` |
