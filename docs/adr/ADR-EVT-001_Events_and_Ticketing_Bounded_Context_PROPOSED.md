@@ -1,5 +1,7 @@
 # ADR-EVT-001 — Events and ticketing bounded context, money ledger and authorization model
 
+> **Update, 27 November 2026 (records correction):** the "not approved" statements below are superseded for **development scope**. Owner Decisions H (Events), I (Advertising) and J (Finance) of 25 November 2026 ([record](../planning/Owner_Decisions_A-J_2026-11-25.md)) approve these scopes for **sandbox development only**. Real payments, live payouts, live ads and production activation stay **not authorized**. Decision J and X-01 supersede any Events- or Advertising-owned monetary ledger: **Finance owns the one ledger**, and Points stays non-cash. Every policy value (rates, shares, thresholds, periods, windows, currencies) stays an unset owner decision. The original text is kept below as history.
+
 **Status: PROPOSED — needs owner approval. Not an approved ADR.** Phase 7A, 25 November 2026.
 
 **Identifier.** `ADR-EVT-001` is provisional; the DOC-207 register is not altered ([ADR README](README.md): drafts are not silently approved). A register number is assigned only if the owner approves.
