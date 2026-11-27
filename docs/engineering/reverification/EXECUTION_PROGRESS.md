@@ -2,7 +2,7 @@
 
 **Read this file first when resuming.** Then check the repository state (`git log origin/main`, open PRs) before continuing. This tracker covers the owner's mandate "Complete application reverification, development completion, testing and final acceptance", in its 25 November 2026 form. The mandate was re-issued that day; this file continues the existing work and does not restart it.
 
-Updated: 27 November 2026, `main` after #283. The owner re-issued the mandate on 27 November as "Remediation and Completion" (baseline `e82f43e`, after #277). This file continues under it. Staging runs **v0.542.1** on all 16 application services (owner update on #169, 26 November 17:55 UTC; [record](../../operations/R1_AWS_Staging_Verification_2026-11-26.md), with its 27 November update). **Production is NO-GO.** Nothing in this file is deployed to staging unless a row says so.
+Updated: 27 November 2026, `main` after #290. The owner re-issued the mandate on 27 November as "Remediation and Completion" (baseline `e82f43e`, after #277). This file continues under it. Staging runs **v0.542.1** on all 16 application services (owner update on #169, 26 November 17:55 UTC; [record](../../operations/R1_AWS_Staging_Verification_2026-11-26.md), with its 27 November update). **Production is NO-GO.** Nothing in this file is deployed to staging unless a row says so.
 
 *History (superseded):* on 26 November, `main` was at `68d8df6`. The live staging was v0.531.1 with the v0.542.1 schema, the rollout was waiting for the registry token, and a first simulator test ran against a local stack ([results](simulator-run-2026-11-26/results.md)).
 
@@ -49,7 +49,7 @@ The phase statuses are NOT STARTED, IN PROGRESS, COMPLETED, FAILED and BLOCKED.
 | 05 Flutter | IN PROGRESS | Done alongside each work package |
 | 06 Web and administration | IN PROGRESS | Done alongside each work package |
 | 07 Security hardening | NOT STARTED | Run as a dedicated pass |
-| 08 Infrastructure and DevSecOps | IN PROGRESS | v0.542.1 deployed on 26 November (#169). #275 closed by #277. Open: #271 (plan ready, #281), #272, #273, #274 (capacity report and budget proposal, #283), D13-005, #142 (ruleset plan, #279), #143 (OpenSSL exception renewed to 5 Dec, #282/#284), D12-001 undeployed |
+| 08 Infrastructure and DevSecOps | IN PROGRESS | v0.542.1 deployed on 26 November (#169). #275 closed by #277. Open: #271 (plan ready, #281), #272, #273, #274 (capacity report and budget proposal, #283), D13-005, #142 (ruleset plan, #279), #143 (OpenSSL exception renewed to 5 Dec, #284; FFmpeg rules retired, #286; main run 45951479515 at `dc55ab5` green on all image scans), D13-005 (read-back tool and reconciliation, #287/#288), D12-001 undeployed |
 | 09 Completeness gate | NOT STARTED | Starts only when 03 to 06 are complete |
 | 10 to 14 Testing, defects, regression, staging, acceptance | NOT STARTED | Starts only after the gate passes |
 
@@ -122,12 +122,19 @@ What it shows: the account lifecycle, discovery, likes, follows, reports, creato
 
 ## Next executable task
 
-**27 November (Remediation mandate, Phase 1):**
-- 1.1 #143: merge #284, which restores the renewed OpenSSL exception (expiry 5 Dec). Then prune the FFmpeg rules that no longer match 9.1.
-- 1.2 #274: the read-only measurement, then the budget.
-- 1.3 #271: the key correction, once approved.
-- 1.4 #142: apply the ruleset, once approved.
-- 1.5 D13-005: reconcile the release.
-- 1.6: the remaining record corrections.
+**27 November (Remediation mandate, Phase 1), as of `main` after #290:**
+
+| Item | State | Evidence |
+| --- | --- | --- |
+| 1.1 #143 scan exceptions | OpenSSL renewed to 5 Dec on the owner's decision; FFmpeg rules retired | #280 and #282 (decision record), #284 (rules restored), #286 (FFmpeg retired); main run 45951479515 green on the shared, media and web image scans. Before 5 Dec: remove the rules once Alpine ships a fixed OpenSSL, or put a new decision to the owner |
+| 1.2 #274 CPU budget | Package ready; NOT RUN on staging | #283 (capacity mode and budget proposal). Needs the owner's go for the 24-hour read-only measurement |
+| 1.3 #271 Points to Audit key | Plan ready; NOT APPLIED | #281. Needs the owner's approval and the step-0 code PR |
+| 1.4 #142 ruleset | Plan ready; NOT APPLIED | #279. Needs the owner's approval to apply it |
+| 1.5 D13-005 release reconciliation | Tool and record merged; read-back NOT RUN on VM1 | #287 and #288 |
+| 1.6 records | Largely done | #285, #289, #290; issues #136, #152 and #153 updated; DOC-207 ADR-016, ADR-017 and ADR-020 status aligned with Decisions C and D, and #133, #134, #138, #141 and #169 updated, in this change |
+
+Next: the owner-gated steps above, then the mandate's later phases.
+
+*History (superseded, 27 November before #284):* "1.1 #143: merge #284 …; 1.2 #274: the read-only measurement, then the budget; 1.3 #271: the key correction, once approved; 1.4 #142: apply the ruleset, once approved; 1.5 D13-005: reconcile the release; 1.6: the remaining record corrections."
 
 *History (superseded):* the 26 November instruction read: "the operator runs the prepared v0.542.1 rollout …, then fix #275 …; build the static policies and account-deletion request page (item 2a), then continue with decision C." The rollout, #275, the page (#259) and the privacy slices #260 to #268 are done.
