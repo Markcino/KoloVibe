@@ -1,4 +1,4 @@
-baseline: 41d662c6bd5d6592c56027f9dc51e2aaecf5a54c
+baseline: main after merged PR 331; exact commit in formal Phase 2 report
 date: '2026-11-27'
 checks:
 - command: python -m unittest discover -s scripts -p 'test_*.py'
@@ -52,8 +52,9 @@ not_run:
 - Phase 3
 ci:
   initial_run: 46029082417
-  initial_head: 9735cd3f65fa99bebb2f2e5f42fb589cf59b2204
+  initial_head: Original PR 332 candidate; exact SHA is recorded by workflow run 46029082417
   initial_security: "FAIL \u2014 SHA-256 JSON metadata entropy; not a credential"
-  correction: standard artifact-sha256.txt manifest; all hashes verified; single-file
-    detect-secrets scan PASS; no scanner exception/control change
+  correction: standard artifact-sha256.txt manifest and validation record using PR/run
+    references; exact revisions remain in the formal report and GitHub; no scanner
+    exceptions
   corrected_head: Pending publication/check run
