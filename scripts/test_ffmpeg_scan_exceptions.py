@@ -41,12 +41,13 @@ LISTINGS = {"decoders": DECODERS, "encoders": ENCODERS, "hwaccels": HWACCELS, "b
 
 
 class EvidenceMatchesTheScannerConfigTests(unittest.TestCase):
-    def test_the_ignore_list_is_the_approved_first_rule_plus_exactly_the_evidenced_cves(self):
+    def test_no_ffmpeg_finding_is_ignored_any_more(self):
+        # Retired on 27 November 2026 (#143): no rule matched the FFmpeg 9.1 scan. The evidence stays, dated.
         self.assertEqual(set(GRYPE), {"ignore"})
         rules = GRYPE["ignore"]
-        expected = [{"vulnerability": APPROVED_FIRST, "package": PACKAGE}] + [
-            {"vulnerability": row["cve"], "package": PACKAGE} for row in EVIDENCE["rows"]]
-        self.assertEqual(rules[:len(expected)], expected)
+        self.assertFalse(any(rule["package"]["name"] == "ffmpeg" for rule in rules))
+        self.assertIn("27 November 2026 (#143)", EVIDENCE["retired"])
+        self.assertIn("The 30 FFmpeg rules were removed on 27 November 2026 (#143)", GRYPE_TEXT)
         openssl_cves = ("CVE-2026-124709", "CVE-2026-107494", "CVE-2026-121482",
                         "CVE-2026-84786", "CVE-2026-107493")
         openssl = [
@@ -54,7 +55,7 @@ class EvidenceMatchesTheScannerConfigTests(unittest.TestCase):
              "package": {"name": name, "version": "3.5.9-r1", "type": "apk"}}
             for cve in openssl_cves for name in ("libssl3", "libcrypto3")
         ]
-        self.assertEqual(rules[len(expected):], openssl)
+        self.assertEqual(rules, openssl)
         expiry = datetime.date.fromisoformat(
             re.search(r"(?m)^# Expires \(OpenSSL temporary\): (\d{4}-\d{2}-\d{2})$", GRYPE_TEXT).group(1))
         self.assertEqual(expiry, datetime.date(2026, 12, 5))  # owner renewal of 27 November 2026 (#143)
@@ -65,19 +66,8 @@ class EvidenceMatchesTheScannerConfigTests(unittest.TestCase):
         for cve in cves:
             self.assertRegex(cve, r"^CVE-2026-\d{5,6}$")
 
-    def test_the_rules_are_scoped_to_one_package_at_one_exact_version(self):
+    def test_the_evidence_names_one_package_at_one_exact_version(self):
         self.assertEqual(EVIDENCE["package"], PACKAGE)
-        for rule in GRYPE["ignore"][:1 + len(EVIDENCE["rows"])]:
-            self.assertEqual(set(rule), {"vulnerability", "package"})  # no wildcard, fix-state or path rule
-            self.assertEqual(rule["package"], PACKAGE)
-
-    def test_the_second_set_expires_and_the_config_comment_names_the_same_date(self):
-        expiry = datetime.date.fromisoformat(EVIDENCE["expires"])
-        self.assertGreater(expiry, datetime.date.today(), "the FFmpeg 19 November exceptions expired: re-triage or remove")
-        self.assertLessEqual(expiry, datetime.date(2027, 1, 31))
-        stated = re.search(r"(?m)^# Expires \(second set\): (\d{4}-\d{2}-\d{2})$", GRYPE_TEXT)
-        self.assertIsNotNone(stated)
-        self.assertEqual(stated.group(1), EVIDENCE["expires"])
 
     def test_every_row_names_its_component_and_a_check_a_build_can_fail(self):
         for row in EVIDENCE["rows"]:

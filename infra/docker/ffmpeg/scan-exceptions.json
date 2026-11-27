@@ -1,6 +1,7 @@
 {
   "purpose": "Why each scanner exception for the FFmpeg 9.1 apk is safe: the vulnerable component is not part of the minimal build.",
   "decision": "Owner chose scoped, expiring exceptions on 19 November 2026 (option 2). Each row names the vulnerable component; CI proves it is absent from the built binary.",
+  "retired": "27 November 2026 (#143): no rule matched the FFmpeg 9.1 media-image scan, so all were removed from .grype.yaml. The rows stay as dated evidence; CI still checks every premise against the built binary.",
   "evidence_quality": "Component names come from the VulnCheck CVE records as mirrored by cve.threatint.com and cross-checked in places against Red Hat and Debian trackers. They are third-party mirrors, not NVD, and were not verified against FFmpeg source in this environment.",
   "expires": "2026-12-31",
   "package": {

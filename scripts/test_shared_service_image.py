@@ -138,15 +138,9 @@ class ImageSecurityContractTests(unittest.TestCase):
         config = (ROOT / ".grype.yaml").read_text()
         rules = yaml.safe_load(config)
         self.assertEqual(set(rules), {"ignore"})
-        package = {"name": "ffmpeg", "version": "9.1-r0", "type": "apk"}
-        # The first rule is the 14 November approval. Every other rule must be one of the evidenced CVEs of the 19 November
-        # owner decision in infra/docker/ffmpeg/scan-exceptions.json (scripts/test_ffmpeg_scan_exceptions.py proves the two
-        # files are identical and that CI checks each premise against the built binary). Nothing else may be ignored.
-        evidence = json.loads((ROOT / "infra/docker/ffmpeg/scan-exceptions.json").read_text())
-        self.assertEqual(rules["ignore"][0], {"vulnerability": "CVE-2026-107696", "package": package})
-        ffmpeg_rules = rules["ignore"][:1 + len(evidence["rows"])]
-        self.assertEqual([r["vulnerability"] for r in ffmpeg_rules[1:]], [r["cve"] for r in evidence["rows"]])
-        self.assertTrue(all(r == {"vulnerability": r["vulnerability"], "package": package} for r in ffmpeg_rules))
+        # The FFmpeg rules matched nothing on FFmpeg 9.1 and were removed on 27 November 2026 (#143). No FFmpeg finding
+        # may be ignored again without a new owner decision.
+        self.assertFalse(any(rule["package"]["name"] == "ffmpeg" for rule in rules["ignore"]))
         openssl_cves = ("CVE-2026-124709", "CVE-2026-107494", "CVE-2026-121482",
                         "CVE-2026-84786", "CVE-2026-107493")
         openssl_rules = [
@@ -154,7 +148,7 @@ class ImageSecurityContractTests(unittest.TestCase):
              "package": {"name": name, "version": "3.5.9-r1", "type": "apk"}}
             for cve in openssl_cves for name in ("libssl3", "libcrypto3")
         ]
-        self.assertEqual(rules["ignore"][len(ffmpeg_rules):], openssl_rules)
+        self.assertEqual(rules["ignore"], openssl_rules)
         temporary_expiry = datetime.date.fromisoformat(
             re.search(r"(?m)^# Expires \(OpenSSL temporary\): (\d{4}-\d{2}-\d{2})$", config).group(1))
         self.assertEqual(temporary_expiry, datetime.date(2026, 12, 5))  # owner renewal of 27 November 2026 (#143)
@@ -165,9 +159,7 @@ class ImageSecurityContractTests(unittest.TestCase):
         media_job = self.workflow[self.workflow.index("  media-image-build:"):self.workflow.index("  build-and-verify:")]
         for needle in ("rtsp", "http", "tcp", '= "file pipe "'):
             self.assertIn(needle, media_job)
-        expiry = datetime.date.fromisoformat(re.search(r"(?m)^# Expires: (\d{4}-\d{2}-\d{2})$", config).group(1))
-        self.assertGreater(expiry, datetime.date.today(), "The CVE-2026-107696 scan exception expired: review or remove it")
-        self.assertLessEqual(expiry, datetime.date(2027, 3, 1))
+        self.assertNotRegex(config, r"(?m)^# Expires: ")  # the retired FFmpeg exception carries no live expiry
         # The gate steps themselves stay exactly as strict, and name no configuration file.
         for name in ("Scan local image vulnerabilities", "Scan media image vulnerabilities"):
             start = self.workflow.index(name)
