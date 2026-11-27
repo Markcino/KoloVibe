@@ -19,7 +19,7 @@ class PrivacyReviewConsoleTests(TestCase):
     def row(self, **extra):
         return {"id": self.request_id, "account_id": self.person, "kind": "deletion", "status": "received",
                 "created_at": "2026-11-26T10:00:00+00:00", "review_started_at": None, "decided_at": None,
-                "decline_code": None, "held": False, "erasure": []} | extra
+                "decline_code": None, "held": False, "erasure": [], "export": None} | extra
 
     def hold(self, **extra):
         return {"id": str(uuid.uuid4()), "account_id": self.person, "reason_code": "LEGAL_CLAIM",
@@ -58,6 +58,7 @@ class PrivacyReviewConsoleTests(TestCase):
         self.assertContains(response, "Release the hold to approve")
         response, _ = self.open([self.row(status="in_review", kind="access")])
         self.assertNotContains(response, "Approve deletion")
+        self.assertContains(response, "Approve export")
         response, _ = self.open([self.row(status="declined")])
         self.assertContains(response, "unavailable", msg_prefix="declined without a code is refused")
 
@@ -75,6 +76,47 @@ class PrivacyReviewConsoleTests(TestCase):
         response, _ = self.open([self.row(status="processing", erasure=[
             {"service": "creators", "confirmed": True, "retained": ["<b>x</b>"]}])])
         self.assertContains(response, "unavailable", msg_prefix="a category that is not a plain name is refused")
+
+    def test_an_access_export_shows_its_state_never_its_data(self):
+        self.login()
+        export = {"waiting_on": ["creators", "business"], "ready_at": None, "expires_at": None, "purged": False,
+                  "retrievals": 0}
+        response, _ = self.open([self.row(kind="access", status="processing", export=export)])
+        self.assertContains(response, "Approved, export pending")
+        self.assertContains(response, "Waiting on Creators, Business")
+        ready = export | {"waiting_on": [], "ready_at": "2026-11-27T10:00:00+00:00",
+                          "expires_at": "2026-11-28T10:00:00+00:00", "retrievals": 1}
+        response, _ = self.open([self.row(kind="access", status="completed", export=ready)])
+        self.assertContains(response, "Export ready")
+        self.assertContains(response, "downloaded 1 time")
+        response, _ = self.open([self.row(kind="access", status="completed", export=ready | {"purged": True})])
+        self.assertContains(response, "Expired and removed")
+        for wrong in (export | {"data": {}}, export | {"waiting_on": ["finance"]}):
+            response, _ = self.open([self.row(kind="access", status="processing", export=wrong)])
+            self.assertContains(response, "unavailable")
+        response, _ = self.open([self.row(status="processing", export=export)])
+        self.assertContains(response, "unavailable", msg_prefix="a deletion never carries an export")
+
+    def test_approve_export_needs_the_confirmation_and_names_an_unset_window(self):
+        self.login()
+        response, _ = self.open([self.row(kind="access", status="in_review")])
+        form = {"operation": "approve-access", "request_id": self.request_id,
+                "intent": response.context["rows"][0]["actions"]["approve_access"]}
+        with patch("web.views._api", side_effect=[(200, self.account), (200, {"items": [], "next_cursor": None})]) as api:
+            self.assertEqual(self.client.post(reverse("privacy-requests"), form).status_code, 400)
+        self.assertEqual(api.call_count, 2, "no change was sent without the confirmation")
+        with patch("web.views._api", side_effect=[(200, self.account),
+                                                   (409, {"detail": "x", "code": "export_window_not_configured"}),
+                                                   (200, {"items": [], "next_cursor": None})]):
+            response = self.client.post(reverse("privacy-requests"), form | {"confirm": "yes"})
+        self.assertContains(response, "retrieval window is an owner decision", status_code=409)
+        done = self.row(kind="access", status="processing", decided_at="2026-11-26T12:00:00+00:00",
+                        export={"waiting_on": ["business"], "ready_at": None, "expires_at": None, "purged": False,
+                                "retrievals": 0})
+        with patch("web.views._api", side_effect=[(200, self.account), (200, done)]) as api:
+            response = self.client.post(reverse("privacy-requests"), form | {"confirm": "yes"})
+        self.assertRedirects(response, reverse("privacy-requests"), fetch_redirect_response=False)
+        self.assertEqual(api.call_args_list[1].args, (f"/admin/privacy-requests/{self.request_id}/approve-access",))
 
     def test_approve_needs_the_bound_intent_and_the_confirmation(self):
         self.login()

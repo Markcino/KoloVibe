@@ -192,6 +192,32 @@ class ErasurePipelineTests(unittest.TestCase):
         for queue in (*PARTICIPANTS.values(), IDENTITY):
             eventually(lambda q=queue: self.broker.queue_state(q) == (0, 0), 30, f"{queue} did not drain")
 
+    def test_3_an_access_export_part_travels_the_real_broker_and_stays_unready(self):
+        approved = self.step("identity", "approve_access")
+        person, other = approved["account_id"], str(uuid.uuid4())
+        self.step("engagement", "seed", account_id=person, other_id=other)
+        self.assertEqual(self.step("identity", "dispatch_real"), {"sent": 1, "errors": []},
+                         "only Engagement assembles a part so far")
+        eventually(lambda: self.step("engagement", "export_pending")["pending"] == 1 or None, 60,
+                   "Engagement never assembled its part")
+        self.assertEqual(self.step("engagement", "dispatch_real"), {"sent": 1, "errors": []})
+
+        def delivered():
+            state = self.step("identity", "export_state", request_id=approved["request_id"])
+            return state if state["parts"]["engagement"]["delivered"] else None
+
+        state = eventually(delivered, 60, "Identity never stored the Engagement part")
+        self.assertEqual(state["parts"]["engagement"]["counts"], {"likes": 1, "follows": 1, "shares": 1,
+                                                                  "watch_sessions": 1, "qualified_watches": 1})
+        self.assertEqual(state["parts"]["engagement"]["withheld"], [])
+        self.assertTrue(state["parts"]["identity"]["delivered"])
+        self.assertEqual(state["waiting_on"], ["business", "content", "creators", "moderation"])
+        self.assertEqual((state["status"], state["retrieval"]), ("processing", [409, "export_not_ready"]),
+                         "never retrievable while a service has not delivered")
+        self.assertEqual(state["other_account"], 404)
+        for queue in (PARTICIPANTS["engagement"], IDENTITY):
+            eventually(lambda q=queue: self.broker.queue_state(q) == (0, 0), 30, f"{queue} did not drain")
+
     def test_2_the_proposed_grants_are_least_privilege(self):
         from kombu import Exchange, Producer
 

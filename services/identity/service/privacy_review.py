@@ -4,7 +4,7 @@ An administrator signed in with MFA lists requests, opens a review, declines wit
 deletion. Approval deactivates the account and revokes every session in the same transaction, so the person can no
 longer sign in and no token keeps working. It does not erase anything yet: the other services' erasure, and the
 request reaching `completed`, are the next slice, so an approved deletion stays `processing` until then. An access
-request can be reviewed or declined here; its export is a later slice, so it cannot be approved yet.
+request is approved with `approve-access`, which starts its export (`access_export`, mandate 3.3).
 
 A hold (legal claim, authority request or fraud investigation) stops a deletion from being approved until an
 administrator releases it. No retention period or hold duration is decided here (ADR-020 keeps them open).
@@ -20,7 +20,7 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 
-from . import erasure, events
+from . import access_export, erasure, events
 from .accounts import _body, _error, _locked_account, _session_for_access
 from .mfa import privileged_enabled
 from .models import Account, AccountHold, LoginSession, PrivacyRequest
@@ -31,6 +31,7 @@ FIELDS = {
     "start-review": {"id"},
     "decline": {"id", "decline_code"},
     "approve-deletion": {"id"},
+    "approve-access": {"id"},
     "holds": {"account_id"},
     "hold-place": {"account_id", "reason_code", "note"},
     "hold-release": {"id"},
@@ -64,13 +65,23 @@ def _erasure(item):
             for job in jobs]
 
 
+def _export(item):
+    """An access export's state for the console: when it was ready and which services it still waits on, never data."""
+    export = getattr(item, "access_export", None) if item.kind == PrivacyRequest.Kind.ACCESS else None
+    if export is None:
+        return None
+    return {"waiting_on": access_export.waiting_on(item), "ready_at": export.ready_at.isoformat() if export.ready_at
+            else None, "expires_at": export.expires_at.isoformat() if export.expires_at else None,
+            "purged": export.purged_at is not None, "retrievals": export.retrievals}
+
+
 def request_row(item):
     return {"id": str(item.id), "account_id": str(item.account_id), "kind": item.kind, "status": item.status,
             "created_at": item.created_at.isoformat(),
             "review_started_at": item.review_started_at.isoformat() if item.review_started_at else None,
             "decided_at": item.decided_at.isoformat() if item.decided_at else None,
             "decline_code": item.decline_code or None, "held": _held(item.account_id),
-            "erasure": _erasure(item)}
+            "erasure": _erasure(item), "export": _export(item)}
 
 
 def hold_row(item):
@@ -116,7 +127,7 @@ def _list(data):
         if cursor is None:
             return _error("Invalid cursor")
         rows = rows.filter(Q(created_at__lt=cursor.created_at) | Q(created_at=cursor.created_at, id__lt=cursor.id))
-    page = list(rows.prefetch_related("erasure_jobs")[:PAGE + 1])
+    page = list(rows.select_related("access_export").prefetch_related("erasure_jobs")[:PAGE + 1])
     return JsonResponse({"items": [request_row(item) for item in page[:PAGE]],
                          "next_cursor": str(page[PAGE - 1].id) if len(page) > PAGE else None})
 
@@ -187,6 +198,30 @@ def _approve_deletion(administrator, data, now):
     return JsonResponse(request_row(item))
 
 
+def _approve_access(administrator, data, now):
+    """Approving an access request starts the export: Identity's part at once, a request to each service."""
+    item = _request_for_update(data)
+    if item is None:
+        return _error("Request not found", 404)
+    if item.kind != PrivacyRequest.Kind.ACCESS:
+        return _conflict("Only an access request can be approved here", "request_not_access")
+    if item.status in (PrivacyRequest.Status.PROCESSING, PrivacyRequest.Status.COMPLETED):
+        return JsonResponse(request_row(item))
+    if item.status != PrivacyRequest.Status.IN_REVIEW:
+        return _conflict("Only a request under review can be approved", "request_not_in_review")
+    try:
+        access_export.retrieval_window()
+    except access_export.NotConfigured:
+        return _conflict("The export retrieval window is not configured", "export_window_not_configured")
+    PrivacyRequest.objects.filter(pk=item.pk).update(
+        status=PrivacyRequest.Status.PROCESSING, reviewed_by=administrator.id, decided_at=now)
+    item.refresh_from_db()
+    access_export.open_export(item, now)
+    record("account.privacy_access_approved", administrator.id)
+    item = PrivacyRequest.objects.get(pk=item.pk)
+    return JsonResponse(request_row(item))
+
+
 def _holds(data):
     if not Account.objects.filter(pk=data["account_id"]).exists():
         return _error("Account not found", 404)
@@ -238,5 +273,6 @@ def administer(request):
             record("account.privacy_requests_listed", administrator.id)
             return _holds(data)
         handler = {"start-review": _start_review, "decline": _decline, "approve-deletion": _approve_deletion,
+                   "approve-access": _approve_access,
                    "hold-place": _place_hold, "hold-release": _release_hold}[operation]
         return handler(administrator, data, now)

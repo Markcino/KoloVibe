@@ -89,8 +89,8 @@ class PrivacyReviewTests(TestCase):
         self.assertIsNone(page["next_cursor"])
         item = page["items"][0]
         self.assertEqual(set(item), {"id", "account_id", "kind", "status", "created_at", "review_started_at",
-                                     "decided_at", "decline_code", "held", "erasure"})
-        self.assertEqual(item["erasure"], [])
+                                     "decided_at", "decline_code", "held", "erasure", "export"})
+        self.assertEqual((item["erasure"], item["export"]), ([], None))
         self.assertEqual(self.call("list", status="declined")[1]["items"], [])
         self.assertEqual(self.call("list", cursor=str(uuid.uuid4()))[0], 400)
 
@@ -108,11 +108,14 @@ class PrivacyReviewTests(TestCase):
         self.person.refresh_from_db()
         self.assertTrue(self.person.is_active, "declining never deactivates")
 
-    def test_an_access_request_cannot_be_approved_yet(self):
+    def test_an_access_request_cannot_be_approved_as_a_deletion_nor_the_reverse(self):
         target = str(self.access_request.id)
         self.call("start-review", id=target)
         status, body = self.call("approve-deletion", id=target)
         self.assertEqual((status, body["code"]), (409, "request_not_deletion"))
+        self.call("start-review", id=str(self.deletion.id))
+        status, body = self.call("approve-access", id=str(self.deletion.id))
+        self.assertEqual((status, body["code"]), (409, "request_not_access"))
 
     def test_approving_a_deletion_deactivates_and_revokes_but_never_claims_completion(self):
         target = str(self.deletion.id)

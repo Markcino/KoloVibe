@@ -16,7 +16,8 @@ class Command(BaseCommand):
             raise CommandError("Use a batch limit from 1 to 1000")
         from ...celery_app import app
 
-        # Without local points only erasure confirmations (Decision C) are sent; points events stay in the outbox.
+        # Without local points only privacy replies (erasure confirmations and export parts, Decision C) are sent;
+        # points events stay in the outbox.
         privacy_only = not settings.LOCAL_POINTS_ENABLED
         sent = 0
         while sent < limit and dispatch_one(app, privacy_only=privacy_only):

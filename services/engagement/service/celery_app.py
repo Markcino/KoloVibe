@@ -88,7 +88,7 @@ app = build_app()
 
 @app.task(name="kolovibe.engagement.event", ignore_result=True)
 def receive_event(event_id, event_type, payload):
-    """Persist an idempotent receive marker, not unapproved engagement/point awards; or erase (Decision C)."""
+    """Persist an idempotent receive marker, not unapproved engagement/point awards; or erase or export (Decision C)."""
     if not isinstance(payload, dict) or not isinstance(event_type, str):
         raise ValueError("Invalid event payload")
     import django
@@ -96,6 +96,9 @@ def receive_event(event_id, event_type, payload):
     if event_type == "privacy.erasure_requested":
         from .privacy import erase
         return erase(event_id, payload)
+    if event_type == "privacy.export_requested":
+        from .privacy import export
+        return export(event_id, payload)
     from django.db import transaction
     from .events import accept_once
     with transaction.atomic():

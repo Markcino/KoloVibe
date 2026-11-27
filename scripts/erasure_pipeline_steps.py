@@ -1,4 +1,5 @@
-"""Child-process steps for scripts/verify_erasure_pipeline_broker.py (Decision C slices 2a to 2d).
+"""Child-process steps for scripts/verify_erasure_pipeline_broker.py (Decision C slices 2a to 2d, and the access
+export of mandate 3.3).
 
 Usage: python scripts/erasure_pipeline_steps.py <identity|engagement|creators|moderation|content|business> <step> '<json arguments>'
 Each step runs one service's real code against its own disposable PostgreSQL schema and prints one JSON line.
@@ -42,6 +43,45 @@ def identity_approve(arguments):
     return {"request_id": str(item.id), "account_id": str(person.id)}
 
 
+def identity_approve_access(arguments):
+    """An approved access request as privacy_review applies it (mandate 3.3): Identity's part and one request."""
+    import os
+    import secrets
+    from django.db import transaction
+    from django.utils import timezone
+    from service import access_export
+    from service.models import Account, PrivacyRequest
+
+    os.environ["KOLOVIBE_EXPORT_RETRIEVAL_SECONDS"] = "3600"  # a test value; the real window is an owner decision
+    with transaction.atomic():
+        person = Account.objects.create_user(f"person-{uuid.uuid4().hex[:8]}@example.test", secrets.token_urlsafe(24),
+                                             "Person")
+        item = PrivacyRequest.objects.create(account=person, kind="access")
+        PrivacyRequest.objects.filter(pk=item.pk).update(status="processing")
+        item.refresh_from_db()
+        access_export.open_export(item, timezone.now())
+    return {"request_id": str(item.id), "account_id": str(person.id)}
+
+
+def identity_export_state(arguments):
+    from django.db import transaction
+    from django.utils import timezone
+    from service import access_export
+    from service.models import AccessExportPart, Account, PrivacyRequest
+
+    item = PrivacyRequest.objects.get(pk=arguments["request_id"])
+    parts = {part.service: {"delivered": part.delivered_at is not None,
+                            "counts": {name: len(rows) for name, rows in part.data.items()},
+                            "withheld": part.withheld, "truncated": part.truncated}
+             for part in AccessExportPart.objects.filter(export__request=item)}
+    with transaction.atomic():
+        status, body = access_export.retrieve(Account.objects.get(pk=item.account_id), str(item.id), timezone.now())
+        other, _ = access_export.retrieve(Account.objects.exclude(pk=item.account_id).first(), str(item.id),
+                                          timezone.now())
+    return {"status": item.status, "parts": parts, "waiting_on": access_export.waiting_on(item),
+            "retrieval": [status, body.get("code")], "other_account": other}
+
+
 def identity_dispatch_real(arguments):
     from service import events
     from service.celery_app import app
@@ -81,6 +121,15 @@ def engagement_seed(arguments):
     QualifiedWatch.objects.create(session_id=uuid.uuid4(), account_id=arguments["account_id"], video_id=video,
                                   creator_user_id=creator, qualified_at=now, duration_ms=60000)
     return {}
+
+
+def engagement_export_pending(arguments):
+    from django.db import connection
+
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT count(*) FROM event_outbox WHERE event_type = 'privacy.export_delivered' "
+                       "AND published_at IS NULL")
+        return {"pending": cursor.fetchone()[0]}
 
 
 def engagement_dispatch_real(arguments):

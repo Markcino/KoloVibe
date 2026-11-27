@@ -48,7 +48,7 @@ def _invoke(path, data, success_statuses, *, max_response=MAX_RESPONSE):
             raise ValueError("Invalid MFA challenge response")
         return _json(result, status)
     except HTTPError as error:
-        if error.code not in {400, 401, 403, 404, 409, 429, 503}:
+        if error.code not in {400, 401, 403, 404, 409, 410, 429, 503}:
             return _json({"detail": "Identity unavailable"}, 503)
         try:
             raw = error.read(MAX_RESPONSE + 1)
@@ -61,9 +61,9 @@ def _invoke(path, data, success_statuses, *, max_response=MAX_RESPONSE):
         except (ValueError, TypeError, UnicodeError):
             return _json({"detail": "Identity unavailable"}, 503)
         payload = {"detail": detail}
-        if (error.code == 409 and path == "/internal/auth/privacy-requests"
-                and result.get("code") == "request_open"):
-            payload["code"] = "request_open"
+        if (error.code in (409, 410) and path == "/internal/auth/privacy-requests"
+                and result.get("code") in {"request_open", "export_not_ready", "export_expired"}):
+            payload["code"] = result["code"]
         if error.code == 409 and path == "/internal/auth/privacy-review":
             from .privacy_review import CONFLICTS
             if result.get("code") in CONFLICTS:

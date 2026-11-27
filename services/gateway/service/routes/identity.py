@@ -5,7 +5,7 @@ from django.urls import path
 def patterns():
     from .. import accounts
     from ..compatibility import compatibility
-    from ..preferences_privacy import preferences, privacy_requests
+    from ..preferences_privacy import preferences, privacy_export, privacy_requests
     from .. import account_lookup, legal, moderator_invitations, privacy_review
 
     return [
@@ -39,6 +39,7 @@ def patterns():
         path("api/v1/me/marketing-consent", legal.marketing_consent, name="account-marketing-consent"),
         path("api/v1/me/preferences", preferences, name="account-preferences"),
         path("api/v1/me/privacy-requests", privacy_requests, name="account-privacy-requests"),
+        path("api/v1/me/privacy-requests/<uuid:target_id>/export", privacy_export, name="account-privacy-export"),
         path("api/v1/me/sessions/<uuid:session_id>", accounts.revoke_session, name="revoke-account-session"),
         path("api/v1/me", accounts.me, name="me"),
     ]

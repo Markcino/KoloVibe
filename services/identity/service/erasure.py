@@ -22,8 +22,8 @@ from django.db import transaction
 from django.utils import timezone
 
 from . import events, retention_policy
-from .models import (Account, EmailVerification, ErasureJob, LoginSession, MfaChallenge, NotificationPreferences,
-                     PasswordReset, PrivacyRequest, RecoveryCode, TotpFactor)
+from .models import (AccessExport, Account, EmailVerification, ErasureJob, LoginSession, MfaChallenge,
+                     NotificationPreferences, PasswordReset, PrivacyRequest, RecoveryCode, TotpFactor)
 from .security_audit import record
 
 CATEGORY = re.compile(r"[a-z][a-z0-9_]{0,39}")
@@ -83,6 +83,10 @@ def deidentify(account):
     for model in (TotpFactor, RecoveryCode, MfaChallenge, EmailVerification, PasswordReset, NotificationPreferences,
                   LoginSession):  # sessions last: re-authentication and step-up proofs cascade with them
         model.objects.filter(account=account).delete()
+    # An access export assembled before the deletion holds the same data: remove it, keep the dated record.
+    from .access_export import purge
+    for export in AccessExport.objects.filter(request__account=account, purged_at__isnull=True):
+        purge(export)
 
 
 def _complete_if_ready(item):

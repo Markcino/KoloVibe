@@ -88,7 +88,8 @@ def _rules():
         r"/api/v1/me/preferences", r"/api/v1/me/privacy-requests")
     add("gateway", "account_management", "POST", r"/api/v1/auth/verification/resend",
         r"/api/v1/auth/password/reset-request", r"/api/v1/auth/password/reset", r"/api/v1/me/reauthenticate",
-        r"/api/v1/me/step-up", r"/api/v1/me/preferences", r"/api/v1/me/privacy-requests")
+        r"/api/v1/me/step-up", r"/api/v1/me/preferences", r"/api/v1/me/privacy-requests",
+        rf"/api/v1/me/privacy-requests/{UUID}/export")
     add("gateway", "account_management", "PATCH", r"/api/v1/me", r"/api/v1/me/password", r"/api/v1/me/preferences")
     add("gateway", "account_management", "DELETE", rf"/api/v1/me/sessions/{UUID}")
     add("gateway", "account_management", "GET POST", r"/api/v1/admin/moderator-invitations", privileged=True)
@@ -96,7 +97,7 @@ def _rules():
     # Decision C: privacy request review and account holds, administrator only (Identity checks the role).
     add("gateway", "account_management", "GET", r"/api/v1/admin/privacy-requests", privileged=True)
     add("gateway", "account_management", "POST",
-        rf"/api/v1/admin/privacy-requests/{UUID}/(?:review|decline|approve-deletion)",
+        rf"/api/v1/admin/privacy-requests/{UUID}/(?:review|decline|approve-deletion|approve-access)",
         rf"/api/v1/admin/account-holds/{UUID}/release", privileged=True)
     add("gateway", "account_management", "GET POST", rf"/api/v1/admin/accounts/{UUID}/holds", privileged=True)
     add("gateway", "account_management", "POST", rf"/api/v1/admin/moderator-invitations/{UUID}/revoke",

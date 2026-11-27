@@ -18,7 +18,8 @@ class PrivacyReviewGatewayTests(SimpleTestCase):
         self.target, self.account = str(uuid4()), str(uuid4())
         self.row = {"id": self.target, "account_id": self.account, "kind": "deletion", "status": "in_review",
                     "created_at": "2026-11-26T10:00:00+00:00", "review_started_at": "2026-11-26T11:00:00+00:00",
-                    "decided_at": None, "decline_code": None, "held": False, "erasure": []}
+                    "decided_at": None, "decline_code": None, "held": False, "erasure": [],
+                    "export": None}
         self.hold = {"id": str(uuid4()), "account_id": self.account, "reason_code": "LEGAL_CLAIM",
                      "note": "Open dispute", "placed_by": str(uuid4()), "placed_at": "2026-11-26T11:00:00Z",
                      "released_at": None}
@@ -92,6 +93,25 @@ class PrivacyReviewGatewayTests(SimpleTestCase):
         response, _ = self.send(review.step, self.factory.generic("POST", "/x"), Response(200, json.dumps(row).encode()),
                                 operation="review", target_id=self.target)
         self.assertEqual((response.status_code, json.loads(response.content)), (200, row))
+
+    def test_export_progress_passes_through_and_is_checked(self):
+        export = {"waiting_on": ["business", "content"], "ready_at": None, "expires_at": None, "purged": False,
+                  "retrievals": 0}
+        row = self.row | {"kind": "access", "status": "processing", "export": export}
+        response, call = self.send(review.step, self.factory.generic("POST", "/x"),
+                                   Response(200, json.dumps(row).encode()), operation="approve-access",
+                                   target_id=self.target)
+        self.assertEqual((response.status_code, json.loads(response.content)), (200, row))
+        self.assertEqual(self.sent(call), {"access_token": "access-token", "operation": "approve-access",
+                                           "id": self.target})
+        for wrong in ({"kind": "deletion"}, {"export": export | {"waiting_on": ["finance"]}},
+                      {"export": export | {"ready_at": "2026-11-27T10:00:00Z"}},
+                      {"export": export | {"retrievals": -1}}, {"export": export | {"data": {}}},
+                      {"export": export | {"waiting_on": ["content", "content"]}}):
+            response, _ = self.send(review.step, self.factory.generic("POST", "/x"),
+                                    Response(200, json.dumps(row | wrong).encode()), operation="review",
+                                    target_id=self.target)
+            self.assertEqual(response.status_code, 503, wrong)
 
     def test_a_conflict_code_from_identity_reaches_the_console(self):
         error = HTTPError("http://identity", 409, "Conflict", {}, io.BytesIO(json.dumps(

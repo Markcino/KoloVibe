@@ -67,7 +67,7 @@ The phase statuses are NOT STARTED, IN PROGRESS, COMPLETED, FAILED and BLOCKED.
 | SIM-02 Sharing as app links only, store fallback, in-app error | Owner decision SIM-02 | #257 | IMPLEMENTED BUT UNVERIFIED | Native app-link association and device activation; staging |
 | Simulator defects SIM-01, SIM-03 to SIM-10 | Simulator run, 26 November | #258 | IMPLEMENTED BUT UNVERIFIED | A repeat simulator or device run (retest required; the original findings are historical). SIM-03 changes copy only: trending stays empty until real engagement exists |
 | Static policies and account-deletion request page | Owner ruling, 26 November | #259 | IMPLEMENTED BUT UNVERIFIED | Hosting, and legal review of the texts |
-| C Privacy: administrator review, holds, deactivation and erasure across all five services, completion and re-apply, console "waiting on" view | Decision C, ADR-020 | #260 to #268 (#262 merged into #263; #264 signs re-rendered posters) | IMPLEMENTED BUT UNVERIFIED | Staging needs the broker accounts, queues and `account_management` capability (approved plan). Not built: the access export (B3), Audit read-back after an Identity restore, and the completion notice. Retention periods (ADR-020), RV2-04, DR-BZ-08 and DR-BZ-25 keep categories retained, so requests stay `processing` |
+| C Privacy: administrator review, holds, deactivation and erasure across all five services, completion and re-apply, console "waiting on" view | Decision C, ADR-020 | #260 to #268 (#262 merged into #263; #264 signs re-rendered posters) | IMPLEMENTED BUT UNVERIFIED | Staging needs the broker accounts, queues and `account_management` capability (approved plan). Not built: the access export (B3; 3.3a since built for Identity and Engagement, see Phase 3 below), Audit read-back after an Identity restore, and the completion notice. Retention periods (ADR-020), RV2-04, DR-BZ-08 and DR-BZ-25 keep categories retained, so requests stay `processing` |
 
 Local test evidence for package A, recorded on 25 November:
 - Content 166 passed, Moderation 78, Gateway 233, Audit 52, console 184 and scripts 475.
@@ -146,8 +146,13 @@ What it shows: the account lifecycle, discovery, likes, follows, reports, creato
 | Item | State | Evidence |
 | --- | --- | --- |
 | 3.1 #273 Erasure runtime wiring | Roles, zero-replica processes, erasure-only capability row and validator in the repository; NOT DEPLOYED. The real-broker pipeline script passed locally on disposable infrastructure | `docs/operations/R1_Erasure_Runtime_Plan_2026-11-27.md`. Needs the broker plan approved, the CPU budget and memory room. Business is not on staging, so requests there will wait on it |
+| 3.2 Untracked media | Content erasure now signs DELETE and lists the account's own prefixes on R2, removing objects no row points at; `untracked_media` is reported only if a key cannot be deleted. Merged (#295) | Content suite; real-broker script 2 of 2. Whether the staging R2 token allows DELETE and List is NOT VERIFIED |
+| 3.2 Retention policy | Which retained evidence is compatible with a completed request is read from an owner-approved policy file; with none, every retained category keeps the request `processing`. `business_ownership` and `untracked_media` can never be waived. Merged (#296) | Identity suite. No category is approved: values are the ADR-020 / RV2-04 / #136 owner decision |
+| 3.3a Access export | Approve-access, Identity and Engagement assembly, retrieval by the account only (re-authenticated), expiry (410) and purge, console state, audit. PR open | Identity 233, Engagement 85, Gateway 272, Audit 52, Content 183, console 208 and scripts 506 passed; real-broker script 3 of 3 (export part over the broker), 27 November, at the PR head. The retrieval window is an owner decision with no default. Creators, Moderation, Content and Business parts are NOT IMPLEMENTED (3.3b), so real exports wait on them. The app download screen is NOT IMPLEMENTED (3.3c) |
 
-Next: 3.2 retained categories, then the owner-gated steps above.
+Next: 3.3b and 3.3c, then 3.4 restore-safe recovery and 3.5, then the owner-gated steps above.
+
+*History (superseded, 27 November before #295/#296):* "Next: 3.2 retained categories, then the owner-gated steps above."
 
 *History (superseded, 27 November before #284):* "1.1 #143: merge #284 …; 1.2 #274: the read-only measurement, then the budget; 1.3 #271: the key correction, once approved; 1.4 #142: apply the ruleset, once approved; 1.5 D13-005: reconcile the release; 1.6: the remaining record corrections."
 

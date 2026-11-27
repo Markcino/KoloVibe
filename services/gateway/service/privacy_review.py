@@ -17,9 +17,10 @@ PATH = "/internal/auth/privacy-review"
 STATUSES = {"received", "in_review", "processing", "completed", "declined"}
 DECLINE_CODES = {"IDENTITY_NOT_CONFIRMED", "DUPLICATE_REQUEST", "WITHDRAWN"}
 HOLD_REASONS = {"LEGAL_CLAIM", "AUTHORITY_REQUEST", "FRAUD_INVESTIGATION"}
-STEPS = {"review": "start-review", "decline": "decline", "approve-deletion": "approve-deletion"}
+STEPS = {"review": "start-review", "decline": "decline", "approve-deletion": "approve-deletion",
+         "approve-access": "approve-access"}
 CONFLICTS = {"request_not_received", "request_not_in_review", "request_not_deletion", "own_account",
-             "account_on_hold"}
+             "account_on_hold", "request_not_access", "export_window_not_configured"}
 ERASURE_SERVICES = ("engagement", "creators", "moderation", "content", "business")
 CATEGORY = re.compile(r"[a-z][a-z0-9_]{0,39}")
 ZONED = re.compile(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)")
@@ -43,16 +44,31 @@ def _valid_erasure(jobs):
             and len({job["service"] for job in jobs}) == len(jobs))
 
 
+def _valid_export(item):
+    """An access export's state, never its data: dates, the services it waits on, and a retrieval count."""
+    export = item["export"]
+    if export is None:
+        return True
+    return (item["kind"] == "access" and isinstance(export, dict)
+            and set(export) == {"waiting_on", "ready_at", "expires_at", "purged", "retrievals"}
+            and isinstance(export["waiting_on"], list) and len(export["waiting_on"]) <= len(ERASURE_SERVICES)
+            and len(set(export["waiting_on"])) == len(export["waiting_on"])
+            and all(service in ERASURE_SERVICES for service in export["waiting_on"])
+            and _time(export["ready_at"], True) and _time(export["expires_at"], True)
+            and (export["ready_at"] is None) == (export["expires_at"] is None)
+            and type(export["purged"]) is bool and type(export["retrievals"]) is int and export["retrievals"] >= 0)
+
+
 def valid_request(item):
     return (isinstance(item, dict)
             and set(item) == {"id", "account_id", "kind", "status", "created_at", "review_started_at",
-                              "decided_at", "decline_code", "held", "erasure"}
+                              "decided_at", "decline_code", "held", "erasure", "export"}
             and _id(item["id"]) and _id(item["account_id"]) and item["kind"] in {"access", "deletion"}
             and item["status"] in STATUSES and _time(item["created_at"])
             and _time(item["review_started_at"], True) and _time(item["decided_at"], True)
             and (item["decline_code"] in DECLINE_CODES) == (item["status"] == "declined")
             and (item["decline_code"] is None or item["status"] == "declined")
-            and type(item["held"]) is bool and _valid_erasure(item["erasure"]))
+            and type(item["held"]) is bool and _valid_erasure(item["erasure"]) and _valid_export(item))
 
 
 def valid_hold(item):
