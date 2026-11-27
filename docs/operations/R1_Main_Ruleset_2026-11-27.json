@@ -1,0 +1,100 @@
+{
+  "name": "KoloVibe Rules",
+  "target": "branch",
+  "enforcement": "active",
+  "bypass_actors": [],
+  "conditions": {
+    "ref_name": {
+      "include": [
+        "~DEFAULT_BRANCH"
+      ],
+      "exclude": []
+    }
+  },
+  "rules": [
+    {
+      "type": "deletion"
+    },
+    {
+      "type": "non_fast_forward"
+    },
+    {
+      "type": "pull_request",
+      "parameters": {
+        "required_approving_review_count": 0,
+        "dismiss_stale_reviews_on_push": false,
+        "require_code_owner_review": false,
+        "require_last_push_approval": false,
+        "required_review_thread_resolution": false
+      }
+    },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": false,
+        "required_status_checks": [
+          {
+            "context": "Django services and reproducibility",
+            "integration_id": 15368
+          },
+          {
+            "context": "Security scans and SBOM",
+            "integration_id": 15368
+          },
+          {
+            "context": "Flutter static and widget tests",
+            "integration_id": 15368
+          },
+          {
+            "context": "Python and Flutter dependency advisories / osv-scan",
+            "integration_id": 15368
+          },
+          {
+            "context": "Build and scan shared service image",
+            "integration_id": 15368
+          },
+          {
+            "context": "Build and scan media worker image",
+            "integration_id": 15368
+          },
+          {
+            "context": "Build and scan staging web image",
+            "integration_id": 15368
+          },
+          {
+            "context": "Image build and security / gateway",
+            "integration_id": 15368
+          },
+          {
+            "context": "Image build and security / identity",
+            "integration_id": 15368
+          },
+          {
+            "context": "Image build and security / creators",
+            "integration_id": 15368
+          },
+          {
+            "context": "Image build and security / content",
+            "integration_id": 15368
+          },
+          {
+            "context": "Image build and security / engagement",
+            "integration_id": 15368
+          },
+          {
+            "context": "Image build and security / points",
+            "integration_id": 15368
+          },
+          {
+            "context": "Image build and security / moderation",
+            "integration_id": 15368
+          },
+          {
+            "context": "Image build and security / audit",
+            "integration_id": 15368
+          }
+        ]
+      }
+    }
+  ]
+}

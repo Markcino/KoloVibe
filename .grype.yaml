@@ -23,7 +23,9 @@
 # TEMPORARY OpenSSL scan exception (owner-authorized 2026-11-21, expired 2026-11-28; RENEWED by the owner on
 # 2026-11-27 for seven days, EXPIRES 2026-12-05 UTC). The renewal decision is
 # docs/engineering/R1_OpenSSL_Exception_Renewal_Decision_2026-11-27.md: on 27 November the image builds still installed
-# 3.5.9-r1 and all five CVEs still matched with no fixed version (PR #278). Scope is unchanged.
+# 3.5.9-r1 and all five CVEs still matched with no fixed version (PR #278). PR #278, which removed the rules, was
+# merged on 27 November and main's image scans then failed closed; this restores the same rules with the new expiry.
+# Scope is unchanged.
 # Scope: exactly five CVEs, only Alpine apk libssl3/libcrypto3 version 3.5.9-r1.
 # Exposure: these libraries provide TLS/cryptography to the shared service, web and media images.
 # They are reachable through legitimate TLS operations; there is NO claim that vulnerable code is
