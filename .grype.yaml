@@ -20,16 +20,9 @@
 # that evidence identical. The rules match only apk `ffmpeg` at exactly 9.1-r0 (was 9.0.2-r0): a different version, any other CVE
 # and every other package stay fully gated, so new findings in the same batch fail the scan until they are triaged.
 # Expires (second set): 2026-12-31
-# TEMPORARY OpenSSL scan exception (owner-authorized 2026-11-21; EXPIRES 2026-11-28 UTC).
-# Scope: exactly five CVEs, only Alpine apk libssl3/libcrypto3 version 3.5.9-r1.
-# Exposure: these libraries provide TLS/cryptography to the shared service, web and media images.
-# They are reachable through legitimate TLS operations; there is NO claim that vulnerable code is
-# absent or that these CVEs are unexploitable. Scanning evidence at 2026-11-21 identifies High
-# findings without fixed Alpine package versions in this release. Residual risk is accepted
-# temporarily for restricted staging review; remove the exceptions as soon as patched packages
-# are available. No additional High/Critical findings are waived. Deployment still requires
-# independent security review and successful staging controls.
-# Expires (OpenSSL temporary): 2026-11-28
+# OpenSSL (history): a temporary exception for five CVEs on Alpine libssl3/libcrypto3 3.5.9-r1, owner-authorized on
+# 21 November 2026 and expiring 2026-11-28 UTC, was removed on 27 November 2026 (#143). Every OpenSSL finding is gated
+# again; nothing about OpenSSL is ignored.
 # Version move (25 November 2026): FFmpeg 9.0.2 -> 9.1, the upstream fix for the 24 November advisories
 # CVE-2026-135722 to -135743 (11 High/Critical, including the scale filter and the WAV muxer this build contains).
 # The ffmpeg rules above now match exactly 9.1-r0. Their premise is unchanged and version-independent (the component
@@ -185,54 +178,4 @@ ignore:
     package:
       name: ffmpeg
       version: 9.1-r0
-      type: apk
-  - vulnerability: CVE-2026-124709
-    package:
-      name: libssl3
-      version: 3.5.9-r1
-      type: apk
-  - vulnerability: CVE-2026-124709
-    package:
-      name: libcrypto3
-      version: 3.5.9-r1
-      type: apk
-  - vulnerability: CVE-2026-107494
-    package:
-      name: libssl3
-      version: 3.5.9-r1
-      type: apk
-  - vulnerability: CVE-2026-107494
-    package:
-      name: libcrypto3
-      version: 3.5.9-r1
-      type: apk
-  - vulnerability: CVE-2026-121482
-    package:
-      name: libssl3
-      version: 3.5.9-r1
-      type: apk
-  - vulnerability: CVE-2026-121482
-    package:
-      name: libcrypto3
-      version: 3.5.9-r1
-      type: apk
-  - vulnerability: CVE-2026-84786
-    package:
-      name: libssl3
-      version: 3.5.9-r1
-      type: apk
-  - vulnerability: CVE-2026-84786
-    package:
-      name: libcrypto3
-      version: 3.5.9-r1
-      type: apk
-  - vulnerability: CVE-2026-107493
-    package:
-      name: libssl3
-      version: 3.5.9-r1
-      type: apk
-  - vulnerability: CVE-2026-107493
-    package:
-      name: libcrypto3
-      version: 3.5.9-r1
       type: apk
