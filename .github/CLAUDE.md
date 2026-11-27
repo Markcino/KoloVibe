@@ -1,22 +1,5 @@
-# KoloVibe R1 — Claude Code Instructions
+# KoloVibe — Claude Code instructions
 
-Follow the approved R1 contracts and architecture.
+The project instructions live in the repository root, in [AGENTS.md](../AGENTS.md). The governing mandate is the [full application mandate of 27 November 2026](../docs/governance/Full_Application_Mandate_2026-11-27.md), and the [phase execution tracker](../docs/governance/PHASE_EXECUTION_TRACKER.md) records where execution stands.
 
-## Development rules
-- Work on one independently testable task.
-- Inspect only relevant source files.
-- Reuse existing implementations.
-- Avoid repeated full-repository audits.
-- Prefer focused tests.
-- Do not implement deferred features.
-- Preserve security and authorization checks.
-- Stop after repeated unsuccessful fixes and report the blocker.
-- Do not merge or deploy without approval.
-
-## Project stack
-Django/DRF, Flutter, PostgreSQL, RabbitMQ, Cloudflare R2, FFmpeg and AWS staging.
-
-## Reporting
-Summarize actual changes, tests, failures, PR link and unresolved work.
-
-Never invent token usage or claim that prompt instructions enforce a spending limit.
+*History (superseded 27 November 2026):* this file held a copy of the R1 instructions in `AGENTS.md`, including "Follow the approved R1 contracts and architecture" and "Do not implement deferred features". It is replaced by this pointer so that there is one copy.

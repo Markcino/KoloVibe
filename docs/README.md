@@ -2,6 +2,11 @@
 
 Use the controlled source documents below. Link to them instead of copying requirements, decisions or delivery status into new summaries.
 
+## Governance
+
+- [Full application mandate · 27 November 2026](governance/Full_Application_Mandate_2026-11-27.md) — **governs all work.** KoloVibe is no longer an MVP. It sets the phase gates and the completion report. Older instructions are kept as history.
+- [Phase execution tracker](governance/PHASE_EXECUTION_TRACKER.md) — current gate (Phase 1 not started), phase register, how the mandate fits with Decisions A to J and earlier work, and where each governance file lives.
+
 ## Product and architecture
 
 - [DEC-001 and document register](requirements/platform_documentation_register_and_DEC001.md) — canonical Release 1 scope decision.
