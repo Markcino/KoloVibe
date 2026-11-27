@@ -10,6 +10,7 @@ import '../account/live_account_flow.dart';
 import '../creators/creator_shell.dart';
 import '../account/live_account_repository.dart';
 import '../system/system_ui.dart';
+import 'access_export_view.dart';
 import 'live_settings_repository.dart';
 import '../legal/live_legal_repository.dart';
 
@@ -176,8 +177,11 @@ class _LiveSettingsScreenState extends State<LiveSettingsScreen> {
           .setMarketing(granted, current.marketingVersion);
       if (mounted) {
         legalState = saved;
-        notifySuccess(context,
-            granted ? 'Marketing messages turned on.' : 'Marketing messages turned off.');
+        notifySuccess(
+            context,
+            granted
+                ? 'Marketing messages turned on.'
+                : 'Marketing messages turned off.');
       }
     } catch (failure) {
       error = failure;
@@ -258,6 +262,46 @@ class _LiveSettingsScreenState extends State<LiveSettingsScreen> {
     if (mounted && receipt != null) showPrivacy(94, receipt: receipt);
   }
 
+  /// Mandate 3.3: the account's own completed export, after a fresh identity check; shown in memory only.
+  Future<void> viewExport(PrivacyReceipt receipt) async {
+    if (busy) return;
+    final verified = await confirmIdentity(
+      context,
+      widget.account,
+      widget.catalog,
+    );
+    if (!mounted) {
+      verified?.dispose();
+      return;
+    }
+    if (verified == null) return;
+    setState(() {
+      busy = true;
+      validation = null;
+    });
+    AccessExport? export;
+    try {
+      export = await widget.repository.downloadExport(receipt.id, verified);
+    } on ApiFailure catch (failure) {
+      validation = switch (failure.code) {
+        'export_expired' =>
+          'This export has expired and was removed. You can request your data again.',
+        'export_not_ready' => 'Your data is still being prepared.',
+        _ => null,
+      };
+      if (validation == null) error = failure;
+    } catch (failure) {
+      error = failure;
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+    if (!mounted || export == null) return;
+    final ready = export;
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => AccessExportView(export: ready),
+    ));
+  }
+
   Future<void> openSettings() async {
     final opened = await widget.device.openAppSettings();
     if (!mounted || opened) return;
@@ -302,6 +346,7 @@ class _LiveSettingsScreenState extends State<LiveSettingsScreen> {
               onPressed: submitAccess,
               child: const Text('Request account data'),
             ),
+            row('Your account data request', 94),
             note(
               'Requests are recorded for handling. No data is deleted or exported immediately.',
             ),
@@ -449,9 +494,19 @@ class _LiveSettingsScreenState extends State<LiveSettingsScreen> {
             const SizedBox(height: 8),
             Text('Created: ${receipt.createdAt.toUtc().toIso8601String()}'),
           ])),
-      note(
-        'This acknowledgment does not mean information has been deleted or exported.',
-      ),
+      if (receipt.kind == 'access' && receipt.status == 'completed') ...[
+        FilledButton(
+          key: const ValueKey('view-export'),
+          onPressed: () => viewExport(receipt),
+          child: const Text('View my data'),
+        ),
+        note(
+          'Your data is ready. Confirm your identity to see it. It is available for a limited time.',
+        ),
+      ] else
+        note(
+          'This acknowledgment does not mean information has been deleted or exported.',
+        ),
       row('Read privacy information', 88),
       row('Return to privacy settings', 84),
     ];

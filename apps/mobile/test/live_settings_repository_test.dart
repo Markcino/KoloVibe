@@ -121,4 +121,88 @@ void main() {
     await expectLater(
         repository.requestPrivacy('deletion', ''), throwsFormatException);
   });
+
+  test('an access export is fetched with a fresh proof and checked strictly',
+      () async {
+    const id = '00000000-0000-4000-8000-000000000002';
+    Map<String, Object?> part(Map<String, Object?> data) =>
+        {'data': data, 'withheld': <String>[], 'truncated': <String>[]};
+    var answer = <String, Object?>{
+      'request_id': id,
+      'generated_at': '2026-11-27T10:00:00+00:00',
+      'expires_at': '2026-11-28T10:00:00+00:00',
+      'services': {
+        'identity': part({
+          'account': [
+            {'email': 'a@example.test'}
+          ]
+        }),
+      },
+    };
+    final api = ApiClient('https://api.example.test/api/v1',
+        client: MockClient((request) async {
+      if (request.url.path.endsWith('/auth/refresh')) {
+        return http.Response(
+            jsonEncode({'access_token': 'access', 'refresh_token': 'r2'}), 200);
+      }
+      if (request.url.path.endsWith('/me/reauthenticate')) {
+        return http.Response(
+            jsonEncode({
+              'reauth_token': 'p'.padRight(32, 'x'),
+              'expires_at': DateTime.now()
+                  .toUtc()
+                  .add(const Duration(minutes: 5))
+                  .toIso8601String(),
+            }),
+            200);
+      }
+      expect(request.url.path, '/api/v1/me/privacy-requests/$id/export');
+      expect(jsonDecode(request.body), {'reauth_token': 'p'.padRight(32, 'x')});
+      return http.Response(jsonEncode(answer), 200);
+    }));
+    final repository =
+        LiveSettingsRepository(LiveAccountRepository(api, _Credentials()));
+    final account = repository.account;
+    final export = await repository.downloadExport(
+        id, await account.reauthenticate('typed input'));
+    expect(export.services['identity']!.data['account']!.single['email'],
+        'a@example.test');
+    expect(jsonDecode(export.toText())['request_id'], id);
+    for (final wrong in [
+      {'services': <String, Object?>{}},
+      {
+        'services': {'finance': part({}), 'identity': part({})}
+      },
+      {
+        'services': {
+          'identity': part({'Bad Name': <Object?>[]})
+        }
+      },
+      {
+        'services': {
+          'identity': part({
+            'account': [
+              {
+                'nested': {'a': 1}
+              }
+            ]
+          })
+        }
+      },
+      {'extra': 1},
+    ]) {
+      answer = {...answer, ...wrong};
+      await expectLater(
+          repository.downloadExport(
+              id, await account.reauthenticate('typed input')),
+          throwsFormatException,
+          reason: '$wrong');
+      answer = {
+        'request_id': id,
+        'generated_at': '2026-11-27T10:00:00+00:00',
+        'expires_at': '2026-11-28T10:00:00+00:00',
+        'services': {'identity': part({})},
+      };
+    }
+  });
 }
