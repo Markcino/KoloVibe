@@ -55,7 +55,23 @@ def entry(report, service):
 class R1TableTests(unittest.TestCase):
     def test_tool_tables_mirror_the_runtime_capability_policy(self):
         self.assertEqual(cluster.R1_CAPABILITIES, frozenset(policy.CAPABILITIES) - {"audit_read"})
-        self.assertEqual(cluster.R1_APPLICABLE, {s: frozenset(c) - {"audit_read"} for s, c in policy.APPLICABLE.items()})
+        self.assertEqual(cluster.R1_APPLICABLE, {s: frozenset(c) - {"audit_read"} - policy.ERASURE_ONLY.get(s, frozenset())
+                                                 for s, c in policy.APPLICABLE.items()})
+
+    def test_the_erasure_row_adds_only_account_management_to_creators_and_moderation(self):
+        r1 = cluster.AWS_STAGING.r1_flags
+        erasure = cluster.erasure_flag_table(r1)
+        for service in cluster.SERVICES:
+            if service in policy.ERASURE_ONLY:
+                self.assertEqual(set(erasure[service][cluster.FLAG_CAPABILITIES].split(",")),
+                                 set(filter(None, r1[service][cluster.FLAG_CAPABILITIES].split(","))) | {"account_management"})
+                caps = frozenset(erasure[service][cluster.FLAG_CAPABILITIES].split(","))
+                policy.check(service, caps, accounts=False, privileged=False)
+                self.assertEqual({k: v for k, v in erasure[service].items() if k != cluster.FLAG_CAPABILITIES},
+                                 {k: v for k, v in r1[service].items() if k != cluster.FLAG_CAPABILITIES})
+            else:
+                self.assertEqual(erasure[service], r1[service], service)
+        self.assertEqual(set(cluster.ERASURE_ROW_SERVICES), set(policy.ERASURE_ONLY))
         self.assertEqual(cluster.R1_REQUIRES, {c: frozenset(r) for c, r in policy.REQUIRES.items() if c != "audit_read"})
 
     def test_every_r1_row_is_exactly_what_the_runtime_accepts(self):

@@ -31,7 +31,7 @@ class AwsStackTests(unittest.TestCase):
     def test_the_committed_stack_passes_and_reports_its_memory_budget(self):
         budget = validate_aws(stack())
         self.assertEqual(set(budget), set(AWS_ROLES))
-        self.assertEqual(sum(budget.values()), memory_bytes("2176M"))
+        self.assertEqual(sum(budget.values()), memory_bytes("3296M"))
 
     def test_the_oracle_stack_validator_still_refuses_aws(self):
         with self.assertRaisesRegex(ValueError, "oracle-staging candidate"):
@@ -207,6 +207,35 @@ class AwsStackRejectionTests(unittest.TestCase):
             "KOLOVIBE_STAGING_CREATOR_ONBOARDING"))
         self.rejected("creators job on the broker", lambda d: s(d, "creators-audit")["networks"].append("broker_private"))
 
+    def test_erasure_processes_carry_the_erasure_row_and_their_own_broker_account(self):
+        s = lambda d, n: d["services"][n]  # noqa: E731
+
+        def swap(definition, process, target, source):
+            for secret in definition["services"][process]["secrets"]:
+                if secret["target"] == target:
+                    secret["source"] = source
+            definition["secrets"].setdefault(source, {"external": True})
+
+        def caps(process, value):
+            return lambda d: s(d, process)["environment"].update(KOLOVIBE_STAGING_CAPABILITIES=value)
+
+        self.rejected("creators consumer without account_management", caps("creators-consumer", "media"))
+        self.rejected("moderation dispatcher without account_management", caps("moderation-dispatch", "moderation"))
+        self.rejected("creators audit job with the erasure row", caps("creators-audit", "account_management,media"))
+        self.rejected("moderation audit job with the erasure row", caps("moderation-audit", "account_management,moderation"))
+        self.rejected("content dispatcher with an invented capability", caps("content-dispatch", "account_management,analytics,engagement,media,moderation"))
+        self.rejected("identity consumer without its broker account", lambda d: s(d, "identity-consumer").update(
+            secrets=[x for x in s(d, "identity-consumer")["secrets"] if x["target"] != "rabbitmq_url"]))
+        self.rejected("moderation dispatcher on Content's broker account", lambda d: swap(
+            d, "moderation-dispatch", "rabbitmq_url", "kolovibe_content_rabbitmq_url_r1_v1"))
+        self.rejected("creators consumer on Identity's broker account", lambda d: swap(
+            d, "creators-consumer", "rabbitmq_url", "kolovibe_identity_rabbitmq_url_20261127_v1"))
+        self.rejected("audit job reads a broker URI", lambda d: s(d, "creators-audit")["environment"].update(
+            KOLOVIBE_RABBITMQ_URL_FILE="/run/secrets/rabbitmq_url"))
+        self.rejected("erasure consumer off the broker network", lambda d: s(d, "creators-consumer")["networks"].remove("broker_private"))
+        self.rejected("erasure consumer given a batch", lambda d: s(d, "identity-consumer").update(
+            command=["--role", "consumer", "--interval", "30"]))
+
     def test_release_evidence_must_carry_exactly_the_stacks_two_digests(self):
         import tempfile
 
@@ -229,6 +258,16 @@ class AwsStackRejectionTests(unittest.TestCase):
         }.items():
             with self.subTest(label), self.assertRaises(ValueError):
                 check(**changes)
+
+    def test_erasure_broker_accounts_are_the_proposed_ones_less_business(self):
+        sys.path.insert(0, str(ROOT / "scripts/ops"))
+        import generate_r1_secrets as gen
+        from validate_staging_stack import ERASURE_PROCESS_MOUNTS
+
+        services = {name.split("-")[0] for name in ERASURE_PROCESS_MOUNTS}
+        self.assertEqual(services, set(gen.PROPOSED_BROKER_ACCOUNTS) - {"business"})
+        for name, mounts in ERASURE_PROCESS_MOUNTS.items():
+            self.assertEqual(mounts["rabbitmq_url"], "kolovibe_" + name.split("-")[0] + "_rabbitmq_url_20261127_v1")
 
     def test_the_workers_secrets_equal_the_tools_rollout_for_the_same_service(self):
         sys.path.insert(0, str(ROOT / "scripts/ops"))

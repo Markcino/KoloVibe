@@ -22,15 +22,21 @@ CAPABILITIES = ("account_management", "analytics", "audit_read", "engagement", "
 APPLICABLE = {
     "gateway": frozenset(CAPABILITIES),
     "identity": frozenset({"account_management", "moderation"}),
-    "creators": frozenset({"media"}),
+    # account_management on Creators and Moderation runs only their erasure worker and dispatcher (Decision C); it
+    # opens no route on either service. Only the reviewed erasure row turns it on (kolovibe_cluster.erasure_flag_table).
+    "creators": frozenset({"media", "account_management"}),
     "content": frozenset({"analytics", "engagement", "media", "moderation"}),
     "engagement": frozenset({"analytics", "engagement", "points", "watch"}),
     "points": frozenset({"points"}),
-    "moderation": frozenset({"moderation"}),
+    "moderation": frozenset({"moderation", "account_management"}),
     "audit": frozenset({"audit_read"}),
     # Business carries no Gateway capability yet: its own flags stay closed and nothing is reachable through it.
     "business": frozenset(),
 }
+
+# Capabilities a service may carry only on its erasure processes, never as part of the Gateway-derived slice: the
+# R1 rows of those API services leave them off.
+ERASURE_ONLY = {"creators": frozenset({"account_management"}), "moderation": frozenset({"account_management"})}
 
 # A capability cannot be on without the ones it needs (checked on the whole set, on every service).
 REQUIRES = {
@@ -215,7 +221,7 @@ def check(service, caps, *, accounts, privileged):
 
 def slice_for(service, caps):
     """What a service should carry, given the Gateway's full set (used by tools, never by a service)."""
-    return frozenset(caps) & APPLICABLE[service]
+    return frozenset(caps) & (APPLICABLE[service] - ERASURE_ONLY.get(service, frozenset()))
 
 
 def gateway_peers(caps, accounts):

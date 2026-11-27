@@ -162,6 +162,20 @@ def audit_read_flag_table(table):
     return result
 
 
+# Decision C erasure processes only (D13-003, #273; PROPOSED, not applied): the Creators and Moderation erasure worker
+# and dispatcher need account_management, which opens no route on either service. Their API services keep the R1
+# row, so this row is never applied by `update`; scripts/validate_staging_stack.py allows it only on those processes.
+ERASURE_ROW_SERVICES = ('creators', 'moderation')
+
+
+def erasure_flag_table(table):
+    result = copy.deepcopy(table)
+    for service in ERASURE_ROW_SERVICES:
+        caps = [cap for cap in result[service][FLAG_CAPABILITIES].split(',') if cap]
+        result[service][FLAG_CAPABILITIES] = ','.join(sorted(caps + ['account_management']))
+    return result
+
+
 # Services that carry the single `media` capability in the intermediate "media stage" (read back from the live AWS
 # services on 19 November 2026): the Gateway that routes it, Creators for eligibility and Content for upload and
 # playback. Nothing else is on: no creator onboarding, no privileged MFA, no engagement, points or moderation.
@@ -179,7 +193,7 @@ def media_flag_table(baseline):
             for service in SERVICES}
 
 
-# Mirrors `staging_runtime.capabilities` (APPLICABLE, REQUIRES); scripts/test_cluster_r1_rollout.py keeps them equal.
+# Mirrors `staging_runtime.capabilities` (APPLICABLE less ERASURE_ONLY, REQUIRES); scripts/test_cluster_r1_rollout.py keeps them equal.
 R1_CAPABILITIES = frozenset({'account_management', 'analytics', 'engagement', 'media', 'moderation', 'points', 'watch'})
 R1_APPLICABLE = {
     'gateway': R1_CAPABILITIES, 'identity': frozenset({'account_management', 'moderation'}),
