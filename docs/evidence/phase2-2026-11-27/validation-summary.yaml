@@ -33,6 +33,10 @@ checks:
   links_checked: 209
   broken: 0
   result: PASS
+- command: Final changed-document links and artifact hash verification
+  links_checked: 228
+  broken: 0
+  result: PASS
 historical_failures:
 - command: initial new-contract suite
   result: FAIL; planned lifecycle and owner-tag drift fixed; subsequent focused suite
@@ -57,4 +61,14 @@ ci:
   correction: standard artifact-sha256.txt manifest and validation record using PR/run
     references; exact revisions remain in the formal report and GitHub; no scanner
     exceptions
-  corrected_head: Pending publication/check run
+  corrected_head: Final documentation-only reporting revision will receive its own
+    checks on PR 332
+  corrected_candidate:
+    run: 46029651131
+    url: https://github.com/Markcino/KoloVibe/actions/runs/46029651131
+    result: PASS
+    successful_workflow_jobs: 15
+    conditional_skipped_jobs: 5
+    failed_jobs: 0
+    revision_reference: eeffe72 on PR 332; exact full SHA in the formal report
+    gitguardian: PASS
