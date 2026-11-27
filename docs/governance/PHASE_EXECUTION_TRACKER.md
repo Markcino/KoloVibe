@@ -8,7 +8,7 @@ Established 27 November 2026 at `37c5a44` (after #299). Updated 27 November 2026
 
 | Item | State |
 | --- | --- |
-| Current phase | **Phase 1, full-product reconciliation: verdict BLOCKED on owner approval of the five requirement sets** (see [report](phases/PHASE-01_Full_Product_Reconciliation_Report.md)). Authorized 27 November 2026, 11:12 UTC. Closure instruction 12:13 UTC: the sets FP-NT, FP-PAY, FP-GA, FP-DST and FP-CM are written (PROPOSED); Phase 1 passes when the owner approves them |
+| Current phase | **Phase 1, full-product reconciliation: five requirement sets approved by the owner at 12:26 UTC; verdict PASS on merge of PR #328 with green CI** (see [report](phases/PHASE-01_Full_Product_Reconciliation_Report.md)). Authorized 27 November 2026, 11:12 UTC. Closure instruction 12:13 UTC: the sets FP-NT, FP-PAY, FP-GA, FP-DST and FP-CM are written and approved |
 | Phase 2 | **NOT STARTED.** Formal Phase 2 is architecture, contracts and decisions (section 2, milestone 7). It starts only after Phase 1 is PASS, and then only with read-only and repository-side work; every staging write needs its own approval (owner, 12:13 UTC). The owner's 11:40 UTC message produced a **read-only staging inspection** ([record](phases/PHASE-02-ENTRY_Staging_Infrastructure_Inspection_2026-11-27.md), PR #327), first titled a "Phase 2 report"; it was reclassified at 12:13 UTC as input to the Phase 2 entry staging sequence and to Phase 9. Its plans A to G stay unexecuted |
 | Next phase | Phase 2 entry is authorized by the owner's 12:13 UTC message **conditional on Phase 1 PASS**, read-only and repository-side only. Phase 3 is not authorized |
 | Production | NO-GO. Nothing here authorizes deployment, live payments, live advertising, destructive data changes or production publication (mandate section 8) |
@@ -39,7 +39,7 @@ The owner's Phase 1 instruction refers to Phases 2 to 11, so the plan has eleven
 
 | # | Phase | Milestone | Main exit criteria | Earlier proposal folded in | Status |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Full-product reconciliation | — (#301) | Owner's nine Phase 1 exit criteria | 0 governance, 1 reverification | **BLOCKED**: requirement sets written, owner approval pending (#307) |
+| 1 | Full-product reconciliation | — (#301) | Owner's nine Phase 1 exit criteria | 0 governance, 1 reverification | **PASS on merge of #328**: requirement sets approved 12:26 UTC (#307) |
 | 2 | Architecture, contracts and decisions | [Phase 2](https://github.com/Markcino/KoloVibe/milestone/7) | Approved ADRs for Finance, Events, Advertising and Notifications; one canonical API and event contract; requirement sets FP-NT, FP-PAY, FP-GA, FP-DST approved; Figma frames for new areas; Stage 1 and 2 sign-offs (#133, #134, #140, #141) | 2 decisions, 3 architecture | NOT STARTED |
 | 3 | Core platform completion | [Phase 3](https://github.com/Markcino/KoloVibe/milestone/8) | Identity, Creators, Content, Engagement, Points, Moderation, Audit, Privacy and Notifications reach Ready for comprehensive testing; D13-001 to D13-003 resolved | 4 core | NOT STARTED |
 | 4 | Business completion | [Phase 4](https://github.com/Markcino/KoloVibe/milestone/9) | Business sensitive actions per decisions; staging plan | 5 Business | NOT STARTED |
