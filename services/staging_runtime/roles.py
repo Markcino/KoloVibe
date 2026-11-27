@@ -30,6 +30,22 @@ ROLES = {
     ("content", "requeue-media"): ("media", "job", "requeue_stalled_media", None),
 }
 
+# Read-only health signals a job emits after each batch (staging_runtime/signals.py, #145). Only the job that owns a
+# backlog reports it, so no extra process runs.
+ROLE_SIGNALS = {
+    ("points", "deliver-audit"): ("audit_backlog",),
+    ("moderation", "deliver-audit"): ("audit_backlog",),
+    ("identity", "deliver-security-audit"): ("audit_backlog",),
+    ("content", "deliver-audit"): ("audit_backlog",),
+    ("creators", "deliver-audit"): ("audit_backlog",),
+    ("content", "requeue-media"): ("media_stalled", "queue_depth"),
+}
+
+
+def signals_for(service, role):
+    return ROLE_SIGNALS.get((service, role), ())
+
+
 MIN_INTERVAL, MAX_INTERVAL = 5, 3600
 MAX_CONSECUTIVE_FAILURES = 5
 
@@ -110,10 +126,20 @@ def run_celery(target, queue, argv_hook=None):
     app.worker_main(celery_argv(queue))
 
 
-def run_job(command, interval, limit, *, sleep=time.sleep, clock=time.monotonic, call=None, stop=None):
-    """Run one management command in a bounded loop; exit non-zero after repeated failure so Swarm restarts it."""
+def run_job(command, interval, limit, *, sleep=time.sleep, clock=time.monotonic, call=None, stop=None,
+            signals=(), service=None, emit=None):
+    """Run one management command in a bounded loop; exit non-zero after repeated failure so Swarm restarts it.
+
+    After every batch, failed or not, the job emits its read-only health signals (a growing backlog matters most
+    exactly when delivery fails)."""
     if not MIN_INTERVAL <= interval <= MAX_INTERVAL or not 1 <= limit <= 1000:
         raise RuntimeError("Job interval or batch limit is out of range")
+    if signals:
+        from staging_runtime import signals as health
+
+        for name in signals:
+            health.approved_thresholds(name)  # a malformed threshold stops the job before it starts
+        emit = emit or health.emit
     if call is None:
         from django.core.management import call_command as call
     state = {"stop": False}
@@ -140,6 +166,10 @@ def run_job(command, interval, limit, *, sleep=time.sleep, clock=time.monotonic,
                 )
             print("Job failed; will retry", file=sys.stderr)
             if failures >= MAX_CONSECUTIVE_FAILURES:
+                if signals:
+                    emit(service, signals)
                 raise SystemExit(1) from None
+        if signals:
+            emit(service, signals)
         sleep(max(1, interval - (clock() - started)))
     return 0

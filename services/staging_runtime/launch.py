@@ -32,7 +32,7 @@ def run_role(root, directory, service, role, interval, limit):
     if kind == "celery":
         roles.run_celery(target, queue)
     else:
-        roles.run_job(target, interval, limit)
+        roles.run_job(target, interval, limit, signals=roles.signals_for(service, role), service=service)
 
 
 def main():
