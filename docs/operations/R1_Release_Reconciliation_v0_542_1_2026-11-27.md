@@ -1,6 +1,6 @@
 # Release reconciliation for v0.542.1 (D13-005), 27 November 2026
 
-**Status: TOOL READY, READBACK NOT RUN.** This session has no operator access to the staging VMs. The readback below is read-only, but it has to be run on VM1 by the operator.
+**Status: READBACK RUN, 27 November 11:42 UTC.** Every running service passes (digest and label); the only FAIL rows are completed one-shot jobs and the zero-replica `kolovibe-r1-jobs_media-worker`. See the [read-only check](R1_AWS_Staging_Readonly_Check_2026-11-27.md) section 2. The text below is the original plan.
 
 ## The publication (from CI, not from staging)
 

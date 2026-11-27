@@ -11,7 +11,7 @@ Established 27 November 2026 at `37c5a44` (after #299). Updated 27 November 2026
 | Current phase | **Phase 1, full-product reconciliation: report delivered, verdict BLOCKED** (see [report](phases/PHASE-01_Full_Product_Reconciliation_Report.md)). Authorized by the owner on 27 November 2026, 11:12 UTC |
 | Next phase | Phase 2 is **not authorized**. The owner said: "Do not begin Phase 2 until I authorize it." |
 | Production | NO-GO. Nothing here authorizes deployment, live payments, live advertising, destructive data changes or production publication (mandate section 8) |
-| Infrastructure access from Claude's cloud sessions | **NOT AVAILABLE.** `ssh swarm-manager` and `ssh swarm-worker` are configured on the owner's computer only. Runtime checks need the owner to run them or to approve a Remote Control session on that computer, which must be online. On 27 November it was offline |
+| Infrastructure access | Claude's **cloud** sessions have no SSH to staging. Sessions on the owner's Mac (Remote Control) can reach `ssh swarm-manager` and `ssh swarm-worker`; the read-only check ran that way on 27 November 11:42–11:55 UTC ([read-only check](../operations/R1_AWS_Staging_Readonly_Check_2026-11-27.md)). Any staging write still needs a concrete plan and the owner's explicit yes |
 
 ## 2. Status vocabulary
 

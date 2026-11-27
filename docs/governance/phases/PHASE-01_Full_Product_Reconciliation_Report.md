@@ -6,14 +6,14 @@
 | Authorized | Owner instruction, 27 November 2026, 11:12 UTC |
 | Starting commit | `1c706ce` (`main` after #303) |
 | Final commit | The merge commit of the Phase 1 pull request (branch `claude/project-thread-tgd2jb`) |
-| Final gate verdict | **BLOCKED**: one exit criterion remains (written and approved requirement sets for notifications, payments, Google mobile ads, distribution and comments, #307), plus the runtime staging check |
+| Final gate verdict | **BLOCKED**: one exit criterion remains (written and approved requirement sets for notifications, payments, Google mobile ads, distribution and comments, #307). The runtime staging check ran read-only on 27 November at 11:42–11:55 UTC ([read-only check](../../operations/R1_AWS_Staging_Readonly_Check_2026-11-27.md)) |
 | Next phase authorized | **No.** Phase 2 waits on the owner's authorization and on the decisions in section 9 |
 
 ## 1. Requirements completed
 
 | Task | Result | Evidence |
 | --- | --- | --- |
-| 1 Repository-wide audit | Done for the repository, CI, GitHub and Figma. Runtime staging check **BLOCKED** (the owner's computer was offline) | [Repository audit](../phase1/PHASE-01_Repository_Audit_2026-11-27.md) |
+| 1 Repository-wide audit | Done for the repository, CI, GitHub and Figma. Runtime staging check **DONE, read-only**, 27 November 11:42–11:55 UTC, after the report was first written ([read-only check](../../operations/R1_AWS_Staging_Readonly_Check_2026-11-27.md)) | [Repository audit](../phase1/PHASE-01_Repository_Audit_2026-11-27.md) |
 | 2 Full-product scope | Done; MVP-only restrictions removed from active planning; seven features needing a product decision listed | [Scope baseline](../phase1/PHASE-01_Full_Product_Scope_Baseline.md) |
 | 3 Authoritative documentation | Done: one index with a canonical source per subject, archive register, FP-000 requirements index, duplicate tracker removed | [Documentation index](../../README.md), [archive register](../../archive/ARCHIVE_REGISTER.md), [FP-000](../../requirements/FP-000_Full_Product_Requirements_Baseline.md) |
 | 4 Feature traceability | Done: 71 rows with all 17 requested columns plus the source requirement | [Traceability matrix](../phase1/PHASE-01_Feature_Traceability_Matrix.csv) |
@@ -48,7 +48,7 @@ None. Staging and production were not touched.
 | `python -m unittest discover -s scripts` | PASS: 506 run, 0 failed, 4 skipped |
 | CI on the Phase 1 pull request | Recorded on the pull request |
 | Service, console and Flutter suites | NOT RUN locally in this phase (no code changed); CI runs them |
-| Staging read-only check | BLOCKED (owner's computer offline) |
+| Staging read-only check | RUN 27 November 11:42–11:55 UTC: every running service is v0.542.1 (readback PASS); D13-001, D13-004 and D12-001 still FAIL on staging ([read-only check](../../operations/R1_AWS_Staging_Readonly_Check_2026-11-27.md)) |
 
 ## 6. Exit criteria
 
@@ -64,7 +64,7 @@ None. Staging and production were not touched.
 | Decisions necessary for Phase 2 are approved | PASS | GD-01 to GD-08 approved as recommended, 27 November 11:31 UTC |
 | Documentation validation and relevant CI checks pass | Local PASS; CI recorded on the pull request | Section 5 |
 
-Counts: 7 PASS, 1 BLOCKED, 1 pending CI, 0 FAIL (after the owner's 11:31 UTC ruling; before it, 5 PASS and 3 BLOCKED). A further item, the runtime staging check in Task 1, is BLOCKED.
+Counts: 7 PASS, 1 BLOCKED, 1 pending CI, 0 FAIL (after the owner's 11:31 UTC ruling; before it, 5 PASS and 3 BLOCKED). The runtime staging check in Task 1, BLOCKED when this report was written, was run read-only afterwards ([read-only check](../../operations/R1_AWS_Staging_Readonly_Check_2026-11-27.md)); it does not change the BLOCKED verdict, which rests on #307.
 
 ## 7. Security findings
 
