@@ -23,6 +23,16 @@ ROLES = {
     # Video and creator lifecycle evidence (D11-007, D13-002). Both services hold it under their media capability.
     ("content", "deliver-audit"): ("media", "job", "deliver_audit_events", None),
     ("creators", "deliver-audit"): ("media", "job", "deliver_audit_events", None),
+    # Decision C account erasure (D13-003, #273). Identity dispatches requests and consumes confirmations; each
+    # participating service consumes requests on its own queue and dispatches its confirmations. Engagement's consumer
+    # and dispatcher, and Content's media worker, already carry their part. Business is not on staging yet.
+    ("identity", "consumer"): ("account_management", "celery", "service.celery_app:app", "kolovibe.identity"),
+    ("identity", "dispatch-events"): ("account_management", "job", "dispatch_identity_events", None),
+    ("creators", "consumer"): ("account_management", "celery", "service.celery_app:app", "kolovibe.creators"),
+    ("creators", "dispatch-events"): ("account_management", "job", "dispatch_creators_events", None),
+    ("moderation", "consumer"): ("account_management", "celery", "service.celery_app:app", "kolovibe.moderation"),
+    ("moderation", "dispatch-events"): ("account_management", "job", "dispatch_moderation_events", None),
+    ("content", "dispatch-events"): ("media", "job", "dispatch_content_events", None),
     ("identity", "deliver-security-audit"): ("privileged", "job", "deliver_security_audit", None),
     # Maintenance (Phase 3 A5): retention of expired throttle/code/session rows and re-publication of stalled
     # media jobs. Both are bounded, idempotent and print counts only.

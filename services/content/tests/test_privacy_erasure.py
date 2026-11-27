@@ -12,15 +12,21 @@ from service.models import (MediaUpload, MetadataRevision, OriginalityAttestatio
 
 
 class Bucket:
-    """Records deletions; can simulate an outage."""
+    """Holds object names, records deletions; can simulate an outage."""
 
     def __init__(self, fail=False):
-        self.deleted, self.fail = [], fail
+        self.deleted, self.fail, self.objects = [], fail, set()
 
     def delete_object(self, key):
         if self.fail:
             raise media_storage.StorageUnavailable
         self.deleted.append(key)
+        self.objects.discard(key)
+
+    def list_keys(self, prefix):
+        if self.fail:
+            raise media_storage.StorageUnavailable
+        return sorted(key for key in self.objects if key.startswith(prefix))
 
 
 class ContentErasureTests(TestCase):
@@ -41,6 +47,7 @@ class ContentErasureTests(TestCase):
         self.theirs = Video.objects.create(creator_id=self.other_creator, title="Theirs")
         self.bucket = Bucket()
         self.enterContext(patch.object(media_storage, "delete_object", self.bucket.delete_object))
+        self.enterContext(patch.object(media_storage, "list_keys", self.bucket.list_keys))
 
     def payload(self, **changes):
         return {"request_id": self.request_id, "account_id": self.person, "service": "content",
@@ -71,7 +78,37 @@ class ContentErasureTests(TestCase):
         self.assertEqual(self.confirmation(), {
             "request_id": self.request_id, "account_id": self.person, "service": "content",
             "counts": {"media_objects": 3, "metadata_revisions": 1, "upload_records": 1, "videos_emptied": 1},
-            "retained": ["attestations", "untracked_media"]})
+            "retained": ["attestations"]})
+
+    def test_superseded_renditions_and_posters_are_found_and_removed(self):
+        old_rendition = f"playback/{self.upload}/{uuid.uuid4()}.mp4"
+        old_frame = f"playback/{self.upload}/{uuid.uuid4()}.jpg"
+        old_poster = f"posters/{self.video.id}/{uuid.uuid4()}.jpg"
+        someone_elses = f"playback/{uuid.uuid4()}/{uuid.uuid4()}.mp4"
+        self.bucket.objects |= {old_rendition, old_frame, old_poster, someone_elses, self.video.provider_asset_id}
+        privacy.erase(str(uuid.uuid4()), self.payload())
+        self.assertTrue({old_rendition, old_frame, old_poster} <= set(self.bucket.deleted))
+        self.assertEqual(self.bucket.objects, {someone_elses}, "only this creator's objects are touched")
+        self.assertEqual(len(self.bucket.deleted), len(set(self.bucket.deleted)), "nothing is deleted twice")
+        confirmation = self.confirmation()
+        self.assertEqual(confirmation["counts"]["media_objects"], 6)
+        self.assertNotIn("untracked_media", confirmation["retained"])
+
+    def test_an_object_it_may_not_delete_keeps_untracked_media_retained(self):
+        self.bucket.objects.add(f"playback/{self.upload}/unexpected-name.mov")
+        privacy.erase(str(uuid.uuid4()), self.payload())
+        self.assertIn("untracked_media", self.confirmation()["retained"])
+        self.assertIn(f"playback/{self.upload}/unexpected-name.mov", self.bucket.objects)
+
+    def test_a_listing_outage_records_nothing_so_the_task_retries(self):
+        def down(prefix):
+            raise media_storage.StorageUnavailable
+
+        with patch.object(media_storage, "list_keys", down), self.assertRaises(media_storage.StorageUnavailable):
+            privacy.erase(str(uuid.uuid4()), self.payload())
+        with connection.cursor() as cur:
+            cur.execute("SELECT count(*) FROM event_inbox")
+            self.assertEqual(cur.fetchone()[0], 0)
 
     def test_a_storage_outage_records_nothing_so_the_task_retries(self):
         self.bucket.fail = True
@@ -115,6 +152,83 @@ class ContentErasureTests(TestCase):
 
 
 class StorageDeleteTests(SimpleTestCase):
+    def credentials(self, directory):
+        from pathlib import Path
+
+        values = {}
+        for name, value in (("KOLOVIBE_R2_ACCESS_KEY_FILE", "AKIAEXAMPLEKEY12345"),
+                            ("KOLOVIBE_R2_SECRET_KEY_FILE", "example-secret-value-1234567890")):  # pragma: allowlist secret
+            path = Path(directory) / name
+            path.write_text(value)
+            path.chmod(0o600)
+            values[name] = str(path)
+        return values | {"KOLOVIBE_R2_ACCOUNT_ID": "1" * 32, "KOLOVIBE_R2_MEDIA_BUCKET": "kolovibe-media"}
+
+    def test_the_worker_can_sign_its_own_delete_and_list_but_never_a_client_url_for_them(self):
+        from tempfile import TemporaryDirectory
+        from urllib.parse import parse_qs, urlsplit
+
+        key = f"originals/{uuid.uuid4()}.mp4"
+        prefix = f"playback/{uuid.uuid4()}/"
+        with TemporaryDirectory() as directory, patch.dict("os.environ", self.credentials(directory)):
+            self.assertIn(f"/kolovibe-media/{key}?", media_storage._signed_url("DELETE", key, 60, {}, internal=True))
+            with self.assertRaises(media_storage.StorageUnavailable):
+                media_storage._signed_url("DELETE", key, 60, {})
+            listing = urlsplit(media_storage._signed_list_url(prefix, "abc+/="))
+            query = parse_qs(listing.query)
+            self.assertEqual(listing.path, "/kolovibe-media")
+            self.assertEqual((query["list-type"], query["prefix"], query["continuation-token"]), (["2"], [prefix], ["abc+/="]))
+            self.assertEqual(len(query["X-Amz-Signature"][0]), 64)
+            for bad in ("", "playback/", "originals/", f"playback/{uuid.uuid4()}", f"posters/{uuid.uuid4()}/x/",
+                        "playback/../", f"other/{uuid.uuid4()}/"):
+                with self.subTest(bad), self.assertRaises(media_storage.StorageUnavailable):
+                    media_storage._signed_list_url(bad)
+            with self.assertRaises(media_storage.StorageUnavailable):
+                media_storage._signed_list_url(prefix, "bad token")
+
+    def test_listing_follows_pages_and_refuses_anything_unexpected(self):
+        from contextlib import contextmanager
+
+        prefix = f"posters/{uuid.uuid4()}/"
+        first, second = prefix + f"{uuid.uuid4()}.jpg", prefix + f"{uuid.uuid4()}.jpg"
+        pages = {None: f"<Key>{first}</Key><IsTruncated>true</IsTruncated><NextContinuationToken>t1</NextContinuationToken>",
+                 "t1": f"<Key>{second}</Key><IsTruncated>false</IsTruncated>"}
+
+        class Response:
+            def __init__(self, text):
+                self.text = text
+
+            def read(self, limit):
+                return self.text if isinstance(self.text, bytes) else self.text.encode()
+
+        def fake(responses):
+            @contextmanager
+            def request(method, key, headers=None, body=None, *, url=None):
+                self.assertEqual((method, key), ("GET", ""))
+                yield Response(responses(url))
+            return request
+
+        def by_token(url):
+            from urllib.parse import parse_qs, urlsplit
+
+            return pages[parse_qs(urlsplit(url).query).get("continuation-token", [None])[0]]
+
+        with patch("service.media_storage._signed_list_url", lambda p, t=None: "https://x/?" + ("continuation-token=" + t if t else "")), \
+                patch("service.media_storage._request", fake(by_token)):
+            self.assertEqual(media_storage.list_keys(prefix), [first, second])
+        for text in (f"<Key>playback/{uuid.uuid4()}/x.mp4</Key>",                      # outside the prefix
+                     f"<Key>{first}</Key><IsTruncated>true</IsTruncated>",                 # truncated, no token
+                     b"<Key>\xff</Key>"):
+            with self.subTest(text), patch("service.media_storage._signed_list_url", lambda p, t=None: "https://x/"), \
+                    patch("service.media_storage._request", fake(lambda url, t=text: t)), \
+                    self.assertRaises(media_storage.StorageUnavailable):
+                media_storage.list_keys(prefix)
+        endless = f"<Key>{first}</Key><IsTruncated>true</IsTruncated><NextContinuationToken>t</NextContinuationToken>"
+        with patch("service.media_storage._signed_list_url", lambda p, t=None: "https://x/"), \
+                patch("service.media_storage._request", fake(lambda url: endless)), \
+                self.assertRaises(media_storage.StorageUnavailable):
+            media_storage.list_keys(prefix)
+
     def test_delete_is_signed_and_a_missing_object_counts_as_removed(self):
         key = f"originals/{uuid.uuid4()}.mp4"
         with patch("service.media_storage._request") as request:

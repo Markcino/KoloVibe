@@ -134,7 +134,21 @@ AWS_ROLES = {
     "identity-audit": ("identity", "deliver-security-audit"), "identity-purge": ("identity", "purge-security-rows"),
     "content-requeue": ("content", "requeue-media"),
     "content-audit": ("content", "deliver-audit"), "creators-audit": ("creators", "deliver-audit"),
+    # Decision C erasure (D13-003, #273)
+    "identity-consumer": ("identity", "consumer"), "identity-dispatch": ("identity", "dispatch-events"),
+    "creators-consumer": ("creators", "consumer"), "creators-dispatch": ("creators", "dispatch-events"),
+    "moderation-consumer": ("moderation", "consumer"), "moderation-dispatch": ("moderation", "dispatch-events"),
+    "content-dispatch": ("content", "dispatch-events"),
 }
+# Broker mounts only the erasure processes of services whose APIs use no broker carry (D13-003). Each service has its
+# own broker account; the API services never mount it. Content's dispatcher uses Content's existing broker secret.
+_BROKER_CA = {"rabbitmq_ca": "kolovibe_rmq_ca"}
+ERASURE_PROCESS_MOUNTS = {
+    name: {"rabbitmq_url": f"kolovibe_{name.split('-')[0]}_rabbitmq_url_20261127_v1", **_BROKER_CA}
+    for name in ("identity-consumer", "identity-dispatch", "creators-consumer", "creators-dispatch",
+                 "moderation-consumer", "moderation-dispatch")
+}
+ERASURE_PROCESSES = frozenset(ERASURE_PROCESS_MOUNTS) | {"content-dispatch"}
 # Mounts only an audit-delivery job carries, beyond its API service's secrets (D13-002). The API services and the
 # media worker never receive them: each job signs to Audit with its own key, distinct from every other caller's.
 AUDIT_JOB_MOUNTS = {
@@ -221,6 +235,8 @@ def validate_aws(stack):
             raise ValueError("A queue worker takes no interval or batch limit")
         environment = definition["environment"]
         row = profile.r1_flags[service]
+        if name in ERASURE_PROCESSES:
+            row = cluster.erasure_flag_table(profile.r1_flags)[service]
         if (environment.get("KOLOVIBE_ENV") != "staging" or environment.get("DJANGO_DEBUG") != "0"
                 or environment.get("KOLOVIBE_SERVICE_NAME") != service
                 or environment.get("KOLOVIBE_STAGING_ACCOUNTS") != row[cluster.FLAG_ACCOUNTS]
@@ -233,7 +249,10 @@ def validate_aws(stack):
             raise ValueError("Persistent credentials must be secret files, not environment values")
         if "KOLOVIBE_RABBITMQ_URL" in environment:
             raise ValueError("The broker URI must be a secret file")
-        broker = service in ("content", "engagement", "points")
+        broker = service in ("content", "engagement", "points") or name in ERASURE_PROCESS_MOUNTS
+        if service not in ("content", "engagement", "points") and (
+                ("KOLOVIBE_RABBITMQ_URL_FILE" in environment) != (name in ERASURE_PROCESS_MOUNTS)):
+            raise ValueError("Outside Content, Engagement and Points only the erasure processes read a broker URI")
         r2 = name == "media-worker"
         if ("broker_private" in definition["networks"]) != broker or "private" not in definition["networks"] \
                 or "data_private" not in definition["networks"] or len(definition["networks"]) != 2 + broker + r2 \
@@ -267,6 +286,7 @@ def validate_aws(stack):
                             account_approvals="kolovibe_account_approval" + cluster.R1_SECRET_SUFFIX)
         expected.update(profile.r1_rollout[service]["mounts"])
         expected.update(AUDIT_JOB_MOUNTS.get(name, {}))
+        expected.update(ERASURE_PROCESS_MOUNTS.get(name, {}))
         if name in AUDIT_JOB_MOUNTS and (environment.get("KOLOVIBE_OUTBOUND_KEY_FILE") != "/run/secrets/outbound_key"
                                          or environment.get("KOLOVIBE_TRUSTED_PEERS_FILE") != "/run/secrets/trusted_peers"):
             raise ValueError("An audit-delivery job reads its own outbound key and its Audit peer file")

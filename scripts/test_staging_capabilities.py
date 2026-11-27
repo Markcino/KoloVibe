@@ -24,7 +24,7 @@ NOT_CAPABILITY = ("/health/live", "/internal/probe")
 # public reads are served through the Gateway only.
 # Capabilities that switch a worker or job on rather than a route: Engagement's `points` gates the outbox
 # dispatcher and, through `watch`, the watch API that feeds it.
-NO_ROUTES = {("engagement", "points")}
+NO_ROUTES = {("engagement", "points"), ("creators", "account_management"), ("moderation", "account_management")}
 UNEXPOSED = {("content", "/videos"), ("content", f"/videos/{SAMPLE_UUID}")}
 
 
