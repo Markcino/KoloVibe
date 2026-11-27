@@ -1,5 +1,7 @@
 # Temporary OpenSSL image-scan exception — 21 November 2026
 
+> **Renewed, 27 November 2026:** the owner renewed the same scope until 2026-12-05 UTC, because no fixed package exists. See [R1_OpenSSL_Exception_Renewal_Decision_2026-11-27.md](R1_OpenSSL_Exception_Renewal_Decision_2026-11-27.md). The 2026-11-28 expiry below is superseded and kept as history.
+
 **Owner decision:** permit a narrowly scoped, seven-day scanner exception for the five High findings against the specific Alpine OpenSSL library packages in the R1 candidate. This is **not** a declaration that the packages are safe, fixed, or unreachable.
 
 - **Scope:** exactly CVE-2026-124709, CVE-2026-107494, CVE-2026-121482, CVE-2026-84786, CVE-2026-107493 on each of `libssl3` and `libcrypto3`, apk version `3.5.9-r1` only (10 package/CVE matches). No wildcard names or versions. All other High/Critical findings remain blocking.

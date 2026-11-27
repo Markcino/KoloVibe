@@ -157,7 +157,7 @@ class ImageSecurityContractTests(unittest.TestCase):
         self.assertEqual(rules["ignore"][len(ffmpeg_rules):], openssl_rules)
         temporary_expiry = datetime.date.fromisoformat(
             re.search(r"(?m)^# Expires \(OpenSSL temporary\): (\d{4}-\d{2}-\d{2})$", config).group(1))
-        self.assertEqual(temporary_expiry, datetime.date(2026, 11, 28))
+        self.assertEqual(temporary_expiry, datetime.date(2026, 12, 5))  # owner renewal of 27 November 2026 (#143)
         self.assertGreater(temporary_expiry, datetime.datetime.now(datetime.timezone.utc).date(),
                            "Temporary OpenSSL exception expired; remove it and remediate images")
         self.assertIn("scripts/check_ffmpeg_scan_exceptions.py", self.workflow)  # the CI step that checks the premises
