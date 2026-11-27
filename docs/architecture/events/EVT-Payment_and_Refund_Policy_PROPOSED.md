@@ -1,5 +1,7 @@
 # Events — payment and refund policy decisions (proposed)
 
+> Phase 2: current ownership and approved decision precedence are in [the ownership review](../PHASE-02_Data_Ownership_Review.md). Finance alone owns monetary ledger/provider adapters; Decision J uses Points snapshots as relative allocation weights, never redemption. Conflicting historical text below is superseded. Detailed accounting/policy review remains pending.
+
 **Status: PROPOSED — not approved. No real payment provider is selected, contacted or activated.** 25 November 2026. This is the consolidated policy view behind DR-EV-20 to DR-EV-31. Each policy is marked **Decide** (the owner can decide it from product judgement), **Blocker** (needs legal, provider or regulatory input that this repository cannot supply) or **Built-in** (a control the design enforces regardless of the owner's values).
 
 ## 1. What Phase 7 will and will not do with money

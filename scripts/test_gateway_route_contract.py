@@ -43,6 +43,11 @@ def contract():
             continue
         for method, operation in item.items():
             if method in HTTP_METHODS:
+                # Planned Phase 2 operations are not an implemented API surface.
+                # The separate non-exposure test below prevents this marker
+                # from hiding drift on an existing Gateway route.
+                if operation.get("x-implementation") == "planned":
+                    continue
                 key = (method.upper(), normalise(path))
                 operations.add(key)
                 if operation.get("security") == []:
@@ -81,6 +86,36 @@ class GatewayRouteContractTests(unittest.TestCase):
                 continue
             with self.subTest(path):
                 self.assertTrue(path in served, f"DOC-205 declares {path} but the gateway has no such route")
+
+    def test_planned_operations_are_not_exposed_or_used_to_hide_existing_routes(self):
+        spec = yaml.safe_load(CONTRACT.read_text())
+        for path, item in spec["paths"].items():
+            if path.startswith("/internal/"):
+                continue
+            route = API_PREFIX + normalise(path)
+            for method, operation in item.items():
+                if method not in HTTP_METHODS or operation.get("x-implementation") != "planned":
+                    continue
+                with self.subTest(method=method, path=path):
+                    self.assertTrue(operation.get("x-requirements"))
+                    self.assertTrue(operation.get("x-approval-status"))
+                    if route in self.routes:
+                        self.assertEqual(self.routes[route][method.upper()]["status"], 405,
+                                         "A planned operation is reachable; review and promote its contract")
+
+    def test_implemented_methods_match_the_gateway(self):
+        for route, methods in self.routes.items():
+            if route in UNDECLARED:
+                continue
+            path = self.public_path(route)
+            for method, result in methods.items():
+                with self.subTest(method=method, route=route):
+                    if (method, path) in self.operations:
+                        self.assertNotEqual(result["status"], 405,
+                                            "Contract declares an unsupported method")
+                    else:
+                        self.assertEqual(result["status"], 405,
+                                         "Gateway accepts a method missing from its contract")
 
     def test_exemptions_are_current(self):
         for route in UNDECLARED:

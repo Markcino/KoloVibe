@@ -1,5 +1,20 @@
 # Revenue accounting, sharing and sandbox payouts (Phase 9) — exact owner decisions and approvals required
 
+## Current reconciliation — 27 November 2026
+
+This table records existing approvals, not new owner choices. [Phase 1 gate register](../../governance/phase1/PHASE-01_Governance_Gate_Register.md) and [Decisions A to J](../../planning/Owner_Decisions_A-J_2026-11-25.md) remain the approval evidence; current ADR headers and DOC-205 govern over conflicting proposals below.
+
+| Decision | Current ruling | Remaining gate |
+| --- | --- | --- |
+| DR-FIN-01/02 | Scope and Finance single-ledger ownership approved by J/GD-01; providers Finance-owned by FP-PAY | Detailed contract review; no live activation |
+| DR-FIN-03 | GD-01 approved double-entry/append-only/hash-chain/minor-unit sandbox structure | Independent posting/template/rounding review remains required |
+| DR-FIN-05/06 | GD-04 approves grants and maker/checker/releaser structure; G approves centralized step-up | Exact grant/control matrix and deployment capacity/security evidence still need review |
+| DR-FIN-07 | Sandbox-only development approved; no live activation | Live approval remains absent |
+| DR-FIN-04 | Owner named Mark Allen Gbalazeh as accounting-review contact in the current task | Actual qualified independent review and signed findings NOT RUN; assignment alone does not satisfy independence |
+| DR-FIN-08 and financial/legal/provider values | No new value approval inferred | Remain pending in their original rows |
+
+## Historical proposal and still-open policy rows
+
 **Status: request for owner decisions, 25 November 2026. Every item is OPEN. Nothing here is approved.** Accountable owner: Mark Allen Gbalazeh (@Markcino). Record answers with the Business template ([decision record template](../business/BIZ-Owner_Decision_Register_PROPOSED.md#decision-record-template-use-when-the-owner-decides)).
 
 **Read this first.**

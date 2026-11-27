@@ -1,7 +1,16 @@
+%% Illustrative ownership projection; built schema authority = service migrations.
+%% Target detail and unresolved differences: PHASE-02_Data_Ownership_Review.md.
+%% No lines below cross service ownership boundaries; external ids are UUID references, not FKs.
 erDiagram
-  ACCOUNTS ||--o| CREATOR_PROFILES : has
-  ACCOUNTS ||--o{ SESSIONS : owns
-  VIDEOS ||--o{ UPLOAD_INTENTS : authorizes
-  ENGAGEMENT_EVENTS ||--o| QUALIFICATION_DECISIONS : evaluated_by
-  REPORTS ||--o{ MODERATION_ACTIONS : resolved_with
-  %% Cross-service UUID references intentionally have NO foreign-key relationships.
+  IDENTITY_ACCOUNT ||--o{ IDENTITY_SESSION : owns
+  CONTENT_VIDEO ||--o{ CONTENT_UPLOAD_INTENT : authorizes
+  CONTENT_VIDEO ||--o{ CONTENT_REVISION : reviews
+  ENGAGEMENT_WATCH ||--o| ENGAGEMENT_QUALIFICATION : produces
+  MODERATION_REPORT ||--o{ MODERATION_DECISION : resolves
+  FINANCE_JOURNAL ||--|{ FINANCE_LINE : balances
+  FINANCE_PAYMENT ||--o{ FINANCE_REFUND : limits
+  EVENTS_RESERVATION ||--|{ EVENTS_RESERVATION_ITEM : reserves
+  EVENTS_ORDER ||--o{ EVENTS_TICKET : issues
+  EVENTS_TICKET ||--o| EVENTS_CHECKIN : admits_once
+  ADVERTISING_CAMPAIGN ||--o{ ADVERTISING_CREATIVE_VERSION : reviews
+  IDENTITY_NOTIFICATION ||--o{ IDENTITY_DELIVERY_ATTEMPT : delivers

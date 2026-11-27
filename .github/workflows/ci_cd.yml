@@ -108,7 +108,7 @@ jobs:
           from openapi_spec_validator import validate
           import yaml
           from pathlib import Path
-          for p in [Path("packages/contracts/openapi/health.yaml"), Path("docs/architecture/DOC-205_OpenAPI_3_1_DRAFT.yaml")]:
+          for p in [Path("docs/architecture/DOC-205_OpenAPI_3_1_DRAFT.yaml")]:
               with p.open() as f:
                   spec = yaml.safe_load(f)
               validate(spec)

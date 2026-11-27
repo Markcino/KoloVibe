@@ -1,0 +1,2470 @@
+version: 1.1.0-review
+status: 'REVIEW REQUIRED #305/#141/#140'
+canonical_openapi: docs/architecture/DOC-205_OpenAPI_3_1_DRAFT.yaml
+transport:
+  broker: RabbitMQ
+  format: Celery JSON only; never pickle
+  legacy_envelope: Celery positional args [event_id UUID, event_type string, payload object]; task_id=event_id;
+    delivery_mode=2
+  target_envelope: Versioned domain envelope defined below; no change to legacy wire format without reviewed migration
+  guarantees: At least once; outbox+business effect atomic; confirm publish; inbox+effect+outbox atomic; ACK after
+    commit. External provider delivery is not exactly once.
+  security: TLS with CA verification, per-producer write-only exchange ACLs; per-consumer own-queue read ACL; payload
+    producer field is not authentication. Target domain events require producer signature over canonical envelope,
+    audience, body digest, timestamp and key id. Key rotation overlaps are approved, no default exchange grants.
+  replay: 'Dedupe by producer/event id and digest. Same id with changed type/payload rejected as integrity conflict.
+    Unknown version/source/kind rejected; quarantine malformed poison messages with no payload logging. Retry only
+    transient failures; bounded policy and administrator-only replay through normal publisher. Retry/DLQ deployment
+    remains #311, not claimed built.'
+  ordering: No global ordering. Aggregate id + monotonic version in target events; ignore verified stale versions,
+    detect gaps, request owner snapshot/reconciliation; no out-of-order financial posting from unverified facts.
+  privacy: Ids-only domain facts; no addresses, text, credentials, tokens, QR payloads or card/bank fields. Existing
+    privacy.export_delivered is an explicit sensitive-data exception with restricted Identity queue and per-category
+    export allowlists; not an ids-only notification feed.
+schemas:
+  qualified_view:
+    type: object
+    additionalProperties: false
+    properties:
+      creator_user_id: &id001
+        type: string
+        format: uuid
+      qualified_at: &id004
+        type: string
+        format: date-time
+    required:
+    - creator_user_id
+    - qualified_at
+  privacy_request_engagement:
+    type: object
+    additionalProperties: false
+    properties:
+      request_id: *id001
+      account_id: *id001
+      service:
+        const: engagement
+    required:
+    - request_id
+    - account_id
+    - service
+  privacy_confirmation_engagement:
+    type: object
+    additionalProperties: false
+    properties:
+      request_id: *id001
+      account_id: *id001
+      service:
+        const: engagement
+      counts:
+        type: object
+        maxProperties: 20
+        propertyNames: &id002
+          type: string
+          pattern: ^[a-z][a-z0-9_]{0,39}$
+        additionalProperties:
+          type: integer
+          minimum: 0
+      retained:
+        type: array
+        maxItems: 20
+        uniqueItems: true
+        items: *id002
+    required:
+    - request_id
+    - account_id
+    - service
+    - counts
+    - retained
+  privacy_export_engagement:
+    type: object
+    additionalProperties: false
+    properties:
+      request_id: *id001
+      account_id: *id001
+      service:
+        const: engagement
+      data:
+        type: object
+        maxProperties: 40
+        propertyNames: *id002
+        additionalProperties:
+          type: array
+          maxItems: 1000
+          items:
+            type: object
+      withheld:
+        type: array
+        maxItems: 40
+        uniqueItems: true
+        items: *id002
+      truncated:
+        type: array
+        maxItems: 40
+        uniqueItems: true
+        items: *id002
+    required:
+    - request_id
+    - account_id
+    - service
+    - data
+    - withheld
+    - truncated
+  privacy_request_creators:
+    type: object
+    additionalProperties: false
+    properties:
+      request_id: *id001
+      account_id: *id001
+      service:
+        const: creators
+    required:
+    - request_id
+    - account_id
+    - service
+  privacy_confirmation_creators:
+    type: object
+    additionalProperties: false
+    properties:
+      request_id: *id001
+      account_id: *id001
+      service:
+        const: creators
+      counts:
+        type: object
+        maxProperties: 20
+        propertyNames: *id002
+        additionalProperties:
+          type: integer
+          minimum: 0
+      retained:
+        type: array
+        maxItems: 20
+        uniqueItems: true
+        items: *id002
+      creator_id: &id003
+        type:
+        - string
+        - 'null'
+        format: uuid
+    required:
+    - request_id
+    - account_id
+    - service
+    - counts
+    - retained
+    - creator_id
+  privacy_export_creators:
+    type: object
+    additionalProperties: false
+    properties:
+      request_id: *id001
+      account_id: *id001
+      service:
+        const: creators
+      data:
+        type: object
+        maxProperties: 40
+        propertyNames: *id002
+        additionalProperties:
+          type: array
+          maxItems: 1000
+          items:
+            type: object
+      withheld:
+        type: array
+        maxItems: 40
+        uniqueItems: true
+        items: *id002
+      truncated:
+        type: array
+        maxItems: 40
+        uniqueItems: true
+        items: *id002
+      creator_id: *id003
+    required:
+    - request_id
+    - account_id
+    - service
+    - data
+    - withheld
+    - truncated
+    - creator_id
+  privacy_request_moderation:
+    type: object
+    additionalProperties: false
+    properties:
+      request_id: *id001
+      account_id: *id001
+      service:
+        const: moderation
+      creator_id: *id003
+    required:
+    - request_id
+    - account_id
+    - service
+    - creator_id
+  privacy_confirmation_moderation:
+    type: object
+    additionalProperties: false
+    properties:
+      request_id: *id001
+      account_id: *id001
+      service:
+        const: moderation
+      counts:
+        type: object
+        maxProperties: 20
+        propertyNames: *id002
+        additionalProperties:
+          type: integer
+          minimum: 0
+      retained:
+        type: array
+        maxItems: 20
+        uniqueItems: true
+        items: *id002
+    required:
+    - request_id
+    - account_id
+    - service
+    - counts
+    - retained
+  privacy_export_moderation:
+    type: object
+    additionalProperties: false
+    properties:
+      request_id: *id001
+      account_id: *id001
+      service:
+        const: moderation
+      data:
+        type: object
+        maxProperties: 40
+        propertyNames: *id002
+        additionalProperties:
+          type: array
+          maxItems: 1000
+          items:
+            type: object
+      withheld:
+        type: array
+        maxItems: 40
+        uniqueItems: true
+        items: *id002
+      truncated:
+        type: array
+        maxItems: 40
+        uniqueItems: true
+        items: *id002
+    required:
+    - request_id
+    - account_id
+    - service
+    - data
+    - withheld
+    - truncated
+  privacy_request_content:
+    type: object
+    additionalProperties: false
+    properties:
+      request_id: *id001
+      account_id: *id001
+      service:
+        const: content
+      creator_id: *id003
+    required:
+    - request_id
+    - account_id
+    - service
+    - creator_id
+  privacy_confirmation_content:
+    type: object
+    additionalProperties: false
+    properties:
+      request_id: *id001
+      account_id: *id001
+      service:
+        const: content
+      counts:
+        type: object
+        maxProperties: 20
+        propertyNames: *id002
+        additionalProperties:
+          type: integer
+          minimum: 0
+      retained:
+        type: array
+        maxItems: 20
+        uniqueItems: true
+        items: *id002
+    required:
+    - request_id
+    - account_id
+    - service
+    - counts
+    - retained
+  privacy_export_content:
+    type: object
+    additionalProperties: false
+    properties:
+      request_id: *id001
+      account_id: *id001
+      service:
+        const: content
+      data:
+        type: object
+        maxProperties: 40
+        propertyNames: *id002
+        additionalProperties:
+          type: array
+          maxItems: 1000
+          items:
+            type: object
+      withheld:
+        type: array
+        maxItems: 40
+        uniqueItems: true
+        items: *id002
+      truncated:
+        type: array
+        maxItems: 40
+        uniqueItems: true
+        items: *id002
+    required:
+    - request_id
+    - account_id
+    - service
+    - data
+    - withheld
+    - truncated
+  privacy_request_business:
+    type: object
+    additionalProperties: false
+    properties:
+      request_id: *id001
+      account_id: *id001
+      service:
+        const: business
+    required:
+    - request_id
+    - account_id
+    - service
+  privacy_confirmation_business:
+    type: object
+    additionalProperties: false
+    properties:
+      request_id: *id001
+      account_id: *id001
+      service:
+        const: business
+      counts:
+        type: object
+        maxProperties: 20
+        propertyNames: *id002
+        additionalProperties:
+          type: integer
+          minimum: 0
+      retained:
+        type: array
+        maxItems: 20
+        uniqueItems: true
+        items: *id002
+    required:
+    - request_id
+    - account_id
+    - service
+    - counts
+    - retained
+  privacy_export_business:
+    type: object
+    additionalProperties: false
+    properties:
+      request_id: *id001
+      account_id: *id001
+      service:
+        const: business
+      data:
+        type: object
+        maxProperties: 40
+        propertyNames: *id002
+        additionalProperties:
+          type: array
+          maxItems: 1000
+          items:
+            type: object
+      withheld:
+        type: array
+        maxItems: 40
+        uniqueItems: true
+        items: *id002
+      truncated:
+        type: array
+        maxItems: 40
+        uniqueItems: true
+        items: *id002
+    required:
+    - request_id
+    - account_id
+    - service
+    - data
+    - withheld
+    - truncated
+  kolovibe_finance_payment_succeeded_v1:
+    type: object
+    additionalProperties: false
+    properties:
+      schema_version:
+        const: 1
+      event_id: *id001
+      producer:
+        const: finance
+      type:
+        const: kolovibe.finance.payment.succeeded.v1
+      occurred_at: *id004
+      aggregate_id: *id001
+      aggregate_version:
+        type: integer
+        minimum: 1
+      correlation_id: *id001
+      payload_hash: &id005
+        type: string
+        pattern: ^[a-f0-9]{64}$
+      data:
+        type: object
+        additionalProperties: false
+        properties:
+          order_id: *id001
+          payment_id: *id001
+          journal_id: *id001
+          money: &id006
+            type: object
+            additionalProperties: false
+            properties:
+              amount:
+                type: string
+                pattern: ^(0|[1-9][0-9]*)(\.[0-9]+)?$
+                maxLength: 40
+              currency:
+                type: string
+                pattern: ^[A-Z]{3}$
+            required:
+            - amount
+            - currency
+        required:
+        - order_id
+        - payment_id
+        - journal_id
+        - money
+    required:
+    - schema_version
+    - event_id
+    - producer
+    - type
+    - occurred_at
+    - aggregate_id
+    - aggregate_version
+    - correlation_id
+    - payload_hash
+    - data
+  kolovibe_finance_payment_failed_v1:
+    type: object
+    additionalProperties: false
+    properties:
+      schema_version:
+        const: 1
+      event_id: *id001
+      producer:
+        const: finance
+      type:
+        const: kolovibe.finance.payment.failed.v1
+      occurred_at: *id004
+      aggregate_id: *id001
+      aggregate_version:
+        type: integer
+        minimum: 1
+      correlation_id: *id001
+      payload_hash: *id005
+      data:
+        type: object
+        additionalProperties: false
+        properties:
+          order_id: *id001
+          payment_id: *id001
+          reason_code: &id007
+            type: string
+            pattern: ^[a-z][a-z0-9_]*$
+            maxLength: 80
+        required:
+        - order_id
+        - payment_id
+        - reason_code
+    required:
+    - schema_version
+    - event_id
+    - producer
+    - type
+    - occurred_at
+    - aggregate_id
+    - aggregate_version
+    - correlation_id
+    - payload_hash
+    - data
+  kolovibe_finance_refund_settled_v1:
+    type: object
+    additionalProperties: false
+    properties:
+      schema_version:
+        const: 1
+      event_id: *id001
+      producer:
+        const: finance
+      type:
+        const: kolovibe.finance.refund.settled.v1
+      occurred_at: *id004
+      aggregate_id: *id001
+      aggregate_version:
+        type: integer
+        minimum: 1
+      correlation_id: *id001
+      payload_hash: *id005
+      data:
+        type: object
+        additionalProperties: false
+        properties:
+          order_id: *id001
+          refund_id: *id001
+          journal_id: *id001
+          money: *id006
+        required:
+        - order_id
+        - refund_id
+        - journal_id
+        - money
+    required:
+    - schema_version
+    - event_id
+    - producer
+    - type
+    - occurred_at
+    - aggregate_id
+    - aggregate_version
+    - correlation_id
+    - payload_hash
+    - data
+  kolovibe_finance_dispute_opened_v1:
+    type: object
+    additionalProperties: false
+    properties:
+      schema_version:
+        const: 1
+      event_id: *id001
+      producer:
+        const: finance
+      type:
+        const: kolovibe.finance.dispute.opened.v1
+      occurred_at: *id004
+      aggregate_id: *id001
+      aggregate_version:
+        type: integer
+        minimum: 1
+      correlation_id: *id001
+      payload_hash: *id005
+      data:
+        type: object
+        additionalProperties: false
+        properties:
+          payment_id: *id001
+          dispute_id: *id001
+          hold_id: *id001
+        required:
+        - payment_id
+        - dispute_id
+        - hold_id
+    required:
+    - schema_version
+    - event_id
+    - producer
+    - type
+    - occurred_at
+    - aggregate_id
+    - aggregate_version
+    - correlation_id
+    - payload_hash
+    - data
+  kolovibe_finance_payout_state_changed_v1:
+    type: object
+    additionalProperties: false
+    properties:
+      schema_version:
+        const: 1
+      event_id: *id001
+      producer:
+        const: finance
+      type:
+        const: kolovibe.finance.payout.state_changed.v1
+      occurred_at: *id004
+      aggregate_id: *id001
+      aggregate_version:
+        type: integer
+        minimum: 1
+      correlation_id: *id001
+      payload_hash: *id005
+      data:
+        type: object
+        additionalProperties: false
+        properties:
+          payee_id: *id001
+          payout_id: *id001
+          state: *id007
+        required:
+        - payee_id
+        - payout_id
+        - state
+    required:
+    - schema_version
+    - event_id
+    - producer
+    - type
+    - occurred_at
+    - aggregate_id
+    - aggregate_version
+    - correlation_id
+    - payload_hash
+    - data
+  kolovibe_finance_statement_available_v1:
+    type: object
+    additionalProperties: false
+    properties:
+      schema_version:
+        const: 1
+      event_id: *id001
+      producer:
+        const: finance
+      type:
+        const: kolovibe.finance.statement.available.v1
+      occurred_at: *id004
+      aggregate_id: *id001
+      aggregate_version:
+        type: integer
+        minimum: 1
+      correlation_id: *id001
+      payload_hash: *id005
+      data:
+        type: object
+        additionalProperties: false
+        properties:
+          payee_id: *id001
+          statement_id: *id001
+        required:
+        - payee_id
+        - statement_id
+    required:
+    - schema_version
+    - event_id
+    - producer
+    - type
+    - occurred_at
+    - aggregate_id
+    - aggregate_version
+    - correlation_id
+    - payload_hash
+    - data
+  kolovibe_events_order_created_v1:
+    type: object
+    additionalProperties: false
+    properties:
+      schema_version:
+        const: 1
+      event_id: *id001
+      producer:
+        const: events
+      type:
+        const: kolovibe.events.order.created.v1
+      occurred_at: *id004
+      aggregate_id: *id001
+      aggregate_version:
+        type: integer
+        minimum: 1
+      correlation_id: *id001
+      payload_hash: *id005
+      data:
+        type: object
+        additionalProperties: false
+        properties:
+          order_id: *id001
+          reservation_id: *id001
+          pricing_snapshot_hash: *id005
+        required:
+        - order_id
+        - reservation_id
+        - pricing_snapshot_hash
+    required:
+    - schema_version
+    - event_id
+    - producer
+    - type
+    - occurred_at
+    - aggregate_id
+    - aggregate_version
+    - correlation_id
+    - payload_hash
+    - data
+  kolovibe_events_event_cancelled_v1:
+    type: object
+    additionalProperties: false
+    properties:
+      schema_version:
+        const: 1
+      event_id: *id001
+      producer:
+        const: events
+      type:
+        const: kolovibe.events.event.cancelled.v1
+      occurred_at: *id004
+      aggregate_id: *id001
+      aggregate_version:
+        type: integer
+        minimum: 1
+      correlation_id: *id001
+      payload_hash: *id005
+      data:
+        type: object
+        additionalProperties: false
+        properties:
+          event_id: *id001
+          cancellation_id: *id001
+          policy_version: *id007
+        required:
+        - event_id
+        - cancellation_id
+        - policy_version
+    required:
+    - schema_version
+    - event_id
+    - producer
+    - type
+    - occurred_at
+    - aggregate_id
+    - aggregate_version
+    - correlation_id
+    - payload_hash
+    - data
+  kolovibe_events_ticket_issued_v1:
+    type: object
+    additionalProperties: false
+    properties:
+      schema_version:
+        const: 1
+      event_id: *id001
+      producer:
+        const: events
+      type:
+        const: kolovibe.events.ticket.issued.v1
+      occurred_at: *id004
+      aggregate_id: *id001
+      aggregate_version:
+        type: integer
+        minimum: 1
+      correlation_id: *id001
+      payload_hash: *id005
+      data:
+        type: object
+        additionalProperties: false
+        properties:
+          order_id: *id001
+          ticket_id: *id001
+        required:
+        - order_id
+        - ticket_id
+    required:
+    - schema_version
+    - event_id
+    - producer
+    - type
+    - occurred_at
+    - aggregate_id
+    - aggregate_version
+    - correlation_id
+    - payload_hash
+    - data
+  kolovibe_advertising_invoice_issued_v1:
+    type: object
+    additionalProperties: false
+    properties:
+      schema_version:
+        const: 1
+      event_id: *id001
+      producer:
+        const: advertising
+      type:
+        const: kolovibe.advertising.invoice.issued.v1
+      occurred_at: *id004
+      aggregate_id: *id001
+      aggregate_version:
+        type: integer
+        minimum: 1
+      correlation_id: *id001
+      payload_hash: *id005
+      data:
+        type: object
+        additionalProperties: false
+        properties:
+          invoice_id: *id001
+          fact_set_id: *id001
+          fact_set_hash: *id005
+          money: *id006
+        required:
+        - invoice_id
+        - fact_set_id
+        - fact_set_hash
+        - money
+    required:
+    - schema_version
+    - event_id
+    - producer
+    - type
+    - occurred_at
+    - aggregate_id
+    - aggregate_version
+    - correlation_id
+    - payload_hash
+    - data
+  kolovibe_advertising_correction_requested_v1:
+    type: object
+    additionalProperties: false
+    properties:
+      schema_version:
+        const: 1
+      event_id: *id001
+      producer:
+        const: advertising
+      type:
+        const: kolovibe.advertising.correction.requested.v1
+      occurred_at: *id004
+      aggregate_id: *id001
+      aggregate_version:
+        type: integer
+        minimum: 1
+      correlation_id: *id001
+      payload_hash: *id005
+      data:
+        type: object
+        additionalProperties: false
+        properties:
+          correction_id: *id001
+          invoice_id: *id001
+          reason_code: *id007
+        required:
+        - correction_id
+        - invoice_id
+        - reason_code
+    required:
+    - schema_version
+    - event_id
+    - producer
+    - type
+    - occurred_at
+    - aggregate_id
+    - aggregate_version
+    - correlation_id
+    - payload_hash
+    - data
+  kolovibe_advertising_review_decided_v1:
+    type: object
+    additionalProperties: false
+    properties:
+      schema_version:
+        const: 1
+      event_id: *id001
+      producer:
+        const: advertising
+      type:
+        const: kolovibe.advertising.review.decided.v1
+      occurred_at: *id004
+      aggregate_id: *id001
+      aggregate_version:
+        type: integer
+        minimum: 1
+      correlation_id: *id001
+      payload_hash: *id005
+      data:
+        type: object
+        additionalProperties: false
+        properties:
+          advertiser_id: *id001
+          campaign_id: *id001
+          decision_id: *id001
+          outcome: *id007
+        required:
+        - advertiser_id
+        - campaign_id
+        - decision_id
+        - outcome
+    required:
+    - schema_version
+    - event_id
+    - producer
+    - type
+    - occurred_at
+    - aggregate_id
+    - aggregate_version
+    - correlation_id
+    - payload_hash
+    - data
+  kolovibe_points_eligible_snapshot_finalized_v1:
+    type: object
+    additionalProperties: false
+    properties:
+      schema_version:
+        const: 1
+      event_id: *id001
+      producer:
+        const: points
+      type:
+        const: kolovibe.points.eligible_snapshot.finalized.v1
+      occurred_at: *id004
+      aggregate_id: *id001
+      aggregate_version:
+        type: integer
+        minimum: 1
+      correlation_id: *id001
+      payload_hash: *id005
+      data:
+        type: object
+        additionalProperties: false
+        properties:
+          snapshot_id: *id001
+          period_id: *id001
+          rule_version: *id007
+          snapshot_hash: *id005
+        required:
+        - snapshot_id
+        - period_id
+        - rule_version
+        - snapshot_hash
+    required:
+    - schema_version
+    - event_id
+    - producer
+    - type
+    - occurred_at
+    - aggregate_id
+    - aggregate_version
+    - correlation_id
+    - payload_hash
+    - data
+  kolovibe_engagement_comment_created_v1:
+    type: object
+    additionalProperties: false
+    properties:
+      schema_version:
+        const: 1
+      event_id: *id001
+      producer:
+        const: engagement
+      type:
+        const: kolovibe.engagement.comment.created.v1
+      occurred_at: *id004
+      aggregate_id: *id001
+      aggregate_version:
+        type: integer
+        minimum: 1
+      correlation_id: *id001
+      payload_hash: *id005
+      data:
+        type: object
+        additionalProperties: false
+        properties:
+          comment_id: *id001
+          video_id: *id001
+          parent_id: *id003
+        required:
+        - comment_id
+        - video_id
+        - parent_id
+    required:
+    - schema_version
+    - event_id
+    - producer
+    - type
+    - occurred_at
+    - aggregate_id
+    - aggregate_version
+    - correlation_id
+    - payload_hash
+    - data
+  kolovibe_engagement_comment_removed_v1:
+    type: object
+    additionalProperties: false
+    properties:
+      schema_version:
+        const: 1
+      event_id: *id001
+      producer:
+        const: engagement
+      type:
+        const: kolovibe.engagement.comment.removed.v1
+      occurred_at: *id004
+      aggregate_id: *id001
+      aggregate_version:
+        type: integer
+        minimum: 1
+      correlation_id: *id001
+      payload_hash: *id005
+      data:
+        type: object
+        additionalProperties: false
+        properties:
+          comment_id: *id001
+          video_id: *id001
+          reason_code: *id007
+        required:
+        - comment_id
+        - video_id
+        - reason_code
+    required:
+    - schema_version
+    - event_id
+    - producer
+    - type
+    - occurred_at
+    - aggregate_id
+    - aggregate_version
+    - correlation_id
+    - payload_hash
+    - data
+  kolovibe_moderation_decision_applied_v1:
+    type: object
+    additionalProperties: false
+    properties:
+      schema_version:
+        const: 1
+      event_id: *id001
+      producer:
+        const: moderation
+      type:
+        const: kolovibe.moderation.decision.applied.v1
+      occurred_at: *id004
+      aggregate_id: *id001
+      aggregate_version:
+        type: integer
+        minimum: 1
+      correlation_id: *id001
+      payload_hash: *id005
+      data:
+        type: object
+        additionalProperties: false
+        properties:
+          decision_id: *id001
+          target_id: *id001
+          target_type:
+            enum:
+            - video
+            - comment
+            - report
+          outcome: *id007
+          policy_version: *id007
+        required:
+        - decision_id
+        - target_id
+        - target_type
+        - outcome
+        - policy_version
+    required:
+    - schema_version
+    - event_id
+    - producer
+    - type
+    - occurred_at
+    - aggregate_id
+    - aggregate_version
+    - correlation_id
+    - payload_hash
+    - data
+  kolovibe_content_video_state_changed_v1:
+    type: object
+    additionalProperties: false
+    properties:
+      schema_version:
+        const: 1
+      event_id: *id001
+      producer:
+        const: content
+      type:
+        const: kolovibe.content.video.state_changed.v1
+      occurred_at: *id004
+      aggregate_id: *id001
+      aggregate_version:
+        type: integer
+        minimum: 1
+      correlation_id: *id001
+      payload_hash: *id005
+      data:
+        type: object
+        additionalProperties: false
+        properties:
+          video_id: *id001
+          creator_id: *id001
+          state: *id007
+        required:
+        - video_id
+        - creator_id
+        - state
+    required:
+    - schema_version
+    - event_id
+    - producer
+    - type
+    - occurred_at
+    - aggregate_id
+    - aggregate_version
+    - correlation_id
+    - payload_hash
+    - data
+  kolovibe_content_image_ready_v1:
+    type: object
+    additionalProperties: false
+    properties:
+      schema_version:
+        const: 1
+      event_id: *id001
+      producer:
+        const: content
+      type:
+        const: kolovibe.content.image.ready.v1
+      occurred_at: *id004
+      aggregate_id: *id001
+      aggregate_version:
+        type: integer
+        minimum: 1
+      correlation_id: *id001
+      payload_hash: *id005
+      data:
+        type: object
+        additionalProperties: false
+        properties:
+          asset_id: *id001
+          subject_id: *id001
+          purpose:
+            enum:
+            - event_image
+            - ad_creative
+        required:
+        - asset_id
+        - subject_id
+        - purpose
+    required:
+    - schema_version
+    - event_id
+    - producer
+    - type
+    - occurred_at
+    - aggregate_id
+    - aggregate_version
+    - correlation_id
+    - payload_hash
+    - data
+  kolovibe_creators_measure_changed_v1:
+    type: object
+    additionalProperties: false
+    properties:
+      schema_version:
+        const: 1
+      event_id: *id001
+      producer:
+        const: creators
+      type:
+        const: kolovibe.creators.measure.changed.v1
+      occurred_at: *id004
+      aggregate_id: *id001
+      aggregate_version:
+        type: integer
+        minimum: 1
+      correlation_id: *id001
+      payload_hash: *id005
+      data:
+        type: object
+        additionalProperties: false
+        properties:
+          creator_id: *id001
+          measure_id: *id001
+          outcome: *id007
+        required:
+        - creator_id
+        - measure_id
+        - outcome
+    required:
+    - schema_version
+    - event_id
+    - producer
+    - type
+    - occurred_at
+    - aggregate_id
+    - aggregate_version
+    - correlation_id
+    - payload_hash
+    - data
+  kolovibe_engagement_follow_created_v1:
+    type: object
+    additionalProperties: false
+    properties:
+      schema_version:
+        const: 1
+      event_id: *id001
+      producer:
+        const: engagement
+      type:
+        const: kolovibe.engagement.follow.created.v1
+      occurred_at: *id004
+      aggregate_id: *id001
+      aggregate_version:
+        type: integer
+        minimum: 1
+      correlation_id: *id001
+      payload_hash: *id005
+      data:
+        type: object
+        additionalProperties: false
+        properties:
+          follower_id: *id001
+          creator_id: *id001
+        required:
+        - follower_id
+        - creator_id
+    required:
+    - schema_version
+    - event_id
+    - producer
+    - type
+    - occurred_at
+    - aggregate_id
+    - aggregate_version
+    - correlation_id
+    - payload_hash
+    - data
+  kolovibe_business_inquiry_created_v1:
+    type: object
+    additionalProperties: false
+    properties:
+      schema_version:
+        const: 1
+      event_id: *id001
+      producer:
+        const: business
+      type:
+        const: kolovibe.business.inquiry.created.v1
+      occurred_at: *id004
+      aggregate_id: *id001
+      aggregate_version:
+        type: integer
+        minimum: 1
+      correlation_id: *id001
+      payload_hash: *id005
+      data:
+        type: object
+        additionalProperties: false
+        properties:
+          business_id: *id001
+          inquiry_id: *id001
+        required:
+        - business_id
+        - inquiry_id
+    required:
+    - schema_version
+    - event_id
+    - producer
+    - type
+    - occurred_at
+    - aggregate_id
+    - aggregate_version
+    - correlation_id
+    - payload_hash
+    - data
+  kolovibe_business_review_responded_v1:
+    type: object
+    additionalProperties: false
+    properties:
+      schema_version:
+        const: 1
+      event_id: *id001
+      producer:
+        const: business
+      type:
+        const: kolovibe.business.review.responded.v1
+      occurred_at: *id004
+      aggregate_id: *id001
+      aggregate_version:
+        type: integer
+        minimum: 1
+      correlation_id: *id001
+      payload_hash: *id005
+      data:
+        type: object
+        additionalProperties: false
+        properties:
+          business_id: *id001
+          review_id: *id001
+        required:
+        - business_id
+        - review_id
+    required:
+    - schema_version
+    - event_id
+    - producer
+    - type
+    - occurred_at
+    - aggregate_id
+    - aggregate_version
+    - correlation_id
+    - payload_hash
+    - data
+  kolovibe_business_verification_decided_v1:
+    type: object
+    additionalProperties: false
+    properties:
+      schema_version:
+        const: 1
+      event_id: *id001
+      producer:
+        const: business
+      type:
+        const: kolovibe.business.verification.decided.v1
+      occurred_at: *id004
+      aggregate_id: *id001
+      aggregate_version:
+        type: integer
+        minimum: 1
+      correlation_id: *id001
+      payload_hash: *id005
+      data:
+        type: object
+        additionalProperties: false
+        properties:
+          business_id: *id001
+          decision_id: *id001
+          outcome: *id007
+        required:
+        - business_id
+        - decision_id
+        - outcome
+    required:
+    - schema_version
+    - event_id
+    - producer
+    - type
+    - occurred_at
+    - aggregate_id
+    - aggregate_version
+    - correlation_id
+    - payload_hash
+    - data
+  kolovibe_identity_security_changed_v1:
+    type: object
+    additionalProperties: false
+    properties:
+      schema_version:
+        const: 1
+      event_id: *id001
+      producer:
+        const: identity
+      type:
+        const: kolovibe.identity.security.changed.v1
+      occurred_at: *id004
+      aggregate_id: *id001
+      aggregate_version:
+        type: integer
+        minimum: 1
+      correlation_id: *id001
+      payload_hash: *id005
+      data:
+        type: object
+        additionalProperties: false
+        properties:
+          account_id: *id001
+          reason_code: *id007
+        required:
+        - account_id
+        - reason_code
+    required:
+    - schema_version
+    - event_id
+    - producer
+    - type
+    - occurred_at
+    - aggregate_id
+    - aggregate_version
+    - correlation_id
+    - payload_hash
+    - data
+  kolovibe_identity_privacy_state_changed_v1:
+    type: object
+    additionalProperties: false
+    properties:
+      schema_version:
+        const: 1
+      event_id: *id001
+      producer:
+        const: identity
+      type:
+        const: kolovibe.identity.privacy.state_changed.v1
+      occurred_at: *id004
+      aggregate_id: *id001
+      aggregate_version:
+        type: integer
+        minimum: 1
+      correlation_id: *id001
+      payload_hash: *id005
+      data:
+        type: object
+        additionalProperties: false
+        properties:
+          account_id: *id001
+          request_id: *id001
+          state: *id007
+        required:
+        - account_id
+        - request_id
+        - state
+    required:
+    - schema_version
+    - event_id
+    - producer
+    - type
+    - occurred_at
+    - aggregate_id
+    - aggregate_version
+    - correlation_id
+    - payload_hash
+    - data
+  kolovibe_identity_notification_delivered_v1:
+    type: object
+    additionalProperties: false
+    properties:
+      schema_version:
+        const: 1
+      event_id: *id001
+      producer:
+        const: identity
+      type:
+        const: kolovibe.identity.notification.delivered.v1
+      occurred_at: *id004
+      aggregate_id: *id001
+      aggregate_version:
+        type: integer
+        minimum: 1
+      correlation_id: *id001
+      payload_hash: *id005
+      data:
+        type: object
+        additionalProperties: false
+        properties:
+          notification_id: *id001
+          channel:
+            enum:
+            - inbox
+            - push
+            - email
+          outcome: *id007
+        required:
+        - notification_id
+        - channel
+        - outcome
+    required:
+    - schema_version
+    - event_id
+    - producer
+    - type
+    - occurred_at
+    - aggregate_id
+    - aggregate_version
+    - correlation_id
+    - payload_hash
+    - data
+  kolovibe_identity_consent_changed_v1:
+    type: object
+    additionalProperties: false
+    properties:
+      schema_version:
+        const: 1
+      event_id: *id001
+      producer:
+        const: identity
+      type:
+        const: kolovibe.identity.consent.changed.v1
+      occurred_at: *id004
+      aggregate_id: *id001
+      aggregate_version:
+        type: integer
+        minimum: 1
+      correlation_id: *id001
+      payload_hash: *id005
+      data:
+        type: object
+        additionalProperties: false
+        properties:
+          account_id: *id001
+          purpose: *id007
+          granted:
+            type: boolean
+          consent_version: *id007
+        required:
+        - account_id
+        - purpose
+        - granted
+        - consent_version
+    required:
+    - schema_version
+    - event_id
+    - producer
+    - type
+    - occurred_at
+    - aggregate_id
+    - aggregate_version
+    - correlation_id
+    - payload_hash
+    - data
+events:
+- event_type: dec003.qualified_view
+  producer: engagement
+  consumer: points
+  status: built
+  envelope: legacy
+  schema: qualified_view
+  task: kolovibe.points.event
+  queue: kolovibe.points
+  exchange: kolovibe.points
+  routing_key: kolovibe.points
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+- event_type: privacy.erasure_requested
+  producer: identity
+  consumer: engagement
+  status: built
+  envelope: legacy
+  schema: privacy_request_engagement
+  task: kolovibe.engagement.event
+  queue: kolovibe.engagement
+  exchange: kolovibe.engagement
+  routing_key: kolovibe.engagement
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+- event_type: privacy.export_requested
+  producer: identity
+  consumer: engagement
+  status: built
+  envelope: legacy
+  schema: privacy_request_engagement
+  task: kolovibe.engagement.event
+  queue: kolovibe.engagement
+  exchange: kolovibe.engagement
+  routing_key: kolovibe.engagement
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+- event_type: privacy.erasure_confirmed
+  producer: engagement
+  consumer: identity
+  status: built
+  envelope: legacy
+  schema: privacy_confirmation_engagement
+  task: kolovibe.identity.event
+  queue: kolovibe.identity
+  exchange: kolovibe.identity
+  routing_key: kolovibe.identity
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+- event_type: privacy.export_delivered
+  producer: engagement
+  consumer: identity
+  status: built
+  envelope: legacy
+  schema: privacy_export_engagement
+  task: kolovibe.identity.event
+  queue: kolovibe.identity
+  exchange: kolovibe.identity
+  routing_key: kolovibe.identity
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+- event_type: privacy.erasure_requested
+  producer: identity
+  consumer: creators
+  status: built
+  envelope: legacy
+  schema: privacy_request_creators
+  task: kolovibe.creators.event
+  queue: kolovibe.creators
+  exchange: kolovibe.creators
+  routing_key: kolovibe.creators
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+- event_type: privacy.export_requested
+  producer: identity
+  consumer: creators
+  status: built
+  envelope: legacy
+  schema: privacy_request_creators
+  task: kolovibe.creators.event
+  queue: kolovibe.creators
+  exchange: kolovibe.creators
+  routing_key: kolovibe.creators
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+- event_type: privacy.erasure_confirmed
+  producer: creators
+  consumer: identity
+  status: built
+  envelope: legacy
+  schema: privacy_confirmation_creators
+  task: kolovibe.identity.event
+  queue: kolovibe.identity
+  exchange: kolovibe.identity
+  routing_key: kolovibe.identity
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+- event_type: privacy.export_delivered
+  producer: creators
+  consumer: identity
+  status: built
+  envelope: legacy
+  schema: privacy_export_creators
+  task: kolovibe.identity.event
+  queue: kolovibe.identity
+  exchange: kolovibe.identity
+  routing_key: kolovibe.identity
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+- event_type: privacy.erasure_requested
+  producer: identity
+  consumer: moderation
+  status: built
+  envelope: legacy
+  schema: privacy_request_moderation
+  task: kolovibe.moderation.event
+  queue: kolovibe.moderation
+  exchange: kolovibe.moderation
+  routing_key: kolovibe.moderation
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+- event_type: privacy.export_requested
+  producer: identity
+  consumer: moderation
+  status: built
+  envelope: legacy
+  schema: privacy_request_moderation
+  task: kolovibe.moderation.event
+  queue: kolovibe.moderation
+  exchange: kolovibe.moderation
+  routing_key: kolovibe.moderation
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+- event_type: privacy.erasure_confirmed
+  producer: moderation
+  consumer: identity
+  status: built
+  envelope: legacy
+  schema: privacy_confirmation_moderation
+  task: kolovibe.identity.event
+  queue: kolovibe.identity
+  exchange: kolovibe.identity
+  routing_key: kolovibe.identity
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+- event_type: privacy.export_delivered
+  producer: moderation
+  consumer: identity
+  status: built
+  envelope: legacy
+  schema: privacy_export_moderation
+  task: kolovibe.identity.event
+  queue: kolovibe.identity
+  exchange: kolovibe.identity
+  routing_key: kolovibe.identity
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+- event_type: privacy.erasure_requested
+  producer: identity
+  consumer: content
+  status: built
+  envelope: legacy
+  schema: privacy_request_content
+  task: kolovibe.content.event
+  queue: kolovibe.content.media
+  exchange: kolovibe.content.media
+  routing_key: kolovibe.content.media
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+- event_type: privacy.export_requested
+  producer: identity
+  consumer: content
+  status: built
+  envelope: legacy
+  schema: privacy_request_content
+  task: kolovibe.content.event
+  queue: kolovibe.content.media
+  exchange: kolovibe.content.media
+  routing_key: kolovibe.content.media
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+- event_type: privacy.erasure_confirmed
+  producer: content
+  consumer: identity
+  status: built
+  envelope: legacy
+  schema: privacy_confirmation_content
+  task: kolovibe.identity.event
+  queue: kolovibe.identity
+  exchange: kolovibe.identity
+  routing_key: kolovibe.identity
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+- event_type: privacy.export_delivered
+  producer: content
+  consumer: identity
+  status: built
+  envelope: legacy
+  schema: privacy_export_content
+  task: kolovibe.identity.event
+  queue: kolovibe.identity
+  exchange: kolovibe.identity
+  routing_key: kolovibe.identity
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+- event_type: privacy.erasure_requested
+  producer: identity
+  consumer: business
+  status: built
+  envelope: legacy
+  schema: privacy_request_business
+  task: kolovibe.business.event
+  queue: kolovibe.business
+  exchange: kolovibe.business
+  routing_key: kolovibe.business
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+- event_type: privacy.export_requested
+  producer: identity
+  consumer: business
+  status: built
+  envelope: legacy
+  schema: privacy_request_business
+  task: kolovibe.business.event
+  queue: kolovibe.business
+  exchange: kolovibe.business
+  routing_key: kolovibe.business
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+- event_type: privacy.erasure_confirmed
+  producer: business
+  consumer: identity
+  status: built
+  envelope: legacy
+  schema: privacy_confirmation_business
+  task: kolovibe.identity.event
+  queue: kolovibe.identity
+  exchange: kolovibe.identity
+  routing_key: kolovibe.identity
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+- event_type: privacy.export_delivered
+  producer: business
+  consumer: identity
+  status: built
+  envelope: legacy
+  schema: privacy_export_business
+  task: kolovibe.identity.event
+  queue: kolovibe.identity
+  exchange: kolovibe.identity
+  routing_key: kolovibe.identity
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+- event_type: kolovibe.finance.payment.succeeded.v1
+  producer: finance
+  consumer: events
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_finance_payment_succeeded_v1
+  task: kolovibe.events.domain_event.v1
+  queue: kolovibe.events
+  exchange: kolovibe.events
+  routing_key: kolovibe.events
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: PAY-R-007
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.finance.payment.succeeded.v1
+  producer: finance
+  consumer: identity
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_finance_payment_succeeded_v1
+  task: kolovibe.identity.domain_event.v1
+  queue: kolovibe.identity.notify
+  exchange: kolovibe.identity.notify
+  routing_key: kolovibe.identity.notify
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: PAY-R-007
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.finance.payment.failed.v1
+  producer: finance
+  consumer: events
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_finance_payment_failed_v1
+  task: kolovibe.events.domain_event.v1
+  queue: kolovibe.events
+  exchange: kolovibe.events
+  routing_key: kolovibe.events
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: PAY-R-006
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.finance.payment.failed.v1
+  producer: finance
+  consumer: identity
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_finance_payment_failed_v1
+  task: kolovibe.identity.domain_event.v1
+  queue: kolovibe.identity.notify
+  exchange: kolovibe.identity.notify
+  routing_key: kolovibe.identity.notify
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: PAY-R-006
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.finance.refund.settled.v1
+  producer: finance
+  consumer: events
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_finance_refund_settled_v1
+  task: kolovibe.events.domain_event.v1
+  queue: kolovibe.events
+  exchange: kolovibe.events
+  routing_key: kolovibe.events
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: PAY-R-009
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.finance.refund.settled.v1
+  producer: finance
+  consumer: identity
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_finance_refund_settled_v1
+  task: kolovibe.identity.domain_event.v1
+  queue: kolovibe.identity.notify
+  exchange: kolovibe.identity.notify
+  routing_key: kolovibe.identity.notify
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: PAY-R-009
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.finance.dispute.opened.v1
+  producer: finance
+  consumer: events
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_finance_dispute_opened_v1
+  task: kolovibe.events.domain_event.v1
+  queue: kolovibe.events
+  exchange: kolovibe.events
+  routing_key: kolovibe.events
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: PAY-R-011
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.finance.payout.state_changed.v1
+  producer: finance
+  consumer: identity
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_finance_payout_state_changed_v1
+  task: kolovibe.identity.domain_event.v1
+  queue: kolovibe.identity.notify
+  exchange: kolovibe.identity.notify
+  routing_key: kolovibe.identity.notify
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: PAY-R-016; NT-FN
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.finance.statement.available.v1
+  producer: finance
+  consumer: identity
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_finance_statement_available_v1
+  task: kolovibe.identity.domain_event.v1
+  queue: kolovibe.identity.notify
+  exchange: kolovibe.identity.notify
+  routing_key: kolovibe.identity.notify
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: NT-FN
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.events.order.created.v1
+  producer: events
+  consumer: finance
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_events_order_created_v1
+  task: kolovibe.finance.domain_event.v1
+  queue: kolovibe.finance
+  exchange: kolovibe.finance
+  routing_key: kolovibe.finance
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: EV-R-030..065; PAY-R-003
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.events.event.cancelled.v1
+  producer: events
+  consumer: finance
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_events_event_cancelled_v1
+  task: kolovibe.finance.domain_event.v1
+  queue: kolovibe.finance
+  exchange: kolovibe.finance
+  routing_key: kolovibe.finance
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: PAY-R-010
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.events.event.cancelled.v1
+  producer: events
+  consumer: identity
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_events_event_cancelled_v1
+  task: kolovibe.identity.domain_event.v1
+  queue: kolovibe.identity.notify
+  exchange: kolovibe.identity.notify
+  routing_key: kolovibe.identity.notify
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: PAY-R-010
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.events.ticket.issued.v1
+  producer: events
+  consumer: identity
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_events_ticket_issued_v1
+  task: kolovibe.identity.domain_event.v1
+  queue: kolovibe.identity.notify
+  exchange: kolovibe.identity.notify
+  routing_key: kolovibe.identity.notify
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: NT-EV
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.advertising.invoice.issued.v1
+  producer: advertising
+  consumer: finance
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_advertising_invoice_issued_v1
+  task: kolovibe.finance.domain_event.v1
+  queue: kolovibe.finance
+  exchange: kolovibe.finance
+  routing_key: kolovibe.finance
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: AD-R-070; Decision J
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.advertising.correction.requested.v1
+  producer: advertising
+  consumer: finance
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_advertising_correction_requested_v1
+  task: kolovibe.finance.domain_event.v1
+  queue: kolovibe.finance
+  exchange: kolovibe.finance
+  routing_key: kolovibe.finance
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: AD-R-070; Finance approval required
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.advertising.review.decided.v1
+  producer: advertising
+  consumer: identity
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_advertising_review_decided_v1
+  task: kolovibe.identity.domain_event.v1
+  queue: kolovibe.identity.notify
+  exchange: kolovibe.identity.notify
+  routing_key: kolovibe.identity.notify
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: NT-AD
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.points.eligible_snapshot.finalized.v1
+  producer: points
+  consumer: finance
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_points_eligible_snapshot_finalized_v1
+  task: kolovibe.finance.domain_event.v1
+  queue: kolovibe.finance
+  exchange: kolovibe.finance
+  routing_key: kolovibe.finance
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: Decision J; weighting only; not a monetary event
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.engagement.comment.created.v1
+  producer: engagement
+  consumer: identity
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_engagement_comment_created_v1
+  task: kolovibe.identity.domain_event.v1
+  queue: kolovibe.identity.notify
+  exchange: kolovibe.identity.notify
+  routing_key: kolovibe.identity.notify
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: CM-R-019
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.engagement.comment.removed.v1
+  producer: engagement
+  consumer: identity
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_engagement_comment_removed_v1
+  task: kolovibe.identity.domain_event.v1
+  queue: kolovibe.identity.notify
+  exchange: kolovibe.identity.notify
+  routing_key: kolovibe.identity.notify
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: CM-R-014
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.moderation.decision.applied.v1
+  producer: moderation
+  consumer: engagement
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_moderation_decision_applied_v1
+  task: kolovibe.engagement.domain_event.v1
+  queue: kolovibe.engagement
+  exchange: kolovibe.engagement
+  routing_key: kolovibe.engagement
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: CM-R-014; NT-MOD-OUTCOME
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.moderation.decision.applied.v1
+  producer: moderation
+  consumer: identity
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_moderation_decision_applied_v1
+  task: kolovibe.identity.domain_event.v1
+  queue: kolovibe.identity.notify
+  exchange: kolovibe.identity.notify
+  routing_key: kolovibe.identity.notify
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: CM-R-014; NT-MOD-OUTCOME
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.content.video.state_changed.v1
+  producer: content
+  consumer: identity
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_content_video_state_changed_v1
+  task: kolovibe.identity.domain_event.v1
+  queue: kolovibe.identity.notify
+  exchange: kolovibe.identity.notify
+  routing_key: kolovibe.identity.notify
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: NT-CR-UPLOAD
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.content.image.ready.v1
+  producer: content
+  consumer: events
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_content_image_ready_v1
+  task: kolovibe.events.domain_event.v1
+  queue: kolovibe.events
+  exchange: kolovibe.events
+  routing_key: kolovibe.events
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: GD-05
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.content.image.ready.v1
+  producer: content
+  consumer: advertising
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_content_image_ready_v1
+  task: kolovibe.advertising.domain_event.v1
+  queue: kolovibe.advertising
+  exchange: kolovibe.advertising
+  routing_key: kolovibe.advertising
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: GD-05
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.creators.measure.changed.v1
+  producer: creators
+  consumer: identity
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_creators_measure_changed_v1
+  task: kolovibe.identity.domain_event.v1
+  queue: kolovibe.identity.notify
+  exchange: kolovibe.identity.notify
+  routing_key: kolovibe.identity.notify
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: Decision F; NT-CR-MEASURE
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.creators.measure.changed.v1
+  producer: creators
+  consumer: finance
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_creators_measure_changed_v1
+  task: kolovibe.finance.domain_event.v1
+  queue: kolovibe.finance
+  exchange: kolovibe.finance
+  routing_key: kolovibe.finance
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: Decision F; NT-CR-MEASURE
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.engagement.follow.created.v1
+  producer: engagement
+  consumer: identity
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_engagement_follow_created_v1
+  task: kolovibe.identity.domain_event.v1
+  queue: kolovibe.identity.notify
+  exchange: kolovibe.identity.notify
+  routing_key: kolovibe.identity.notify
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: NT-EN-FOLLOW
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.business.inquiry.created.v1
+  producer: business
+  consumer: identity
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_business_inquiry_created_v1
+  task: kolovibe.identity.domain_event.v1
+  queue: kolovibe.identity.notify
+  exchange: kolovibe.identity.notify
+  routing_key: kolovibe.identity.notify
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: NT-BZ
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.business.review.responded.v1
+  producer: business
+  consumer: identity
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_business_review_responded_v1
+  task: kolovibe.identity.domain_event.v1
+  queue: kolovibe.identity.notify
+  exchange: kolovibe.identity.notify
+  routing_key: kolovibe.identity.notify
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: NT-BZ
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.business.verification.decided.v1
+  producer: business
+  consumer: identity
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_business_verification_decided_v1
+  task: kolovibe.identity.domain_event.v1
+  queue: kolovibe.identity.notify
+  exchange: kolovibe.identity.notify
+  routing_key: kolovibe.identity.notify
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: NT-BZ
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.identity.security.changed.v1
+  producer: identity
+  consumer: identity
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_identity_security_changed_v1
+  task: kolovibe.identity.domain_event.v1
+  queue: kolovibe.identity.notify
+  exchange: kolovibe.identity.notify
+  routing_key: kolovibe.identity.notify
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: NT-SEC
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.identity.privacy.state_changed.v1
+  producer: identity
+  consumer: identity
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_identity_privacy_state_changed_v1
+  task: kolovibe.identity.domain_event.v1
+  queue: kolovibe.identity.notify
+  exchange: kolovibe.identity.notify
+  routing_key: kolovibe.identity.notify
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: NT-PV-REQUEST
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.identity.notification.delivered.v1
+  producer: identity
+  consumer: identity
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_identity_notification_delivered_v1
+  task: kolovibe.identity.domain_event.v1
+  queue: kolovibe.identity.notify
+  exchange: kolovibe.identity.notify
+  routing_key: kolovibe.identity.notify
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: NT-R-012; metrics only; MUST NOT trigger another notification
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+- event_type: kolovibe.identity.consent.changed.v1
+  producer: identity
+  consumer: advertising
+  status: planned
+  envelope: domain-v1
+  schema: kolovibe_identity_consent_changed_v1
+  task: kolovibe.advertising.domain_event.v1
+  queue: kolovibe.advertising
+  exchange: kolovibe.advertising
+  routing_key: kolovibe.advertising
+  effect: Consumer owns mutation; inbox and mutation in one transaction
+  issue: 305
+  requirements: GD-06; revoke cached assertions
+  authorization: authenticated producer/type allowlist plus audience-bound envelope signature; never trust producer
+    field alone
+audit_http:
+  transport: Signed HTTP /internal/security-events, not RabbitMQ
+  source: services/audit/service/events.py::PRODUCER_KINDS
+  status: 'built; runtime delivery evidence tracked separately #271/#272'
+  producers:
+    identity:
+    - account.administrator_role_granted
+    - account.creator_candidate_looked_up
+    - account.creator_role_granted
+    - account.deactivated
+    - account.legal_accepted
+    - account.marketing_consent_changed
+    - account.password_changed
+    - account.password_reset
+    - account.password_reset_code_failed
+    - account.password_reset_requested
+    - account.password_reset_throttled
+    - account.preferences_updated
+    - account.privacy_access_approved
+    - account.privacy_deletion_approved
+    - account.privacy_erasure_completed
+    - account.privacy_erasure_confirmed
+    - account.privacy_erasure_reapplied
+    - account.privacy_erasure_recovered
+    - account.privacy_export_denied
+    - account.privacy_export_part_received
+    - account.privacy_export_purged
+    - account.privacy_export_ready
+    - account.privacy_export_retrieved
+    - account.privacy_hold_placed
+    - account.privacy_hold_released
+    - account.privacy_request_declined
+    - account.privacy_request_received
+    - account.privacy_requests_listed
+    - account.privacy_review_denied
+    - account.privacy_review_started
+    - account.profile_updated
+    - account.reauthenticated
+    - account.reauthentication_failed
+    - account.reauthentication_throttled
+    - account.registered
+    - account.registration_attempt_existing
+    - account.step_up_consumed
+    - account.step_up_issued
+    - account.step_up_rejected
+    - account.verification_code_failed
+    - account.verification_resent
+    - account.verification_throttled
+    - account.verified
+    - login.failed
+    - login.succeeded
+    - login.throttled
+    - mfa.challenge
+    - mfa.enrolled
+    - mfa.failed
+    - mfa.recovery_used
+    - mfa.succeeded
+    - moderator.invitation_accepted
+    - moderator.invitation_created
+    - moderator.invitation_denied
+    - moderator.invitation_failed
+    - moderator.invitation_listed
+    - moderator.invitation_revoked
+    - moderator.invitation_setup_started
+    - moderator.invitation_throttled
+    - session.listed
+    - session.replay
+    - session.revoked
+    - session.rotated
+    moderation:
+    - moderation.appeal_created
+    - moderation.assignment_changed
+    - moderation.assignment_denied
+    - moderation.copyright_status_read
+    - moderation.counter_notice_created
+    - moderation.decision_applied
+    - moderation.decision_conflicted
+    - moderation.decision_recorded
+    - moderation.fraud_scope_read
+    - moderation.preview_read
+    - moderation.report_created
+    - moderation.reviewer_read
+    - moderation.rights_holder_revoked
+    - moderation.rights_holder_verified
+    - moderation.totals_read
+    creators:
+    - creator.application_submitted
+    - creator.approved
+    - creator.invitation_revoked
+    - creator.invited
+    - creator.profile_updated
+    - creator.rejected
+    - creator.restored
+    - creator.restricted
+    - creator.restriction_appeal_decided
+    - creator.restriction_appealed
+    - creator.suspended
+    - creator.warned
+    content:
+    - video.created
+    - video.deleted
+    - video.edit_approved
+    - video.edit_rejected
+    - video.edit_submitted
+    - video.edit_withdrawn
+    - video.moderated
+    - video.processing_failed
+    - video.processing_succeeded
+    - video.published
+    - video.unpublished
+    - video.updated
+    - video.upload_completed
+    - video.upload_intent_created
+    business:
+    - business.category_changed
+    - business.hours_replaced
+    - business.inquiry_blocked
+    - business.inquiry_closed
+    - business.inquiry_confirmed
+    - business.inquiry_created
+    - business.invitation_created
+    - business.invitation_redeemed
+    - business.invitation_revoked
+    - business.listing_published
+    - business.listing_unpublished
+    - business.membership_granted
+    - business.membership_revoked
+    - business.profile_applied
+    - business.profile_decided
+    - business.profile_edited
+    - business.profile_queue_read
+    - business.profile_revision_read
+    - business.profile_submitted
+    - business.registered
+    - business.registration_grant_changed
+    - business.report_case_read
+    - business.report_created
+    - business.report_decided
+    - business.report_queue_read
+    - business.review_created
+    - business.review_edited
+    - business.review_held
+    - business.review_invitation_created
+    - business.review_invitation_revoked
+    - business.review_responded
+    - business.review_withdrawn
+    - business.reviewer_grant_changed
+    - business.verification_case_read
+    - business.verification_claimed
+    - business.verification_decided
+    - business.verification_queue_read
+    - business.verification_responded
+    - business.verification_submitted
+    points:
+    - points.adjusted
+    - points.awarded
+    - points.reversed
+    - points.review_denied
+    - points.review_read
+    - points.withheld
+consumer_sources:
+- services/identity/service/celery_app.py
+- services/engagement/service/celery_app.py
+- services/points/service/celery_app.py
+- services/creators/service/celery_app.py
+- services/moderation/service/celery_app.py
+- services/business/service/celery_app.py
+- services/content/service/media_tasks.py
+legacy_gaps:
+- source: services/points/service/events.py
+  issue: 305
+  detail: Generic local/foundation events publish via default Celery exchange; not an approved cross-service domain
+    contract. Only documented qualified-view input may cause Points awards. Migration to named exchanges requires
+    reviewed runtime work.
+- source: services/points/service/celery_app.py
+  issue: 311
+  detail: max_retries=None for DB errors; current consumers do not implement proposed bounded DLQ policy. No runtime
+    claim.
+- source: services/engagement/service/events.py
+  issue: 305
+  detail: Non-qualified/non-privacy events loop to own queue; generic foundation handler records receipt. Not a
+    domain catalogue authorization.

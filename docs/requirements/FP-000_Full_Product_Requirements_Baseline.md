@@ -29,7 +29,7 @@ Approval of a requirement set and authorization to build or activate it are sepa
 | Payment processing, reconciliation and payouts | FIN F5; EV-R E5; AD-R A7; [FP-PAY](FP-PAY_Payments_and_Payouts_Requirements_PROPOSED.md) PAY-R-001 to PAY-R-020 | Sandbox development approved; FP-PAY approved 27 Nov; provider and live activation not approved | FP-FN-05, FP-FN-06 |
 | Notifications | [FP-NT](FP-NT_Notifications_Requirements_PROPOSED.md) NT-R-001 to NT-R-016; GD-03; referenced by DR-EV-18 and DR-FIN-42 | Placement approved (GD-03); FP-NT approved 27 Nov | FP-NT-01 |
 | Privacy and legal compliance | PRD-F09; FR-017; Decision C; ADR-020; owner rulings on policy and deletion pages | Mechanism approved; retention values and legal texts open (#136, #165) | FP-PV-01 to FP-PV-05, FP-ID-06 |
-| Flutter Android and iOS applications | Standing directive; [mobile design coverage](../mobile-design-coverage.md); [FP-DST](FP-DST_Store_Distribution_Requirements_PROPOSED.md) DST-R-001 to DST-R-036 for distribution (approved 27 Nov) | 108 R1 frames approved; no frames for new areas (#306) | FP-MB-01, FP-MB-02 |
+| Flutter Android and iOS applications | Standing directive; [mobile design coverage](../mobile-design-coverage.md); [FP-DST](FP-DST_Store_Distribution_Requirements_PROPOSED.md) DST-R-001 to DST-R-036 for distribution (approved 27 Nov) | 108 R1 frames approved; 160 new-area/architecture draft frames verified, detailed design and approval incomplete (#306) | FP-MB-01, FP-MB-02 |
 | Administrator and moderator console | FR-030; standing directive | Scope approved | FP-WB-01 |
 | Monitoring, security and disaster recovery | NFR set in SRS v0.2; Decision D; ADR-016, ADR-017, ADR-018 | Mechanism approved; values open | FP-OP-01 to FP-OP-07 |
 | Excluded | Live streaming; any public website or portal beyond the static policy, deletion and app-link resources | Excluded by the standing directive and owner rulings | FP-X-01, FP-X-02 |
@@ -51,3 +51,9 @@ None of these sets chooses a provider, fee, currency, threshold, credential, acc
 ## 4. What this replaces
 
 DEC-001 (Release 1 scope) and the R1-only statements in the PRD and SRS v0.2 remain the historical record of the Release 1 boundary. Where they say Business, ticketing, advertising or payouts are deferred or out of scope, this baseline and the mandate apply instead. See the [archive register](../archive/ARCHIVE_REGISTER.md).
+
+## Phase 2 requirement verification (27 November 2026)
+
+Re-read all five approved sets and recorded their **actual table ids** in the canonical matrix: NT 16, PAY 20, GA 18, DST 28 and CM 20 (102 total). DST numbering spans 001..036 but 022..029 are unused; “001 to 036” is an id range, not 36 authored requirements. No missing ids or approvals were invented. Core PRD/SRS details and EVT/AD/FIN proposed details remain separate pending approvals; the five-set approval does not sign every historical section.
+
+Official Play target API, page-size and account-testing guidance, Apple review/SDK rules, Firebase push setup and Google UMP setup were rechecked during Phase 2. The [formal Phase 2 report](../governance/phases/PHASE-02_Completion_Report.md) records the verification and remaining evidence. This approves no legal conclusion, store submission, provider credentials or policy value. Apple manifest guidance was also read through its official Markdown rendering; assembled app/SDK manifest validation remains a release-build acceptance test, not a completed result.
