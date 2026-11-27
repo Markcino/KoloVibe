@@ -1,9 +1,7 @@
-# KoloVibe R1 — Copilot Repository Instructions
+# KoloVibe — Copilot Repository Instructions
 
-## Approved scope
-Eight Django/DRF services, 108 Flutter screen IDs, Cloudflare R2, FFmpeg, RabbitMQ, PostgreSQL, and non-cash points.
-
-Deferred: live streaming, business discovery, ticketing, and cash payouts.
+## Scope
+Follow the [full application mandate](../docs/governance/Full_Application_Mandate_2026-11-27.md) and the [phase execution tracker](../docs/governance/Phase_Execution_Tracker.md). The earlier R1 scope (eight services, deferred business, ticketing and payouts) is historical. Live streaming stays excluded, Points stay non-cash, and no live money moves.
 
 ## Token-efficient workflow
 - Inspect current HEAD before acting.
