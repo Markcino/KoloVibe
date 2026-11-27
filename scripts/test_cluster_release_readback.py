@@ -8,7 +8,8 @@ spec = importlib.util.spec_from_file_location('cluster_release', MODULE)
 cluster = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(cluster)
 
-REVISION = '38d038056cf77df4d4193e0aecef472dc7226aea'  # published Git commit, not a credential
+# Published Git commit identifier, not an authentication credential.
+REVISION = '38d038056cf77df4d4193e0aecef472dc7226aea'  # pragma: allowlist secret
 EXPECTED = {'services': cluster.REPOSITORY + '@sha256:' + 'a' * 64,
             'media': cluster.RELEASE_REPOSITORIES['media'] + '@sha256:' + 'b' * 64,
             'web': cluster.RELEASE_REPOSITORIES['web'] + '@sha256:' + 'c' * 64}
