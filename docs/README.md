@@ -37,7 +37,7 @@
 | Security requirements and threat model | [DOC-203 STRIDE register](architecture/DOC-203_STRIDE_Risk_Register.csv) and [DOC-206 control verification matrix](architecture/DOC-206_Control_Verification_Matrix.csv) | Review open (#140) | [Security review](security/SECURITY-REVIEW.md), `security/phase*` |
 | Privacy requirements | [Account erasure plan](privacy/account-erasure-plan-PROPOSED.md) under Decision C | Mechanism approved; values open (#136) | Other files in [`privacy/`](privacy/) |
 | Deployment and operations | [Deployment and rollback runbook](operations/R1_Deployment_and_Rollback_Runbook_2026-11-14.md) | Active for staging | [`operations/`](operations/) dated records |
-| Current staging evidence | [26 November staging verification](operations/R1_AWS_Staging_Verification_2026-11-26.md) | Historical (64 commits behind `main`) | Release reconciliation records |
+| Current staging evidence | [27 November read-only check](operations/R1_AWS_Staging_Readonly_Check_2026-11-27.md) | Current for v0.542.1 (69 commits behind `main`) | [26 November staging verification](operations/R1_AWS_Staging_Verification_2026-11-26.md), release reconciliation records |
 | Testing strategy and acceptance criteria | [Phase execution tracker](governance/PHASE_EXECUTION_TRACKER.md) phase exit criteria; mandate section 10 | Active; the full test strategy is a Phase 10 deliverable | Phase 12 matrix (historical) |
 | Engineering standards | [Engineering standards](engineering-standards.md) | Active | [Dependency and security checks](engineering/dependency-and-security.md), [FND-01](engineering/FND-01_repository_governance.md) |
 

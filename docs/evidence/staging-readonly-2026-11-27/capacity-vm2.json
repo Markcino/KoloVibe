@@ -1,0 +1,121 @@
+{
+  "kind": "KVB-CLUSTER-CAPACITY-V1",
+  "node": "ip-172-31-16-154",
+  "cpu_millis": {
+    "allocatable": 2000,
+    "reserved": 2000,
+    "free": 0
+  },
+  "memory_mib": {
+    "allocatable": 3812,
+    "reserved": 2304,
+    "free": 1508
+  },
+  "services": {
+    "kolovibe-audit": {
+      "tasks": 1,
+      "cpu_millis": 100,
+      "memory_mib": 96
+    },
+    "kolovibe-content": {
+      "tasks": 1,
+      "cpu_millis": 100,
+      "memory_mib": 96
+    },
+    "kolovibe-creators": {
+      "tasks": 1,
+      "cpu_millis": 100,
+      "memory_mib": 96
+    },
+    "kolovibe-engagement": {
+      "tasks": 1,
+      "cpu_millis": 100,
+      "memory_mib": 96
+    },
+    "kolovibe-gateway": {
+      "tasks": 1,
+      "cpu_millis": 100,
+      "memory_mib": 96
+    },
+    "kolovibe-identity": {
+      "tasks": 1,
+      "cpu_millis": 100,
+      "memory_mib": 96
+    },
+    "kolovibe-media-worker": {
+      "tasks": 1,
+      "cpu_millis": 100,
+      "memory_mib": 128
+    },
+    "kolovibe-moderation": {
+      "tasks": 1,
+      "cpu_millis": 100,
+      "memory_mib": 96
+    },
+    "kolovibe-points": {
+      "tasks": 1,
+      "cpu_millis": 100,
+      "memory_mib": 96
+    },
+    "kolovibe-postgres": {
+      "tasks": 1,
+      "cpu_millis": 250,
+      "memory_mib": 256
+    },
+    "kolovibe-r1-jobs_engagement-consumer": {
+      "tasks": 1,
+      "cpu_millis": 100,
+      "memory_mib": 192
+    },
+    "kolovibe-r1-jobs_engagement-dispatch": {
+      "tasks": 1,
+      "cpu_millis": 100,
+      "memory_mib": 80
+    },
+    "kolovibe-r1-jobs_identity-audit": {
+      "tasks": 1,
+      "cpu_millis": 0,
+      "memory_mib": 80
+    },
+    "kolovibe-r1-jobs_moderation-audit": {
+      "tasks": 1,
+      "cpu_millis": 100,
+      "memory_mib": 80
+    },
+    "kolovibe-r1-jobs_points-audit": {
+      "tasks": 1,
+      "cpu_millis": 100,
+      "memory_mib": 80
+    },
+    "kolovibe-r1-jobs_points-consumer": {
+      "tasks": 1,
+      "cpu_millis": 100,
+      "memory_mib": 192
+    },
+    "kolovibe-r2-proxy": {
+      "tasks": 1,
+      "cpu_millis": 100,
+      "memory_mib": 64
+    },
+    "kolovibe-rabbitmq": {
+      "tasks": 1,
+      "cpu_millis": 250,
+      "memory_mib": 256
+    },
+    "kolovibe-web_web": {
+      "tasks": 1,
+      "cpu_millis": 0,
+      "memory_mib": 128
+    }
+  },
+  "checks": [
+    {
+      "test": "a 100m one-shot job can be scheduled",
+      "status": "FAIL"
+    }
+  ],
+  "not_tested": [
+    "actual CPU and memory use (reservations are scheduling budgets, not measurements)"
+  ],
+  "time": "2026-11-27T11:42:49.890040+00:00"
+}
