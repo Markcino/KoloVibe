@@ -5,9 +5,9 @@
 | Phase | 1, Full-product reconciliation |
 | Authorized | Owner instruction, 27 November 2026, 11:12 UTC |
 | Starting commit | `1c706ce` (`main` after #303) |
-| Final commit | The merge commit of the Phase 1 pull request (branch `claude/project-thread-tgd2jb`) |
-| Final gate verdict | **PASS on merge of PR #328 with green CI.** All nine exit criteria have evidence. The five requirement sets (FP-NT, FP-PAY, FP-GA, FP-DST, FP-CM) were written after the owner's 12:13 UTC instruction and **approved at 12:26 UTC with every recommended option** (section 12). The runtime staging check ran read-only on 27 November at 11:42–11:55 UTC ([read-only check](../../operations/R1_AWS_Staging_Readonly_Check_2026-11-27.md)) |
-| Next phase authorized | Phase 2 entry, read-only and repository-side only, authorized by the owner at 12:13 UTC and starting after this pull request merges. Staging writes each need separate approval |
+| Final commit | `e4f4593` (`main` after #329) |
+| Final gate verdict | **PASS.** All nine exit criteria have verified evidence. The five requirement sets were approved by the owner at 12:26 UTC (section 12) and merged in #328 and #329; CI on `main` at `e4f4593` (after #328 and #329): 16 checks success, 4 manual-only jobs skipped by design, 0 failed |
+| Next phase authorized | Yes: Phase 2 entry, read-only and repository-side (owner, 12:13 UTC). Staging remediation has its own conditional approval (owner, 12:38 UTC) |
 
 ## 1. Requirements completed
 
@@ -62,7 +62,7 @@ None. Staging and production were not touched.
 | Every remaining implementation gap has a GitHub issue | PASS | Every non-excluded matrix row names an issue |
 | All unresolved decisions are explicitly recorded | PASS | Gate register sections 2 to 7 |
 | Decisions necessary for Phase 2 are approved | PASS | GD-01 to GD-08 approved as recommended, 27 November 11:31 UTC |
-| Documentation validation and relevant CI checks pass | Local PASS; CI recorded on the pull request | Section 5 |
+| Documentation validation and relevant CI checks pass | PASS | Local checks (section 12); CI on `main` at `e4f4593` (after #328 and #329): 16 checks success, 4 manual-only jobs skipped by design, 0 failed |
 
 Counts: 7 PASS, 1 BLOCKED, 1 pending CI, 0 FAIL (after the owner's 11:31 UTC ruling; before it, 5 PASS and 3 BLOCKED). The runtime staging check in Task 1, BLOCKED when this report was written, was run read-only afterwards ([read-only check](../../operations/R1_AWS_Staging_Readonly_Check_2026-11-27.md)); it does not change the BLOCKED verdict, which rests on #307.
 
@@ -105,3 +105,5 @@ Revert the Phase 1 pull request; it changes documentation only. The milestones a
 **Exit criteria re-evaluated.** 8 PASS, 1 BLOCKED (owner approval of the five sets), 0 FAIL. Validation for this update is recorded on its pull request. **Verdict: BLOCKED.** Phase 2 entry work has not started, and no staging, Swarm, RabbitMQ, Nginx, database or VM change was made.
 
 **Owner approval, 12:26 UTC.** The owner approved all five sets with the recommended options. Re-evaluated exit criteria: 9 of 9 have evidence. The documentation-validation criterion rests on local checks (section 12) and CI on this pull request. **Verdict: PASS on merge of this pull request with green CI.** Until that merge, `main` does not carry the approved sets. Phase 2 entry work (read-only and repository-side only) starts after the merge.
+
+**Gate closed.** CI on `main` at `e4f4593` (after #328 and #329): 16 checks success, 4 manual-only jobs skipped by design, 0 failed. **Phase 1 verdict: PASS.**
