@@ -1,24 +1,30 @@
-# KoloVibe — Agent Instructions
+# KoloVibe — agent instructions
 
-**Read first:** the [full application mandate](docs/governance/Full_Application_Mandate_2026-11-27.md) (owner, 27 November 2026) and the [phase execution tracker](docs/governance/Phase_Execution_Tracker.md). The mandate's phase execution rules are binding. Work only on the phase the owner has authorized.
-
-KoloVibe is no longer an MVP. The earlier R1 scope boundary is a historical record; it no longer limits development scope. Nothing is approved merely because that boundary is gone (live streaming stays excluded).
+## Governing mandate
+- The [full application mandate of 27 November 2026](docs/governance/Full_Application_Mandate_2026-11-27.md) governs all work. Read it, then the [phase execution tracker](docs/governance/PHASE_EXECUTION_TRACKER.md), before acting.
+- Follow the phase gates in mandate section 10. Do not begin a phase until the owner authorizes it. End each phase with the section 11 completion report.
+- Owner decisions A to J and the later rulings stay in force. Do not ask for them again ([record](docs/planning/Owner_Decisions_A-J_2026-11-25.md)).
+- Follow the approved contracts and architecture. Change them only by a reviewed decision.
 
 ## Development rules
-- Work on one independently testable task, in a small focused PR.
-- Inspect the latest repository state and the relevant source files before changing anything.
-- Reuse existing implementations; do not duplicate logic, contracts, security controls or financial accounting.
-- Implement only approved scope; policy-dependent work needs approved requirements.
-- Prefer focused tests; never weaken, skip or delete a test to pass.
-- Preserve security and authorization checks; the server is the authority.
+- Work on one independently testable task.
+- Inspect only relevant source files.
+- Reuse existing implementations.
+- Avoid repeated full-repository audits.
+- Prefer focused tests.
+- Do not implement unapproved scope, such as live streaming. Approved full-application functionality is not deferred (mandate section 2).
+- Never invent policy, legal, financial or infrastructure values. Make them configurable and record them as owner decisions.
+- Never treat BLOCKED, NOT RUN, SKIPPED or PARTIAL as PASS, and never fabricate evidence.
+- Preserve security and authorization checks.
 - Stop after repeated unsuccessful fixes and report the blocker.
-- Do not merge or deploy without approval. Do not change AWS, secrets, staging database privileges or RabbitMQ permissions without an approved operations plan.
-- No live payments, payouts, advertiser charging or live ads. Points never become money.
+- Do not merge or deploy without approval. Development approval does not authorize live payments, live advertising, destructive data changes or production publication.
 
 ## Project stack
-Django/Python, Flutter, PostgreSQL, RabbitMQ, Cloudflare R2, FFmpeg, Docker Swarm on AWS staging.
+Django/DRF, Flutter, PostgreSQL, RabbitMQ (not Redis), Cloudflare R2, FFmpeg, Docker Swarm with host Nginx and Cloudflare ingress, and AWS staging.
 
 ## Reporting
 Summarize actual changes, tests, failures, PR link and unresolved work. At a phase boundary, produce the phase completion report the mandate defines.
 
-Never invent test outcomes or token usage, or claim that prompt instructions enforce a spending limit.
+Never invent token usage or claim that prompt instructions enforce a spending limit.
+
+*History (superseded 27 November 2026 by the full application mandate):* the file was titled "KoloVibe R1 — Claude Code Instructions". It said "Follow the approved R1 contracts and architecture" and "Do not implement deferred features", and the stack line named "Django/DRF, Flutter, PostgreSQL, RabbitMQ, Cloudflare R2, FFmpeg and AWS staging".

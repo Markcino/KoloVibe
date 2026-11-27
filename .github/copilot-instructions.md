@@ -1,7 +1,12 @@
 # KoloVibe — Copilot Repository Instructions
 
-## Scope
-Follow the [full application mandate](../docs/governance/Full_Application_Mandate_2026-11-27.md) and the [phase execution tracker](../docs/governance/Phase_Execution_Tracker.md). The earlier R1 scope (eight services, deferred business, ticketing and payouts) is historical. Live streaming stays excluded, Points stay non-cash, and no live money moves.
+## Governing mandate
+The [full application mandate of 27 November 2026](../docs/governance/Full_Application_Mandate_2026-11-27.md) governs scope, and the [phase execution tracker](../docs/governance/PHASE_EXECUTION_TRACKER.md) records where execution stands. Follow [AGENTS.md](../AGENTS.md).
+
+## Approved scope
+The full application in mandate section 2, built on Django/DRF services, Flutter, PostgreSQL, RabbitMQ, Cloudflare R2 and FFmpeg. Points stay non-cash, and Finance is the only monetary ledger. Live streaming is not approved. Live payments, payouts and advertising need their own owner approval.
+
+*History (superseded 27 November 2026):* "Eight Django/DRF services, 108 Flutter screen IDs, Cloudflare R2, FFmpeg, RabbitMQ, PostgreSQL, and non-cash points. Deferred: live streaming, business discovery, ticketing, and cash payouts."
 
 ## Token-efficient workflow
 - Inspect current HEAD before acting.

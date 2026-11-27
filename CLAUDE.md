@@ -1,5 +1,5 @@
-# KoloVibe — Claude Code Instructions
+# KoloVibe — Claude Code instructions
 
-The canonical instructions are in AGENTS.md; the binding mandate and phase rules are in docs/governance/.
+The project instructions live in [AGENTS.md](AGENTS.md), and they are imported here so that there is one copy:
 
 @AGENTS.md
