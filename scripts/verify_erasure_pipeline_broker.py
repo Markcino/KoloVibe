@@ -184,7 +184,7 @@ class ErasurePipelineTests(unittest.TestCase):
         self.assertEqual(result["status"], "processing", "a retained category keeps the request open")
         self.assertEqual(jobs["content"]["counts"], {"media_objects": 2, "metadata_revisions": 0, "upload_records": 1,
                                                      "videos_emptied": 1})
-        self.assertEqual(jobs["content"]["retained"], ["attestations", "untracked_media"])
+        self.assertEqual(jobs["content"]["retained"], ["attestations"])
         self.assertEqual(jobs["business"]["counts"], {"registration_grant": 1, "staff_memberships_revoked": 1,
                                                       "invitations_revoked": 0, "reviewer_grants_deactivated": 0})
         self.assertEqual(jobs["business"]["retained"], [])

@@ -46,7 +46,14 @@ def _hmac(key, message):
     return hmac.new(key, message.encode(), hashlib.sha256).digest()
 
 
-def _signed_url(method, key, seconds, headers, now=None):
+KEY = (r"(?:originals/[0-9a-f-]{36}\.mp4|playback/[0-9a-f-]{36}/[0-9a-f-]{36}\.(?:mp4|jpg)"
+       r"|posters/[0-9a-f-]{36}/[0-9a-f-]{36}\.jpg)")
+# The only prefixes Content ever lists: one upload's renditions or one video's posters (Decision C erasure).
+LIST_PREFIX = r"(?:playback|posters)/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/"
+MAX_LIST_PAGES = 20
+
+
+def _signed_url(method, key, seconds, headers, now=None, *, internal=False):
     """SigV4 query-string presigning for R2 in pure Python (no native signer, so the Alpine image can run it).
 
     Every header the caller names is signed together with `host`, so a client cannot change the content type,
@@ -54,13 +61,28 @@ def _signed_url(method, key, seconds, headers, now=None):
     (`UNSIGNED-PAYLOAD`), which is what a browser or mobile client PUT needs. The result is cross-checked against
     the AWS CRT implementation in the test suite.
     """
+    # DELETE is signed only for the worker's own requests (`internal`), never as a URL handed to a client.
+    methods = ("GET", "PUT", "HEAD", "DELETE") if internal else ("GET", "PUT", "HEAD")
+    if not re.fullmatch(KEY, key) or method not in methods:
+        raise StorageUnavailable
+    return _presign(method, "/" + key, seconds, headers, {}, now)
+
+
+def _signed_list_url(prefix, token=None, now=None):
+    """A short-lived ListObjectsV2 URL for one reviewed prefix; used only by the worker itself."""
+    if not re.fullmatch(LIST_PREFIX, prefix) or (token is not None and not re.fullmatch(r"[A-Za-z0-9+/=_.-]{1,1024}", token)):
+        raise StorageUnavailable
+    extra = {"list-type": "2", "prefix": prefix, "max-keys": "1000"}
+    if token is not None:
+        extra["continuation-token"] = token
+    return _presign("GET", "", 60, {}, extra, now)
+
+
+def _presign(method, suffix, seconds, headers, extra, now):
     account = os.environ.get("KOLOVIBE_R2_ACCOUNT_ID", "")
     bucket = os.environ.get("KOLOVIBE_R2_MEDIA_BUCKET", "")
     if (not re.fullmatch(r"[0-9a-f]{32}", account)
-            or not re.fullmatch(r"[a-z0-9][a-z0-9-]{1,61}[a-z0-9]", bucket)
-            or not re.fullmatch(r"(?:originals/[0-9a-f-]{36}\.mp4|playback/[0-9a-f-]{36}/[0-9a-f-]{36}\.(?:mp4|jpg)"
-                                r"|posters/[0-9a-f-]{36}/[0-9a-f-]{36}\.jpg)", key)
-            or method not in ("GET", "PUT", "HEAD") or not 1 <= seconds <= 604800):
+            or not re.fullmatch(r"[a-z0-9][a-z0-9-]{1,61}[a-z0-9]", bucket) or not 1 <= seconds <= 604800):
         raise StorageUnavailable
     access, secret = _secret("KOLOVIBE_R2_ACCESS_KEY_FILE"), _secret("KOLOVIBE_R2_SECRET_KEY_FILE")
     host = f"{account}.r2.cloudflarestorage.com"
@@ -72,9 +94,9 @@ def _signed_url(method, key, seconds, headers, now=None):
         signed[name.lower()] = " ".join(str(value).split())
     names = sorted(signed)
     query = {"X-Amz-Algorithm": "AWS4-HMAC-SHA256", "X-Amz-Credential": f"{access}/{scope}", "X-Amz-Date": stamp,
-             "X-Amz-Expires": str(seconds), "X-Amz-SignedHeaders": ";".join(names)}
+             "X-Amz-Expires": str(seconds), "X-Amz-SignedHeaders": ";".join(names), **extra}
     canonical_query = "&".join(f"{quote(name, safe='')}={quote(value, safe='')}" for name, value in sorted(query.items()))
-    path = f"/{bucket}/{key}"
+    path = f"/{bucket}{suffix}"
     canonical = "\n".join((method, quote(path, safe="/-_.~"), canonical_query,
                           "".join(f"{name}:{signed[name]}\n" for name in names), ";".join(names), "UNSIGNED-PAYLOAD"))
     to_sign = "\n".join(("AWS4-HMAC-SHA256", stamp, scope, hashlib.sha256(canonical.encode()).hexdigest()))
@@ -137,9 +159,9 @@ def _connection(host):
 
 
 @contextmanager
-def _request(method, key, headers=None, body=None):
+def _request(method, key, headers=None, body=None, *, url=None):
     headers = headers or {}
-    target = urlsplit(_signed_url(method, key, 60, headers))
+    target = urlsplit(url or _signed_url(method, key, 60, headers, internal=True))
     conn = _connection(target.hostname)
     try:
         conn.request(method, f"{target.path}?{target.query}", body=body, headers=headers)
@@ -222,6 +244,35 @@ def delete_object(key):
             pass
     except ObjectMissing:
         pass
+
+
+def list_keys(prefix):
+    """Every object key under one reviewed prefix, following continuation pages up to a fixed bound.
+
+    The listing XML is read with fixed patterns, never an XML parser, and only keys under the asked prefix are
+    returned. Anything unexpected (too many pages, a key outside the prefix) raises StorageUnavailable, so the
+    caller retries instead of acting on a partial answer."""
+    keys, token = [], None
+    for _ in range(MAX_LIST_PAGES):
+        with _request("GET", "", url=_signed_list_url(prefix, token)) as response:
+            body = response.read(4 * 1024 * 1024 + 1)
+        if len(body) > 4 * 1024 * 1024:
+            raise StorageUnavailable
+        try:
+            text = body.decode("utf-8", "strict")
+        except UnicodeDecodeError:
+            raise StorageUnavailable from None
+        found = re.findall(r"<Key>([^<]{1,1024})</Key>", text)
+        if any(not key.startswith(prefix) for key in found):
+            raise StorageUnavailable
+        keys += found
+        if not re.search(r"<IsTruncated>true</IsTruncated>", text):
+            return keys
+        match = re.search(r"<NextContinuationToken>([^<]{1,1024})</NextContinuationToken>", text)
+        if not match:
+            raise StorageUnavailable
+        token = match.group(1)
+    raise StorageUnavailable
 
 
 def read_preview(key):

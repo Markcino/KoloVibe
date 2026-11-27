@@ -250,6 +250,7 @@ def content_worker(arguments):
             log.write(key + "\n")
 
     media_storage.delete_object = delete_object
+    media_storage.list_keys = lambda prefix: []  # the stand-in bucket holds no superseded renditions or posters
     roles.run_celery("service.media_tasks:app", "kolovibe.content.media")
     return {}
 
