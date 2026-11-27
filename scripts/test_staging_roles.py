@@ -22,7 +22,7 @@ class RoleTests(unittest.TestCase):
             ("content", "media-worker"), ("engagement", "consumer"), ("points", "consumer"),
             ("engagement", "dispatch-events"), ("points", "deliver-audit"), ("moderation", "deliver-audit"),
             ("identity", "deliver-security-audit"), ("identity", "purge-security-rows"),
-            ("content", "requeue-media")})
+            ("content", "requeue-media"), ("content", "deliver-audit"), ("creators", "deliver-audit")})
         for service, role in (("gateway", "consumer"), ("audit", "media-worker"), ("content", "consumer"),
                               ("content", "bash"), ("points", "../x")):
             with self.subTest(service, role=role), self.assertRaises(RuntimeError):

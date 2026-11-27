@@ -54,7 +54,8 @@ class AuditReadStateTests(unittest.TestCase):
     def test_only_the_recorded_service_can_mount_each_recorded_secret_name(self):
         pairs = [('gateway', 'outbound_key', 'kolovibe_gateway_audit_outbound_20261122_v1'),
                  ('gateway', 'trusted_peers', 'kolovibe_gateway_audit_peers_20261122_v1'),
-                 ('audit', 'caller_keys', 'kolovibe_audit_callers_auditread_20261122_v1')]
+                 ('audit', 'caller_keys', 'kolovibe_audit_callers_auditread_20261122_v1'),
+                 ('audit', 'caller_keys', 'kolovibe_audit_callers_20261127_v1')]
         with patch.object(cluster, 'PROFILE', cluster.AWS_STAGING):
             for service, target, name in pairs:
                 spec = {'TaskTemplate': {'ContainerSpec': {'Secrets': [{'SecretName': name, 'File': {'Name': target}}]}}}

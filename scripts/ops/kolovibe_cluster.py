@@ -274,6 +274,9 @@ def _aws_allowed_secrets():
     allowed['gateway'] |= {'kolovibe_gateway_audit_outbound_20261122_v1',
                            'kolovibe_gateway_audit_peers_20261122_v1'}
     allowed['audit'] = {'kolovibe_audit_callers_auditread_20261122_v1'}
+    # The proposed Audit caller map of 27 November (D13-001 and D13-002): the 22 November map with a fresh Points
+    # entry and new, distinct Content and Creators entries. Not created yet; the old name stays allowed for rollback.
+    allowed['audit'] |= {'kolovibe_audit_callers_20261127_v1'}
     for service, rollout in r1_rollout_table().items():
         allowed.setdefault(service, set()).update(rollout['mounts'].values())
     # Read-only inspection of the eight live services on 19 November 2026: the Content service already mounts the
