@@ -34,7 +34,7 @@ A feature takes the classification of its weakest link: Requirement → Architec
 
 ## 3. Phase plan
 
-The owner's Phase 1 instruction refers to Phases 2 to 11, so the plan has eleven phases. The sixteen phases proposed in #302 are folded into these eleven (the right-hand column) rather than kept as a second list. The plan itself is decision GD-08 in the [gate register](phase1/PHASE-01_Governance_Gate_Register.md).
+The owner's Phase 1 instruction refers to Phases 2 to 11, so the plan has eleven phases. The sixteen phases proposed in #302 are folded into these eleven (the right-hand column) rather than kept as a second list. The plan is decision GD-08, **approved** by the owner on 27 November at 11:31 UTC with GD-01 to GD-07 ([gate register](phase1/PHASE-01_Governance_Gate_Register.md)).
 
 | # | Phase | Milestone | Main exit criteria | Earlier proposal folded in | Status |
 | --- | --- | --- | --- | --- | --- |

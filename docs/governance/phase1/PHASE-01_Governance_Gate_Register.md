@@ -16,6 +16,9 @@
 
 ## 2. Decisions Phase 2 needs (mandatory exit criterion of Phase 1)
 
+> **Owner ruling, 27 November 2026, 11:31 UTC.** Mark Gbalazeh (@Markcino) chose **"Approve all as recommended"** on the decision card "Approve the Phase 2 decisions GD-01 to GD-08 as recommended?". GD-01 to GD-08 are **APPROVED** with the recommended option in each entry below: GD-01 (a), GD-02 (a), GD-03 (a), GD-04 as stated, GD-05 (a), GD-06 (a), GD-07 (a), GD-08. This approves the structure for development. It sets no money, legal, provider or retention value, and authorizes no deployment or live activation.
+
+
 These are structural. Phase 2 cannot produce approved ADRs and contracts without them. Each recommendation reuses the existing PROPOSED design package; none invents a value.
 
 ### GD-01 Finance bounded context and ledger (DR-FIN-02, DR-FIN-03, DR-FIN-07)

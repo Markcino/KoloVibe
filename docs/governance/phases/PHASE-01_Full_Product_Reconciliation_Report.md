@@ -6,7 +6,7 @@
 | Authorized | Owner instruction, 27 November 2026, 11:12 UTC |
 | Starting commit | `1c706ce` (`main` after #303) |
 | Final commit | The merge commit of the Phase 1 pull request (branch `claude/project-thread-tgd2jb`) |
-| Final gate verdict | **BLOCKED** |
+| Final gate verdict | **BLOCKED**: one exit criterion remains (written and approved requirement sets for notifications, payments, Google mobile ads, distribution and comments, #307), plus the runtime staging check |
 | Next phase authorized | **No.** Phase 2 waits on the owner's authorization and on the decisions in section 9 |
 
 ## 1. Requirements completed
@@ -55,16 +55,16 @@ None. Staging and production were not touched.
 | Owner's exit criterion | Result | Evidence or blocker |
 | --- | --- | --- |
 | The full-product scope is authoritative | PASS (on merge) | FP-000, scope baseline |
-| Every feature has a traceable requirement | **BLOCKED** | Notifications, payment processing, Google mobile ads and distribution have IDs but no approved requirement set (#307); comments has none (GD-07) |
-| All service boundaries are reconciled | **BLOCKED** | Nine built services reconciled; Finance, Events, Advertising and Notifications placement wait on GD-01 to GD-03 |
+| Every feature has a traceable requirement | **BLOCKED** | Every feature traces to a requirement ID, but notifications, payment processing, Google mobile ads, distribution and now comments (approved in GD-07) have no written and approved requirement set yet (#307) |
+| All service boundaries are reconciled | PASS (on merge) | Nine built services reconciled; Finance, Events and Advertising as separate services and Notifications inside Identity approved (GD-01 to GD-03, 27 November 11:31 UTC) |
 | Obsolete MVP restrictions no longer govern active development | PASS (on merge) | Scope baseline section 2 |
 | Documentation conflicts are resolved | PASS (on merge) | Audit section 7 |
 | Every remaining implementation gap has a GitHub issue | PASS | Every non-excluded matrix row names an issue |
 | All unresolved decisions are explicitly recorded | PASS | Gate register sections 2 to 7 |
-| Decisions necessary for Phase 2 are approved | **BLOCKED** | GD-01 to GD-08 await the owner |
+| Decisions necessary for Phase 2 are approved | PASS | GD-01 to GD-08 approved as recommended, 27 November 11:31 UTC |
 | Documentation validation and relevant CI checks pass | Local PASS; CI recorded on the pull request | Section 5 |
 
-Counts: 5 PASS, 3 BLOCKED, 1 pending CI, 0 FAIL. A further item, the runtime staging check in Task 1, is BLOCKED.
+Counts: 7 PASS, 1 BLOCKED, 1 pending CI, 0 FAIL (after the owner's 11:31 UTC ruling; before it, 5 PASS and 3 BLOCKED). A further item, the runtime staging check in Task 1, is BLOCKED.
 
 ## 7. Security findings
 
@@ -76,7 +76,7 @@ D13-001 (#271), D13-002 (#272), D13-003 (#273), D13-004 (#274), D13-005 read-bac
 
 ## 9. Decisions required
 
-For Phase 2 (gate register section 2): GD-01 Finance context, GD-02 Events and Advertising contexts, GD-03 Notifications placement, GD-04 authority model, GD-05 image pipeline, GD-06 consent store, GD-07 comments, GD-08 the eleven-phase plan. Later decisions are in gate register sections 3 to 7 and are not needed to start Phase 2.
+GD-01 to GD-08 were **approved** as recommended on 27 November at 11:31 UTC (gate register section 2). Still open: the requirement sets in #307 (Phase 2 work) and the later decisions in gate register sections 3 to 7, none of which is needed to start Phase 2.
 
 ## 10. Rollback
 
@@ -84,6 +84,6 @@ Revert the Phase 1 pull request; it changes documentation only. The milestones a
 
 ## 11. Owner actions to unblock
 
-1. Approve or amend GD-01 to GD-08.
+1. ~~Approve GD-01 to GD-08~~ done, 11:31 UTC.
 2. Run the read-only release read-back on VM1 (`docs/operations/R1_Release_Reconciliation_v0_542_1_2026-11-27.md`), or bring the computer online and approve a read-only Remote Control session.
 3. Authorize Phase 2.
