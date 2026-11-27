@@ -40,10 +40,10 @@ Every result below comes from commands run in this session against AWS staging (
 | Migration plans | One-shot jobs cloned from the v0.531.1 migration jobs (same migration logins, secrets, networks and placement, new image): Identity plans only `0016_erasure_creator_id` (add nullable `creator_id`); Content plans only `0013_message_ledgers` (a SQLite-only `RunPython`; on PostgreSQL the tables already exist from `schema_isolation.sql`, verified) |
 | Scheduling | The jobs could not start: VM2 CPU reservations are **2000m of 2000m** (D13-004). The one-shot jobs were given a zero CPU *reservation* (their 1-CPU limit kept); no running service was changed |
 | Migrations applied | **Identity `0016` OK (17:06 UTC), Content `0013` OK (17:07 UTC)**, both by the service-owned `_migrate` logins. Additive only; the running v0.531.1 code is unaffected |
-| API rollout (tool `update`) | **PENDING.** The tool requires a GHCR `read:packages` token typed at a hidden prompt (`--registry-user`), which only the operator may enter. The ready-to-run command re-creates fresh worker evidence first (the tool rechecks the five-minute window after the prompt). Nothing was changed by the attempt; the services are still on v0.531.1 |
+| API rollout (tool `update`) | *Superseded, see the 27 November update below.* **PENDING** at the time of writing. The tool requires a GHCR `read:packages` token typed at a hidden prompt (`--registry-user`), which only the operator may enter. The ready-to-run command re-creates fresh worker evidence first (the tool rechecks the five-minute window after the prompt). Nothing was changed by the attempt; the services are still on v0.531.1 |
 | Jobs, media worker, web | **PENDING**, after the APIs (they share the release; the tool moves only the services image) |
 
-**Current deployed state:** v0.531.1 images with the v0.542.1 database schema. This combination is safe (additive changes) but v0.542.1 is **not deployed**.
+**Deployed state at the time of writing (superseded, see the update below):** v0.531.1 images with the v0.542.1 database schema. This combination is safe (additive changes), but v0.542.1 was **not deployed** at that point.
 
 ## 4. Tests executed
 
@@ -106,7 +106,7 @@ Script kept with the session evidence; it sends no credentials. **63 run, 63 PAS
 | D13-003 | P1 | Account erasure pipeline (Decision C) cannot run on staging | **Confirmed:** the Identity, Content, Creators and Business event dispatchers and consumers have no runtime role, stack entry, broker user or queue. Requests are recorded but never processed. Matches the plan's "broker plan must be approved and applied first" | OPEN, needs approval | [#273](https://github.com/Markcino/KoloVibe/issues/273) |
 | D13-004 | P2 | VM2 has no CPU reservation headroom | **Confirmed:** reservations total 2000m of 2000m (memory 2.3 of 3.8 GiB). No extra task (migration job, Business, erasure or maintenance workers) can be scheduled without stopping a service; the v0.531.1 rollout scaled the stack to zero | OPEN, capacity decision | [#274](https://github.com/Markcino/KoloVibe/issues/274) |
 | D13-005 | P2 | Release rolled out outside the reviewed tool with stale labels | **Confirmed:** v0.531.1 services keep v0.341.1 labels; the jobs stack label still names v0.205.1 | Tool unblocked by #269/#270; process OPEN | #269 |
-| D13-006 | P1 | `main` cannot publish a release: Flutter CI fails | **Confirmed:** `d9993ea` regenerated `apps/mobile/pubspec.lock` with Flutter 3.50.1; CI pins 3.47.8, whose SDK pins `test_api` 0.7.12, so `pub get --enforce-lockfile` fails. The publish job needs the Flutter job | OPEN | [#275](https://github.com/Markcino/KoloVibe/issues/275) |
+| D13-006 | P1 | `main` cannot publish a release: Flutter CI fails | **Confirmed:** `d9993ea` regenerated `apps/mobile/pubspec.lock` with Flutter 3.50.1; CI pins 3.47.8, whose SDK pins `test_api` 0.7.12, so `pub get --enforce-lockfile` fails. The publish job needs the Flutter job | **CLOSED** (27 Nov update): PR #277 merged; `main` CI run 45872265313 (`e82f43e`) passed, including publishing | [#275](https://github.com/Markcino/KoloVibe/issues/275) |
 | D13-007 | P2 | Video stuck in `processing` since 21 November | **Under investigation:** source uploaded, no lease, no requeue job running (`content-requeue` is off pending O-12). Next step: read the media worker's history for that job id and run the documented requeue command once | OPEN | [#149](https://github.com/Markcino/KoloVibe/issues/149) |
 | D12-001 | P2 | Per-client limits inert | Repository fix not deployed on staging (section 4.2) | OPEN on staging | [#151](https://github.com/Markcino/KoloVibe/issues/151) |
 | D11-002 | — | Runtime logins could disable append-only guards | Verified fixed on staging (section 4.2) | **Verified on staging** | [#146](https://github.com/Markcino/KoloVibe/issues/146) |
@@ -125,7 +125,7 @@ Script kept with the session evidence; it sends no credentials. **63 run, 63 PAS
 | Area | Verdict | Basis |
 | --- | --- | --- |
 | Infrastructure readiness | **FAIL** | Healthy and private, but no CPU headroom (D13-004), no backup/restore drill, no alerting |
-| Deployment readiness | **BLOCKED** | Images verified and migrations applied; service rollout waits for the operator's registry token |
+| Deployment readiness | **BLOCKED** at the time of writing (superseded: v0.542.1 was deployed at 17:55 UTC, see the update below) | Images verified and migrations applied; service rollout waits for the operator's registry token |
 | Backend readiness | **FAIL** | D13-001, D13-002, D13-003 |
 | Flutter readiness | **NOT TESTED** on staging; local run blocked by disk; CI broken (D13-006) |
 | Administration dashboard readiness | **NOT TESTED** beyond anonymous redirect, CSRF and header checks |
@@ -134,3 +134,21 @@ Script kept with the session evidence; it sends no credentials. **63 run, 63 PAS
 | Development completeness | **FAIL** | Phase 09 gate not passed; G-01 to G-06 |
 | Staging acceptance | **NOT TESTED** | Authenticated journeys not executed |
 | Production readiness | **FAIL — NO-GO** | |
+
+## Update, 27 November 2026 (records correction; no new staging commands)
+
+This section corrects the record above from later evidence. Nothing was run on staging for it. The superseded lines are kept and marked.
+
+- **v0.542.1 is deployed.** According to the owner's update on #169 (26 November, 17:55 UTC), v0.542.1 (`38d0380`, CI run 542) runs on all 16 staging application services:
+  - the 8 APIs, through the reviewed cluster tool;
+  - the 6 jobs, the media worker and the web console, by pinned digest.
+
+  The update reports 63/63 edge probes, public smoke 7/7, queue consumers back, no error logs and no failed tasks. The registry-token blocker and "service rollout pending" no longer apply.
+- **D13-006 / #275 is closed.** PR #277 merged, and `main` CI run [45872265313](https://github.com/Markcino/KoloVibe/actions/runs/45872265313) at `e82f43e` passed all jobs, including publishing. It is no longer an active blocker.
+- **Unchanged:**
+  - D13-001 (#271): Points audit still undelivered. The correction plan is `R1_Points_Audit_Key_Correction_Plan_2026-11-27.md` and waits on the owner.
+  - D13-002 and D13-003.
+  - D13-004 (#274): the capacity report and budget proposal are in `R1_Staging_CPU_Budget_Proposal_2026-11-27.md` and wait on the owner.
+  - D13-005: release labels and proof after the rollout outside the tool; to be reconciled.
+  - Production stays **NO-GO**.
+- **Not re-verified here:** the 26 November 17:55 UTC deployment readback. It is reported on #169 and not repeated in this session.
